@@ -19,7 +19,7 @@ run: main
 .PHONY: samples
 samples:
 	@echo "Downloading samples..."
-	mkdir -p samples
+	@mkdir -p samples
 	@wget --quiet --show-progress -O samples/gb0.ogg https://upload.wikimedia.org/wikipedia/commons/2/22/George_W._Bush%27s_weekly_radio_address_%28November_1%2C_2008%29.oga
 	@wget --quiet --show-progress -O samples/gb1.ogg https://upload.wikimedia.org/wikipedia/commons/1/1f/George_W_Bush_Columbia_FINAL.ogg
 	@wget --quiet --show-progress -O samples/hp0.ogg https://upload.wikimedia.org/wikipedia/en/d/d4/En.henryfphillips.ogg
@@ -31,10 +31,11 @@ samples:
 .PHONY: tiny.en
 tiny.en: main
 	@echo "Downloading tiny.en (75 MB just once)"
-	mkdir -p models
+	@mkdir -p models
 	@if [ ! -f models/ggml-tiny.en.bin ]; then \
 		wget --quiet --show-progress -O models/ggml-tiny.en.bin https://ggml.ggerganov.com/ggml-model-whisper-tiny.en.bin ; \
 	fi
+	@echo ""
 	@echo "==============================================="
 	@echo "Running tiny.en on all samples in ./samples ..."
 	@echo "==============================================="
@@ -51,10 +52,11 @@ tiny.en: main
 .PHONY: base.en
 base.en: main
 	@echo "Downloading base.en (142 MB just once)"
-	mkdir -p models
+	@mkdir -p models
 	@if [ ! -f models/ggml-base.en.bin ]; then \
 		wget --quiet --show-progress -O models/ggml-base.en.bin https://ggml.ggerganov.com/ggml-model-whisper-base.en.bin ; \
 	fi
+	@echo ""
 	@echo "==============================================="
 	@echo "Running base.en on all samples in ./samples ..."
 	@echo "==============================================="
@@ -71,10 +73,11 @@ base.en: main
 .PHONY: small.en
 small.en: main
 	@echo "Downloading small.en (466 MB just once)"
-	mkdir -p models
+	@mkdir -p models
 	@if [ ! -f models/ggml-small.en.bin ]; then \
 		wget --quiet --show-progress -O models/ggml-small.en.bin https://ggml.ggerganov.com/ggml-model-whisper-small.en.bin ; \
 	fi
+	@echo ""
 	@echo "==============================================="
 	@echo "Running small.en on all samples in ./samples ..."
 	@echo "==============================================="
@@ -91,10 +94,11 @@ small.en: main
 .PHONY: medium.en
 medium.en: main
 	@echo "Downloading medium.en (1.5 GB just once)"
-	mkdir -p models
+	@mkdir -p models
 	@if [ ! -f models/ggml-medium.en.bin ]; then \
 		wget --quiet --show-progress -O models/ggml-medium.en.bin https://ggml.ggerganov.com/ggml-model-whisper-medium.en.bin ; \
 	fi
+	@echo ""
 	@echo "==============================================="
 	@echo "Running medium.en on all samples in ./samples ..."
 	@echo "==============================================="
