@@ -3,10 +3,10 @@ main: ggml.o main.o
 	./main -h
 
 ggml.o: ggml.c ggml.h
-	gcc -O3 -mavx -mavx2 -mfma -mf16c -c ggml.c
+	gcc -pthread -O3 -mavx -mavx2 -mfma -mf16c -c ggml.c
 
 main.o: main.cpp ggml.h
-	g++ -O3 -std=c++11 -c main.cpp
+	g++ -pthread -O3 -std=c++11 -c main.cpp
 
 # clean up the directory
 clean:
