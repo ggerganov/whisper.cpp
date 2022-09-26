@@ -117,9 +117,9 @@ struct whisper_params {
     bool verbose = false;
     bool print_special_tokens = false;
 
-    std::string model = "models/whisper-tiny.en/ggml-model.bin"; // model path
+    std::string model = "models/ggml-base.en.bin"; // model path
 
-    std::string fname_inp = "default.wav";
+    std::string fname_inp = "samples/jfk.wav";
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -156,6 +156,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
 }
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params) {
+    fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options]\n", argv[0]);
     fprintf(stderr, "\n");
     fprintf(stderr, "options:\n");
@@ -1898,7 +1899,6 @@ int main(int argc, char ** argv) {
     const int64_t t_main_start_us = ggml_time_us();
 
     whisper_params params;
-    params.model = "models/whisper-tiny.en/ggml-model.bin";
 
     if (whisper_params_parse(argc, argv, params) == false) {
         return 1;
@@ -1927,6 +1927,7 @@ int main(int argc, char ** argv) {
 
         if (!whisper_model_load(params.model, model, vocab)) {
             fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, params.model.c_str());
+            whisper_print_usage(argc, argv, {});
             return 1;
         }
 
@@ -1939,6 +1940,7 @@ int main(int argc, char ** argv) {
         drwav wav;
         if (!drwav_init_file(&wav, params.fname_inp.c_str(), NULL)) {
             fprintf(stderr, "%s: failed to open WAV file '%s' - check your input\n", argv[0], params.fname_inp.c_str());
+            whisper_print_usage(argc, argv, {});
             return 2;
         }
 

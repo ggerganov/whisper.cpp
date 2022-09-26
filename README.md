@@ -8,6 +8,20 @@ C/C++ port of [OpenAI's Whisper](https://github.com/openai/whisper) speech-to-te
 
 ## Usage
 
+To build the main program, run `make`. You can then transribe a `.wav` file like this:
+
+```bash
+$ ./main -f input.wav
+```
+
+Before running the program, make sure to download one of the ggml Whisper models. For example:
+
+```bash
+bash ./download-ggml-model.sh base.en
+```
+
+---
+
 For a quick demo, simply run `make base.en`:
 
 ```bash
@@ -97,12 +111,12 @@ ffmpeg -i input.mp3 -ar 16000 -ac 1 -c:a pcm_s16le output.wav
 
 ## Memory usage
 
-| Model | Mem |
-| ---   | --- |
-| tiny.en | ~600 MB |
-| base.en | ~800 MB |
-| small.en | ~1.6 GB |
-| medium.en | ~3.5 GB |
+| Model | Disk | Mem |
+| ---   | --- | --- |
+| tiny.en | 75 MB | ~600 MB |
+| base.en | 142 MB | ~800 MB |
+| small.en | 466 MB | ~1.6 GB |
+| medium.en | 1.5 GB | ~3.5 GB |
 
 ## ggml format
 
@@ -112,5 +126,7 @@ The original models are converted to a custom binary format. This allows to pack
 - mel filters
 - vocabulary
 - weights
+
+You can download the converted models using the [download-ggml-model.sh](download-ggml-model.sh) script.
 
 For more details, see the conversion script [convert-pt-to-ggml.py](convert-pt-to-ggml.py)

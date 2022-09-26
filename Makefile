@@ -1,5 +1,6 @@
 main: ggml.o main.o
 	g++ -o main ggml.o main.o
+	./main -h
 
 ggml.o: ggml.c ggml.h
 	gcc -O3 -mavx -mavx2 -mfma -mf16c -c ggml.c
@@ -11,11 +12,7 @@ main.o: main.cpp ggml.h
 clean:
 	rm -f *.o main
 
-# run the program
-run: main
-	./main
-
-# download the following audio samples into folder "./samples":
+# download a few audio samples into folder "./samples":
 .PHONY: samples
 samples:
 	@echo "Downloading samples..."
@@ -28,79 +25,20 @@ samples:
 	@ffmpeg -loglevel -0 -y -i samples/gb1.ogg -ar 16000 -ac 1 -c:a pcm_s16le samples/gb1.wav
 	@ffmpeg -loglevel -0 -y -i samples/hp0.ogg -ar 16000 -ac 1 -c:a pcm_s16le samples/hp0.wav
 
+
+# if not already downloaded, the following targets download the specified model and
+# runs it on all samples in the folder "./samples":
+
 .PHONY: tiny.en
-tiny.en: main
-	@echo "Downloading tiny.en (75 MB just once)"
-	@mkdir -p models
-	@if [ ! -f models/ggml-tiny.en.bin ]; then \
-		wget --quiet --show-progress -O models/ggml-tiny.en.bin https://ggml.ggerganov.com/ggml-model-whisper-tiny.en.bin ; \
-	fi
-	@echo ""
-	@echo "==============================================="
-	@echo "Running tiny.en on all samples in ./samples ..."
-	@echo "==============================================="
-	@echo ""
-	@for f in samples/*.wav; do \
-		echo "----------------------------------------------" ; \
-		echo "[+] Running base.en on $$f ... (run 'ffplay $$f' to listen)" ; \
-	    echo "----------------------------------------------" ; \
-		echo "" ; \
-		./main -m models/ggml-tiny.en.bin -f $$f ; \
-		echo "" ; \
-	done
-
 .PHONY: base.en
-base.en: main
-	@echo "Downloading base.en (142 MB just once)"
-	@mkdir -p models
-	@if [ ! -f models/ggml-base.en.bin ]; then \
-		wget --quiet --show-progress -O models/ggml-base.en.bin https://ggml.ggerganov.com/ggml-model-whisper-base.en.bin ; \
-	fi
-	@echo ""
-	@echo "==============================================="
-	@echo "Running base.en on all samples in ./samples ..."
-	@echo "==============================================="
-	@echo ""
-	@for f in samples/*.wav; do \
-		echo "----------------------------------------------" ; \
-		echo "[+] Running base.en on $$f ... (run 'ffplay $$f' to listen)" ; \
-	    echo "----------------------------------------------" ; \
-		echo "" ; \
-		./main -m models/ggml-base.en.bin -f $$f ; \
-		echo "" ; \
-	done
-
-.PHONY: small.en
-small.en: main
-	@echo "Downloading small.en (466 MB just once)"
-	@mkdir -p models
-	@if [ ! -f models/ggml-small.en.bin ]; then \
-		wget --quiet --show-progress -O models/ggml-small.en.bin https://ggml.ggerganov.com/ggml-model-whisper-small.en.bin ; \
-	fi
-	@echo ""
-	@echo "==============================================="
-	@echo "Running small.en on all samples in ./samples ..."
-	@echo "==============================================="
-	@echo ""
-	@for f in samples/*.wav; do \
-		echo "----------------------------------------------" ; \
-		echo "[+] Running base.en on $$f ... (run 'ffplay $$f' to listen)" ; \
-	    echo "----------------------------------------------" ; \
-		echo "" ; \
-		./main -m models/ggml-small.en.bin -f $$f ; \
-		echo "" ; \
-	done
-
 .PHONY: medium.en
-medium.en: main
-	@echo "Downloading medium.en (1.5 GB just once)"
-	@mkdir -p models
-	@if [ ! -f models/ggml-medium.en.bin ]; then \
-		wget --quiet --show-progress -O models/ggml-medium.en.bin https://ggml.ggerganov.com/ggml-model-whisper-medium.en.bin ; \
-	fi
+.PHONY: small.en
+
+tiny.en base.en medium.en small.en: main
+	bash ./download-ggml-model.sh $@
 	@echo ""
 	@echo "==============================================="
-	@echo "Running medium.en on all samples in ./samples ..."
+	@echo "Running $@ on all samples in ./samples ..."
 	@echo "==============================================="
 	@echo ""
 	@for f in samples/*.wav; do \
@@ -108,6 +46,6 @@ medium.en: main
 		echo "[+] Running base.en on $$f ... (run 'ffplay $$f' to listen)" ; \
 	    echo "----------------------------------------------" ; \
 		echo "" ; \
-		./main -m models/ggml-medium.en.bin -f $$f ; \
+		./main -m models/ggml-$@.bin -f $$f ; \
 		echo "" ; \
 	done
