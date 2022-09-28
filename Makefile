@@ -30,11 +30,16 @@ samples:
 # runs it on all samples in the folder "./samples":
 
 .PHONY: tiny.en
+.PHONY: tiny
 .PHONY: base.en
-.PHONY: medium.en
+.PHONY: base
 .PHONY: small.en
+.PHONY: small
+.PHONY: medium.en
+.PHONY: medium
+.PHONY: large
 
-tiny.en base.en medium.en small.en: main
+tiny.en tiny base.en base small.en small medium.en medium large: main
 	bash ./download-ggml-model.sh $@
 	@echo ""
 	@echo "==============================================="

@@ -6,7 +6,7 @@
 ggml_path=$(dirname $(realpath $0))
 
 # Whisper models
-models=( "tiny.en" "base.en" "small.en" "medium.en" )
+models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large" )
 
 # list available models
 function list_models {
