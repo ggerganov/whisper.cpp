@@ -1,5 +1,5 @@
 main: ggml.o main.o
-	g++ -o main ggml.o main.o
+	g++ -pthread -o main ggml.o main.o
 	./main -h
 
 ggml.o: ggml.c ggml.h
