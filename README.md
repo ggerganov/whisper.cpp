@@ -6,10 +6,11 @@ C/C++ port of [OpenAI's Whisper](https://github.com/openai/whisper) speech-to-te
 - ARM_NEON and AVX intrinsics support
 - Mixed F16 / F32 support
 - Low memory usage (Flash Attention + Flash Forward)
+- Zero memory allocations at runtime
 
 ## Usage
 
-To build the main program, run `make`. You can then transribe a `.wav` file like this:
+To build the main program, run `make`. You can then transcribe a `.wav` file like this:
 
 ```bash
 $ ./main -f input.wav
