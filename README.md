@@ -26,7 +26,7 @@ bash ./download-ggml-model.sh base.en
 
 For a quick demo, simply run `make base.en`:
 
-```bash
+```java
 $ make base.en
 
 gcc -pthread -O3 -mavx -mavx2 -mfma -mf16c -c ggml.c
@@ -123,13 +123,13 @@ For detailed usage instructions, run: `./main -h`
 Note that `whisper.cpp` runs only with 16-bit WAV files, so make sure to convert your input before running the tool.
 For example, you can use `ffmpeg` like this:
 
-```bash
+```java
 ffmpeg -i input.mp3 -ar 16000 -ac 1 -c:a pcm_s16le output.wav
 ```
 
 Here is another example of transcribing a [3:24 min speech](https://upload.wikimedia.org/wikipedia/commons/1/1f/George_W_Bush_Columbia_FINAL.ogg) in less than a minute, using `medium.en` model:
 
-```bash
+```java
 $ ./main -m models/ggml-medium.en.bin -f samples/gb1.wav -t 8
 whisper_model_load: loading model from 'models/ggml-medium.en.bin'
 whisper_model_load: n_vocab       = 51864
