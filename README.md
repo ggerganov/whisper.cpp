@@ -96,6 +96,17 @@ main:    total time =   908.15 ms
 
 The command downloads the `base.en` model converted to custom `ggml` format and runs the inference on all `.wav` samples in the folder `samples`.
 
+For detailed usage instructions, run: `./main -h`
+
+Note that `whisper.cpp` currently runs only with 16-bit WAV files, so make sure to convert your input before running the tool.
+For example, you can use `ffmpeg` like this:
+
+```java
+ffmpeg -i input.mp3 -ar 16000 -ac 1 -c:a pcm_s16le output.wav
+```
+
+## More audio samples
+
 If you want some extra audio samples to play with, simply run:
 
 ```
@@ -118,14 +129,7 @@ make medium
 make large
 ```
 
-For detailed usage instructions, run: `./main -h`
-
-Note that `whisper.cpp` runs only with 16-bit WAV files, so make sure to convert your input before running the tool.
-For example, you can use `ffmpeg` like this:
-
-```java
-ffmpeg -i input.mp3 -ar 16000 -ac 1 -c:a pcm_s16le output.wav
-```
+## Another example
 
 Here is another example of transcribing a [3:24 min speech](https://upload.wikimedia.org/wikipedia/commons/1/1f/George_W_Bush_Columbia_FINAL.ogg) in less than a minute, using `medium.en` model:
 
