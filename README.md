@@ -4,10 +4,11 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 
 - Plain C/C++ implementation without dependencies
 - ARM_NEON and AVX intrinsics support
-- Mixed F16 / F32 support
+- Mixed F16 / F32 precision
 - Low memory usage (Flash Attention + Flash Forward)
 - Zero memory allocations at runtime
-- Runs on the CPU (Mac and Linux support)
+- Runs on the CPU (Mac and Linux)
+- Runs on a Raspberry Pi [#7](https://github.com/ggerganov/whisper.cpp/issues/7)
 
 ## Usage
 
