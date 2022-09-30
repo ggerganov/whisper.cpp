@@ -1859,7 +1859,7 @@ whisper_vocab::id whisper_sample_best(
     if (need_timestamp) {
         // at the end of the 30-second audio segment, we start giving preference to time tokens
         for (int i = 0; i < top_k; i++) {
-            if (probs_id[i].second > vocab.token_beg + 1300 && probs_id[i].first > probs_id[0].first*0.1) {
+            if (probs_id[i].second > vocab.token_beg + 1300 && probs_id[i].first > 0.01*probs_id[0].first) {
                 return probs_id[i].second;
             }
         }
@@ -2201,7 +2201,7 @@ int main(int argc, char ** argv) {
     }
 
     // the generated text including timestamps
-    std::vector<whisper_result> result_all;
+    //std::vector<whisper_result> result_all;
 
     // main loop
     int seek = 0;
@@ -2258,7 +2258,7 @@ int main(int argc, char ** argv) {
         int result_len = 0;
         std::vector<whisper_result> result_cur;
 
-        for (int i = 0; i < model.hparams.n_text_ctx/2; ++i) {
+        for (int i = 0; i < model.hparams.n_text_ctx/2 - 4; ++i) {
             // decode
             if (prompt.size() > 0) {
                 const int64_t t_start_us = ggml_time_us();
@@ -2323,7 +2323,7 @@ int main(int argc, char ** argv) {
         }
 
         result_cur.resize(result_len);
-        result_all.insert(result_all.end(), result_cur.begin(), result_cur.end());
+        //result_all.insert(result_all.end(), result_cur.begin(), result_cur.end());
 
         for (const auto & r : result_cur) {
             prompt_past.push_back(r.id);
