@@ -1,12 +1,13 @@
 # whisper.cpp
 
-C/C++ port of [OpenAI's Whisper](https://github.com/openai/whisper) speech-to-text model
+High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
 - Plain C/C++ implementation without dependencies
 - ARM_NEON and AVX intrinsics support
 - Mixed F16 / F32 support
 - Low memory usage (Flash Attention + Flash Forward)
 - Zero memory allocations at runtime
+- Runs on the CPU (Mac and Linux support)
 
 ## Usage
 
@@ -50,7 +51,12 @@ options:
 
 bash ./download-ggml-model.sh base.en
 Downloading ggml model base.en ...
-Model base.en already exists. Skipping download.
+models/ggml-base.en.bin          100%[=====================================>] 141.11M  8.58MB/s    in 22s
+Done! Model 'base.en' saved in 'models/ggml-base.en.bin'
+You can now use it like this:
+
+  $ ./main -m models/ggml-base.en.bin -f samples/jfk.wav
+
 
 ===============================================
 Running base.en on all samples in ./samples ...
@@ -73,7 +79,7 @@ whisper_model_load: n_text_layer  = 6
 whisper_model_load: n_mels        = 80
 whisper_model_load: f16           = 1
 whisper_model_load: type          = 2
-whisper_model_load: mem_required  = 611.00 MB
+whisper_model_load: mem_required  = 377.00 MB
 whisper_model_load: adding 1607 extra tokens
 whisper_model_load: ggml ctx size = 163.43 MB
 whisper_model_load: memory size =    22.83 MB
@@ -86,12 +92,12 @@ main: processing 176000 samples (11.0 sec), 4 threads, lang = english, task = tr
 [00:00.000 --> 00:11.000]   And so my fellow Americans ask not what your country can do for you. Ask what you can do for your country.
 
 
-main:     load time =    61.78 ms
-main:      mel time =    41.74 ms
-main:   sample time =     2.10 ms
-main:   encode time =   718.60 ms / 119.77 ms per layer
-main:   decode time =    83.55 ms
-main:    total time =   908.15 ms
+main:     load time =    82.05 ms
+main:      mel time =    44.15 ms
+main:   sample time =     1.98 ms
+main:   encode time =   674.77 ms / 112.46 ms per layer
+main:   decode time =    82.91 ms
+main:    total time =   886.29 ms
 ```
 
 The command downloads the `base.en` model converted to custom `ggml` format and runs the inference on all `.wav` samples in the folder `samples`.
@@ -131,10 +137,12 @@ make large
 
 ## Another example
 
-Here is another example of transcribing a [3:24 min speech](https://upload.wikimedia.org/wikipedia/commons/1/1f/George_W_Bush_Columbia_FINAL.ogg) in less than a minute, using `medium.en` model:
+Here is another example of transcribing a [3:24 min speech](https://upload.wikimedia.org/wikipedia/commons/1/1f/George_W_Bush_Columbia_FINAL.ogg)
+in less than a minute on a MacBook M1 Pro, using `medium.en` model:
 
 ```java
 $ ./main -m models/ggml-medium.en.bin -f samples/gb1.wav -t 8
+
 whisper_model_load: loading model from 'models/ggml-medium.en.bin'
 whisper_model_load: n_vocab       = 51864
 whisper_model_load: n_audio_ctx   = 1500
@@ -148,7 +156,7 @@ whisper_model_load: n_text_layer  = 24
 whisper_model_load: n_mels        = 80
 whisper_model_load: f16           = 1
 whisper_model_load: type          = 4
-whisper_model_load: mem_required  = 2786.00 MB
+whisper_model_load: mem_required  = 2502.00 MB
 whisper_model_load: adding 1607 extra tokens
 whisper_model_load: ggml ctx size = 1644.97 MB
 whisper_model_load: memory size =   182.62 MB
@@ -187,30 +195,30 @@ main: processing 3179750 samples (198.7 sec), 8 threads, lang = english, task = 
 [03:14.000 --> 03:24.000]   [Music]
 
 
-main:     load time =   438.55 ms
-main:      mel time =   440.22 ms
-main:   sample time =    32.23 ms
-main:   encode time = 42329.63 ms / 1763.73 ms per layer
-main:   decode time = 15190.00 ms
-main:    total time = 58444.63 ms
+main:     load time =   522.18 ms
+main:      mel time =   423.43 ms
+main:   sample time =    31.42 ms
+main:   encode time = 41518.51 ms / 1729.94 ms per layer
+main:   decode time = 14907.22 ms
+main:    total time = 57416.63 ms
 ```
 
 ## Limitations
 
 - Very basic greedy sampling scheme - always pick up the top token
+- Only 16-bit WAV at 16 kHz is supported
 - Inference only
-- Runs on the CPU
-- Only mono-channel 16-bit WAV is supported
+- No GPU support
 
 ## Memory usage
 
-| Model | Disk | Mem |
-| ---   | --- | --- |
-| tiny | 75 MB | ~460 MB |
-| base | 142 MB | ~620 MB |
-| small | 466 MB | ~1.3 GB |
-| medium | 1.5 GB | ~2.8 GB |
-| large | 2.9 GB | ~4.9 GB |
+| Model  | Disk   | Mem     |
+| ---    | ---    | ---     |
+| tiny   |  75 MB | ~240 MB |
+| base   | 142 MB | ~380 MB |
+| small  | 466 MB | ~970 MB |
+| medium | 1.5 GB | ~2.5 GB |
+| large  | 2.9 GB | ~4.6 GB |
 
 ## ggml format
 
