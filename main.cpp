@@ -2140,20 +2140,22 @@ int main(int argc, char ** argv) {
             return 5;
         }
 
+        int n = wav.totalPCMFrameCount;
+
         std::vector<int16_t> pcm16;
-        pcm16.resize(wav.totalPCMFrameCount);
-        drwav_read_pcm_frames_s16(&wav, wav.totalPCMFrameCount, pcm16.data());
+        pcm16.resize(n*wav.channels);
+        drwav_read_pcm_frames_s16(&wav, n, pcm16.data());
         drwav_uninit(&wav);
 
-        // convert to float
-        pcmf32.resize(pcm16.size());
+        // convert to mono, float
+        pcmf32.resize(n);
         if (wav.channels == 1) {
-            for (size_t i = 0; i < pcm16.size(); i++) {
+            for (size_t i = 0; i < n; i++) {
                 pcmf32[i] = float(pcm16[i])/32768.0f;
             }
         } else {
-            for (size_t i = 0; i < pcm16.size(); i++) {
-                pcmf32[i] = float(pcm16[i*2 + 0] + pcm16[i*2 + 1])/32768.0f/2.0f;
+            for (size_t i = 0; i < n; i++) {
+                pcmf32[i] = float(pcm16[2*i] + pcm16[2*i + 1])/65536.0f;
             }
         }
     }
