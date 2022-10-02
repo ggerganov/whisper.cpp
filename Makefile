@@ -1,3 +1,5 @@
+CC_SDL=`sdl2-config --cflags --libs`
+
 main: ggml.o main.o
 	g++ -pthread -o main ggml.o main.o
 	./main -h
@@ -7,6 +9,9 @@ ggml.o: ggml.c ggml.h
 
 main.o: main.cpp ggml.h
 	g++ -pthread -O3 -std=c++11 -c main.cpp
+
+stream: stream.cpp
+	g++ -pthread -O3 -std=c++11 -o stream stream.cpp ggml.o $(CC_SDL)
 
 # clean up the directory
 clean:
