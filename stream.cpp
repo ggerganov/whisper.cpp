@@ -2252,8 +2252,22 @@ int main(int argc, char ** argv) {
 
     SDL_PauseAudioDevice(g_dev_id_in, 0);
 
+    bool is_running = true;
+
     // main audio loop
-    while (true) {
+    while (is_running) {
+        // process SDL events:
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+                case SDL_QUIT:
+                    is_running = false;
+                    break;
+                default:
+                    break;
+            }
+        }
+
         // process 3 seconds of new audio
         while ((int) SDL_GetQueuedAudioSize(g_dev_id_in) < 3*SAMPLE_RATE*sizeof(float)) {
             SDL_Delay(1);
