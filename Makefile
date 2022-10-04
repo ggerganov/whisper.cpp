@@ -1,17 +1,20 @@
 CC_SDL=`sdl2-config --cflags --libs`
 
-main: ggml.o main.o
-	g++ -pthread -o main ggml.o main.o
+main: ggml.o whisper.o main.o
+	g++ -pthread -o main ggml.o whisper.o main.o
 	./main -h
 
 ggml.o: ggml.c ggml.h
 	gcc -pthread -O3 -mavx -mavx2 -mfma -mf16c -c ggml.c
 
+whisper.o: whisper.cpp whisper.h
+	gcc -pthread -O3 -std=c++11 -c whisper.cpp
+
 main.o: main.cpp ggml.h
 	g++ -pthread -O3 -std=c++11 -c main.cpp
 
 stream: stream.cpp
-	g++ -pthread -O3 -std=c++11 -o stream stream.cpp ggml.o $(CC_SDL)
+	g++ -pthread -O3 -std=c++11 -o stream stream.cpp ggml.o whisper.o $(CC_SDL)
 
 # clean up the directory
 clean:
