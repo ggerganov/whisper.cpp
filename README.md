@@ -8,6 +8,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Low memory usage (Flash Attention + Flash Forward)
 - Zero memory allocations at runtime
 - Runs on the CPU (Mac and Linux)
+- [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 
 Incoming features:
 - [Realtime audio input transcription](https://github.com/ggerganov/whisper.cpp/issues/10#issuecomment-1264665959)
@@ -207,6 +208,17 @@ main:   encode time = 41518.51 ms / 1729.94 ms per layer
 main:   decode time = 14907.22 ms
 main:    total time = 57416.63 ms
 ```
+
+## Real-time audio input example
+
+This is a naive example of performing real-time inference on audio from your microphone.
+The `stream` tool samples the audio every 3 seconds and runs the transcription continously. More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
+
+```java
+$ ./stream -m models/ggml-small.en.bin -t 8
+```
+
+https://user-images.githubusercontent.com/1991296/193465125-c163d304-64f6-4f5d-83e5-72239c9a203e.mp4
 
 ## Limitations
 
