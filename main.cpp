@@ -181,6 +181,9 @@ int main(int argc, char ** argv) {
     {
         whisper_full_params wparams = whisper_full_default_params(WHISPER_DECODE_GREEDY);
 
+        wparams.print_realtime       = true;
+        wparams.print_progress       = false;
+        wparams.print_timestamps     = !params.no_timestamps;
         wparams.print_special_tokens = params.print_special_tokens;
 
         if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
@@ -189,7 +192,7 @@ int main(int argc, char ** argv) {
         }
 
         // print result;
-        {
+        if (!wparams.print_realtime) {
             printf("\n");
 
             const int n_segments = whisper_full_n_segments(ctx);

@@ -1854,6 +1854,18 @@ whisper_vocab::id whisper_sample_timestamp(
     return probs_id[0].second;
 }
 
+static std::string to_timestamp(int64_t t) {
+    int64_t sec = t/100;
+    int64_t msec = t - sec*100;
+    int64_t min = sec/60;
+    sec = sec - min*60;
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%02d:%02d.%03d", (int) min, (int) sec, (int) msec);
+
+    return std::string(buf);
+}
+
 // naive Discrete Fourier Transform
 // input is real-valued
 // output is complex-valued
@@ -2245,6 +2257,8 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
                     .translate            = false,
                     .print_special_tokens = false,
                     .print_progress       = true,
+                    .print_realtime       = false,
+                    .print_timestamps     = true,
 
                     .language = "en",
 
@@ -2262,6 +2276,8 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
                     .translate            = false,
                     .print_special_tokens = false,
                     .print_progress       = true,
+                    .print_realtime       = false,
+                    .print_timestamps     = true,
 
                     .language = "en",
 
@@ -2436,6 +2452,15 @@ int whisper_full(
                 if (result_cur[i].id > whisper_token_beg(ctx)) {
                     const auto t1 = result_cur[i].t;
                     if (!text.empty()) {
+                        if (params.print_realtime) {
+                            if (params.print_timestamps) {
+                                printf("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text.c_str());
+                            } else {
+                                printf("%s", text.c_str());
+                                fflush(stdout);
+                            }
+                        }
+
                         result_all.push_back({ t0, t1, text });
                     }
                     text = "";
@@ -2448,7 +2473,18 @@ int whisper_full(
             }
 
             if (!text.empty()) {
-                result_all.push_back({ t0, seek + seek_delta, text });
+                const auto t1 = seek + seek_delta;
+
+                if (params.print_realtime) {
+                    if (params.print_timestamps) {
+                        printf("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text.c_str());
+                    } else {
+                        printf("%s", text.c_str());
+                        fflush(stdout);
+                    }
+                }
+
+                result_all.push_back({ t0, t1, text });
             }
         }
 
