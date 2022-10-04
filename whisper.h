@@ -1,6 +1,8 @@
 #ifndef WHISPER_H
 #define WHISPER_H
 
+#include <stdint.h>
+
 #ifdef WHISPER_SHARED
 #    ifdef _WIN32
 #        ifdef WHISPER_BUILD
@@ -15,6 +17,12 @@
 #    define WHISPER_API
 #endif
 
+#define WHISPER_SAMPLE_RATE 16000
+#define WHISPER_N_FFT       400
+#define WHISPER_N_MEL       80
+#define WHISPER_HOP_LENGTH  160
+#define WHISPER_CHUNK_SIZE  30
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,12 +30,6 @@ extern "C" {
     //
     // C interface
     //
-
-#define SAMPLE_RATE 16000
-#define N_FFT       400
-#define N_MEL       80
-#define HOP_LENGTH  160
-#define CHUNK_SIZE  30
 
     // TODO: documentation will come soon
 
@@ -101,7 +103,9 @@ extern "C" {
 
         int n_threads;
 
-        bool transcribe;
+        bool translate;
+        bool print_special_tokens;
+        bool print_progress;
 
         const char * language;
 
@@ -118,13 +122,21 @@ extern "C" {
         };
     };
 
+    WHISPER_API struct whisper_full_params whisper_full_default_params(enum whisper_decode_strategy strategy);
+
     // full whisper run - encode + decode
-    // TODO: implement
     WHISPER_API int whisper_full(
             struct whisper_context * ctx,
-            struct whisper_full_params * params,
+            struct whisper_full_params params,
             const float * samples,
             int n_samples);
+
+    WHISPER_API int whisper_full_n_segments(struct whisper_context * ctx);
+
+    WHISPER_API int64_t whisper_full_get_segment_t0(struct whisper_context * ctx, int i_segment);
+    WHISPER_API int64_t whisper_full_get_segment_t1(struct whisper_context * ctx, int i_segment);
+
+    WHISPER_API const char * whisper_full_get_segment_text(struct whisper_context * ctx, int i_segment);
 
 #ifdef __cplusplus
 }
