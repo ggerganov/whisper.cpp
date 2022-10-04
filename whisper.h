@@ -106,6 +106,8 @@ extern "C" {
         bool translate;
         bool print_special_tokens;
         bool print_progress;
+        bool print_realtime;
+        bool print_timestamps;
 
         const char * language;
 
