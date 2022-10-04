@@ -18,11 +18,6 @@
 #include <thread>
 #include <vector>
 
-int64_t get_time_us() {
-    return std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-}
-
 //  500 -> 00:05.000
 // 6000 -> 01:00.000
 std::string to_timestamp(int64_t t) {
@@ -36,11 +31,6 @@ std::string to_timestamp(int64_t t) {
 
     return std::string(buf);
 }
-
-struct whisper_result {
-    whisper_token id;
-    int64_t t;
-};
 
 // command-line parameters
 struct whisper_params {
@@ -155,7 +145,7 @@ bool audio_sdl_init(const int capture_id) {
         SDL_zero(capture_spec_requested);
         SDL_zero(capture_spec_obtained);
 
-        capture_spec_requested.freq     = SAMPLE_RATE;
+        capture_spec_requested.freq     = WHISPER_SAMPLE_RATE;
         capture_spec_requested.format   = AUDIO_F32;
         capture_spec_requested.channels = 1;
         capture_spec_requested.samples  = 1024;
@@ -186,8 +176,6 @@ bool audio_sdl_init(const int capture_id) {
 ///////////////////////////
 
 int main(int argc, char ** argv) {
-    const int64_t t_main_start_us = get_time_us();
-
     whisper_params params;
 
     if (whisper_params_parse(argc, argv, params) == false) {
@@ -209,7 +197,7 @@ int main(int argc, char ** argv) {
 
     struct whisper_context * ctx = whisper_init(params.model.c_str());
 
-    const int n_samples_30s = 30*SAMPLE_RATE;
+    const int n_samples_30s = 30*WHISPER_SAMPLE_RATE;
     std::vector<float> pcmf32(n_samples_30s, 0.0f);
     std::vector<float> pcmf32_old;
 
@@ -224,7 +212,7 @@ int main(int argc, char ** argv) {
             }
         }
         printf("%s: processing %d samples (%.1f sec), %d threads, lang = %s, task = %s, timestamps = %d ...\n",
-                __func__, int(pcmf32.size()), float(pcmf32.size())/SAMPLE_RATE, params.n_threads,
+                __func__, int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE, params.n_threads,
                 params.language.c_str(),
                 params.translate ? "translate" : "transcribe",
                 params.no_timestamps ? 0 : 1);
@@ -250,7 +238,7 @@ int main(int argc, char ** argv) {
         }
 
         // process 3 seconds of new audio
-        while ((int) SDL_GetQueuedAudioSize(g_dev_id_in) < 3*SAMPLE_RATE*sizeof(float)) {
+        while ((int) SDL_GetQueuedAudioSize(g_dev_id_in) < 3*WHISPER_SAMPLE_RATE*sizeof(float)) {
             SDL_Delay(1);
         }
         const int n_samples_new = SDL_GetQueuedAudioSize(g_dev_id_in)/sizeof(float);
@@ -271,167 +259,37 @@ int main(int argc, char ** argv) {
 
         pcmf32_old = pcmf32;
 
-        // compute log mel spectrogram
-        if (whisper_pcm_to_mel(ctx, pcmf32.data(), pcmf32.size(), params.n_threads) != 0) {
-            fprintf(stderr, "%s: failed to compute log mel spectrogram\n", argv[0]);
-            return 6;
-        }
+        // run the inference
+        {
+            whisper_full_params wparams = whisper_full_default_params(WHISPER_DECODE_GREEDY);
 
-        // the accumulated text context so far
-        std::vector<whisper_token> prompt_past = { };
+            wparams.print_progress       = false;
+            wparams.print_special_tokens = params.print_special_tokens;
 
-        // these tokens determine the task that will be performed
-        std::vector<whisper_token> prompt_init = { whisper_token_sot(ctx) };
-        if (whisper_is_multilingual(ctx)) {
-            prompt_init.push_back(whisper_token_sot(ctx) + 1 + whisper_lang_id(params.language.c_str()));
-            if (params.translate) {
-                prompt_init.push_back(whisper_token_translate());
-            } else {
-                prompt_init.push_back(whisper_token_transcribe());
-            }
-        }
-
-        // the generated text including timestamps
-        //std::vector<whisper_result> result_all;
-
-        // main loop
-        int seek = 0;
-        while (true) {
-            if (seek >= whisper_n_len(ctx)) {
-                break;
+            if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
+                fprintf(stderr, "%s: failed to process audio\n", argv[0]);
+                return 6;
             }
 
-            // encode audio features starting at offset seek
-            if (whisper_encode(ctx, seek, params.n_threads) != 0) {
-                fprintf(stderr, "%s: failed to encode\n", __func__);
-                return 7;
-            }
+            // print result;
+            {
+                printf("\n");
 
-            std::vector<whisper_token> prompt;
+                const int n_segments = whisper_full_n_segments(ctx);
+                for (int i = 0; i < n_segments; ++i) {
+                    const char * text = whisper_full_get_segment_text(ctx, i);
 
-            int n_past = 0;
-
-            // if we have already generated some text, use it as a prompt to condition the next generation
-            if (prompt_past.size() > 0) {
-                int n_take = std::min(whisper_n_text_ctx(ctx)/2, int(prompt_past.size()));
-
-                prompt = { whisper_token_prev(ctx) };
-                prompt.insert(prompt.begin() + 1, prompt_past.end() - n_take, prompt_past.end());
-
-                prompt_past.clear();
-                prompt_past.insert(prompt_past.end(), prompt.begin() + 1, prompt.end());
-            }
-
-            prompt.insert(prompt.end(), prompt_init.begin(), prompt_init.end());
-
-            bool done = false;
-            int seek_delta = 100*CHUNK_SIZE;
-            whisper_token last_id = 0;
-
-            // print the prompt
-            //printf("\n\n");
-            //for (int i = 0; i < prompt.size(); i++) {
-            //    printf("%s: prompt[%d] = %s\n", __func__, i, vocab.id_to_token[prompt[i]].c_str());
-            //}
-            //printf("\n\n");
-
-            // the accumulated transcription in the current interation
-            int result_len = 0;
-            std::vector<whisper_result> result_cur;
-
-            for (int i = 0; i < whisper_n_text_ctx(ctx)/2 - 4; ++i) {
-                if (whisper_decode(ctx, prompt.data(), prompt.size(), n_past, params.n_threads) != 0) {
-                    fprintf(stderr, "%s: failed to decode\n", __func__);
-                    return 8;
-                }
-
-                n_past += prompt.size();
-                prompt.clear();
-
-                // very basic greedy sampling strategy:
-                //
-                //   - always take the most probable token
-                //
-                // more sophisticated sampling strategies could be implemented here, but we keep it simple
-                // feel free to experiment!
-                //
-                {
-                    const int n_vocab = whisper_n_vocab(ctx);
-
-                    whisper_token id  = 0;
-                    whisper_token tid = whisper_token_beg(ctx);
-
-                    id = whisper_sample_best(ctx, result_len == 0);
-                    if (i > 0) {
-                        tid = whisper_sample_timestamp(ctx);
-                    }
-
-                    // update sliding window
-                    if (id > whisper_token_beg(ctx)) {
-                        seek_delta = 2*(id - whisper_token_beg(ctx));
-                        result_len = i + 1;
-                    }
-                    last_id = id;
-
-                    // add it to the context
-                    prompt.push_back(id);
-                    result_cur.push_back({ id, seek + 2*(tid - whisper_token_beg(ctx)) });
-
-                    //printf("%s: %s\n", __func__, vocab.id_to_token[id].c_str());
-
-                    // end of text token
-                    if (id == whisper_token_eot(ctx)) {
-                        break;
-                    }
-                }
-
-                if (done) {
-                    break;
-                }
-            }
-
-            result_cur.resize(result_len);
-            //result_all.insert(result_all.end(), result_cur.begin(), result_cur.end());
-
-            for (const auto & r : result_cur) {
-                prompt_past.push_back(r.id);
-            }
-
-            // print the text from this iteration
-            if (result_cur.size() > 0) {
-                auto t0 = result_cur.front().t;
-
-                std::string text = "";
-                for (int i = 0; i < result_cur.size(); i++) {
-                    if (params.print_special_tokens == false && result_cur[i].id >= whisper_token_eot(ctx)) {
+                    if (params.no_timestamps) {
+                        printf ("%s", text);
+                        fflush(stdout);
                     } else {
-                        text += whisper_token_to_str(ctx, result_cur[i].id);
-                    }
-                    if (result_cur[i].id > whisper_token_beg(ctx)) {
-                        const auto t1 = result_cur[i].t;
-                        if (!text.empty()) {
-                            if (params.no_timestamps) {
-                                printf ("%s", text.c_str());
-                                fflush(stdout);
-                            } else {
-                                printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text.c_str());
-                            }
-                        }
-                        text = "";
-                        while (result_cur[i].id > whisper_token_beg(ctx) && i < result_cur.size()) {
-                            i++;
-                        }
-                        i--;
-                        t0 = result_cur[i].t;
-                    }
-                }
+                        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+                        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
-                if (!text.empty()) {
-                    printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(seek + seek_delta).c_str(), text.c_str());
+                        printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
+                    }
                 }
             }
-
-            seek += seek_delta;
         }
     }
 
