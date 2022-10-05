@@ -187,6 +187,7 @@ int main(int argc, char ** argv) {
         wparams.print_special_tokens = params.print_special_tokens;
         wparams.translate            = params.translate;
         wparams.language             = params.language.c_str();
+        wparams.n_threads            = params.n_threads;
 
         if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
             fprintf(stderr, "%s: failed to process audio\n", argv[0]);
