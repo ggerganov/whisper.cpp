@@ -11,9 +11,6 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 - Supported platforms: Linux, Mac OS (Intel and Arm), Raspberry Pi, Android
 
-Incoming features:
-- [Realtime audio input transcription](https://github.com/ggerganov/whisper.cpp/issues/10#issuecomment-1264665959)
-
 ## Usage
 
 To build the main program, run `make`. You can then transcribe a `.wav` file like this:
@@ -221,10 +218,10 @@ https://user-images.githubusercontent.com/1991296/193465125-c163d304-64f6-4f5d-8
 
 ## Implementation details
 
-- The core tensor operations are implemented in C (`ggml.h` / `ggml.c`)
-- The high-level C-style API is implemented in C++ (`whisper.h` / `whisper.cpp`)
-- Simple usage is demonstrated in `main.cpp`
-- Sample real-time audio transcription from the microphone is demonstrated in `stream.cpp`
+- The core tensor operations are implemented in C ([ggml.h](ggml.h) / [ggml.c](ggml.c))
+- The high-level C-style API is implemented in C++ ([whisper.h](whisper.h) / [whisper.cpp](whisper.cpp))
+- Simple usage is demonstrated in [main.cpp](main.cpp)
+- Sample real-time audio transcription from the microphone is demonstrated in [stream.cpp](stream.cpp)
 
 ## Limitations
 
