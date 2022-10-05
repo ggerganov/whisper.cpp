@@ -2,12 +2,21 @@
 
 #include <assert.h>
 #include <time.h>
+#if defined(_MSC_VER)
+#include <windows.h>
+#include <sys/timeb.h>
+#define _USE_MATH_DEFINES
+#endif
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#if defined(_MSC_VER)
+#include "stdatomic.h"
+#else
 #include <stdatomic.h>
+#endif
 
 #include <pthread.h>
 
@@ -139,15 +148,35 @@ static ggml_fp16_t table_exp_f16[1 << 16];
 //
 
 int64_t ggml_time_ms(void) {
+#if defined(_MSC_VER)
+    LARGE_INTEGER li;
+    static int64_t PCFreq = 0.0;
+    int has_qpc = QueryPerformanceFrequency(&li);
+    assert(has_qpc);
+    PCFreq = ((int64_t)li.QuadPart) / 1000.0;
+    QueryPerformanceCounter(&li);
+    return (((int64_t)li.QuadPart) / PCFreq)/1000;
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (int64_t)ts.tv_sec*1000 + (int64_t)ts.tv_nsec/1000000;
+#endif
 }
 
 int64_t ggml_time_us(void) {
+#if defined(_MSC_VER)
+    LARGE_INTEGER li;
+    static int64_t PCFreq = 0.0;
+    int has_qpc = QueryPerformanceFrequency(&li);
+    assert(has_qpc);
+    PCFreq = ((int64_t)li.QuadPart) / 1000.0;
+    QueryPerformanceCounter(&li);
+    return (((int64_t)li.QuadPart) / PCFreq) / 1000000;
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (int64_t)ts.tv_sec*1000000 + (int64_t)ts.tv_nsec/1000;
+#endif
 }
 
 int64_t ggml_cycles(void) {
@@ -180,7 +209,11 @@ int64_t ggml_cycles_per_ms(void) {
 	const size_t CACHE_LINE_SIZE = 64;
 #endif
 
-const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
+#if defined(_MSC_VER)
+const size_t CACHE_LINE_SIZE_F32 = 64/sizeof(float);
+#else
+const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE / sizeof(float);
+#endif
 
 //
 // fundamental operations

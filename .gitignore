@@ -2,3 +2,5 @@ sync.sh
 main
 stream
 *.o
+*.exe
+*.dll

@@ -4,6 +4,9 @@
 
 #include <algorithm>
 #include <cassert>
+#if defined(_MSC_VER)
+#define _USE_MATH_DEFINES
+#endif
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -2245,12 +2248,20 @@ void whisper_print_timings(struct whisper_context * ctx) {
 ////////////////////////////////////////////////////////////////////////////
 
 struct whisper_full_params whisper_full_default_params(enum whisper_decode_strategy strategy) {
+#if defined(_MSC_VER)
+    struct whisper_full_params result = {};
+#else
     struct whisper_full_params result;
+#endif
 
     switch (strategy) {
         case WHISPER_DECODE_GREEDY:
             {
-                result = (struct whisper_full_params) {
+#if defined(_MSC_VER)
+                result = {
+#else
+                result = (struct whisper_full_params){
+#endif
                     .strategy  = WHISPER_DECODE_GREEDY,
                     .n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency()),
 
@@ -2269,7 +2280,11 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
             } break;
         case WHISPER_DECODE_BEAM_SEARCH:
             {
+#if defined(_MSC_VER)
+                result = {
+#else
                 result = (struct whisper_full_params) {
+#endif
                     .strategy  = WHISPER_DECODE_GREEDY,
                     .n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency()),
 
