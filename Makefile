@@ -1,24 +1,70 @@
-CC_SDL=`sdl2-config --cflags --libs`
+UNAME_S := $(shell uname -s)
+UNAME_P := $(shell uname -p)
+UNAME_M := $(shell uname -m)
 
-main: ggml.o whisper.o main.o
-	g++ -pthread -o main ggml.o whisper.o main.o
+#
+# Compile flags
+#
+
+CFLAGS   = -O3 -std=c11
+CXXFLAGS = -O3 -std=c++11
+
+CFLAGS   += -Wall -Wextra -Wno-unused-parameter -Wno-unused-function
+CXXFLAGS += -Wall -Wextra -Wno-unused-parameter -Wno-unused-function
+
+# OS specific
+# TODO: support Windows
+ifeq ($(UNAME_S),Linux)
+	CFLAGS += -pthread
+endif
+ifeq ($(UNAME_S),Darwin)
+	CFLAGS += -pthread
+endif
+
+# Architecture specific
+ifeq ($(UNAME_P),x86_64)
+	CFLAGS += -mavx -mavx2 -mfma -mf16c
+endif
+ifneq ($(filter arm%,$(UNAME_P)),)
+	CFLAGS += -mfpu=neon
+endif
+ifneq ($(filter aarch64%,$(UNAME_M)),)
+	CFLAGS += -mfpu=neon
+endif
+ifneq ($(filter armv%,$(UNAME_M)),)
+	# Raspberry Pi 4
+	CFLAGS += -mcpu=cortex-a72 -mfloat-abi=hard -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access
+endif
+
+#
+# Build library + main
+#
+
+main: main.cpp ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) main.cpp whisper.o ggml.o -o main
 	./main -h
 
 ggml.o: ggml.c ggml.h
-	gcc -pthread -O3 -mavx -mavx2 -mfma -mf16c -c ggml.c
+	$(CC)  $(CFLAGS)   -c ggml.c
 
 whisper.o: whisper.cpp whisper.h
-	gcc -pthread -O3 -std=c++11 -c whisper.cpp
+	$(CXX) $(CXXFLAGS) -c whisper.cpp
 
-main.o: main.cpp ggml.h
-	g++ -pthread -O3 -std=c++11 -c main.cpp
-
-stream: stream.cpp
-	g++ -pthread -O3 -std=c++11 -o stream stream.cpp ggml.o whisper.o $(CC_SDL)
-
-# clean up the directory
 clean:
 	rm -f *.o main
+
+#
+# Examples
+#
+
+CC_SDL=`sdl2-config --cflags --libs`
+
+stream: stream.cpp ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) stream.cpp ggml.o whisper.o -o stream $(CC_SDL)
+
+#
+# Audio samples
+#
 
 # download a few audio samples into folder "./samples":
 .PHONY: samples
@@ -36,6 +82,9 @@ samples:
 	@ffmpeg -loglevel -0 -y -i samples/mm1.wav -ar 16000 -ac 1 -c:a pcm_s16le samples/mm0.wav
 	@rm samples/mm1.wav
 
+#
+# Models
+#
 
 # if not already downloaded, the following targets download the specified model and
 # runs it on all samples in the folder "./samples":

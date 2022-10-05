@@ -1031,8 +1031,6 @@ bool whisper_encode(
     const auto & mel_inp = wctx.mel;
     const auto & hparams = model.hparams;
 
-    const int n_vocab = hparams.n_vocab;
-
     const int n_ctx   = hparams.n_audio_ctx;
     const int n_state = hparams.n_audio_state;
     const int n_head  = hparams.n_audio_head;
@@ -2365,7 +2363,6 @@ int whisper_full(
 
         bool done = false;
         int seek_delta = 100*WHISPER_CHUNK_SIZE;
-        whisper_token last_id = 0;
 
         // print the prompt
         //printf("\n\n");
@@ -2395,8 +2392,6 @@ int whisper_full(
             // feel free to experiment!
             //
             {
-                const int n_vocab = whisper_n_vocab(ctx);
-
                 whisper_token id  = 0;
                 whisper_token tid = whisper_token_beg(ctx);
 
@@ -2410,7 +2405,6 @@ int whisper_full(
                     seek_delta = 2*(id - whisper_token_beg(ctx));
                     result_len = i + 1;
                 }
-                last_id = id;
 
                 // add it to the context
                 prompt.push_back(id);
@@ -2444,7 +2438,7 @@ int whisper_full(
 
             std::string text = "";
 
-            for (int i = 0; i < result_cur.size(); i++) {
+            for (int i = 0; i < (int) result_cur.size(); i++) {
                 if (params.print_special_tokens == false && result_cur[i].id >= whisper_token_eot(ctx)) {
                 } else {
                     text += whisper_token_to_str(ctx, result_cur[i].id);
@@ -2464,7 +2458,7 @@ int whisper_full(
                         result_all.push_back({ t0, t1, text });
                     }
                     text = "";
-                    while (result_cur[i].id > whisper_token_beg(ctx) && i < result_cur.size()) {
+                    while (result_cur[i].id > whisper_token_beg(ctx) && i < (int) result_cur.size()) {
                         i++;
                     }
                     i--;
