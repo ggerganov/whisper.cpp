@@ -7,13 +7,12 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Mixed F16 / F32 precision
 - Low memory usage (Flash Attention + Flash Forward)
 - Zero memory allocations at runtime
-- Runs on the CPU (Mac and Linux)
+- Runs on the CPU
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
+- Supported platforms: Linux, Mac OS (Intel and Arm), Raspberry Pi, Android
 
 Incoming features:
 - [Realtime audio input transcription](https://github.com/ggerganov/whisper.cpp/issues/10#issuecomment-1264665959)
-- [Raspberry Pi support](https://github.com/ggerganov/whisper.cpp/issues/7)
-- [Android support](https://github.com/ggerganov/whisper.cpp/issues/8)
 
 ## Usage
 
@@ -220,10 +219,16 @@ $ ./stream -m models/ggml-small.en.bin -t 8
 
 https://user-images.githubusercontent.com/1991296/193465125-c163d304-64f6-4f5d-83e5-72239c9a203e.mp4
 
+## Implementation details
+
+- The core tensor operations are implemented in C (`ggml.h` / `ggml.c`)
+- The high-level C-style API is implemented in C++ (`whisper.h` / `whisper.cpp`)
+- Simple usage is demonstrated in `main.cpp`
+- Sample real-time audio transcription from the microphone is demonstrated in `stream.cpp`
+
 ## Limitations
 
-- Very basic greedy sampling scheme - always pick up the top token
-- Only 16-bit WAV at 16 kHz is supported
+- Very basic greedy sampling scheme - always pick up the top token. You can implement your own strategy
 - Inference only
 - No GPU support
 
