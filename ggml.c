@@ -1,5 +1,6 @@
 #include "ggml.h"
 
+#include <alloca.h>
 #include <assert.h>
 #include <time.h>
 #include <math.h>
@@ -12,7 +13,12 @@
 #include <pthread.h>
 
 #define GGML_DEBUG 0
-#define GGML_MEM_ALIGN 16
+
+#if UINTPTR_MAX == 0xFFFFFFFF
+    #define GGML_MEM_ALIGN 4
+#else
+    #define GGML_MEM_ALIGN 16
+#endif
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -305,6 +311,7 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
 #ifdef __ARM_NEON
     const int n32 = (n & ~31);
 
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     float16x8_t sum0 = vdupq_n_f16(0);
     float16x8_t sum1 = vdupq_n_f16(0);
     float16x8_t sum2 = vdupq_n_f16(0);
@@ -344,6 +351,61 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
 
     float32x2_t sumf32 = vadd_f32(vget_low_f32(sum0f32), vget_high_f32(sum0f32));
     sumf = vget_lane_f32(sumf32, 0) + vget_lane_f32(sumf32, 1);
+#else
+    float32x4_t sum0 = vdupq_n_f32(0);
+    float32x4_t sum1 = vdupq_n_f32(0);
+    float32x4_t sum2 = vdupq_n_f32(0);
+    float32x4_t sum3 = vdupq_n_f32(0);
+    float32x4_t sum4 = vdupq_n_f32(0);
+    float32x4_t sum5 = vdupq_n_f32(0);
+    float32x4_t sum6 = vdupq_n_f32(0);
+    float32x4_t sum7 = vdupq_n_f32(0);
+
+    float32x4_t x0, x1, x2, x3, x4, x5, x6, x7;
+    float32x4_t y0, y1, y2, y3, y4, y5, y6, y7;
+
+    for (int i = 0; i < n32; i += 32) {
+        x0 = vcvt_f32_f16(vld1_f16(x + i + 0 ));
+        x1 = vcvt_f32_f16(vld1_f16(x + i + 4 ));
+        x2 = vcvt_f32_f16(vld1_f16(x + i + 8 ));
+        x3 = vcvt_f32_f16(vld1_f16(x + i + 12));
+        x4 = vcvt_f32_f16(vld1_f16(x + i + 16));
+        x5 = vcvt_f32_f16(vld1_f16(x + i + 20));
+        x6 = vcvt_f32_f16(vld1_f16(x + i + 24));
+        x7 = vcvt_f32_f16(vld1_f16(x + i + 28));
+
+        y0 = vcvt_f32_f16(vld1_f16(y + i + 0 ));
+        y1 = vcvt_f32_f16(vld1_f16(y + i + 4 ));
+        y2 = vcvt_f32_f16(vld1_f16(y + i + 8 ));
+        y3 = vcvt_f32_f16(vld1_f16(y + i + 12));
+        y4 = vcvt_f32_f16(vld1_f16(y + i + 16));
+        y5 = vcvt_f32_f16(vld1_f16(y + i + 20));
+        y6 = vcvt_f32_f16(vld1_f16(y + i + 24));
+        y7 = vcvt_f32_f16(vld1_f16(y + i + 28));
+
+        sum0 = vfmaq_f32(sum0, x0, y0);
+        sum1 = vfmaq_f32(sum1, x1, y1);
+        sum2 = vfmaq_f32(sum2, x2, y2);
+        sum3 = vfmaq_f32(sum3, x3, y3);
+        sum4 = vfmaq_f32(sum4, x4, y4);
+        sum5 = vfmaq_f32(sum5, x5, y5);
+        sum6 = vfmaq_f32(sum6, x6, y6);
+        sum7 = vfmaq_f32(sum7, x7, y7);
+    }
+
+    // reduce sum0..sum7 to sum0
+    sum0 = vaddq_f32(sum0, sum1);
+    sum2 = vaddq_f32(sum2, sum3);
+    sum4 = vaddq_f32(sum4, sum5);
+    sum6 = vaddq_f32(sum6, sum7);
+    sum0 = vaddq_f32(sum0, sum2);
+    sum4 = vaddq_f32(sum4, sum6);
+    sum0 = vaddq_f32(sum0, sum4);
+
+    // reduce sum0 to sumf
+    float32x2_t sumf32 = vadd_f32(vget_low_f32(sum0), vget_high_f32(sum0));
+    sumf = vget_lane_f32(sumf32, 0) + vget_lane_f32(sumf32, 1);
+#endif
 
     // leftovers
     for (int i = n32; i < n; ++i) {
@@ -486,6 +548,7 @@ inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_
     // NEON 128-bit
     const int n32 = (n & ~31);
 
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     const float16x8_t v8 = vdupq_n_f16(v);
 
     float16x8_t x0, x1, x2, x3;
@@ -512,6 +575,51 @@ inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_
         vst1q_f16(y + i + 16, y2);
         vst1q_f16(y + i + 24, y3);
     }
+#else
+    const float32x4_t v40 = vdupq_n_f32(v);
+    const float32x4_t v41 = vdupq_n_f32(v);
+
+    float32x4_t x0, x1, x2, x3, x4, x5, x6, x7;
+    float32x4_t y0, y1, y2, y3, y4, y5, y6, y7;
+
+    for (int i = 0; i < n32; i += 32) {
+        y0 = vcvt_f32_f16(vld1_f16(y + i + 0 ));
+        y1 = vcvt_f32_f16(vld1_f16(y + i + 4 ));
+        y2 = vcvt_f32_f16(vld1_f16(y + i + 8 ));
+        y3 = vcvt_f32_f16(vld1_f16(y + i + 12));
+        y4 = vcvt_f32_f16(vld1_f16(y + i + 16));
+        y5 = vcvt_f32_f16(vld1_f16(y + i + 20));
+        y6 = vcvt_f32_f16(vld1_f16(y + i + 24));
+        y7 = vcvt_f32_f16(vld1_f16(y + i + 28));
+
+        x0 = vcvt_f32_f16(vld1_f16(x + i + 0 ));
+        x1 = vcvt_f32_f16(vld1_f16(x + i + 4 ));
+        x2 = vcvt_f32_f16(vld1_f16(x + i + 8 ));
+        x3 = vcvt_f32_f16(vld1_f16(x + i + 12));
+        x4 = vcvt_f32_f16(vld1_f16(x + i + 16));
+        x5 = vcvt_f32_f16(vld1_f16(x + i + 20));
+        x6 = vcvt_f32_f16(vld1_f16(x + i + 24));
+        x7 = vcvt_f32_f16(vld1_f16(x + i + 28));
+
+        y0 = vfmaq_f32(y0, x0, v40);
+        y1 = vfmaq_f32(y1, x1, v40);
+        y2 = vfmaq_f32(y2, x2, v40);
+        y3 = vfmaq_f32(y3, x3, v40);
+        y4 = vfmaq_f32(y4, x4, v41);
+        y5 = vfmaq_f32(y5, x5, v41);
+        y6 = vfmaq_f32(y6, x6, v41);
+        y7 = vfmaq_f32(y7, x7, v41);
+
+        vst1_f16(y + i + 0 , vcvt_f16_f32(y0));
+        vst1_f16(y + i + 4 , vcvt_f16_f32(y1));
+        vst1_f16(y + i + 8 , vcvt_f16_f32(y2));
+        vst1_f16(y + i + 12, vcvt_f16_f32(y3));
+        vst1_f16(y + i + 16, vcvt_f16_f32(y4));
+        vst1_f16(y + i + 20, vcvt_f16_f32(y5));
+        vst1_f16(y + i + 24, vcvt_f16_f32(y6));
+        vst1_f16(y + i + 28, vcvt_f16_f32(y7));
+    }
+#endif
 
     // leftovers
     for (int i = n32; i < n; ++i) {
@@ -911,16 +1019,18 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
     if (is_first_call) {
         const uint64_t t_start = ggml_time_us(); UNUSED(t_start);
 
+        ggml_fp16_t ii;
         for (int i = 0; i < (1 << 16); ++i) {
-            uint16_t ii = (uint16_t) i;
-            const float f = ggml_fp16_to_fp32(*(ggml_fp16_t *)(&ii));
+            uint16_t ui = i;
+            memcpy(&ii, &ui, sizeof(ii));
+            const float f = ggml_fp16_to_fp32(ii);
             table_gelu_f16[i] = ggml_fp32_to_fp16(ggml_gelu_f32(f));
             table_exp_f16[i] = ggml_fp32_to_fp16(exp(f));
         }
 
         const uint64_t t_end = ggml_time_us(); UNUSED(t_end);
 
-        GGML_PRINT_DEBUG("%s: GELU table initialized in %f ms\n", __func__, (t_end - t_start)/1000.0f);
+        GGML_PRINT_DEBUG("%s: GELU and EXP tables initialized in %f ms\n", __func__, (t_end - t_start)/1000.0f);
 
         is_first_call = false;
     }
@@ -4427,13 +4537,15 @@ void ggml_compute_forward_soft_max_f32(
 
         ggml_float sum = 0.0;
 
+        uint16_t ss;
         for (int i = 0; i < nc; i++) {
             if (p[i] == -INFINITY) {
                 p[i] = 0.0;
             } else {
                 //const float val = (p[i] == -INFINITY) ? 0.0 : exp(p[i] - max);
                 ggml_fp16_t s = ggml_fp32_to_fp16(p[i] - max);
-                const float val = ggml_fp16_to_fp32(table_exp_f16[*(uint16_t *) &s]);
+                memcpy(&ss, &s, sizeof(ss));
+                const float val = ggml_fp16_to_fp32(table_exp_f16[ss]);
                 sum += val;
                 p[i] = val;
             }
@@ -5234,13 +5346,15 @@ void ggml_compute_forward_flash_attn_f32(
 
             ggml_float sum = 0.0;
 
+            uint16_t ss;
             for (int i = 0; i < M; i++) {
                 if (S[i] == -INFINITY) {
                     S[i] = 0.0;
                 } else {
                     //const float val = (S[i] == -INFINITY) ? 0.0 : exp(S[i] - max);
                     ggml_fp16_t s = ggml_fp32_to_fp16(S[i] - max);
-                    const float val = ggml_fp16_to_fp32(table_exp_f16[*(uint16_t *) &s]);
+                    memcpy(&ss, &s, sizeof(ss));
+                    const float val = ggml_fp16_to_fp32(table_exp_f16[ss]);
                     sum += val;
                     S[i] = val;
                 }
@@ -5413,13 +5527,15 @@ void ggml_compute_forward_flash_attn_f16(
 
             ggml_float sum = 0.0;
 
+            uint16_t ss;
             for (int i = 0; i < M; i++) {
                 if (S[i] == -INFINITY) {
                     S[i] = 0.0;
                 } else {
                     //const float val = (S[i] == -INFINITY) ? 0.0 : exp(S[i] - max);
                     ggml_fp16_t s = ggml_fp32_to_fp16(S[i] - max);
-                    const float val = ggml_fp16_to_fp32(table_exp_f16[*(uint16_t *) &s]);
+                    memcpy(&ss, &s, sizeof(ss));
+                    const float val = ggml_fp16_to_fp32(table_exp_f16[ss]);
                     sum += val;
                     S[i] = val;
                 }
