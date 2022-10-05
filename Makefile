@@ -15,10 +15,12 @@ CXXFLAGS += -Wall -Wextra -Wno-unused-parameter -Wno-unused-function
 # OS specific
 # TODO: support Windows
 ifeq ($(UNAME_S),Linux)
-	CFLAGS += -pthread
+	CFLAGS   += -pthread
+	CXXFLAGS += -pthread
 endif
 ifeq ($(UNAME_S),Darwin)
-	CFLAGS += -pthread
+	CFLAGS   += -pthread
+	CXXFLAGS += -pthread
 endif
 
 # Architecture specific
@@ -26,14 +28,21 @@ ifeq ($(UNAME_P),x86_64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
 endif
 ifneq ($(filter arm%,$(UNAME_P)),)
-	CFLAGS += -mfpu=neon
+	# Mac M1
 endif
-ifneq ($(filter aarch64%,$(UNAME_M)),)
-	CFLAGS += -mfpu=neon
+ifneq ($(filter aarch64%,$(UNAME_P)),)
+	endif
+	ifneq ($(filter armv6%,$(UNAME_M)),)
+	# Raspberry Pi 1, 2, 3
+	CFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access
 endif
-ifneq ($(filter armv%,$(UNAME_M)),)
+ifneq ($(filter armv7%,$(UNAME_M)),)
 	# Raspberry Pi 4
-	CFLAGS += -mcpu=cortex-a72 -mfloat-abi=hard -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access
+	CFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations
+endif
+ifneq ($(filter armv8%,$(UNAME_M)),)
+	# Raspberry Pi 4
+	CFLAGS += -mfp16-format=ieee -mno-unaligned-access
 endif
 
 #

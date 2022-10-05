@@ -1291,7 +1291,8 @@ bool whisper_encode(
         struct ggml_tensor * inpO = ggml_add(ctxL, cur, inpFF);
 
         {
-            struct ggml_cgraph gf = { .n_threads = n_threads };
+            struct ggml_cgraph gf = {};
+            gf.n_threads = n_threads;
 
             ggml_build_forward_expand(&gf, inpO);
             ggml_graph_compute       (ctxL, &gf);
@@ -1327,7 +1328,8 @@ bool whisper_encode(
 
     // run the computation
     {
-        struct ggml_cgraph gf = { .n_threads = n_threads };
+        struct ggml_cgraph gf = {};
+        gf.n_threads = n_threads;
 
         ggml_build_forward_expand(&gf, cur);
         ggml_graph_compute       (ctx0, &gf);
@@ -1351,7 +1353,8 @@ bool whisper_encode(
 
     // pre-compute cross-attention memory
     {
-        struct ggml_cgraph gf = { .n_threads = n_threads };
+        struct ggml_cgraph gf = {};
+        gf.n_threads = n_threads;
 
         // TODO: hack to disconnect the encoded features from the previous graph
         cur->op = GGML_OP_NONE;
@@ -1461,7 +1464,8 @@ bool whisper_decode(
         };
 
         struct ggml_context * ctxL = ggml_init(paramsL);
-        struct ggml_cgraph gf = { .n_threads = n_threads };
+        struct ggml_cgraph gf = {};
+        gf.n_threads = n_threads;
 
         // norm
         {
@@ -1744,7 +1748,8 @@ bool whisper_decode(
 
     // run the computation
     {
-        struct ggml_cgraph gf = { .n_threads = n_threads };
+        struct ggml_cgraph gf = {};
+        gf.n_threads = n_threads;
 
         ggml_build_forward_expand(&gf, cur);
         ggml_graph_compute       (ctx0, &gf);
@@ -2334,7 +2339,7 @@ int whisper_full(
             }
         }
 
-        if (seek >= whisper_n_len(ctx)) {
+        if (seek + 100 >= whisper_n_len(ctx)) {
             break;
         }
 
