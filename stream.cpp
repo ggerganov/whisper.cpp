@@ -238,7 +238,7 @@ int main(int argc, char ** argv) {
         }
 
         // process 3 seconds of new audio
-        while ((int) SDL_GetQueuedAudioSize(g_dev_id_in) < 3*WHISPER_SAMPLE_RATE*sizeof(float)) {
+        while (SDL_GetQueuedAudioSize(g_dev_id_in) < 3*WHISPER_SAMPLE_RATE*sizeof(float)) {
             SDL_Delay(1);
         }
         const int n_samples_new = SDL_GetQueuedAudioSize(g_dev_id_in)/sizeof(float);
