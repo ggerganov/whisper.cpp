@@ -2256,6 +2256,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
                 result = (struct whisper_full_params) {
                     .strategy  = WHISPER_DECODE_GREEDY,
                     .n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency()),
+                    .offset_ms = 0,
 
                     .translate            = false,
                     .print_special_tokens = false,
@@ -2275,6 +2276,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
                 result = (struct whisper_full_params) {
                     .strategy  = WHISPER_DECODE_GREEDY,
                     .n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency()),
+                    .offset_ms = 0,
 
                     .translate            = false,
                     .print_special_tokens = false,
@@ -2329,7 +2331,7 @@ int whisper_full(
     int progress_step = 5;
 
     // main loop
-    int seek = 0;
+    int seek = params.offset_ms/10;
     while (true) {
         int progress_cur = (100*seek)/whisper_n_len(ctx);
         while (progress_cur >= progress_prev + progress_step) {

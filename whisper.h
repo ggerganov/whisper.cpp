@@ -102,6 +102,7 @@ extern "C" {
         enum whisper_decode_strategy strategy;
 
         int n_threads;
+        int offset_ms;
 
         bool translate;
         bool print_special_tokens;
