@@ -101,39 +101,12 @@ else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -mavx2 -mfma -mf16c")
 endif()
 
-# ggml
-
-set(TARGET ggml)
-
-add_library(${TARGET} STATIC
-    ggml.c
-    )
-
-target_include_directories(${TARGET} PUBLIC
-    .
-    )
-
-target_link_libraries(${TARGET} PRIVATE m ${CMAKE_THREAD_LIBS_INIT})
-
-if (BUILD_SHARED_LIBS)
-    target_link_libraries(${TARGET} PUBLIC
-        ${CMAKE_DL_LIBS}
-        )
-
-    target_compile_definitions(${TARGET} PUBLIC
-        WHISPER_SHARED
-        )
-endif()
-
-target_compile_definitions(${TARGET} PUBLIC
-    ${WHISPER_EXTRA_FLAGS}
-    )
-
 # whisper
 
 set(TARGET whisper)
 
 add_library(${TARGET} SHARED
+    ggml.c
     whisper.cpp
     )
 
@@ -141,7 +114,7 @@ target_include_directories(${TARGET} PUBLIC
     .
     )
 
-target_link_libraries(${TARGET} PRIVATE ggml ${CMALE_THREAD_LIBS_INIT})
+target_link_libraries(${TARGET} PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
 if (BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET} PUBLIC
@@ -162,27 +135,22 @@ install(TARGETS ${TARGET}
     ARCHIVE DESTINATION lib/static
     )
 
-# main
+if (WHISPER_STANDALONE)
+    # main
+    set(TARGET main)
+    add_executable(${TARGET} main.cpp)
+    target_link_libraries(${TARGET} PRIVATE whisper ${CMAKE_THREAD_LIBS_INIT})
 
-set(TARGET main)
+    if (WHISPER_SUPPORT_SDL2)
+        # stream
+        set(TARGET stream)
+        add_executable(${TARGET} stream.cpp)
+        target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS})
+        target_link_libraries(${TARGET} PRIVATE whisper ${SDL2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+    endif ()
 
-add_executable(${TARGET} main.cpp)
-
-target_link_libraries(${TARGET} PRIVATE whisper)
-
-# stream
-
-set(TARGET stream)
-
-add_executable(${TARGET} stream.cpp)
-
-target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS})
-
-target_link_libraries(${TARGET} PRIVATE whisper ${SDL2_LIBRARIES})
-
-# tests
-
-if (WHISPER_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
+    if (WHISPER_BUILD_TESTS)
+        enable_testing()
+        add_subdirectory(tests)
+    endif ()
 endif ()
