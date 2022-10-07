@@ -2,16 +2,14 @@
 
 #if defined(_MSC_VER)
 #include <malloc.h>
+#include <windows.h>
+#include <sys/timeb.h>
+#define _USE_MATH_DEFINES
 #else
 #include <alloca.h>
 #endif
 #include <assert.h>
 #include <time.h>
-#if defined(_MSC_VER)
-#include <windows.h>
-#include <sys/timeb.h>
-#define _USE_MATH_DEFINES
-#endif
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
