@@ -2470,7 +2470,7 @@ int whisper_full(
                         result_all.push_back({ t0, t1, text });
                     }
                     text = "";
-                    while (result_cur[i].id > whisper_token_beg(ctx) && i < (int) result_cur.size()) {
+                    while (i < (int) result_cur.size() && result_cur[i].id > whisper_token_beg(ctx)) {
                         i++;
                     }
                     i--;
