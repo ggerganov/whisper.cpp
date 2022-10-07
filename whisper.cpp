@@ -405,6 +405,8 @@ struct whisper_context {
 
     std::vector<whisper_result>  result_cur;
     std::vector<whisper_segment> result_all;
+
+    std::vector<whisper_token> prompt_past;
 };
 
 // load the model from a ggml file
@@ -1020,8 +1022,6 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
 //   - model:      the model
 //   - n_threads:  number of threads to use
 //   - mel_offset: offset in the mel spectrogram (i.e. audio offset)
-//   - mel_inp:    input mel spectrogram
-//   - features:   output encoded features
 //
 bool whisper_encode(
               whisper_context & wctx,
@@ -1405,10 +1405,9 @@ bool whisper_encode(
 //
 //   - model:      the model
 //   - n_threads:  number of threads to use
-//   - n_past:     prompt length
-//   - prompt:     text prompt
-//   - logits_out: output logits
-//   - probs_out:  output probabilities
+//   - tokens:     text prompt
+//   - n_tokens:   number of tokens in the prompt
+//   - n_past:     number of past tokens to prefix the prompt with
 //
 bool whisper_decode(
               whisper_context & wctx,
@@ -2259,6 +2258,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
                     .offset_ms = 0,
 
                     .translate            = false,
+                    .no_context           = false,
                     .print_special_tokens = false,
                     .print_progress       = true,
                     .print_realtime       = false,
@@ -2279,6 +2279,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
                     .offset_ms = 0,
 
                     .translate            = false,
+                    .no_context           = false,
                     .print_special_tokens = false,
                     .print_progress       = true,
                     .print_realtime       = false,
@@ -2297,6 +2298,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
 
     return result;
 }
+
 int whisper_full(
         struct whisper_context * ctx,
         struct whisper_full_params params,
@@ -2309,7 +2311,10 @@ int whisper_full(
     }
 
     // the accumulated text context so far
-    std::vector<whisper_token> prompt_past = { };
+    auto & prompt_past = ctx->prompt_past;
+    if (params.no_context) {
+        prompt_past.clear();
+    }
 
     // these tokens determine the task that will be performed
     std::vector<whisper_token> prompt_init = { whisper_token_sot(ctx) };

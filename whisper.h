@@ -105,6 +105,7 @@ extern "C" {
         int offset_ms;
 
         bool translate;
+        bool no_context;
         bool print_special_tokens;
         bool print_progress;
         bool print_realtime;

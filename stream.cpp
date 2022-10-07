@@ -40,6 +40,7 @@ struct whisper_params {
 
     bool verbose              = false;
     bool translate            = false;
+    bool no_context           = true;
     bool print_special_tokens = false;
     bool no_timestamps        = true;
 
@@ -64,6 +65,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             params.verbose = true;
         } else if (arg == "--translate") {
             params.translate = true;
+        } else if (arg == "-kc" || arg == "--keep-context") {
+            params.no_context = false;
         } else if (arg == "-l" || arg == "--language") {
             params.language = argv[++i];
             if (whisper_lang_id(params.language.c_str()) == -1) {
@@ -103,6 +106,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "            --step N         audio step size in milliseconds (default: %d)\n", params.step_ms);
     fprintf(stderr, "  -v,       --verbose        verbose output\n");
     fprintf(stderr, "            --translate      translate from source language to english\n");
+    fprintf(stderr, "  -nc,      --no-context     disable context from earlier audio (default: false)\n");
     fprintf(stderr, "  -ps,      --print_special  print special tokens\n");
     fprintf(stderr, "  -nt,      --no_timestamps  do not print timestamps\n");
     fprintf(stderr, "  -l LANG,  --language LANG  spoken language (default: %s)\n", params.language.c_str());
@@ -273,6 +277,7 @@ int main(int argc, char ** argv) {
             wparams.print_realtime       = false;
             wparams.print_timestamps     = !params.no_timestamps;
             wparams.translate            = params.translate;
+            wparams.no_context           = params.no_context;
             wparams.language             = params.language.c_str();
             wparams.n_threads            = params.n_threads;
 
