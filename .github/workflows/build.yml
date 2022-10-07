@@ -13,7 +13,7 @@ jobs:
               run: |
                   sudo apt-get update
                   sudo apt-get install build-essential
-                  sudo apt-get install libsdl2-dev;
+                  sudo apt-get install libsdl2-dev
 
             - name: Build
               run: |
@@ -36,3 +36,80 @@ jobs:
               run: |
                 make
                 make stream
+
+    ubuntu-latest-gcc:
+        runs-on: ubuntu-latest
+
+        strategy:
+            matrix:
+                build: [Debug, Release]
+
+        steps:
+            - name: Clone
+              uses: actions/checkout@v1
+
+            - name: Dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install build-essential
+                  sudo apt-get install cmake
+                  sudo apt-get install libsdl2-dev
+
+            - name: Configure
+              run: cmake . -DWHISPER_SUPPORT_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+
+            - name: Build
+              run: |
+                make
+                ctest --output-on-failure
+
+    ubuntu-latest-clang:
+        runs-on: ubuntu-latest
+
+        strategy:
+            matrix:
+                build: [Debug, Release]
+
+        steps:
+            - name: Clone
+              uses: actions/checkout@v1
+
+            - name: Dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install build-essential
+                  sudo apt-get install cmake
+                  sudo apt-get install libsdl2-dev
+
+            - name: Configure
+              run: cmake . -DWHISPER_SUPPORT_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
+
+            - name: Build
+              run: |
+                make
+                ctest --output-on-failure
+
+    ubuntu-latest-gcc-sanitized:
+        runs-on: ubuntu-latest
+
+        strategy:
+            matrix:
+                sanitizer: [ADDRESS, THREAD, UNDEFINED]
+
+        steps:
+            - name: Clone
+              uses: actions/checkout@v1
+
+            - name: Dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install build-essential
+                  sudo apt-get install cmake
+
+            - name: Configure
+              run: cmake . -DCMAKE_BUILD_TYPE=Debug -DWHISPER_SANITIZE_${{ matrix.sanitizer }}=ON
+
+            - name: Build
+              run: |
+                make
+                ctest --output-on-failure
