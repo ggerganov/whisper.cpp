@@ -238,7 +238,7 @@ int main(int argc, char ** argv) {
         }
 
         // process 3 seconds of new audio
-        while ((int) SDL_GetQueuedAudioSize(g_dev_id_in) < 3*WHISPER_SAMPLE_RATE*sizeof(float)) {
+        while (SDL_GetQueuedAudioSize(g_dev_id_in) < 3*WHISPER_SAMPLE_RATE*sizeof(float)) {
             SDL_Delay(1);
         }
         const int n_samples_new = SDL_GetQueuedAudioSize(g_dev_id_in)/sizeof(float);
@@ -265,6 +265,11 @@ int main(int argc, char ** argv) {
 
             wparams.print_progress       = false;
             wparams.print_special_tokens = params.print_special_tokens;
+            wparams.print_realtime       = false;
+            wparams.print_timestamps     = !params.no_timestamps;
+            wparams.translate            = params.translate;
+            wparams.language             = params.language.c_str();
+            wparams.n_threads            = params.n_threads;
 
             if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);

@@ -108,7 +108,7 @@ struct ggml_tensor {
     int64_t perf_time_us;
 
     void * data;
-    char pad[8];
+    char padding[8];
 };
 
 // computation graph

@@ -7,13 +7,9 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Mixed F16 / F32 precision
 - Low memory usage (Flash Attention + Flash Forward)
 - Zero memory allocations at runtime
-- Runs on the CPU (Mac and Linux)
+- Runs on the CPU
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
-
-Incoming features:
-- [Realtime audio input transcription](https://github.com/ggerganov/whisper.cpp/issues/10#issuecomment-1264665959)
-- [Raspberry Pi support](https://github.com/ggerganov/whisper.cpp/issues/7)
-- [Android support](https://github.com/ggerganov/whisper.cpp/issues/8)
+- Supported platforms: Linux, Mac OS (Intel and Arm), Raspberry Pi, Android
 
 ## Usage
 
@@ -35,13 +31,12 @@ For a quick demo, simply run `make base.en`:
 
 ```java
 $ make base.en
-
-gcc -pthread -O3 -mavx -mavx2 -mfma -mf16c -c ggml.c
-g++ -pthread -O3 -std=c++11 -c main.cpp
-g++ -pthread -o main ggml.o main.o
+cc  -O3 -std=c11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread   -c ggml.c
+c++ -O3 -std=c++11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread -c whisper.cpp
+c++ -O3 -std=c++11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread main.cpp whisper.o ggml.o -o main
 ./main -h
 
-usage: ./main [options]
+usage: ./main [options] file0.wav file1.wav ...
 
 options:
   -h,       --help           show this help message and exit
@@ -53,11 +48,11 @@ options:
   -nt,      --no_timestamps  do not print timestamps
   -l LANG,  --language LANG  spoken language (default: en)
   -m FNAME, --model FNAME    model path (default: models/ggml-base.en.bin)
-  -f FNAME, --file FNAME     input WAV file path (default: samples/jfk.wav)
+  -f FNAME, --file FNAME     input WAV file path
 
 bash ./download-ggml-model.sh base.en
 Downloading ggml model base.en ...
-models/ggml-base.en.bin          100%[=====================================>] 141.11M  8.58MB/s    in 22s
+models/ggml-base.en.bin            100%[===================================>] 141.11M  6.49MB/s    in 23s
 Done! Model 'base.en' saved in 'models/ggml-base.en.bin'
 You can now use it like this:
 
@@ -90,20 +85,18 @@ whisper_model_load: adding 1607 extra tokens
 whisper_model_load: ggml ctx size = 163.43 MB
 whisper_model_load: memory size =    22.83 MB
 whisper_model_load: model size  =   140.54 MB
-log_mel_spectrogram: n_sample = 176000, n_len = 1100
-log_mel_spectrogram: recording length: 11.000000 s
 
-main: processing 176000 samples (11.0 sec), 4 threads, lang = english, task = transcribe, timestamps = 1 ...
+main: processing 'samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, lang = en, task = transcribe, timestamps = 1 ...
 
-[00:00.000 --> 00:11.000]   And so my fellow Americans ask not what your country can do for you. Ask what you can do for your country.
+[00:00.000 --> 00:11.000]   And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.
 
 
-main:     load time =    82.05 ms
-main:      mel time =    44.15 ms
-main:   sample time =     1.98 ms
-main:   encode time =   674.77 ms / 112.46 ms per layer
-main:   decode time =    82.91 ms
-main:    total time =   886.29 ms
+whisper_print_timings:     load time =    77.48 ms
+whisper_print_timings:      mel time =    26.10 ms
+whisper_print_timings:   sample time =     2.19 ms
+whisper_print_timings:   encode time =   632.95 ms / 105.49 ms per layer
+whisper_print_timings:   decode time =    85.11 ms / 14.18 ms per layer
+whisper_print_timings:    total time =   824.14 ms
 ```
 
 The command downloads the `base.en` model converted to custom `ggml` format and runs the inference on all `.wav` samples in the folder `samples`.
@@ -220,10 +213,16 @@ $ ./stream -m models/ggml-small.en.bin -t 8
 
 https://user-images.githubusercontent.com/1991296/193465125-c163d304-64f6-4f5d-83e5-72239c9a203e.mp4
 
+## Implementation details
+
+- The core tensor operations are implemented in C ([ggml.h](ggml.h) / [ggml.c](ggml.c))
+- The high-level C-style API is implemented in C++ ([whisper.h](whisper.h) / [whisper.cpp](whisper.cpp))
+- Simple usage is demonstrated in [main.cpp](main.cpp)
+- Sample real-time audio transcription from the microphone is demonstrated in [stream.cpp](stream.cpp)
+
 ## Limitations
 
-- Very basic greedy sampling scheme - always pick up the top token
-- Only 16-bit WAV at 16 kHz is supported
+- Very basic greedy sampling scheme - always pick up the top token. You can implement your own strategy
 - Inference only
 - No GPU support
 
