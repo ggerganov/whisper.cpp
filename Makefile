@@ -6,7 +6,7 @@ UNAME_M := $(shell uname -m)
 # Compile flags
 #
 
-CFLAGS   = -O3 -std=c11
+CFLAGS   = -O3 -std=c11  
 CXXFLAGS = -O3 -std=c++11
 
 CFLAGS   += -Wall -Wextra -Wno-unused-parameter -Wno-unused-function
@@ -24,15 +24,16 @@ ifeq ($(UNAME_S),Darwin)
 endif
 
 # Architecture specific
-ifeq ($(UNAME_P),x86_64)
+# TODO: probably these flags need to be tweaked on some architectures
+ifeq ($(UNAME_M),x86_64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
 endif
-ifneq ($(filter arm%,$(UNAME_P)),)
+ifneq ($(filter arm%,$(UNAME_M)),)
 	# Mac M1
 endif
-ifneq ($(filter aarch64%,$(UNAME_P)),)
-	endif
-	ifneq ($(filter armv6%,$(UNAME_M)),)
+ifneq ($(filter aarch64%,$(UNAME_M)),)
+endif
+ifneq ($(filter armv6%,$(UNAME_M)),)
 	# Raspberry Pi 1, 2, 3
 	CFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access
 endif
