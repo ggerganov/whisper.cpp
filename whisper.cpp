@@ -2242,7 +2242,7 @@ whisper_token whisper_token_transcribe() {
 void whisper_print_timings(struct whisper_context * ctx) {
     const int64_t t_end_us = ggml_time_us();
 
-    printf("\n\n");
+    printf("\n");
     printf("%s:     load time = %8.2f ms\n", __func__, ctx->t_load_us/1000.0f);
     printf("%s:      mel time = %8.2f ms\n", __func__, ctx->t_mel_us/1000.0f);
     printf("%s:   sample time = %8.2f ms\n", __func__, ctx->t_sample_us/1000.0f);
