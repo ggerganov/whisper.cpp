@@ -17,14 +17,14 @@ add_test(NAME ${TEST_TARGET}
     COMMAND $<TARGET_FILE:main>
     -m ${PROJECT_SOURCE_DIR}/models/for-tests-ggml-base.bin
     -f ${PROJECT_SOURCE_DIR}/samples/jfk.wav)
-set_tests_properties(${TEST_TARGET} PROPERTIES LABELS "base")
+set_tests_properties(${TEST_TARGET} PROPERTIES LABELS "base;gh")
 
 set(TEST_TARGET test-main-base.en)
 add_test(NAME ${TEST_TARGET}
     COMMAND $<TARGET_FILE:main>
     -m ${PROJECT_SOURCE_DIR}/models/for-tests-ggml-base.en.bin
     -f ${PROJECT_SOURCE_DIR}/samples/jfk.wav)
-set_tests_properties(${TEST_TARGET} PROPERTIES LABELS "base;en")
+set_tests_properties(${TEST_TARGET} PROPERTIES LABELS "base;en;gh")
 
 set(TEST_TARGET test-main-small)
 add_test(NAME ${TEST_TARGET}
