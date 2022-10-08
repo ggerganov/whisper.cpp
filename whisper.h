@@ -71,11 +71,12 @@ extern "C" {
     // return the id of the specified language, returns -1 if not found
     WHISPER_API int whisper_lang_id(const char * lang);
 
-    WHISPER_API int     whisper_n_len          (struct whisper_context * ctx); // mel length
-    WHISPER_API int     whisper_n_vocab        (struct whisper_context * ctx);
-    WHISPER_API int     whisper_n_text_ctx     (struct whisper_context * ctx);
-    WHISPER_API int     whisper_is_multilingual(struct whisper_context * ctx);
-    WHISPER_API float * whisper_get_probs      (struct whisper_context * ctx);
+    WHISPER_API int whisper_n_len          (struct whisper_context * ctx); // mel length
+    WHISPER_API int whisper_n_vocab        (struct whisper_context * ctx);
+    WHISPER_API int whisper_n_text_ctx     (struct whisper_context * ctx);
+    WHISPER_API int whisper_is_multilingual(struct whisper_context * ctx);
+
+    WHISPER_API float * whisper_get_probs(struct whisper_context * ctx);
 
     WHISPER_API const char * whisper_token_to_str(struct whisper_context * ctx, whisper_token token);
 
