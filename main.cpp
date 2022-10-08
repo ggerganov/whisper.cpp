@@ -230,25 +230,25 @@ int main(int argc, char ** argv) {
 
             // print result
             if (!wparams.print_realtime) {
-                fprintf(stderr, "\n");
+                printf("\n");
 
                 const int n_segments = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n_segments; ++i) {
                     const char * text = whisper_full_get_segment_text(ctx, i);
 
                     if (params.no_timestamps) {
-                        fprintf(stderr, "%s", text);
+                        printf("%s", text);
                         fflush(stdout);
                     } else {
                         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
                         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
-                        fprintf(stderr, "[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
+                        printf("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
                     }
                 }
             }
 
-            fprintf(stderr, "\n");
+            printf("\n");
 
             // output to text file
             if (params.output_txt) {
