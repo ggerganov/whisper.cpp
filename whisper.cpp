@@ -1034,8 +1034,8 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
         {
             auto hparams = model.hparams;
 
-            hparams.n_audio_state /= 2;
-            hparams.n_text_state  /= 2;
+            //hparams.n_audio_state /= 2;
+            //hparams.n_text_state  /= 2;
 
             fout.write(reinterpret_cast<char *>(&hparams.n_vocab),       sizeof(hparams.n_vocab));
             fout.write(reinterpret_cast<char *>(&hparams.n_audio_ctx),   sizeof(hparams.n_audio_ctx));
@@ -1087,151 +1087,225 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
                 fout.write(reinterpret_cast<char *>(const_cast<int32_t *>(&ftype)),  sizeof(ftype));
 
                 printf("name = %42s, n_dims = %d, ne0 = %d, ne1 = %d, ne2 = %d, ftype = %d\n", name.data(), n_dims, tensor->ne[0], tensor->ne[1], tensor->ne[2], ftype);
-                for (int i = 0; i < n_dims; ++i) {
-                    const int32_t ne = (tensor->ne[i]%model.hparams.n_audio_state == 0) ? tensor->ne[i]/2 : tensor->ne[i];
-                    fout.write(reinterpret_cast<char *>(const_cast<int32_t *>(&ne)), sizeof(ne));
-                }
 
-                fout.write(reinterpret_cast<char *>(const_cast<char *>(name.data())), length);
+                //for (int i = 0; i < n_dims; ++i) {
+                //    const int32_t ne = (tensor->ne[i]%model.hparams.n_audio_state == 0) ? tensor->ne[i]/2 : tensor->ne[i];
+                //    fout.write(reinterpret_cast<char *>(const_cast<int32_t *>(&ne)), sizeof(ne));
+                //}
 
-                if (tensor->type == GGML_TYPE_F16) {
-                    if (name == "decoder.token_embedding.weight") {
-                        const int ne0 = tensor->ne[0];
-                        const int ne1 = tensor->ne[1];
+                //if (tensor->type == GGML_TYPE_F16) {
+                //    if (name == "decoder.token_embedding.weight") {
+                //        const int ne0 = tensor->ne[0];
+                //        const int ne1 = tensor->ne[1];
 
-                        std::vector<ggml_fp16_t> tmp((ne0/2)*ne1);
+                //        std::vector<ggml_fp16_t> tmp((ne0/2)*ne1);
 
-                        const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
-                        for (int i1 = 0; i1 < ne1; ++i1) {
-                            for (int i0 = 0; i0 < ne0/2; ++i0) {
-                                const float v00 = ggml_fp16_to_fp32(src[i0*2+0 + i1*ne0]);
-                                const float v01 = ggml_fp16_to_fp32(src[i0*2+1 + i1*ne0]);
+                //        const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
+                //        for (int i1 = 0; i1 < ne1; ++i1) {
+                //            for (int i0 = 0; i0 < ne0/2; ++i0) {
+                //                const float v00 = ggml_fp16_to_fp32(src[i0*2+0 + i1*ne0]);
+                //                const float v01 = ggml_fp16_to_fp32(src[i0*2+1 + i1*ne0]);
 
-                                tmp[i1*ne0/2 + i0] = ggml_fp32_to_fp16(0.5f*(v00 + v01));
-                            }
+                //                tmp[i1*ne0/2 + i0] = ggml_fp32_to_fp16(0.5f*(v00 + v01));
+                //            }
+                //        }
+
+                //        fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
+                //    } else if (tensor->n_dims == 2) {
+                //        const int ne0 = tensor->ne[0];
+                //        const int ne1 = tensor->ne[1];
+
+                //        std::vector<ggml_fp16_t> tmp((ne0/2)*(ne1/2));
+
+                //        const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
+                //        for (int i1 = 0; i1 < ne1/2; ++i1) {
+                //            for (int i0 = 0; i0 < ne0/2; ++i0) {
+                //                const float v00 = ggml_fp16_to_fp32(src[2*i0 +     2*i1*ne0]);
+                //                const float v01 = ggml_fp16_to_fp32(src[2*i0 + 1 + 2*i1*ne0]);
+                //                const float v10 = ggml_fp16_to_fp32(src[2*i0 +     (2*i1+1)*ne0]);
+                //                const float v11 = ggml_fp16_to_fp32(src[2*i0 + 1 + (2*i1+1)*ne0]);
+
+                //                tmp[i1*(ne0/2) + i0] = ggml_fp32_to_fp16(0.25*(v00 + v01 + v10 + v11));
+                //            }
+                //        }
+
+                //        fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
+                //    } else if (tensor->n_dims == 3) {
+                //        const int ne0 = tensor->ne[0];
+                //        const int ne1 = tensor->ne[1];
+                //        const int ne2 = tensor->ne[2];
+
+                //        if (ne1 == 80) {
+                //            std::vector<ggml_fp16_t> tmp(ne0*ne1*(ne2/2));
+
+                //            const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
+                //            for (int i2 = 0; i2 < ne2/2; ++i2) {
+                //                for (int i1 = 0; i1 < ne1; ++i1) {
+                //                    for (int i0 = 0; i0 < ne0; ++i0) {
+                //                        const float v0 = ggml_fp16_to_fp32(src[i0 + i1*ne0 + 2*i2*ne0*ne1]);
+                //                        const float v1 = ggml_fp16_to_fp32(src[i0 + i1*ne0 + (2*i2+1)*ne0*ne1]);
+
+                //                        tmp[i0 + i1*ne0 + i2*ne0*ne1] = ggml_fp32_to_fp16(0.5*(v0 + v1));
+                //                    }
+                //                }
+                //            }
+
+                //            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
+                //        } else {
+                //            std::vector<ggml_fp16_t> tmp(ne0*(ne1/2)*(ne2/2));
+
+                //            const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
+                //            for (int i2 = 0; i2 < ne2/2; ++i2) {
+                //                for (int i1 = 0; i1 < ne1/2; ++i1) {
+                //                    for (int i0 = 0; i0 < ne0; ++i0) {
+                //                        const float v00 = ggml_fp16_to_fp32(src[i0 + 2*i1*ne0 +     2*i2*ne0*ne1]);
+                //                        const float v01 = ggml_fp16_to_fp32(src[i0 + (2*i1+1)*ne0 + 2*i2*ne0*ne1]);
+                //                        const float v10 = ggml_fp16_to_fp32(src[i0 + 2*i1*ne0 +     (2*i2+1)*ne0*ne1]);
+                //                        const float v11 = ggml_fp16_to_fp32(src[i0 + (2*i1+1)*ne0 + (2*i2+1)*ne0*ne1]);
+
+                //                        tmp[i0 + i1*ne0 + i2*ne0*(ne1/2)] = ggml_fp32_to_fp16(0.25*(v00 + v01 + v10 + v11));
+                //                    }
+                //                }
+                //            }
+
+                //            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
+                //        }
+                //    } else {
+                //        assert(false);
+                //    }
+                //} else {
+                //    if (tensor->n_dims == 1) {
+                //        const int ne0 = tensor->ne[0];
+
+                //        std::vector<float> tmp(ne0/2);
+
+                //        const float * src = (const float *) tensor->data;
+                //        for (int i0 = 0; i0 < ne0/2; ++i0) {
+                //            tmp[i0] = 0.5*(src[2*i0] + src[2*i0+1]);
+                //        }
+
+                //        fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
+                //    } else if (tensor->n_dims == 2) {
+                //        const int ne0 = tensor->ne[0];
+                //        const int ne1 = tensor->ne[1];
+
+                //        if (name == "encoder.positional_embedding" || name == "decoder.positional_embedding") {
+                //            std::vector<float> tmp((ne0/2)*ne1);
+
+                //            const float * src = (const float *) tensor->data;
+                //            for (int i1 = 0; i1 < ne1; ++i1) {
+                //                for (int i0 = 0; i0 < ne0/2; ++i0) {
+                //                    tmp[i0 + i1*(ne0/2)] = 0.5*(src[2*i0 + i1*ne0] + src[2*i0 + 1 + i1*ne0]);
+                //                }
+                //            }
+
+                //            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
+                //        } else if (name == "encoder.conv1.bias" || name == "encoder.conv2.bias") {
+                //            std::vector<float> tmp(ne0*(ne1/2));
+
+                //            const float * src = (const float *) tensor->data;
+                //            for (int i1 = 0; i1 < ne1/2; ++i1) {
+                //                for (int i0 = 0; i0 < ne0; ++i0) {
+                //                    tmp[i0 + i1*ne0] = 0.5*(src[i0 + 2*i1*ne0] + src[i0 + (2*i1+1)*ne0]);
+                //                }
+                //            }
+
+                //            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
+                //        } else {
+                //            std::vector<float> tmp((ne0/2)*(ne1/2));
+
+                //            const float * src = (const float *) tensor->data;
+                //            for (int i1 = 0; i1 < ne1/2; ++i1) {
+                //                for (int i0 = 0; i0 < ne0/2; ++i0) {
+                //                    const float v00 = src[2*i0 +     2*i1*ne0];
+                //                    const float v01 = src[2*i0 + 1 + 2*i1*ne0];
+                //                    const float v10 = src[2*i0 +     (2*i1+1)*ne0];
+                //                    const float v11 = src[2*i0 + 1 + (2*i1+1)*ne0];
+
+                //                    tmp[i1*(ne0/2) + i0] = 0.25*(v00 + v01 + v10 + v11);
+                //                }
+                //            }
+
+                //            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
+                //        }
+                //    } else {
+                //        assert(false);
+                //    }
+                //}
+
+                // if name ends with ".mlp.0.weight"
+                if (name.substr(name.size() - 13) == ".mlp.0.weight") {
+                    const int32_t ne0 = tensor->ne[0];
+                    const int32_t ne1 = tensor->ne[1]/2;
+
+                    fout.write(reinterpret_cast<const char *>(&ne0), sizeof(int32_t));
+                    fout.write(reinterpret_cast<const char *>(&ne1), sizeof(int32_t));
+                    fout.write(reinterpret_cast<char *>(const_cast<char *>(name.data())), length);
+
+                    printf("name = %s, ne0 = %d, ne1 = %d\n", name.c_str(), ne0, ne1);
+
+                    std::vector<ggml_fp16_t> tmp(ne0*ne1);
+
+                    const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
+                    for (int i1 = 0; i1 < ne1; ++i1) {
+                        for (int i0 = 0; i0 < ne0; ++i0) {
+                            const float v00 = ggml_fp16_to_fp32(src[i0 + 2*i1*ne0]);
+                            const float v01 = ggml_fp16_to_fp32(src[i0 + (2*i1+1)*ne0]);
+
+                            tmp[i0 + i1*ne0] = ggml_fp32_to_fp16(0.5*(v00 + v01));
                         }
-
-                        fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
-                    } else if (tensor->n_dims == 2) {
-                        const int ne0 = tensor->ne[0];
-                        const int ne1 = tensor->ne[1];
-
-                        std::vector<ggml_fp16_t> tmp((ne0/2)*(ne1/2));
-
-                        const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
-                        for (int i1 = 0; i1 < ne1/2; ++i1) {
-                            for (int i0 = 0; i0 < ne0/2; ++i0) {
-                                const float v00 = ggml_fp16_to_fp32(src[2*i0 +     2*i1*ne0]);
-                                const float v01 = ggml_fp16_to_fp32(src[2*i0 + 1 + 2*i1*ne0]);
-                                const float v10 = ggml_fp16_to_fp32(src[2*i0 +     (2*i1+1)*ne0]);
-                                const float v11 = ggml_fp16_to_fp32(src[2*i0 + 1 + (2*i1+1)*ne0]);
-
-                                tmp[i1*(ne0/2) + i0] = ggml_fp32_to_fp16(0.25*(v00 + v01 + v10 + v11));
-                            }
-                        }
-
-                        fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
-                    } else if (tensor->n_dims == 3) {
-                        const int ne0 = tensor->ne[0];
-                        const int ne1 = tensor->ne[1];
-                        const int ne2 = tensor->ne[2];
-
-                        if (ne1 == 80) {
-                            std::vector<ggml_fp16_t> tmp(ne0*ne1*(ne2/2));
-
-                            const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
-                            for (int i2 = 0; i2 < ne2/2; ++i2) {
-                                for (int i1 = 0; i1 < ne1; ++i1) {
-                                    for (int i0 = 0; i0 < ne0; ++i0) {
-                                        const float v0 = ggml_fp16_to_fp32(src[i0 + i1*ne0 + 2*i2*ne0*ne1]);
-                                        const float v1 = ggml_fp16_to_fp32(src[i0 + i1*ne0 + (2*i2+1)*ne0*ne1]);
-
-                                        tmp[i0 + i1*ne0 + i2*ne0*ne1] = ggml_fp32_to_fp16(0.5*(v0 + v1));
-                                    }
-                                }
-                            }
-
-                            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
-                        } else {
-                            std::vector<ggml_fp16_t> tmp(ne0*(ne1/2)*(ne2/2));
-
-                            const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
-                            for (int i2 = 0; i2 < ne2/2; ++i2) {
-                                for (int i1 = 0; i1 < ne1/2; ++i1) {
-                                    for (int i0 = 0; i0 < ne0; ++i0) {
-                                        const float v00 = ggml_fp16_to_fp32(src[i0 + 2*i1*ne0 +     2*i2*ne0*ne1]);
-                                        const float v01 = ggml_fp16_to_fp32(src[i0 + (2*i1+1)*ne0 + 2*i2*ne0*ne1]);
-                                        const float v10 = ggml_fp16_to_fp32(src[i0 + 2*i1*ne0 +     (2*i2+1)*ne0*ne1]);
-                                        const float v11 = ggml_fp16_to_fp32(src[i0 + (2*i1+1)*ne0 + (2*i2+1)*ne0*ne1]);
-
-                                        tmp[i0 + i1*ne0 + i2*ne0*(ne1/2)] = ggml_fp32_to_fp16(0.25*(v00 + v01 + v10 + v11));
-                                    }
-                                }
-                            }
-
-                            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
-                        }
-                    } else {
-                        assert(false);
                     }
+
+                    fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
+                } else if (name.substr(name.size() - 11) == ".mlp.0.bias") {
+                    const int32_t ne0 = tensor->ne[0]/2;
+
+                    fout.write(reinterpret_cast<const char *>(&ne0), sizeof(int32_t));
+                    fout.write(reinterpret_cast<char *>(const_cast<char *>(name.data())), length);
+
+                    printf("name = %s, ne0 = %d\n", name.c_str(), ne0);
+
+                    std::vector<float> tmp(ne0);
+
+                    const float * src = (const float *) tensor->data;
+                    for (int i0 = 0; i0 < ne0; ++i0) {
+                        tmp[i0] = 0.5*(src[2*i0] + src[2*i0+1]);
+                    }
+
+                    fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
+                } else if (name.substr(name.size() - 13) == ".mlp.2.weight") {
+                    const int32_t ne0 = tensor->ne[0]/2;
+                    const int32_t ne1 = tensor->ne[1];
+
+                    fout.write(reinterpret_cast<const char *>(&ne0), sizeof(int32_t));
+                    fout.write(reinterpret_cast<const char *>(&ne1), sizeof(int32_t));
+                    fout.write(reinterpret_cast<char *>(const_cast<char *>(name.data())), length);
+
+                    printf("name = %s, ne0 = %d, ne1 = %d\n", name.c_str(), ne0, ne1);
+
+                    std::vector<ggml_fp16_t> tmp(ne0*ne1);
+
+                    const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
+                    for (int i1 = 0; i1 < ne1; ++i1) {
+                        for (int i0 = 0; i0 < ne0; ++i0) {
+                            const float v00 = ggml_fp16_to_fp32(src[2*i0 + i1*ne0]);
+                            const float v01 = ggml_fp16_to_fp32(src[2*i0 + 1 + i1*ne0]);
+
+                            tmp[i0 + i1*ne0] = ggml_fp32_to_fp16(0.5*(v00 + v01));
+                        }
+                    }
+
+                    fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
                 } else {
-                    if (tensor->n_dims == 1) {
-                        const int ne0 = tensor->ne[0];
-
-                        std::vector<float> tmp(ne0/2);
-
-                        const float * src = (const float *) tensor->data;
-                        for (int i0 = 0; i0 < ne0/2; ++i0) {
-                            tmp[i0] = 0.5*(src[2*i0] + src[2*i0+1]);
-                        }
-
-                        fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
-                    } else if (tensor->n_dims == 2) {
-                        const int ne0 = tensor->ne[0];
-                        const int ne1 = tensor->ne[1];
-
-                        if (name == "encoder.positional_embedding" || name == "decoder.positional_embedding") {
-                            std::vector<float> tmp((ne0/2)*ne1);
-
-                            const float * src = (const float *) tensor->data;
-                            for (int i1 = 0; i1 < ne1; ++i1) {
-                                for (int i0 = 0; i0 < ne0/2; ++i0) {
-                                    tmp[i0 + i1*(ne0/2)] = 0.5*(src[2*i0 + i1*ne0] + src[2*i0 + 1 + i1*ne0]);
-                                }
-                            }
-
-                            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
-                        } else if (name == "encoder.conv1.bias" || name == "encoder.conv2.bias") {
-                            std::vector<float> tmp(ne0*(ne1/2));
-
-                            const float * src = (const float *) tensor->data;
-                            for (int i1 = 0; i1 < ne1/2; ++i1) {
-                                for (int i0 = 0; i0 < ne0; ++i0) {
-                                    tmp[i0 + i1*ne0] = 0.5*(src[i0 + 2*i1*ne0] + src[i0 + (2*i1+1)*ne0]);
-                                }
-                            }
-
-                            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
-                        } else {
-                            std::vector<float> tmp((ne0/2)*(ne1/2));
-
-                            const float * src = (const float *) tensor->data;
-                            for (int i1 = 0; i1 < ne1/2; ++i1) {
-                                for (int i0 = 0; i0 < ne0/2; ++i0) {
-                                    const float v00 = src[2*i0 +     2*i1*ne0];
-                                    const float v01 = src[2*i0 + 1 + 2*i1*ne0];
-                                    const float v10 = src[2*i0 +     (2*i1+1)*ne0];
-                                    const float v11 = src[2*i0 + 1 + (2*i1+1)*ne0];
-
-                                    tmp[i1*(ne0/2) + i0] = 0.25*(v00 + v01 + v10 + v11);
-                                }
-                            }
-
-                            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
-                        }
-                    } else {
-                        assert(false);
+                    for (int i = 0; i < n_dims; ++i) {
+                        const int32_t ne = tensor->ne[i];
+                        fout.write(reinterpret_cast<char *>(const_cast<int32_t *>(&ne)), sizeof(ne));
                     }
+
+                    fout.write(reinterpret_cast<char *>(const_cast<char *>(name.data())), length);
+                    //printf("name = %s, ne = %d, %d, %d, %d\n", name.c_str(), tensor->ne[0], tensor->ne[1], tensor->ne[2], tensor->ne[3]);
+
+                    fout.write(reinterpret_cast<char *>(tensor->data), ggml_nbytes(tensor));
                 }
             }
         }
