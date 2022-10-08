@@ -61,7 +61,7 @@ jobs:
             - name: Build
               run: |
                 make
-                ctest --output-on-failure
+                ctest -L gh --output-on-failure
 
     ubuntu-latest-clang:
         runs-on: ubuntu-latest
@@ -87,7 +87,7 @@ jobs:
             - name: Build
               run: |
                 make
-                ctest --output-on-failure
+                ctest -L gh --output-on-failure
 
     ubuntu-latest-gcc-sanitized:
         runs-on: ubuntu-latest
@@ -112,4 +112,4 @@ jobs:
             - name: Build
               run: |
                 make
-                ctest --output-on-failure
+                ctest -L gh --output-on-failure

@@ -4,3 +4,4 @@ stream
 *.o
 .cache
 build/
+compile_commands.json
