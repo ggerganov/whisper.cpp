@@ -1003,7 +1003,7 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
 
             fin.read(reinterpret_cast<char *>(tensor->data), ggml_nbytes(tensor));
 
-            //printf("%24s - [%5d, %5d], type = %6s, %6.2f MB\n", name.data(), ne[0], ne[1], ftype == 0 ? "float" : "f16", ggml_nbytes(tensor)/1024.0/1024.0);
+            printf("%42s - [%5d, %5d], type = %6s, %6.2f MB\n", name.data(), ne[0], ne[1], ftype == 0 ? "float" : "f16", ggml_nbytes(tensor)/1024.0/1024.0);
             total_size += ggml_nbytes(tensor);
             n_loaded++;
         }
@@ -1019,6 +1019,225 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
     }
 
     fin.close();
+
+    // dump minified model
+    {
+        std::ofstream fout(fname + ".min", std::ios::binary);
+
+        // magic
+        {
+            uint32_t magic = 0x67676d6c;
+            fout.write(reinterpret_cast<char *>(&magic), sizeof(magic));
+        }
+
+        // hparams
+        {
+            auto hparams = model.hparams;
+
+            hparams.n_audio_state /= 2;
+            hparams.n_text_state  /= 2;
+
+            fout.write(reinterpret_cast<char *>(&hparams.n_vocab),       sizeof(hparams.n_vocab));
+            fout.write(reinterpret_cast<char *>(&hparams.n_audio_ctx),   sizeof(hparams.n_audio_ctx));
+            fout.write(reinterpret_cast<char *>(&hparams.n_audio_state), sizeof(hparams.n_audio_state));
+            fout.write(reinterpret_cast<char *>(&hparams.n_audio_head),  sizeof(hparams.n_audio_head));
+            fout.write(reinterpret_cast<char *>(&hparams.n_audio_layer), sizeof(hparams.n_audio_layer));
+            fout.write(reinterpret_cast<char *>(&hparams.n_text_ctx),    sizeof(hparams.n_text_ctx));
+            fout.write(reinterpret_cast<char *>(&hparams.n_text_state),  sizeof(hparams.n_text_state));
+            fout.write(reinterpret_cast<char *>(&hparams.n_text_head),   sizeof(hparams.n_text_head));
+            fout.write(reinterpret_cast<char *>(&hparams.n_text_layer),  sizeof(hparams.n_text_layer));
+            fout.write(reinterpret_cast<char *>(&hparams.n_mels),        sizeof(hparams.n_mels));
+            fout.write(reinterpret_cast<char *>(&hparams.f16),           sizeof(hparams.f16));
+        }
+
+        // mel filters
+        {
+            auto & filters = wctx.model.filters;
+
+            fout.write(reinterpret_cast<char *>(&filters.n_mel), sizeof(filters.n_mel));
+            fout.write(reinterpret_cast<char *>(&filters.n_fft), sizeof(filters.n_fft));
+
+            fout.write(reinterpret_cast<char *>(filters.data.data()), filters.data.size()*sizeof(float));
+        }
+
+        // vocab
+        {
+            fout.write(reinterpret_cast<char *>(&vocab.n_vocab), sizeof(vocab.n_vocab));
+
+            for (int i = 0; i < vocab.n_vocab; ++i) {
+                const auto & token = vocab.id_to_token[i];
+                const uint32_t len = token.size();
+                fout.write(reinterpret_cast<char *>(const_cast<uint32_t *>(&len)), sizeof(len));
+                fout.write(reinterpret_cast<char *>(const_cast<char *>(token.data())), len);
+            }
+        }
+
+        // weights
+        {
+            for (const auto & kv : model.tensors) {
+                const auto & name   = kv.first;
+                const auto & tensor = kv.second;
+
+                const int32_t n_dims = tensor->n_dims;
+                const int32_t length = name.size();
+                const int32_t ftype  = tensor->type == GGML_TYPE_F32 ? 0 : 1;
+
+                fout.write(reinterpret_cast<char *>(const_cast<int32_t *>(&n_dims)), sizeof(n_dims));
+                fout.write(reinterpret_cast<char *>(const_cast<int32_t *>(&length)), sizeof(length));
+                fout.write(reinterpret_cast<char *>(const_cast<int32_t *>(&ftype)),  sizeof(ftype));
+
+                printf("name = %42s, n_dims = %d, ne0 = %d, ne1 = %d, ne2 = %d, ftype = %d\n", name.data(), n_dims, tensor->ne[0], tensor->ne[1], tensor->ne[2], ftype);
+                for (int i = 0; i < n_dims; ++i) {
+                    const int32_t ne = (tensor->ne[i]%model.hparams.n_audio_state == 0) ? tensor->ne[i]/2 : tensor->ne[i];
+                    fout.write(reinterpret_cast<char *>(const_cast<int32_t *>(&ne)), sizeof(ne));
+                }
+
+                fout.write(reinterpret_cast<char *>(const_cast<char *>(name.data())), length);
+
+                if (tensor->type == GGML_TYPE_F16) {
+                    if (name == "decoder.token_embedding.weight") {
+                        const int ne0 = tensor->ne[0];
+                        const int ne1 = tensor->ne[1];
+
+                        std::vector<ggml_fp16_t> tmp((ne0/2)*ne1);
+
+                        const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
+                        for (int i1 = 0; i1 < ne1; ++i1) {
+                            for (int i0 = 0; i0 < ne0/2; ++i0) {
+                                const float v00 = ggml_fp16_to_fp32(src[i0*2+0 + i1*ne0]);
+                                const float v01 = ggml_fp16_to_fp32(src[i0*2+1 + i1*ne0]);
+
+                                tmp[i1*ne0/2 + i0] = ggml_fp32_to_fp16(0.5f*(v00 + v01));
+                            }
+                        }
+
+                        fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
+                    } else if (tensor->n_dims == 2) {
+                        const int ne0 = tensor->ne[0];
+                        const int ne1 = tensor->ne[1];
+
+                        std::vector<ggml_fp16_t> tmp((ne0/2)*(ne1/2));
+
+                        const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
+                        for (int i1 = 0; i1 < ne1/2; ++i1) {
+                            for (int i0 = 0; i0 < ne0/2; ++i0) {
+                                const float v00 = ggml_fp16_to_fp32(src[2*i0 +     2*i1*ne0]);
+                                const float v01 = ggml_fp16_to_fp32(src[2*i0 + 1 + 2*i1*ne0]);
+                                const float v10 = ggml_fp16_to_fp32(src[2*i0 +     (2*i1+1)*ne0]);
+                                const float v11 = ggml_fp16_to_fp32(src[2*i0 + 1 + (2*i1+1)*ne0]);
+
+                                tmp[i1*(ne0/2) + i0] = ggml_fp32_to_fp16(0.25*(v00 + v01 + v10 + v11));
+                            }
+                        }
+
+                        fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
+                    } else if (tensor->n_dims == 3) {
+                        const int ne0 = tensor->ne[0];
+                        const int ne1 = tensor->ne[1];
+                        const int ne2 = tensor->ne[2];
+
+                        if (ne1 == 80) {
+                            std::vector<ggml_fp16_t> tmp(ne0*ne1*(ne2/2));
+
+                            const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
+                            for (int i2 = 0; i2 < ne2/2; ++i2) {
+                                for (int i1 = 0; i1 < ne1; ++i1) {
+                                    for (int i0 = 0; i0 < ne0; ++i0) {
+                                        const float v0 = ggml_fp16_to_fp32(src[i0 + i1*ne0 + 2*i2*ne0*ne1]);
+                                        const float v1 = ggml_fp16_to_fp32(src[i0 + i1*ne0 + (2*i2+1)*ne0*ne1]);
+
+                                        tmp[i0 + i1*ne0 + i2*ne0*ne1] = ggml_fp32_to_fp16(0.5*(v0 + v1));
+                                    }
+                                }
+                            }
+
+                            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
+                        } else {
+                            std::vector<ggml_fp16_t> tmp(ne0*(ne1/2)*(ne2/2));
+
+                            const ggml_fp16_t * src = (const ggml_fp16_t *) tensor->data;
+                            for (int i2 = 0; i2 < ne2/2; ++i2) {
+                                for (int i1 = 0; i1 < ne1/2; ++i1) {
+                                    for (int i0 = 0; i0 < ne0; ++i0) {
+                                        const float v00 = ggml_fp16_to_fp32(src[i0 + 2*i1*ne0 +     2*i2*ne0*ne1]);
+                                        const float v01 = ggml_fp16_to_fp32(src[i0 + (2*i1+1)*ne0 + 2*i2*ne0*ne1]);
+                                        const float v10 = ggml_fp16_to_fp32(src[i0 + 2*i1*ne0 +     (2*i2+1)*ne0*ne1]);
+                                        const float v11 = ggml_fp16_to_fp32(src[i0 + (2*i1+1)*ne0 + (2*i2+1)*ne0*ne1]);
+
+                                        tmp[i0 + i1*ne0 + i2*ne0*(ne1/2)] = ggml_fp32_to_fp16(0.25*(v00 + v01 + v10 + v11));
+                                    }
+                                }
+                            }
+
+                            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(ggml_fp16_t));
+                        }
+                    } else {
+                        assert(false);
+                    }
+                } else {
+                    if (tensor->n_dims == 1) {
+                        const int ne0 = tensor->ne[0];
+
+                        std::vector<float> tmp(ne0/2);
+
+                        const float * src = (const float *) tensor->data;
+                        for (int i0 = 0; i0 < ne0/2; ++i0) {
+                            tmp[i0] = 0.5*(src[2*i0] + src[2*i0+1]);
+                        }
+
+                        fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
+                    } else if (tensor->n_dims == 2) {
+                        const int ne0 = tensor->ne[0];
+                        const int ne1 = tensor->ne[1];
+
+                        if (name == "encoder.positional_embedding" || name == "decoder.positional_embedding") {
+                            std::vector<float> tmp((ne0/2)*ne1);
+
+                            const float * src = (const float *) tensor->data;
+                            for (int i1 = 0; i1 < ne1; ++i1) {
+                                for (int i0 = 0; i0 < ne0/2; ++i0) {
+                                    tmp[i0 + i1*(ne0/2)] = 0.5*(src[2*i0 + i1*ne0] + src[2*i0 + 1 + i1*ne0]);
+                                }
+                            }
+
+                            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
+                        } else if (name == "encoder.conv1.bias" || name == "encoder.conv2.bias") {
+                            std::vector<float> tmp(ne0*(ne1/2));
+
+                            const float * src = (const float *) tensor->data;
+                            for (int i1 = 0; i1 < ne1/2; ++i1) {
+                                for (int i0 = 0; i0 < ne0; ++i0) {
+                                    tmp[i0 + i1*ne0] = 0.5*(src[i0 + 2*i1*ne0] + src[i0 + (2*i1+1)*ne0]);
+                                }
+                            }
+
+                            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
+                        } else {
+                            std::vector<float> tmp((ne0/2)*(ne1/2));
+
+                            const float * src = (const float *) tensor->data;
+                            for (int i1 = 0; i1 < ne1/2; ++i1) {
+                                for (int i0 = 0; i0 < ne0/2; ++i0) {
+                                    const float v00 = src[2*i0 +     2*i1*ne0];
+                                    const float v01 = src[2*i0 + 1 + 2*i1*ne0];
+                                    const float v10 = src[2*i0 +     (2*i1+1)*ne0];
+                                    const float v11 = src[2*i0 + 1 + (2*i1+1)*ne0];
+
+                                    tmp[i1*(ne0/2) + i0] = 0.25*(v00 + v01 + v10 + v11);
+                                }
+                            }
+
+                            fout.write(reinterpret_cast<char *>(tmp.data()), tmp.size()*sizeof(float));
+                        }
+                    } else {
+                        assert(false);
+                    }
+                }
+            }
+        }
+
+        fout.close();
+    }
 
     return true;
 }
@@ -2429,7 +2648,7 @@ int whisper_full(
                 prompt.push_back(id);
                 result_cur.push_back({ seek + 2*(tid - whisper_token_beg(ctx)), id });
 
-                //printf("%s: %s\n", __func__, ctx->vocab.id_to_token[id].c_str());
+                printf("%s: %s\n", __func__, ctx->vocab.id_to_token[id].c_str());
 
                 // end of text token
                 if (id == whisper_token_eot(ctx)) {
