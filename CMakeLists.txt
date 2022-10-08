@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.0)
-project(whisper.cpp VERSION 0.1.0)
+project(whisper.cpp VERSION 1.0.0)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS "on")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -7,8 +7,6 @@ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(WHISPER_STANDALONE ON)
-    include(cmake/GitVars.cmake)
-    include(cmake/BuildTypes.cmake)
 else()
     set(WHISPER_STANDALONE OFF)
 endif()
@@ -22,7 +20,7 @@ option(WHISPER_SANITIZE_THREAD         "whisper: enable thread sanitizer" OFF)
 option(WHISPER_SANITIZE_ADDRESS        "whisper: enable address sanitizer" OFF)
 option(WHISPER_SANITIZE_UNDEFINED      "whisper: enable undefined sanitizer" OFF)
 
-option(WHISPER_BUILD_TESTS             "whisper: build tests"    ${WHISPER_STANDALONE})
+option(WHISPER_BUILD_TESTS             "whisper: build tests" ${WHISPER_STANDALONE})
 
 option(WHISPER_SUPPORT_SDL2            "whisper: support for libSDL2" OFF)
 
@@ -55,7 +53,6 @@ find_package(Threads REQUIRED)
 
 if (WHISPER_SUPPORT_SDL2)
     # SDL2
-
     find_package(SDL2 REQUIRED)
 
     string(STRIP "${SDL2_LIBRARIES}" SDL2_LIBRARIES)
@@ -64,7 +61,7 @@ if (WHISPER_SUPPORT_SDL2)
     message(STATUS "SDL2_LIBRARIES = ${SDL2_LIBRARIES}")
 endif()
 
-# main
+# compiler flags
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -87,8 +84,6 @@ if (WHISPER_ALL_WARNINGS)
     endif()
 endif()
 
-# compiler flags
-
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=vla")
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-math-errno -ffinite-math-only -funsafe-math-optimizations")
 
@@ -101,11 +96,11 @@ else()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -mavx2 -mfma -mf16c")
 endif()
 
-# whisper
+# whisper - this is the main library of the project
 
 set(TARGET whisper)
 
-add_library(${TARGET} SHARED
+add_library(${TARGET}
     ggml.c
     whisper.cpp
     )
@@ -134,6 +129,8 @@ install(TARGETS ${TARGET}
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib/static
     )
+
+# programs, examples and tests
 
 if (WHISPER_STANDALONE)
     # main
