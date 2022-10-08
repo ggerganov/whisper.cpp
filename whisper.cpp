@@ -1012,7 +1012,7 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
 
         if (n_loaded == 0) {
             printf("%s: WARN no tensors loaded from model file - assuming empty model for testing\n", __func__);
-        } else if (n_loaded != model.tensors.size()) {
+        } else if (n_loaded != (int) model.tensors.size()) {
             fprintf(stderr, "%s: ERROR not all tensors loaded from model file - expected %zu, got %d\n", __func__, model.tensors.size(), n_loaded);
             return false;
         }
