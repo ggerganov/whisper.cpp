@@ -421,7 +421,7 @@ struct whisper_context {
 // see the convert-pt-to-ggml.py script for details
 //
 bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
-    printf("%s: loading model from '%s'\n", __func__, fname.c_str());
+    fprintf(stderr, "%s: loading model from '%s'\n", __func__, fname.c_str());
 
     auto & model = wctx.model;
     auto & vocab = wctx.vocab;
@@ -480,18 +480,18 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
             model.type = e_model::MODEL_LARGE;
         }
 
-        printf("%s: n_vocab       = %d\n", __func__, hparams.n_vocab);
-        printf("%s: n_audio_ctx   = %d\n", __func__, hparams.n_audio_ctx);
-        printf("%s: n_audio_state = %d\n", __func__, hparams.n_audio_state);
-        printf("%s: n_audio_head  = %d\n", __func__, hparams.n_audio_head);
-        printf("%s: n_audio_layer = %d\n", __func__, hparams.n_audio_layer);
-        printf("%s: n_text_ctx    = %d\n", __func__, hparams.n_text_ctx);
-        printf("%s: n_text_state  = %d\n", __func__, hparams.n_text_state);
-        printf("%s: n_text_head   = %d\n", __func__, hparams.n_text_head);
-        printf("%s: n_text_layer  = %d\n", __func__, hparams.n_text_layer);
-        printf("%s: n_mels        = %d\n", __func__, hparams.n_mels);
-        printf("%s: f16           = %d\n", __func__, hparams.f16);
-        printf("%s: type          = %d\n", __func__, model.type);
+        fprintf(stderr, "%s: n_vocab       = %d\n", __func__, hparams.n_vocab);
+        fprintf(stderr, "%s: n_audio_ctx   = %d\n", __func__, hparams.n_audio_ctx);
+        fprintf(stderr, "%s: n_audio_state = %d\n", __func__, hparams.n_audio_state);
+        fprintf(stderr, "%s: n_audio_head  = %d\n", __func__, hparams.n_audio_head);
+        fprintf(stderr, "%s: n_audio_layer = %d\n", __func__, hparams.n_audio_layer);
+        fprintf(stderr, "%s: n_text_ctx    = %d\n", __func__, hparams.n_text_ctx);
+        fprintf(stderr, "%s: n_text_state  = %d\n", __func__, hparams.n_text_state);
+        fprintf(stderr, "%s: n_text_head   = %d\n", __func__, hparams.n_text_head);
+        fprintf(stderr, "%s: n_text_layer  = %d\n", __func__, hparams.n_text_layer);
+        fprintf(stderr, "%s: n_mels        = %d\n", __func__, hparams.n_mels);
+        fprintf(stderr, "%s: f16           = %d\n", __func__, hparams.f16);
+        fprintf(stderr, "%s: type          = %d\n", __func__, model.type);
 
         wctx.buf_model.resize(MEM_REQ_MODEL.at(model.type));
         wctx.buf_compute.resize(std::max(MEM_REQ_ENCODE.at(model.type), MEM_REQ_DECODE.at(model.type)));
@@ -503,7 +503,7 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
                    wctx.buf_compute.size() +
                    wctx.buf_compute_layer.size();
 
-        printf("%s: mem_required  = %.2f MB\n", __func__, mem_required / 1024.0 / 1024.0);
+        fprintf(stderr, "%s: mem_required  = %.2f MB\n", __func__, mem_required / 1024.0 / 1024.0);
     }
 
     // load mel filters
@@ -553,7 +553,7 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
         }
 
         if (n_vocab < model.hparams.n_vocab) {
-            printf("%s: adding %d extra tokens\n", __func__, model.hparams.n_vocab - n_vocab);
+            fprintf(stderr, "%s: adding %d extra tokens\n", __func__, model.hparams.n_vocab - n_vocab);
             for (int i = n_vocab; i < model.hparams.n_vocab; i++) {
                 if (i > vocab.token_beg) {
                     word = "[_TT_" + std::to_string(i - vocab.token_beg) + "]";
@@ -698,7 +698,7 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
 
         ctx_size += (15 + 15*n_audio_layer + 24*n_text_layer)*256; // object overhead
 
-        printf("%s: ggml ctx size = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
+        fprintf(stderr, "%s: ggml ctx size = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
     }
 
     // create the ggml context
@@ -945,7 +945,7 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
             ggml_nbytes(model.memory_k)       + ggml_nbytes(model.memory_v) +
             ggml_nbytes(model.memory_cross_k) + ggml_nbytes(model.memory_cross_v);
 
-        printf("%s: memory size = %8.2f MB \n", __func__, memory_size/1024.0/1024.0);
+        fprintf(stderr, "%s: memory size = %8.2f MB \n", __func__, memory_size/1024.0/1024.0);
     }
 
     // load weights
@@ -1008,10 +1008,10 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
             n_loaded++;
         }
 
-        printf("%s: model size  = %8.2f MB\n", __func__, total_size/1024.0/1024.0);
+        fprintf(stderr, "%s: model size  = %8.2f MB\n", __func__, total_size/1024.0/1024.0);
 
         if (n_loaded == 0) {
-            printf("%s: WARN no tensors loaded from model file - assuming empty model for testing\n", __func__);
+            fprintf(stderr, "%s: WARN no tensors loaded from model file - assuming empty model for testing\n", __func__);
         } else if (n_loaded != (int) model.tensors.size()) {
             fprintf(stderr, "%s: ERROR not all tensors loaded from model file - expected %zu, got %d\n", __func__, model.tensors.size(), n_loaded);
             return false;
@@ -2242,13 +2242,13 @@ whisper_token whisper_token_transcribe() {
 void whisper_print_timings(struct whisper_context * ctx) {
     const int64_t t_end_us = ggml_time_us();
 
-    printf("\n");
-    printf("%s:     load time = %8.2f ms\n", __func__, ctx->t_load_us/1000.0f);
-    printf("%s:      mel time = %8.2f ms\n", __func__, ctx->t_mel_us/1000.0f);
-    printf("%s:   sample time = %8.2f ms\n", __func__, ctx->t_sample_us/1000.0f);
-    printf("%s:   encode time = %8.2f ms / %.2f ms per layer\n", __func__, ctx->t_encode_us/1000.0f, ctx->t_encode_us/1000.0f/ctx->model.hparams.n_audio_layer);
-    printf("%s:   decode time = %8.2f ms / %.2f ms per layer\n", __func__, ctx->t_decode_us/1000.0f, ctx->t_decode_us/1000.0f/ctx->model.hparams.n_text_layer);
-    printf("%s:    total time = %8.2f ms\n", __func__, (t_end_us - ctx->t_start_us)/1000.0f);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "%s:     load time = %8.2f ms\n", __func__, ctx->t_load_us/1000.0f);
+    fprintf(stderr, "%s:      mel time = %8.2f ms\n", __func__, ctx->t_mel_us/1000.0f);
+    fprintf(stderr, "%s:   sample time = %8.2f ms\n", __func__, ctx->t_sample_us/1000.0f);
+    fprintf(stderr, "%s:   encode time = %8.2f ms / %.2f ms per layer\n", __func__, ctx->t_encode_us/1000.0f, ctx->t_encode_us/1000.0f/ctx->model.hparams.n_audio_layer);
+    fprintf(stderr, "%s:   decode time = %8.2f ms / %.2f ms per layer\n", __func__, ctx->t_decode_us/1000.0f, ctx->t_decode_us/1000.0f/ctx->model.hparams.n_text_layer);
+    fprintf(stderr, "%s:    total time = %8.2f ms\n", __func__, (t_end_us - ctx->t_start_us)/1000.0f);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -2349,7 +2349,7 @@ int whisper_full(
         while (progress_cur >= progress_prev + progress_step) {
             progress_prev += progress_step;
             if (params.print_progress) {
-                printf("%s: progress = %3d%%\n", __func__, progress_prev);
+                fprintf(stderr, "%s: progress = %3d%%\n", __func__, progress_prev);
             }
         }
 

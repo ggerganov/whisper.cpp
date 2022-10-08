@@ -192,21 +192,21 @@ int main(int argc, char ** argv) {
 
         // print some info about the processing
         {
-            printf("\n");
+            fprintf(stderr, "\n");
             if (!whisper_is_multilingual(ctx)) {
                 if (params.language != "en" || params.translate) {
                     params.language = "en";
                     params.translate = false;
-                    printf("%s: WARNING: model is not multilingual, ignoring language and translation options\n", __func__);
+                    fprintf(stderr, "%s: WARNING: model is not multilingual, ignoring language and translation options\n", __func__);
                 }
             }
-            printf("%s: processing '%s' (%d samples, %.1f sec), %d threads, lang = %s, task = %s, timestamps = %d ...\n",
+            fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, lang = %s, task = %s, timestamps = %d ...\n",
                     __func__, fname_inp.c_str(), int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE, params.n_threads,
                     params.language.c_str(),
                     params.translate ? "translate" : "transcribe",
                     params.no_timestamps ? 0 : 1);
 
-            printf("\n");
+            fprintf(stderr, "\n");
         }
 
 
@@ -230,25 +230,25 @@ int main(int argc, char ** argv) {
 
             // print result
             if (!wparams.print_realtime) {
-                printf("\n");
+                fprintf(stderr, "\n");
 
                 const int n_segments = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n_segments; ++i) {
                     const char * text = whisper_full_get_segment_text(ctx, i);
 
                     if (params.no_timestamps) {
-                        printf ("%s", text);
+                        fprintf(stderr, "%s", text);
                         fflush(stdout);
                     } else {
                         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
                         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
-                        printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
+                        fprintf(stderr, "[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
                     }
                 }
             }
 
-            printf("\n");
+            fprintf(stderr, "\n");
 
             // output to text file
             if (params.output_txt) {
@@ -260,7 +260,7 @@ int main(int argc, char ** argv) {
                     return 8;
                 }
 
-                printf("%s: saving output to '%s.txt'\n", __func__, fname_inp.c_str());
+                fprintf(stderr, "%s: saving output to '%s.txt'\n", __func__, fname_inp.c_str());
 
                 const int n_segments = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n_segments; ++i) {
@@ -279,7 +279,7 @@ int main(int argc, char ** argv) {
                     return 9;
                 }
 
-                printf("%s: saving output to '%s.vtt'\n", __func__, fname_inp.c_str());
+                fprintf(stderr, "%s: saving output to '%s.vtt'\n", __func__, fname_inp.c_str());
 
                 fout_vtt << "WEBVTT\n\n";
 
@@ -304,7 +304,7 @@ int main(int argc, char ** argv) {
                     return 10;
                 }
 
-                printf("%s: saving output to '%s.srt'\n", __func__, fname_inp.c_str());
+                fprintf(stderr, "%s: saving output to '%s.srt'\n", __func__, fname_inp.c_str());
 
                 const int n_segments = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n_segments; ++i) {
