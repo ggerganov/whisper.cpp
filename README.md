@@ -247,4 +247,4 @@ The original models are converted to a custom binary format. This allows to pack
 
 You can download the converted models using the [download-ggml-model.sh](download-ggml-model.sh) script.
 
-For more details, see the conversion script [convert-pt-to-ggml.py](convert-pt-to-ggml.py)
+For more details, see the conversion script [convert-pt-to-ggml.py](convert-pt-to-ggml.py) or the README in [models](models).
