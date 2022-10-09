@@ -1,6 +1,11 @@
 #include "ggml.h"
 
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#include <malloc.h> // using malloc.h with MSC/MINGW
+#else
 #include <alloca.h>
+#endif
+
 #include <assert.h>
 #include <time.h>
 #include <math.h>
