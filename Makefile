@@ -60,8 +60,11 @@ ggml.o: ggml.c ggml.h
 whisper.o: whisper.cpp whisper.h
 	$(CXX) $(CXXFLAGS) -c whisper.cpp
 
+libwhisper.a: ggml.o whisper.o
+	ar rcs libwhisper.a ggml.o whisper.o
+
 clean:
-	rm -f *.o main
+	rm -f *.o main libwhisper.a
 
 #
 # Examples
