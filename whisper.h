@@ -2,6 +2,7 @@
 #define WHISPER_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef WHISPER_SHARED
 #    ifdef _WIN32
