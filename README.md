@@ -208,7 +208,8 @@ main:    total time = 57416.63 ms
 ## Real-time audio input example
 
 This is a naive example of performing real-time inference on audio from your microphone.
-The `stream` tool samples the audio every 3 seconds and runs the transcription continously. More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
+The `stream` tool samples the audio every half a second and runs the transcription continously.
+More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
 ```java
 $ ./stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
