@@ -14,13 +14,16 @@
 //  500 -> 00:05.000
 // 6000 -> 01:00.000
 std::string to_timestamp(int64_t t) {
-    int64_t sec = t/100;
-    int64_t msec = t - sec*100;
-    int64_t min = sec/60;
-    sec = sec - min*60;
-
+    int64_t msec = t * 10;
+    int64_t hr = msec / (1000 * 60 * 60);
+    msec = msec - hr * (1000 * 60 * 60);
+    int64_t min = msec / (1000 * 60);
+    msec = msec - min * (1000 * 60);
+    int64_t sec = msec / 1000;
+    msec = msec - sec * 1000;
+    
     char buf[32];
-    snprintf(buf, sizeof(buf), "%02d:%02d.%03d", (int) min, (int) sec, (int) msec);
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d.%03d", (int) hr, (int) min, (int) sec, (int) msec);
 
     return std::string(buf);
 }
