@@ -2387,7 +2387,7 @@ int whisper_full(
         // print the prompt
         //printf("\n\n");
         //for (int i = 0; i < prompt.size(); i++) {
-        //    printf("%s: prompt[%d] = %s\n", __func__, i, vocab.id_to_token[prompt[i]].c_str());
+        //    printf("%s: prompt[%d] = %s\n", __func__, i, ctx->vocab.id_to_token[prompt[i]].c_str());
         //}
         //printf("\n\n");
 

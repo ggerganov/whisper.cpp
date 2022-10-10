@@ -12,7 +12,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Zero memory allocations at runtime
 - Runs on the CPU
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
-- Supported platforms: Linux, Mac OS (Intel and Arm), Raspberry Pi, Android
+- Supported platforms: Linux, Mac OS (Intel and Arm), Windows (MinGW), Raspberry Pi, Android
 
 ## Usage
 
@@ -34,7 +34,7 @@ For a quick demo, simply run `make base.en`:
 
 ```java
 $ make base.en
-cc  -O3 -std=c11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread   -c ggml.c
+cc  -O3 -std=c11   -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread -c ggml.c
 c++ -O3 -std=c++11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread -c whisper.cpp
 c++ -O3 -std=c++11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread main.cpp whisper.o ggml.o -o main
 ./main -h
@@ -248,6 +248,8 @@ The original models are converted to a custom binary format. This allows to pack
 - vocabulary
 - weights
 
-You can download the converted models using the [download-ggml-model.sh](download-ggml-model.sh) script.
+You can download the converted models using the [download-ggml-model.sh](download-ggml-model.sh) script or from here:
+
+https://ggml.ggerganov.com
 
 For more details, see the conversion script [convert-pt-to-ggml.py](convert-pt-to-ggml.py) or the README in [models](models).
