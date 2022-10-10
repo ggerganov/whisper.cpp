@@ -211,10 +211,10 @@ This is a naive example of performing real-time inference on audio from your mic
 The `stream` tool samples the audio every 3 seconds and runs the transcription continously. More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
 ```java
-$ ./stream -m models/ggml-small.en.bin -t 8
+$ ./stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
 ```
 
-https://user-images.githubusercontent.com/1991296/193465125-c163d304-64f6-4f5d-83e5-72239c9a203e.mp4
+https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a80f-28ba83be7d09.mp4
 
 ## Implementation details
 
