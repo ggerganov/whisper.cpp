@@ -13,9 +13,15 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdatomic.h>
 
+
+#if defined _MSC_VER
+#include "msvc_thread_atomic.h"
+#else
 #include <pthread.h>
+#include <stdatomic.h>
+typedef void* thread_ret_t;
+#endif
 
 #define GGML_DEBUG 0
 
@@ -149,6 +155,25 @@ static ggml_fp16_t table_exp_f16[1 << 16];
 // timing
 //
 
+#if defined(_MSC_VER)
+static int64_t timer_freq;
+void ggml_time_init(void) {
+    LARGE_INTEGER frequency;
+    QueryPerformanceFrequency(&frequency);
+    timer_freq = frequency.QuadPart;
+}
+int64_t ggml_time_ms(void) {
+    LARGE_INTEGER t;
+    QueryPerformanceCounter(&t);
+    return (t.QuadPart * 1000) / timer_freq;
+}
+int64_t ggml_time_us(void) {
+    LARGE_INTEGER t;
+    QueryPerformanceCounter(&t);
+    return (t.QuadPart * 1000000) / timer_freq;
+}
+#else
+void ggml_time_init(void) {}
 int64_t ggml_time_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -160,6 +185,7 @@ int64_t ggml_time_us(void) {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (int64_t)ts.tv_sec*1000000 + (int64_t)ts.tv_nsec/1000;
 }
+#endif
 
 int64_t ggml_cycles(void) {
     return clock();
@@ -6412,7 +6438,7 @@ void * ggml_graph_compute_one(void * data) {
     return NULL;
 }
 
-void * ggml_graph_compute_thread(void * data) {
+thread_ret_t ggml_graph_compute_thread(void * data) {
     struct ggml_compute_state * state = (struct ggml_compute_state *) data;
 
     const int n_threads = state->shared->n_threads;
@@ -6423,7 +6449,7 @@ void * ggml_graph_compute_thread(void * data) {
         } else {
             while (atomic_load(&state->shared->has_work)) {
                 if (atomic_load(&state->shared->stop)) {
-                    return NULL;
+                    return 0;
                 }
                 ggml_lock_lock  (&state->shared->spin);
                 ggml_lock_unlock(&state->shared->spin);
@@ -6435,7 +6461,7 @@ void * ggml_graph_compute_thread(void * data) {
         // wait for work
         while (!atomic_load(&state->shared->has_work)) {
             if (atomic_load(&state->shared->stop)) {
-                return NULL;
+                return 0;
             }
             ggml_lock_lock  (&state->shared->spin);
             ggml_lock_unlock(&state->shared->spin);
@@ -6454,7 +6480,7 @@ void * ggml_graph_compute_thread(void * data) {
         }
     }
 
-    return NULL;
+    return 0;
 }
 
 void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) {

@@ -136,6 +136,7 @@ struct ggml_init_params {
     void * mem_buffer; // if NULL, memory will be allocated internally
 };
 
+void ggml_time_init(void);
 int64_t ggml_time_ms(void);
 int64_t ggml_time_us(void);
 int64_t ggml_cycles(void);
