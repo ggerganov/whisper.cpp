@@ -13,6 +13,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Runs on the CPU
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 - Supported platforms: Linux, Mac OS (Intel and Arm), Windows (MinGW), Raspberry Pi, Android
+- Can output the transcription/translation to a text file or subtitle file (VTT or SRT formats)
 
 ## Usage
 
@@ -45,8 +46,12 @@ options:
   -h,       --help           show this help message and exit
   -s SEED,  --seed SEED      RNG seed (default: -1)
   -t N,     --threads N      number of threads to use during computation (default: 4)
+  -o N,     --offset N       offset in milliseconds (default: 0)
   -v,       --verbose        verbose output
             --translate      translate from source language to english
+  -otxt,    --output-txt     output result in a text file
+  -ovtt,    --output-vtt     output result in a vtt file
+  -osrt,    --output-srt     output result in a srt file
   -ps,      --print_special  print special tokens
   -nt,      --no_timestamps  do not print timestamps
   -l LANG,  --language LANG  spoken language (default: en)
