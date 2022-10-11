@@ -2318,6 +2318,13 @@ int whisper_full(
         return -1;
     }
 
+    // if length of spectrogram is less than 1s (100 samples), then return
+    // basically don't process anything that is less than 1s
+    // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
+    if (whisper_n_len(ctx) < 100) {
+        return 0;
+    }
+
     // the accumulated text context so far
     auto & prompt_past = ctx->prompt_past;
     if (params.no_context) {
