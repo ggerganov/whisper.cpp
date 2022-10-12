@@ -13,7 +13,6 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Runs on the CPU
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 - Supported platforms: Linux, Mac OS (Intel and Arm), Windows (MinGW), Raspberry Pi, Android
-- Can output the transcription/translation to a text file or subtitle file (VTT or SRT formats)
 
 ## Usage
 
