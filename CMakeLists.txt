@@ -26,19 +26,21 @@ option(WHISPER_SUPPORT_SDL2            "whisper: support for libSDL2" OFF)
 
 # sanitizers
 
-if (WHISPER_SANITIZE_THREAD)
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -fsanitize=thread")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
-endif()
+if (NOT MSVC)
+    if (WHISPER_SANITIZE_THREAD)
+        set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -fsanitize=thread")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+    endif()
 
-if (WHISPER_SANITIZE_ADDRESS)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}     -fsanitize=address -fno-omit-frame-pointer")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
-endif()
+    if (WHISPER_SANITIZE_ADDRESS)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}     -fsanitize=address -fno-omit-frame-pointer")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
+    endif()
 
-if (WHISPER_SANITIZE_UNDEFINED)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}     -fsanitize=undefined")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+    if (WHISPER_SANITIZE_UNDEFINED)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}     -fsanitize=undefined")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+    endif()
 endif()
 
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math")
@@ -47,7 +49,7 @@ endif()
 # dependencies
 
 set(CMAKE_C_STANDARD   11)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
 
 find_package(Threads REQUIRED)
 
@@ -69,7 +71,7 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif ()
 
 if (WHISPER_ALL_WARNINGS)
-    if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+    if (NOT MSVC)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} \
             -Wall                           \
             -Wextra                         \
@@ -80,12 +82,14 @@ if (WHISPER_ALL_WARNINGS)
             -Wpointer-arith                 \
         ")
     else()
-        # todo : windows
+        # todo : msvc
     endif()
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=vla")
-#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-math-errno -ffinite-math-only -funsafe-math-optimizations")
+if (NOT MSVC)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=vla")
+    #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-math-errno -ffinite-math-only -funsafe-math-optimizations")
+endif()
 
 message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 
@@ -93,7 +97,11 @@ if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES
     message(STATUS "ARM detected")
 else()
     message(STATUS "x86 detected")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -mavx2 -mfma -mf16c")
+    if (MSVC)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:AVX2 /D_CRT_SECURE_NO_WARNINGS=1")
+    else()
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -mavx2 -mfma -mf16c")
+    endif()
 endif()
 
 # whisper - this is the main library of the project

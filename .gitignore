@@ -4,4 +4,7 @@ stream
 *.o
 .cache
 build/
+out/
+.vs/
+.vscode/
 compile_commands.json

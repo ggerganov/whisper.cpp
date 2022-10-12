@@ -2073,6 +2073,8 @@ bool log_mel_spectrogram(
 //
 
 struct whisper_context * whisper_init(const char * path_model) {
+    ggml_time_init();
+
     whisper_context * ctx = new whisper_context;
 
     const int64_t t_start_us = ggml_time_us();
@@ -2260,7 +2262,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
     switch (strategy) {
         case WHISPER_DECODE_GREEDY:
             {
-                result = (struct whisper_full_params) {
+                result = {
                     .strategy  = WHISPER_DECODE_GREEDY,
                     .n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency()),
                     .offset_ms = 0,
@@ -2281,7 +2283,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
             } break;
         case WHISPER_DECODE_BEAM_SEARCH:
             {
-                result = (struct whisper_full_params) {
+                result = {
                     .strategy  = WHISPER_DECODE_GREEDY,
                     .n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency()),
                     .offset_ms = 0,
