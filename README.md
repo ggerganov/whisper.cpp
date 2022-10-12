@@ -12,7 +12,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Zero memory allocations at runtime
 - Runs on the CPU
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
-- Supported platforms: Linux, Mac OS (Intel and Arm), Windows (MinGW), Raspberry Pi, Android
+- Supported platforms: Linux, Mac OS (Intel and Arm), Windows (MSVC and MinGW), Raspberry Pi, Android
 
 ## Usage
 
