@@ -2314,6 +2314,12 @@ int whisper_full(
         struct whisper_full_params params,
         const float * samples,
         int n_samples) {
+    // clear old results
+    auto & result_all = ctx->result_all;
+    auto & result_cur = ctx->result_cur;
+
+    result_all.clear();
+
     // compute log mel spectrogram
     if (whisper_pcm_to_mel(ctx, samples, n_samples, params.n_threads) != 0) {
         fprintf(stderr, "%s: failed to compute log mel spectrogram\n", __func__);
@@ -2343,11 +2349,6 @@ int whisper_full(
             prompt_init.push_back(whisper_token_transcribe());
         }
     }
-
-    auto & result_all = ctx->result_all;
-    auto & result_cur = ctx->result_cur;
-
-    result_all.clear();
 
     int progress_prev = 0;
     int progress_step = 5;
