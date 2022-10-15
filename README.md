@@ -19,7 +19,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 To build the main program, run `make`. You can then transcribe a `.wav` file like this:
 
 ```bash
-$ ./main -f input.wav
+./main -f input.wav
 ```
 
 Before running the program, make sure to download one of the ggml Whisper models. For example:
@@ -216,10 +216,22 @@ The `stream` tool samples the audio every half a second and runs the transcripti
 More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
 ```java
-$ ./stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
+./stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
 ```
 
 https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a80f-28ba83be7d09.mp4
+
+The `stream` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
+
+```bash
+# Install SDL2 on Linux 
+sudo apt-get install libsdl2-dev
+
+# Install SDL2 on Mac OS
+brew install sdl2
+
+make stream
+```
 
 ## Implementation details
 
