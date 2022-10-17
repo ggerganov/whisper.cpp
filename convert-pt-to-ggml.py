@@ -271,7 +271,7 @@ byte_decoder = {v:k for k, v in byte_encoder.items()}
 fout.write(struct.pack("i", len(tokens)))
 
 for key in tokens:
-    text = bytearray([byte_decoder[c] for c in key]).decode('utf-8', errors='replace').encode('utf-8')
+    text = bytearray([byte_decoder[c] for c in key])
     fout.write(struct.pack("i", len(text)))
     fout.write(text)
 
