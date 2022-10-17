@@ -723,20 +723,20 @@ inline static void ggml_vec_gelu_f16(const int n, ggml_fp16_t * y, const ggml_fp
     }
 }
 
-inline static void ggml_vec_gelu_f32(const int n, float * y, const float * x) {
-    uint16_t t;
-    for (int i = 0; i < n; ++i) {
-        ggml_fp16_t fp16 = ggml_fp32_to_fp16(x[i]);
-        memcpy(&t, &fp16, sizeof(uint16_t));
-        y[i] = table_gelu_f16[t];
-    }
-}
-
 //inline static void ggml_vec_gelu_f32(const int n, float * y, const float * x) {
+//    uint16_t t;
 //    for (int i = 0; i < n; ++i) {
-//        y[i] = ggml_gelu_f32(x[i]);
+//        ggml_fp16_t fp16 = ggml_fp32_to_fp16(x[i]);
+//        memcpy(&t, &fp16, sizeof(uint16_t));
+//        y[i] = table_gelu_f16[t];
 //    }
 //}
+
+inline static void ggml_vec_gelu_f32(const int n, float * y, const float * x) {
+    for (int i = 0; i < n; ++i) {
+        y[i] = ggml_gelu_f32(x[i]);
+    }
+}
 
 inline static void ggml_vec_sum_f32     (const int n, float * s, const float * x) { ggml_float sum = 0.0; for (int i = 0; i < n; ++i) sum += x[i]; *s += sum; }
 inline static void ggml_vec_norm_inv_f32(const int n, float * s, const float * x) { ggml_vec_norm_f32(n, s, x); *s = 1./(*s); }
