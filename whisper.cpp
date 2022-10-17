@@ -2445,9 +2445,12 @@ int whisper_full(
                 // end of text token
                 if (id == whisper_token_eot(ctx)) {
                     if (result_len == 0) {
-                        // TODO: figure out how to resolve this
-                        fprintf(stderr, "\n%s: failed to generate timestamp token - this should not happen\n\n", __func__);
-                        //result_len = i + 1;
+                        if (seek + seek_delta + 100 >= whisper_n_len(ctx)) {
+                            result_len = i + 1;
+                        } else {
+                            // TODO: figure out how to resolve this
+                            fprintf(stderr, "\n%s: failed to generate timestamp token - this should not happen\n\n", __func__);
+                        }
                     }
                     break;
                 }
