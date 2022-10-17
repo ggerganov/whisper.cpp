@@ -6,7 +6,8 @@
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
 - Plain C/C++ implementation without dependencies
-- ARM_NEON and AVX intrinsics support
+- Apple silicon first-class citizen - optimized via Arm Neon and Accelerate framework
+- AVX intrinsics support for x86 architectures
 - Mixed F16 / F32 precision
 - Low memory usage (Flash Attention + Flash Forward)
 - Zero memory allocations at runtime
@@ -224,7 +225,7 @@ https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a
 The `stream` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
 
 ```bash
-# Install SDL2 on Linux 
+# Install SDL2 on Linux
 sudo apt-get install libsdl2-dev
 
 # Install SDL2 on Mac OS
@@ -240,6 +241,10 @@ make stream
 - Simple usage is demonstrated in [main.cpp](main.cpp)
 - Sample real-time audio transcription from the microphone is demonstrated in [stream.cpp](stream.cpp)
 
+The tensor operators are optimized heavily for Apple silicon CPUs. Depending on the computation size, Arm Neon SIMD
+instrisics or CBLAS Accelerate framwork routines are used. The latter are especially effective for bigger sizes since
+the framwork utilizes the special-purpose AMX coprocessor available in modern Apple products.
+
 ## Limitations
 
 - Very basic greedy sampling scheme - always pick up the top token. You can implement your own strategy
@@ -250,11 +255,12 @@ make stream
 
 | Model  | Disk   | Mem     |
 | ---    | ---    | ---     |
-| tiny   |  75 MB | ~240 MB |
-| base   | 142 MB | ~380 MB |
-| small  | 466 MB | ~970 MB |
-| medium | 1.5 GB | ~2.5 GB |
-| large  | 2.9 GB | ~4.6 GB |
+| tiny   |  75 MB | ~280 MB |
+| base   | 142 MB | ~430 MB |
+| small  | 466 MB | ~1.0 GB |
+| medium | 1.5 GB | ~2.6 GB |
+| large  | 2.9 GB | ~4.7 GB |
+
 
 ## ggml format
 
