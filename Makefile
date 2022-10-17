@@ -22,10 +22,18 @@ ifeq ($(UNAME_S),Darwin)
 	CFLAGS   += -pthread
 	CXXFLAGS += -pthread
 endif
+ifeq ($(UNAME_S),FreeBSD)
+	CFLAGS   += -pthread
+	CXXFLAGS += -pthread
+endif
 
 # Architecture specific
 # TODO: probably these flags need to be tweaked on some architectures
+#       feel free to update the Makefile for your architecture and send a pull request or issue
 ifeq ($(UNAME_M),x86_64)
+	CFLAGS += -mavx -mavx2 -mfma -mf16c
+endif
+ifeq ($(UNAME_M),amd64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
 endif
 ifneq ($(filter arm%,$(UNAME_M)),)

@@ -4,6 +4,7 @@ stream
 *.o
 .cache
 build/
+build-em/
 out/
 .vs/
 .vscode/
