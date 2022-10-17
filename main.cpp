@@ -21,7 +21,7 @@ std::string to_timestamp(int64_t t) {
     msec = msec - min * (1000 * 60);
     int64_t sec = msec / 1000;
     msec = msec - sec * 1000;
-    
+
     char buf[32];
     snprintf(buf, sizeof(buf), "%02d:%02d:%02d.%03d", (int) hr, (int) min, (int) sec, (int) msec);
 

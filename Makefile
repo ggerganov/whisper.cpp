@@ -8,6 +8,7 @@ UNAME_M := $(shell uname -m)
 
 CFLAGS   = -O3 -std=c11  
 CXXFLAGS = -O3 -std=c++11
+LDFLAGS  =
 
 CFLAGS   += -Wall -Wextra -Wno-unused-parameter -Wno-unused-function
 CXXFLAGS += -Wall -Wextra -Wno-unused-parameter -Wno-unused-function
@@ -37,7 +38,11 @@ ifeq ($(UNAME_M),amd64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
 endif
 ifneq ($(filter arm%,$(UNAME_M)),)
-	# Mac M1
+	# Mac M1 - include Accelerate framework
+	ifeq ($(UNAME_S),Darwin)
+		CFLAGS  += -DGGML_USE_ACCELERATE
+		LDFLAGS += -framework Accelerate
+	endif
 endif
 ifneq ($(filter aarch64%,$(UNAME_M)),)
 endif
@@ -59,7 +64,7 @@ endif
 #
 
 main: main.cpp ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) main.cpp whisper.o ggml.o -o main
+	$(CXX) $(CXXFLAGS) main.cpp whisper.o ggml.o -o main $(LDFLAGS)
 	./main -h
 
 ggml.o: ggml.c ggml.h

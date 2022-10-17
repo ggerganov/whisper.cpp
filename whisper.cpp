@@ -15,7 +15,7 @@
 #include <vector>
 
 #define USE_FLASH_ATTN
-#define USE_FLASH_FF
+//#define USE_FLASH_FF
 
 // available whisper models
 enum e_model {
@@ -148,11 +148,11 @@ static const std::map<e_model, size_t> MEM_REQ_ENCODE = {
 };
 
 static const std::map<e_model, size_t> MEM_REQ_ENCODE_LAYER = {
-    { MODEL_TINY,     64ull*MB },
-    { MODEL_BASE,     84ull*MB },
-    { MODEL_SMALL,   128ull*MB },
-    { MODEL_MEDIUM,  172ull*MB },
-    { MODEL_LARGE,   216ull*MB },
+    { MODEL_TINY,    104ull*MB },
+    { MODEL_BASE,    138ull*MB },
+    { MODEL_SMALL,   208ull*MB },
+    { MODEL_MEDIUM,  280ull*MB },
+    { MODEL_LARGE,   354ull*MB },
 };
 
 static const std::map<e_model, size_t> MEM_REQ_DECODE = {
