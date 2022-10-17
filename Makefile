@@ -86,7 +86,7 @@ clean:
 CC_SDL=`sdl2-config --cflags --libs`
 
 stream: stream.cpp ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) stream.cpp ggml.o whisper.o -o stream $(CC_SDL)
+	$(CXX) $(CXXFLAGS) stream.cpp ggml.o whisper.o -o stream $(CC_SDL) $(LDFLAGS)
 
 #
 # Audio samples
