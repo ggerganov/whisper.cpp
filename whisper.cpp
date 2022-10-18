@@ -2425,7 +2425,7 @@ int whisper_full(
                 whisper_token id  = 0;
                 whisper_token tid = whisper_token_beg(ctx);
 
-                id = whisper_sample_best(ctx, result_len == 0 || i > 32);
+                id = whisper_sample_best(ctx, result_len == 0);
                 if (i > 0) {
                     tid = whisper_sample_timestamp(ctx);
                 }
