@@ -75,6 +75,9 @@ ggml_fp16_t ggml_fp32_to_fp16(float x) {
 
 #include <immintrin.h>
 
+// FP16 <-> FP32
+// ref: https://github.com/Maratyszcza/FP16
+
 static inline float fp32_from_bits(uint32_t w) {
     union {
         uint32_t as_bits;
