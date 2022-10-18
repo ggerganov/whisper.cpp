@@ -35,9 +35,10 @@ For a quick demo, simply run `make base.en`:
 
 ```java
 $ make base.en
-cc  -O3 -std=c11   -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread -c ggml.c
+
+cc  -O3 -std=c11   -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread -DGGML_USE_ACCELERATE   -c ggml.c
 c++ -O3 -std=c++11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread -c whisper.cpp
-c++ -O3 -std=c++11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread main.cpp whisper.o ggml.o -o main
+c++ -O3 -std=c++11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread main.cpp whisper.o ggml.o -o main  -framework Accelerate
 ./main -h
 
 usage: ./main [options] file0.wav file1.wav ...
@@ -60,7 +61,7 @@ options:
 
 bash ./download-ggml-model.sh base.en
 Downloading ggml model base.en ...
-models/ggml-base.en.bin            100%[===================================>] 141.11M  6.49MB/s    in 23s
+models/ggml-base.en.bin            100%[=============================================>] 141.11M  3.13MB/s    in 79s
 Done! Model 'base.en' saved in 'models/ggml-base.en.bin'
 You can now use it like this:
 
@@ -88,7 +89,7 @@ whisper_model_load: n_text_layer  = 6
 whisper_model_load: n_mels        = 80
 whisper_model_load: f16           = 1
 whisper_model_load: type          = 2
-whisper_model_load: mem_required  = 377.00 MB
+whisper_model_load: mem_required  = 505.00 MB
 whisper_model_load: adding 1607 extra tokens
 whisper_model_load: ggml ctx size = 163.43 MB
 whisper_model_load: memory size =    22.83 MB
@@ -99,12 +100,12 @@ main: processing 'samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, lang =
 [00:00.000 --> 00:11.000]   And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.
 
 
-whisper_print_timings:     load time =    77.48 ms
-whisper_print_timings:      mel time =    26.10 ms
-whisper_print_timings:   sample time =     2.19 ms
-whisper_print_timings:   encode time =   632.95 ms / 105.49 ms per layer
-whisper_print_timings:   decode time =    85.11 ms / 14.18 ms per layer
-whisper_print_timings:    total time =   824.14 ms
+whisper_print_timings:     load time =    87.21 ms
+whisper_print_timings:      mel time =    24.26 ms
+whisper_print_timings:   sample time =     3.87 ms
+whisper_print_timings:   encode time =   323.67 ms / 53.94 ms per layer
+whisper_print_timings:   decode time =    83.25 ms / 13.87 ms per layer
+whisper_print_timings:    total time =   522.66 ms
 ```
 
 The command downloads the `base.en` model converted to custom `ggml` format and runs the inference on all `.wav` samples in the folder `samples`.
@@ -145,7 +146,7 @@ make large
 ## Another example
 
 Here is another example of transcribing a [3:24 min speech](https://upload.wikimedia.org/wikipedia/commons/1/1f/George_W_Bush_Columbia_FINAL.ogg)
-in less than a minute on a MacBook M1 Pro, using `medium.en` model:
+in about half a minute on a MacBook M1 Pro, using `medium.en` model:
 
 ```java
 $ ./main -m models/ggml-medium.en.bin -f samples/gb1.wav -t 8
@@ -163,51 +164,55 @@ whisper_model_load: n_text_layer  = 24
 whisper_model_load: n_mels        = 80
 whisper_model_load: f16           = 1
 whisper_model_load: type          = 4
-whisper_model_load: mem_required  = 2502.00 MB
+whisper_model_load: mem_required  = 2610.00 MB
 whisper_model_load: adding 1607 extra tokens
 whisper_model_load: ggml ctx size = 1644.97 MB
 whisper_model_load: memory size =   182.62 MB
 whisper_model_load: model size  =  1462.12 MB
-log_mel_spectrogram: n_sample = 3179750, n_len = 19873
-log_mel_spectrogram: recording length: 198.734375 s
 
-main: processing 3179750 samples (198.7 sec), 8 threads, lang = english, task = transcribe, timestamps = 1 ...
+main: processing 'samples/gb1.wav' (3179750 samples, 198.7 sec), 8 threads, lang = en, task = transcribe, timestamps = 1 ...
 
 [00:00.000 --> 00:08.000]   My fellow Americans, this day has brought terrible news and great sadness to our country.
-[00:08.000 --> 00:17.000]   At 9 o'clock this morning, Mission Control in Houston lost contact with our Space Shuttle Columbia.
-[00:17.000 --> 00:24.000]   A short time later, debris was seen falling from the skies above Texas.
-[00:24.000 --> 00:29.000]   The Columbia's lost. There are no survivors.
+[00:08.000 --> 00:17.000]   At nine o'clock this morning, Mission Control in Houston lost contact with our Space Shuttle Columbia.
+[00:17.000 --> 00:23.000]   A short time later, debris was seen falling from the skies above Texas.
+[00:23.000 --> 00:29.000]   The Columbia's lost. There are no survivors.
 [00:29.000 --> 00:32.000]   On board was a crew of seven.
-[00:32.000 --> 00:43.000]   Colonel Rick Husband, Lieutenant Colonel Michael Anderson, Commander Laurel Clark, Captain David Brown, Commander William McCool,
-[00:43.000 --> 00:52.000]   Dr. Kultner Aschavla, and Elon Ramon, a Colonel in the Israeli Air Force.
+[00:32.000 --> 00:39.000]   Colonel Rick Husband, Lieutenant Colonel Michael Anderson, Commander Laurel Clark,
+[00:39.000 --> 00:48.000]   Captain David Brown, Commander William McCool, Dr. Kultna Shavla, and Ilan Ramon,
+[00:48.000 --> 00:52.000]   a colonel in the Israeli Air Force.
 [00:52.000 --> 00:58.000]   These men and women assumed great risk in the service to all humanity.
-[00:58.000 --> 01:06.000]   In an age when space flight has come to seem almost routine, it is easy to overlook the dangers of travel by rocket
-[01:06.000 --> 01:12.000]   and the difficulties of navigating the fierce outer atmosphere of the Earth.
-[01:12.000 --> 01:22.000]   These astronauts knew the dangers, and they faced them willingly, knowing they had a high and noble purpose in life.
-[01:22.000 --> 01:30.000]   Because of their courage, endearing, and idealism, we will miss them all the more.
-[01:30.000 --> 01:40.000]   All Americans today are thinking as well of the families of these men and women who have been given this sudden shock and grief.
-[01:40.000 --> 01:45.000]   You're not alone. Our entire nation agrees with you.
-[01:45.000 --> 01:52.000]   And those you love will always have the respect and gratitude of this country.
+[00:58.000 --> 01:03.000]   In an age when space flight has come to seem almost routine,
+[01:03.000 --> 01:07.000]   it is easy to overlook the dangers of travel by rocket
+[01:07.000 --> 01:12.000]   and the difficulties of navigating the fierce outer atmosphere of the Earth.
+[01:12.000 --> 01:18.000]   These astronauts knew the dangers, and they faced them willingly,
+[01:18.000 --> 01:23.000]   knowing they had a high and noble purpose in life.
+[01:23.000 --> 01:31.000]   Because of their courage and daring and idealism, we will miss them all the more.
+[01:31.000 --> 01:36.000]   All Americans today are thinking as well of the families of these men and women
+[01:36.000 --> 01:40.000]   who have been given this sudden shock and grief.
+[01:40.000 --> 01:45.000]   You're not alone. Our entire nation grieves with you,
+[01:45.000 --> 01:52.000]   and those you love will always have the respect and gratitude of this country.
 [01:52.000 --> 01:56.000]   The cause in which they died will continue.
-[01:56.000 --> 02:07.000]   Mankind is led into the darkness beyond our world by the inspiration of discovery and the longing to understand.
-[02:07.000 --> 02:11.000]   Our journey into space will go on.
+[01:56.000 --> 02:04.000]   Mankind is led into the darkness beyond our world by the inspiration of discovery
+[02:04.000 --> 02:11.000]   and the longing to understand. Our journey into space will go on.
 [02:11.000 --> 02:16.000]   In the skies today, we saw destruction and tragedy.
 [02:16.000 --> 02:22.000]   Yet farther than we can see, there is comfort and hope.
-[02:22.000 --> 02:31.000]   In the words of the prophet Isaiah, "Lift your eyes and look to the heavens who created all these.
-[02:31.000 --> 02:39.000]   He who brings out the starry hosts one by one and calls them each by name."
-[02:39.000 --> 02:46.000]   Because of his great power and mighty strength, not one of them is missing.
-[02:46.000 --> 02:55.000]   The same creator who names the stars also knows the names of the seven souls we mourn today.
-[02:55.000 --> 03:05.000]   The crew of the shuttle Columbia did not return safely to Earth, yet we can pray that all are safely home.
-[03:05.000 --> 03:14.000]   May God bless the grieving families and may God continue to bless America.
-[03:14.000 --> 03:24.000]   [Music]
+[02:22.000 --> 02:29.000]   In the words of the prophet Isaiah, "Lift your eyes and look to the heavens
+[02:29.000 --> 02:35.000]   who created all these. He who brings out the starry hosts one by one
+[02:35.000 --> 02:39.000]   and calls them each by name."
+[02:39.000 --> 02:46.000]   Because of His great power and mighty strength, not one of them is missing.
+[02:46.000 --> 02:55.000]   The same Creator who names the stars also knows the names of the seven souls we mourn today.
+[02:55.000 --> 03:01.000]   The crew of the shuttle Columbia did not return safely to earth,
+[03:01.000 --> 03:05.000]   yet we can pray that all are safely home.
+[03:05.000 --> 03:13.000]   May God bless the grieving families, and may God continue to bless America.
+[03:13.000 --> 03:41.000]   Audio
 
 
-main:     load time =   522.18 ms
-main:      mel time =   423.43 ms
-main:   sample time =    31.42 ms
-main:   encode time = 41518.51 ms / 1729.94 ms per layer
-main:   decode time = 14907.22 ms
-main:    total time = 57416.63 ms
+whisper_print_timings:     load time =   575.92 ms
+whisper_print_timings:      mel time =   230.60 ms
+whisper_print_timings:   sample time =    73.19 ms
+whisper_print_timings:   encode time = 19552.61 ms / 814.69 ms per layer
+whisper_print_timings:   decode time = 13249.96 ms / 552.08 ms per layer
+whisper_print_timings:    total time = 33686.27 ms
 ```
 
 ## Real-time audio input example
