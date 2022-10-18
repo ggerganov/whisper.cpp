@@ -31,7 +31,8 @@ extern "C" {
     //
     // C interface
     //
-
+    // The following interface is thread-safe as long as the sample whisper_context is not used by multiple threads
+    // concurrently.
     //
     // Basic usage:
     //
