@@ -2262,7 +2262,11 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
     switch (strategy) {
         case WHISPER_DECODE_GREEDY:
             {
+#if defined(_MSC_VER)
                 result = {
+#else
+                result = (struct whisper_full_params) {
+#endif
                     .strategy  = WHISPER_DECODE_GREEDY,
                     .n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency()),
                     .offset_ms = 0,
@@ -2283,8 +2287,12 @@ struct whisper_full_params whisper_full_default_params(enum whisper_decode_strat
             } break;
         case WHISPER_DECODE_BEAM_SEARCH:
             {
+#if defined(_MSC_VER)
                 result = {
-                    .strategy  = WHISPER_DECODE_GREEDY,
+#else
+                result = (struct whisper_full_params) {
+#endif
+                    .strategy  = WHISPER_DECODE_BEAM_SEARCH,
                     .n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency()),
                     .offset_ms = 0,
 

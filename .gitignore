@@ -5,6 +5,8 @@ stream
 .cache
 build/
 build-em/
+build-debug/
+build-release/
 out/
 .vs/
 .vscode/
