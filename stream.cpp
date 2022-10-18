@@ -215,6 +215,8 @@ int main(int argc, char ** argv) {
     std::vector<float> pcmf32(n_samples_30s, 0.0f);
     std::vector<float> pcmf32_old;
 
+    const int n_new_line = params.length_ms / params.step_ms - 1;
+
     // print some info about the processing
     {
         printf("\n");
@@ -234,6 +236,8 @@ int main(int argc, char ** argv) {
                 params.language.c_str(),
                 params.translate ? "translate" : "transcribe",
                 params.no_timestamps ? 0 : 1);
+
+        printf("%s: n_new_line = %d\n", __func__, n_new_line);
         printf("\n");
     }
 
@@ -256,10 +260,16 @@ int main(int argc, char ** argv) {
             }
         }
 
-        // process 3 seconds of new audio
+        // process new audio
+        if (n_iter > 0 && SDL_GetQueuedAudioSize(g_dev_id_in) > 2*n_samples*sizeof(float)) {
+            fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, dropping audio ...\n\n", __func__);
+            SDL_ClearQueuedAudio(g_dev_id_in);
+        }
+
         while (SDL_GetQueuedAudioSize(g_dev_id_in) < n_samples*sizeof(float)) {
             SDL_Delay(1);
         }
+
         const int n_samples_new = SDL_GetQueuedAudioSize(g_dev_id_in)/sizeof(float);
 
         // take one second from previous iteration
@@ -300,9 +310,7 @@ int main(int argc, char ** argv) {
 
             // print result;
             {
-                if ((n_iter % (params.length_ms / params.step_ms - 1)) != 0) {
-                    printf("\33[2K\r");
-                }
+                printf("\33[2K\r");
 
                 const int n_segments = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n_segments; ++i) {
@@ -321,7 +329,8 @@ int main(int argc, char ** argv) {
             }
 
             ++n_iter;
-            if ((n_iter % (params.length_ms / params.step_ms - 1)) == 0) {
+
+            if ((n_iter % n_new_line) == 0) {
                 printf("\n");
 
                 pcmf32_old.clear();
