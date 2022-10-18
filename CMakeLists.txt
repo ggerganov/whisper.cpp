@@ -13,16 +13,19 @@ endif()
 
 # options
 
-option(WHISPER_ALL_WARNINGS            "whisper: enable all compiler warnings" ON)
+option(WHISPER_ALL_WARNINGS            "whisper: enable all compiler warnings"                   ON)
 option(WHISPER_ALL_WARNINGS_3RD_PARTY  "whisper: enable all compiler warnings in 3rd party libs" OFF)
 
-option(WHISPER_SANITIZE_THREAD         "whisper: enable thread sanitizer" OFF)
-option(WHISPER_SANITIZE_ADDRESS        "whisper: enable address sanitizer" OFF)
+option(WHISPER_SANITIZE_THREAD         "whisper: enable thread sanitizer"    OFF)
+option(WHISPER_SANITIZE_ADDRESS        "whisper: enable address sanitizer"   OFF)
 option(WHISPER_SANITIZE_UNDEFINED      "whisper: enable undefined sanitizer" OFF)
 
 option(WHISPER_BUILD_TESTS             "whisper: build tests" ${WHISPER_STANDALONE})
 
 option(WHISPER_SUPPORT_SDL2            "whisper: support for libSDL2" OFF)
+
+option(WHISPER_PERF                    "whisper: enable perf timings"          OFF)
+option(WHISPER_NO_ACCELERATE           "whisper: disable Accelerate framework" OFF)
 
 # sanitizers
 
@@ -52,6 +55,19 @@ set(CMAKE_C_STANDARD   11)
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(Threads REQUIRED)
+
+# on APPLE - include Accelerate framework
+if (APPLE AND NOT WHISPER_NO_ACCELERATE)
+    find_library(ACCELERATE_FRAMEWORK Accelerate)
+    if (ACCELERATE_FRAMEWORK)
+        message(STATUS "Accelerate framework found")
+
+        set(WHISPER_EXTRA_LIBS  ${WHISPER_EXTRA_LIBS}  ${ACCELERATE_FRAMEWORK})
+        set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_ACCELERATE)
+    else()
+        message(WARNING "Accelerate framework not found")
+    endif()
+endif()
 
 if (WHISPER_SUPPORT_SDL2)
     # SDL2
@@ -117,7 +133,7 @@ target_include_directories(${TARGET} PUBLIC
     .
     )
 
-target_link_libraries(${TARGET} PRIVATE ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${TARGET} PRIVATE m ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
 if (BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET} PUBLIC
