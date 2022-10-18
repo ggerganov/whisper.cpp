@@ -14,7 +14,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-
 #if defined _MSC_VER
 #include "msvc_thread_atomic.h"
 #else
@@ -24,6 +23,7 @@ typedef void* thread_ret_t;
 #endif
 
 #define GGML_DEBUG 0
+#define GGML_GELU_FP16
 
 #if UINTPTR_MAX == 0xFFFFFFFF
     #define GGML_MEM_ALIGN 4
@@ -723,20 +723,22 @@ inline static void ggml_vec_gelu_f16(const int n, ggml_fp16_t * y, const ggml_fp
     }
 }
 
-//inline static void ggml_vec_gelu_f32(const int n, float * y, const float * x) {
-//    uint16_t t;
-//    for (int i = 0; i < n; ++i) {
-//        ggml_fp16_t fp16 = ggml_fp32_to_fp16(x[i]);
-//        memcpy(&t, &fp16, sizeof(uint16_t));
-//        y[i] = table_gelu_f16[t];
-//    }
-//}
-
+#ifdef GGML_GELU_FP16
+inline static void ggml_vec_gelu_f32(const int n, float * y, const float * x) {
+    uint16_t t;
+    for (int i = 0; i < n; ++i) {
+        ggml_fp16_t fp16 = ggml_fp32_to_fp16(x[i]);
+        memcpy(&t, &fp16, sizeof(uint16_t));
+        y[i] = ggml_fp16_to_fp32(table_gelu_f16[t]);
+    }
+}
+#else
 inline static void ggml_vec_gelu_f32(const int n, float * y, const float * x) {
     for (int i = 0; i < n; ++i) {
         y[i] = ggml_gelu_f32(x[i]);
     }
 }
+#endif
 
 inline static void ggml_vec_sum_f32     (const int n, float * s, const float * x) { ggml_float sum = 0.0; for (int i = 0; i < n; ++i) sum += x[i]; *s += sum; }
 inline static void ggml_vec_norm_inv_f32(const int n, float * s, const float * x) { ggml_vec_norm_f32(n, s, x); *s = 1./(*s); }
