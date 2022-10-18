@@ -2256,59 +2256,63 @@ void whisper_print_timings(struct whisper_context * ctx) {
 
 ////////////////////////////////////////////////////////////////////////////
 
-struct whisper_full_params whisper_full_default_params(enum whisper_decode_strategy strategy) {
+struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy) {
     struct whisper_full_params result;
 
     switch (strategy) {
-        case WHISPER_DECODE_GREEDY:
+        case WHISPER_SAMPLING_GREEDY:
             {
-#if defined(_MSC_VER)
                 result = {
-#else
-                result = (struct whisper_full_params) {
-#endif
-                    .strategy  = WHISPER_DECODE_GREEDY,
-                    .n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency()),
-                    .offset_ms = 0,
+                    /*.strategy             =*/ WHISPER_SAMPLING_GREEDY,
 
-                    .translate            = false,
-                    .no_context           = false,
-                    .print_special_tokens = false,
-                    .print_progress       = true,
-                    .print_realtime       = false,
-                    .print_timestamps     = true,
+                    /*.n_threads            =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
+                    /*.offset_ms            =*/ 0,
 
-                    .language = "en",
+                    /*.translate            =*/ false,
+                    /*.no_context           =*/ false,
+                    /*.print_special_tokens =*/ false,
+                    /*.print_progress       =*/ true,
+                    /*.print_realtime       =*/ false,
+                    /*.print_timestamps     =*/ true,
 
-                    .greedy = {
-                        .n_past = 0,
+                    /*.language             =*/ "en",
+
+                    /*.greedy               =*/ {
+                        /*.n_past =*/ 0,
+                    },
+
+                    /*.beam_search          =*/ {
+                        /*.n_past     =*/ -1,
+                        /*.beam_width =*/ -1,
+                        /*.n_best     =*/ -1,
                     },
                 };
             } break;
-        case WHISPER_DECODE_BEAM_SEARCH:
+        case WHISPER_SAMPLING_BEAM_SEARCH:
             {
-#if defined(_MSC_VER)
                 result = {
-#else
-                result = (struct whisper_full_params) {
-#endif
-                    .strategy  = WHISPER_DECODE_BEAM_SEARCH,
-                    .n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency()),
-                    .offset_ms = 0,
+                    /*.strategy             =*/ WHISPER_SAMPLING_BEAM_SEARCH,
 
-                    .translate            = false,
-                    .no_context           = false,
-                    .print_special_tokens = false,
-                    .print_progress       = true,
-                    .print_realtime       = false,
-                    .print_timestamps     = true,
+                    /*.n_threads            =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
+                    /*.offset_ms            =*/ 0,
 
-                    .language = "en",
+                    /*.translate            =*/ false,
+                    /*.no_context           =*/ false,
+                    /*.print_special_tokens =*/ false,
+                    /*.print_progress       =*/ true,
+                    /*.print_realtime       =*/ false,
+                    /*.print_timestamps     =*/ true,
 
-                    .beam_search = {
-                        .n_past = 0,
-                        .beam_width = 10,
-                        .n_best = 5,
+                    /*.language             =*/ "en",
+
+                    /*.greedy               =*/ {
+                        /*.n_past =*/ -1,
+                    },
+
+                    /*.beam_search          =*/ {
+                        /*.n_past     =*/ 0,
+                        /*.beam_width =*/ 10,
+                        /*.n_best     =*/ 5,
                     },
                 };
             } break;

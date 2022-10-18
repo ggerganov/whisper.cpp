@@ -216,7 +216,7 @@ int main(int argc, char ** argv) {
 
         // run the inference
         {
-            whisper_full_params wparams = whisper_full_default_params(WHISPER_DECODE_GREEDY);
+            whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
             wparams.print_realtime       = true;
             wparams.print_progress       = false;

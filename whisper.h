@@ -153,14 +153,14 @@ extern "C" {
 
     ////////////////////////////////////////////////////////////////////////////
 
-    // Available decoding strategies
-    enum whisper_decode_strategy {
-        WHISPER_DECODE_GREEDY,      // Always select the most probable token
-        WHISPER_DECODE_BEAM_SEARCH, // TODO: not implemented yet!
+    // Available sampling strategies
+    enum whisper_sampling_strategy {
+        WHISPER_SAMPLING_GREEDY,      // Always select the most probable token
+        WHISPER_SAMPLING_BEAM_SEARCH, // TODO: not implemented yet!
     };
 
     struct whisper_full_params {
-        enum whisper_decode_strategy strategy;
+        enum whisper_sampling_strategy strategy;
 
         int n_threads;
         int offset_ms;
@@ -174,20 +174,18 @@ extern "C" {
 
         const char * language;
 
-        union {
-            struct {
-                int n_past;
-            } greedy;
+        struct {
+            int n_past;
+        } greedy;
 
-            struct {
-                int n_past;
-                int beam_width;
-                int n_best;
-            } beam_search;
-        };
+        struct {
+            int n_past;
+            int beam_width;
+            int n_best;
+        } beam_search;
     };
 
-    WHISPER_API struct whisper_full_params whisper_full_default_params(enum whisper_decode_strategy strategy);
+    WHISPER_API struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy);
 
     // Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text
     // Uses the specified decoding strategy to obtain the text.
