@@ -170,8 +170,9 @@ if (WHISPER_STANDALONE)
         target_link_libraries(${TARGET} PRIVATE whisper ${SDL2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
     endif ()
 
-    if (WHISPER_BUILD_TESTS)
-        enable_testing()
-        add_subdirectory(tests)
-    endif ()
+    # TODO: temporary disabled
+    #if (WHISPER_BUILD_TESTS)
+    #    enable_testing()
+    #    add_subdirectory(tests)
+    #endif ()
 endif ()
