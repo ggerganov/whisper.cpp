@@ -247,8 +247,8 @@ make stream
 - Sample real-time audio transcription from the microphone is demonstrated in [stream.cpp](stream.cpp)
 
 The tensor operators are optimized heavily for Apple silicon CPUs. Depending on the computation size, Arm Neon SIMD
-instrisics or CBLAS Accelerate framwork routines are used. The latter are especially effective for bigger sizes since
-the framwork utilizes the special-purpose AMX coprocessor available in modern Apple products.
+instrisics or CBLAS Accelerate framework routines are used. The latter are especially effective for bigger sizes since
+the Accelerate framework utilizes the special-purpose AMX coprocessor available in modern Apple products.
 
 ## Limitations
 
