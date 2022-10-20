@@ -252,9 +252,18 @@ the framwork utilizes the special-purpose AMX coprocessor available in modern Ap
 
 ## Limitations
 
-- Very basic greedy sampling scheme - always pick up the top token. You can implement your own strategy
 - Inference only
 - No GPU support
+- Very basic greedy sampling scheme - always pick up the token with highest probability.
+  This should be similar to the [GreedyDecoder](https://github.com/openai/whisper/blob/main/whisper/decoding.py#L249-L274)
+  from the original python implementation, so in order to make a fair comparison between the 2 implementations, make sure
+  to run the python code with the following parameters:
+  
+  ```
+  whisper --best_of 1 --beam_size 1 ...
+  ```
+    
+  In the future, `whisper.cpp` will support more sampling strategies.
 
 ## Memory usage
 
