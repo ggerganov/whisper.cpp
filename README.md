@@ -260,7 +260,7 @@ the Accelerate framework utilizes the special-purpose AMX coprocessor available 
   to run the python code with the following parameters:
   
   ```
-  whisper --best_of 1 --beam_size 1 ...
+  whisper --best_of None --beam_size None ...
   ```
     
   In the future, `whisper.cpp` will support more sampling strategies.
