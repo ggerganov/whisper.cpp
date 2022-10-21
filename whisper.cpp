@@ -2477,12 +2477,6 @@ int whisper_full(
                     }
                     break;
                 }
-
-                // TESTS: if no tensors are loaded, it means we are running tests
-                if (ctx->model.tensors.size()) {
-                    seek_delta = 100*WHISPER_CHUNK_SIZE;
-                    break;
-                }
             }
 
             if (done) {

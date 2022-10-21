@@ -171,8 +171,8 @@ if (WHISPER_STANDALONE)
     endif ()
 
     # TODO: temporary disabled
-    if (WHISPER_BUILD_TESTS)
-        enable_testing()
-        add_subdirectory(tests)
-    endif ()
+    #if (WHISPER_BUILD_TESTS)
+    #    enable_testing()
+    #    add_subdirectory(tests)
+    #endif ()
 endif ()
