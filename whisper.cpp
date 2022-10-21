@@ -379,8 +379,11 @@ struct whisper_model {
     struct ggml_tensor * memory_cross_k;
     struct ggml_tensor * memory_cross_v;
 
-    //
+    // context
     struct ggml_context * ctx;
+
+    // tensors
+    int n_loaded;
     std::map<std::string, struct ggml_tensor *> tensors;
 };
 
@@ -951,8 +954,9 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
 
     // load weights
     {
-        int n_loaded = 0;
         size_t total_size = 0;
+
+        model.n_loaded = 0;
 
         while (true) {
             int32_t n_dims;
@@ -1006,15 +1010,15 @@ bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
 
             //printf("%24s - [%5d, %5d], type = %6s, %6.2f MB\n", name.data(), ne[0], ne[1], ftype == 0 ? "float" : "f16", ggml_nbytes(tensor)/1024.0/1024.0);
             total_size += ggml_nbytes(tensor);
-            n_loaded++;
+            model.n_loaded++;
         }
 
         fprintf(stderr, "%s: model size  = %8.2f MB\n", __func__, total_size/1024.0/1024.0);
 
-        if (n_loaded == 0) {
+        if (model.n_loaded == 0) {
             fprintf(stderr, "%s: WARN no tensors loaded from model file - assuming empty model for testing\n", __func__);
-        } else if (n_loaded != (int) model.tensors.size()) {
-            fprintf(stderr, "%s: ERROR not all tensors loaded from model file - expected %zu, got %d\n", __func__, model.tensors.size(), n_loaded);
+        } else if (model.n_loaded != (int) model.tensors.size()) {
+            fprintf(stderr, "%s: ERROR not all tensors loaded from model file - expected %zu, got %d\n", __func__, model.tensors.size(), model.n_loaded);
             return false;
         }
     }
@@ -2475,6 +2479,12 @@ int whisper_full(
                             fprintf(stderr, "\n%s: failed to generate timestamp token - this should not happen\n\n", __func__);
                         }
                     }
+                    break;
+                }
+
+                // TESTS: if no tensors are loaded, it means we are running tests
+                if (ctx->model.n_loaded == 0) {
+                    seek_delta = 100*WHISPER_CHUNK_SIZE;
                     break;
                 }
             }
