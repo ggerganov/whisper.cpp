@@ -207,6 +207,15 @@ extern "C" {
     // Get the text of the specified segment.
     WHISPER_API const char * whisper_full_get_segment_text(struct whisper_context * ctx, int i_segment);
 
+    // Get number of tokens in the specified segment.
+    WHISPER_API int whisper_full_n_tokens(struct whisper_context * ctx, int i_segment);
+
+    // Get the token text of the specified token in the specified segment.
+    WHISPER_API const char * whisper_full_get_token_text(struct whisper_context * ctx, int i_segment, int i_token);
+
+    // Get the probability of the specified token in the specified segment.
+    WHISPER_API float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token);
+
 #ifdef __cplusplus
 }
 #endif
