@@ -30,9 +30,10 @@ std::string to_timestamp(int64_t t) {
 
 // command-line parameters
 struct whisper_params {
-    int32_t seed      = -1; // RNG seed, not used currently
-    int32_t n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency());
-    int32_t offset_ms = 0;
+    int32_t seed        = -1; // RNG seed, not used currently
+    int32_t n_threads   = std::min(4, (int32_t) std::thread::hardware_concurrency());
+    int32_t offset_t_ms = 0;
+    int32_t offset_n    = 0;
 
     bool verbose              = false;
     bool translate            = false;
@@ -63,8 +64,10 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             params.seed = std::stoi(argv[++i]);
         } else if (arg == "-t" || arg == "--threads") {
             params.n_threads = std::stoi(argv[++i]);
-        } else if (arg == "-o" || arg == "--offset") {
-            params.offset_ms = std::stoi(argv[++i]);
+        } else if (arg == "-ot" || arg == "--offset-t") {
+            params.offset_t_ms = std::stoi(argv[++i]);
+        } else if (arg == "-on" || arg == "--offset-n") {
+            params.offset_n = std::stoi(argv[++i]);
         } else if (arg == "-v" || arg == "--verbose") {
             params.verbose = true;
         } else if (arg == "--translate") {
@@ -111,7 +114,8 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "  -h,       --help           show this help message and exit\n");
     fprintf(stderr, "  -s SEED,  --seed SEED      RNG seed (default: -1)\n");
     fprintf(stderr, "  -t N,     --threads N      number of threads to use during computation (default: %d)\n", params.n_threads);
-    fprintf(stderr, "  -o N,     --offset N       offset in milliseconds (default: %d)\n", params.offset_ms);
+    fprintf(stderr, "  -ot N,    --offset-t N     time offset in milliseconds (default: %d)\n", params.offset_t_ms);
+    fprintf(stderr, "  -on N,    --offset-n N     segment index offset (default: %d)\n", params.offset_n);
     fprintf(stderr, "  -v,       --verbose        verbose output\n");
     fprintf(stderr, "            --translate      translate from source language to english\n");
     fprintf(stderr, "  -otxt,    --output-txt     output result in a text file\n");
@@ -225,7 +229,7 @@ int main(int argc, char ** argv) {
             wparams.translate            = params.translate;
             wparams.language             = params.language.c_str();
             wparams.n_threads            = params.n_threads;
-            wparams.offset_ms            = params.offset_ms;
+            wparams.offset_ms            = params.offset_t_ms;
 
             if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
@@ -316,7 +320,7 @@ int main(int argc, char ** argv) {
                     const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
                     const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
-                    fout_srt << i + 1 << "\n";
+                    fout_srt << i + 1 + params.offset_n << "\n";
                     fout_srt << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
                     fout_srt << text << "\n\n";
                 }
