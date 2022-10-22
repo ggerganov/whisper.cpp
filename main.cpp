@@ -141,6 +141,55 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "\n");
 }
 
+void whisper_print_segment_callback(struct whisper_context * ctx, void * user_data) {
+    const whisper_params & params = *(whisper_params *) user_data;
+
+    const int n_segments = whisper_full_n_segments(ctx);
+
+    // print the last segment
+    const int i = n_segments - 1;
+    if (i == 0) {
+        printf("\n");
+    }
+
+    if (params.no_timestamps) {
+        if (params.print_colors) {
+            // TODO
+        } else {
+            const char * text = whisper_full_get_segment_text(ctx, i);
+            printf("%s", text);
+            fflush(stdout);
+        }
+    } else {
+        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+
+        if (params.print_colors) {
+            printf("[%s --> %s]  ", to_timestamp(t0).c_str(), to_timestamp(t1).c_str());
+            for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
+                if (params.print_special_tokens == false) {
+                    const whisper_token id = whisper_full_get_token_id(ctx, i, j);
+                    if (id >= whisper_token_eot(ctx)) {
+                        continue;
+                    }
+                }
+
+                const char * text = whisper_full_get_token_text(ctx, i, j);
+                const float  p    = whisper_full_get_token_p   (ctx, i, j);
+
+                const int col = std::max(0, std::min((int) k_colors.size(), (int) (std::pow(p, 3)*float(k_colors.size()))));
+
+                printf("%s%s%s", k_colors[col].c_str(), text, "\033[0m");
+            }
+            printf("\n");
+        } else {
+            const char * text = whisper_full_get_segment_text(ctx, i);
+
+            printf("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
+        }
+    }
+}
+
 bool output_txt(struct whisper_context * ctx, const char * fname) {
     std::ofstream fout(fname);
     if (!fout.is_open()) {
@@ -294,7 +343,7 @@ int main(int argc, char ** argv) {
         {
             whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
-            wparams.print_realtime       = !params.print_colors;
+            wparams.print_realtime       = false;
             wparams.print_progress       = false;
             wparams.print_timestamps     = !params.no_timestamps;
             wparams.print_special_tokens = params.print_special_tokens;
@@ -303,47 +352,15 @@ int main(int argc, char ** argv) {
             wparams.n_threads            = params.n_threads;
             wparams.offset_ms            = params.offset_t_ms;
 
+            // this callback is called on each new segment
+            if (!wparams.print_realtime) {
+                wparams.new_segment_callback           = whisper_print_segment_callback;
+                wparams.new_segment_callback_user_data = &params;
+            }
+
             if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
                 return 7;
-            }
-
-            // print result
-            if (!wparams.print_realtime) {
-                printf("\n");
-
-                const int n_segments = whisper_full_n_segments(ctx);
-                for (int i = 0; i < n_segments; ++i) {
-                    if (params.no_timestamps) {
-                        if (params.print_colors) {
-                            // TODO
-                        } else {
-                            const char * text = whisper_full_get_segment_text(ctx, i);
-                            printf("%s", text);
-                            fflush(stdout);
-                        }
-                    } else {
-                        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-
-                        if (params.print_colors) {
-                            printf("[%s --> %s]  ", to_timestamp(t0).c_str(), to_timestamp(t1).c_str());
-                            for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
-                                const char * text = whisper_full_get_token_text(ctx, i, j);
-                                const float  p    = whisper_full_get_token_p   (ctx, i, j);
-
-                                const int col = std::max(0, std::min((int) k_colors.size(), (int) (std::pow(p, 3)*float(k_colors.size()))));
-
-                                printf("%s%s%s", k_colors[col].c_str(), text, "\033[0m");
-                            }
-                            printf("\n");
-                        } else {
-                            const char * text = whisper_full_get_segment_text(ctx, i);
-
-                            printf("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
-                        }
-                    }
-                }
             }
 
             printf("\n");

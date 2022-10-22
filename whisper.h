@@ -160,6 +160,11 @@ extern "C" {
         WHISPER_SAMPLING_BEAM_SEARCH, // TODO: not implemented yet!
     };
 
+    // Text segment callback
+    // Called on every newly generated text segment
+    // Use the whisper_full_...() functions to obtain the text segments
+    typedef void (*whisper_new_segment_callback)(struct whisper_context * ctx, void * user_data);
+
     struct whisper_full_params {
         enum whisper_sampling_strategy strategy;
 
@@ -184,6 +189,9 @@ extern "C" {
             int beam_width;
             int n_best;
         } beam_search;
+
+        whisper_new_segment_callback new_segment_callback;
+        void * new_segment_callback_user_data;
     };
 
     WHISPER_API struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy);
@@ -212,6 +220,7 @@ extern "C" {
 
     // Get the token text of the specified token in the specified segment.
     WHISPER_API const char * whisper_full_get_token_text(struct whisper_context * ctx, int i_segment, int i_token);
+    WHISPER_API whisper_token whisper_full_get_token_id (struct whisper_context * ctx, int i_segment, int i_token);
 
     // Get the probability of the specified token in the specified segment.
     WHISPER_API float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token);
