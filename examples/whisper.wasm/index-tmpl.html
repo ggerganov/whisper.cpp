@@ -162,7 +162,7 @@
                 </tr>
             </table>
 
-            <br><br>
+            <br>
 
             <!-- textarea with height filling the rest of the page -->
             <textarea id="output" rows="20"></textarea>
@@ -254,6 +254,10 @@
                 return new type(buffer);
             }
 
+            //
+            // load model
+            //
+
             function loadFile(event, fname) {
                 var file = event.target.files[0] || null;
                 if (file == null) {
@@ -280,6 +284,10 @@
                 }
                 reader.readAsArrayBuffer(file);
             }
+
+            //
+            // audio file
+            //
 
             function loadAudio(event) {
                 if (!context) {
@@ -327,7 +335,7 @@
             }
 
             //
-            // Microphone
+            // microphone
             //
 
             var mediaRecorder = null;

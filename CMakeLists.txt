@@ -124,6 +124,7 @@ else()
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:AVX2 /D_CRT_SECURE_NO_WARNINGS=1")
     else()
         if (EMSCRIPTEN)
+            # we require support for WASM SIMD 128-bit
             set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -pthread -msimd128")
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
         else()
