@@ -4,6 +4,7 @@
 #include <emscripten/bind.h>
 
 #include <vector>
+#include <thread>
 
 std::vector<struct whisper_context *> g_contexts(4, nullptr);
 
@@ -47,7 +48,7 @@ EMSCRIPTEN_BINDINGS(whisper) {
         params.print_special_tokens = false;
         params.translate            = false;
         params.language             = "en";
-        params.n_threads            = 4;
+        params.n_threads            = std::min(8, (int) std::thread::hardware_concurrency());
         params.offset_ms            = 0;
 
         std::vector<float> pcmf32;
