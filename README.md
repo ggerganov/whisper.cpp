@@ -239,6 +239,13 @@ brew install sdl2
 make stream
 ```
 
+## Confidence color-coding
+
+Adding the `--print-colors` argument will print the transcribed text using an experimental color coding strategy
+to highlight words with high or low confidence:
+
+<img width="965" alt="image" src="https://user-images.githubusercontent.com/1991296/197356445-311c8643-9397-4e5e-b46e-0b4b4daa2530.png">
+
 ## Implementation details
 
 - The core tensor operations are implemented in C ([ggml.h](ggml.h) / [ggml.c](ggml.c))
