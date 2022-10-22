@@ -154,12 +154,26 @@ void whisper_print_segment_callback(struct whisper_context * ctx, void * user_da
 
     if (params.no_timestamps) {
         if (params.print_colors) {
-            // TODO
+            for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
+                if (params.print_special_tokens == false) {
+                    const whisper_token id = whisper_full_get_token_id(ctx, i, j);
+                    if (id >= whisper_token_eot(ctx)) {
+                        continue;
+                    }
+                }
+
+                const char * text = whisper_full_get_token_text(ctx, i, j);
+                const float  p    = whisper_full_get_token_p   (ctx, i, j);
+
+                const int col = std::max(0, std::min((int) k_colors.size(), (int) (std::pow(p, 3)*float(k_colors.size()))));
+
+                printf("%s%s%s", k_colors[col].c_str(), text, "\033[0m");
+            }
         } else {
             const char * text = whisper_full_get_segment_text(ctx, i);
             printf("%s", text);
-            fflush(stdout);
         }
+        fflush(stdout);
     } else {
         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
