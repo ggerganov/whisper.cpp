@@ -141,6 +141,66 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "\n");
 }
 
+bool output_txt(struct whisper_context * ctx, const char * fname) {
+    std::ofstream fout(fname);
+    if (!fout.is_open()) {
+        fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
+        return false;
+    }
+
+    fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
+
+    const int n_segments = whisper_full_n_segments(ctx);
+    for (int i = 0; i < n_segments; ++i) {
+        const char * text = whisper_full_get_segment_text(ctx, i);
+        fout << text;
+    }
+
+    return true;
+}
+
+bool output_vtt(struct whisper_context * ctx, const char * fname) {
+    std::ofstream fout(fname);
+    if (!fout.is_open()) {
+        fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
+        return 9;
+    }
+
+    fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
+
+    fout << "WEBVTT\n\n";
+
+    const int n_segments = whisper_full_n_segments(ctx);
+    for (int i = 0; i < n_segments; ++i) {
+        const char * text = whisper_full_get_segment_text(ctx, i);
+        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+
+        fout << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
+        fout << text << "\n\n";
+    }
+
+    return true;
+}
+
+bool output_srt(struct whisper_context * ctx, const char * fname) {
+    std::ofstream fout(fname);
+    if (!fout.is_open()) {
+        fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
+        return false;
+    }
+
+    fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
+
+    const int n_segments = whisper_full_n_segments(ctx);
+    for (int i = 0; i < n_segments; ++i) {
+        const char * text = whisper_full_get_segment_text(ctx, i);
+        fout << text;
+    }
+
+    return true;
+}
+
 int main(int argc, char ** argv) {
     whisper_params params;
 
@@ -291,66 +351,19 @@ int main(int argc, char ** argv) {
             // output to text file
             if (params.output_txt) {
                 const auto fname_txt = fname_inp + ".txt";
-                std::ofstream fout_txt(fname_txt);
-                if (!fout_txt.is_open()) {
-                    fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname_txt.c_str());
-                    return 8;
-                }
-
-                fprintf(stderr, "%s: saving output to '%s.txt'\n", __func__, fname_inp.c_str());
-
-                const int n_segments = whisper_full_n_segments(ctx);
-                for (int i = 0; i < n_segments; ++i) {
-                    const char * text = whisper_full_get_segment_text(ctx, i);
-                    fout_txt << text;
-                }
+                output_txt(ctx, fname_txt.c_str());
             }
 
             // output to VTT file
             if (params.output_vtt) {
                 const auto fname_vtt = fname_inp + ".vtt";
-                std::ofstream fout_vtt(fname_vtt);
-                if (!fout_vtt.is_open()) {
-                    fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname_vtt.c_str());
-                    return 9;
-                }
-
-                fprintf(stderr, "%s: saving output to '%s.vtt'\n", __func__, fname_inp.c_str());
-
-                fout_vtt << "WEBVTT\n\n";
-
-                const int n_segments = whisper_full_n_segments(ctx);
-                for (int i = 0; i < n_segments; ++i) {
-                    const char * text = whisper_full_get_segment_text(ctx, i);
-                    const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                    const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-
-                    fout_vtt << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
-                    fout_vtt << text << "\n\n";
-                }
+                output_vtt(ctx, fname_vtt.c_str());
             }
 
             // output to SRT file
             if (params.output_srt) {
                 const auto fname_srt = fname_inp + ".srt";
-                std::ofstream fout_srt(fname_srt);
-                if (!fout_srt.is_open()) {
-                    fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname_srt.c_str());
-                    return 10;
-                }
-
-                fprintf(stderr, "%s: saving output to '%s.srt'\n", __func__, fname_inp.c_str());
-
-                const int n_segments = whisper_full_n_segments(ctx);
-                for (int i = 0; i < n_segments; ++i) {
-                    const char * text = whisper_full_get_segment_text(ctx, i);
-                    const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                    const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-
-                    fout_srt << i + 1 + params.offset_n << "\n";
-                    fout_srt << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
-                    fout_srt << text << "\n\n";
-                }
+                output_srt(ctx, fname_srt.c_str());
             }
         }
     }
