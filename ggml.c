@@ -7358,7 +7358,7 @@ enum ggml_opt_result ggml_opt_adam(
 
         {
             const int64_t t_end_cpu = ggml_cycles();
-            GGML_PRINT_DEBUG("time iter:      %5.3f s\n", (t_end_cpu - t_start_cpu)/CLOCKS_PER_SEC);
+            GGML_PRINT_DEBUG("time iter:      %5.3f s\n", ((float)(t_end_cpu - t_start_cpu))/CLOCKS_PER_SEC);
             UNUSED(t_end_cpu);
 
             const int64_t t_end_wall = ggml_time_us();
