@@ -7,11 +7,27 @@ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(WHISPER_STANDALONE ON)
+    include(cmake/GitVars.cmake)
+    include(cmake/BuildTypes.cmake)
 else()
     set(WHISPER_STANDALONE OFF)
 endif()
 
+if (EMSCRIPTEN)
+    set(BUILD_SHARED_LIBS_DEFAULT OFF)
+
+    option(WHISPER_WASM_SINGLE_FILE "whisper: embed WASM inside the generated whisper.js" ON)
+else()
+    if (MINGW)
+        set(BUILD_SHARED_LIBS_DEFAULT OFF)
+    else()
+        set(BUILD_SHARED_LIBS_DEFAULT ON)
+    endif()
+endif()
+
 # options
+
+option(BUILD_SHARED_LIBS               "whisper: build shared libs" ${BUILD_SHARED_LIBS_DEFAULT})
 
 option(WHISPER_ALL_WARNINGS            "whisper: enable all compiler warnings"                   ON)
 option(WHISPER_ALL_WARNINGS_3RD_PARTY  "whisper: enable all compiler warnings in 3rd party libs" OFF)
@@ -20,7 +36,8 @@ option(WHISPER_SANITIZE_THREAD         "whisper: enable thread sanitizer"    OFF
 option(WHISPER_SANITIZE_ADDRESS        "whisper: enable address sanitizer"   OFF)
 option(WHISPER_SANITIZE_UNDEFINED      "whisper: enable undefined sanitizer" OFF)
 
-option(WHISPER_BUILD_TESTS             "whisper: build tests" ${WHISPER_STANDALONE})
+option(WHISPER_BUILD_TESTS             "whisper: build tests"    ${WHISPER_STANDALONE})
+option(WHISPER_BUILD_EXAMPLES          "whisper: build examples" ${WHISPER_STANDALONE})
 
 option(WHISPER_SUPPORT_SDL2            "whisper: support for libSDL2" OFF)
 
@@ -69,16 +86,6 @@ if (APPLE AND NOT WHISPER_NO_ACCELERATE)
     endif()
 endif()
 
-if (WHISPER_SUPPORT_SDL2)
-    # SDL2
-    find_package(SDL2 REQUIRED)
-
-    string(STRIP "${SDL2_LIBRARIES}" SDL2_LIBRARIES)
-
-    message(STATUS "SDL2_INCLUDE_DIRS = ${SDL2_INCLUDE_DIRS}")
-    message(STATUS "SDL2_LIBRARIES = ${SDL2_LIBRARIES}")
-endif()
-
 # compiler flags
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -120,6 +127,11 @@ else()
     endif()
 endif()
 
+if (EMSCRIPTEN)
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -pthread -msimd128")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+endif()
+
 # whisper - this is the main library of the project
 
 set(TARGET whisper)
@@ -154,24 +166,46 @@ install(TARGETS ${TARGET}
     ARCHIVE DESTINATION lib/static
     )
 
+# bindings
+
+add_subdirectory(bindings)
+
 # programs, examples and tests
 
 if (WHISPER_STANDALONE)
-    # main
-    set(TARGET main)
-    add_executable(${TARGET} main.cpp)
-    target_link_libraries(${TARGET} PRIVATE whisper ${CMAKE_THREAD_LIBS_INIT})
+    if (NOT EMSCRIPTEN)
+        # TODO: move to examples
+        # main
+        set(TARGET main)
+        add_executable(${TARGET} main.cpp)
+        target_link_libraries(${TARGET} PRIVATE whisper ${CMAKE_THREAD_LIBS_INIT})
 
-    if (WHISPER_SUPPORT_SDL2)
-        # stream
-        set(TARGET stream)
-        add_executable(${TARGET} stream.cpp)
-        target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS})
-        target_link_libraries(${TARGET} PRIVATE whisper ${SDL2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-    endif ()
+        # TODO: move to examples
+        if (WHISPER_SUPPORT_SDL2)
+            if (WHISPER_SUPPORT_SDL2)
+                # SDL2
+                find_package(SDL2 REQUIRED)
+
+                string(STRIP "${SDL2_LIBRARIES}" SDL2_LIBRARIES)
+
+                message(STATUS "SDL2_INCLUDE_DIRS = ${SDL2_INCLUDE_DIRS}")
+                message(STATUS "SDL2_LIBRARIES = ${SDL2_LIBRARIES}")
+            endif()
+
+            # stream
+            set(TARGET stream)
+            add_executable(${TARGET} stream.cpp)
+            target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS})
+            target_link_libraries(${TARGET} PRIVATE whisper ${SDL2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+        endif ()
+    endif()
 
     if (WHISPER_BUILD_TESTS)
         enable_testing()
         add_subdirectory(tests)
     endif ()
+
+    if (WHISPER_BUILD_EXAMPLES)
+        add_subdirectory(examples)
+    endif()
 endif ()

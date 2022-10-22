@@ -1,3 +1,7 @@
+if (EMSCRIPTEN)
+    return()
+endif()
+
 set(TEST_TARGET test-main-tiny)
 add_test(NAME ${TEST_TARGET}
     COMMAND $<TARGET_FILE:main>

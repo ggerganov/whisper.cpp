@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en-us">
+    <head>
+        <title>whisper.cpp : WASM example</title>
+    </head>
+    <body>
+        <div id="main-container">
+            Minimal <b>whisper.cpp</b> example using Javascript bindings
+
+            <br><br>
+
+            Model:
+            <input type="file" id="file" name="file" onchange="loadFile(event, 'ggml.bin')" />
+            <br><br>
+
+            WAV:
+            <input type="file" id="file" name="file" onchange="loadAudio(event)" />
+            <br><br>
+
+            <button onclick="onTranscribe();">Transcribe</button>
+
+            <br><br>
+
+            <div class="cell-version">
+                <span>
+                    |
+                    Build time: <span class="nav-link">@GIT_DATE@</span> |
+                    Commit hash: <a class="nav-link" href="https://github.com/ggerganov/whisper.cpp/commit/@GIT_SHA1@">@GIT_SHA1@</a> |
+                    Commit subject: <span class="nav-link">@GIT_COMMIT_SUBJECT@</span> |
+                    <a class="nav-link" href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/whisper.wasm">Source Code</a> |
+                </span>
+            </div>
+        </div>
+
+        <script type="text/javascript" src="whisper.js"></script>
+        <script type='text/javascript'>
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            window.OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+
+            // web audio context
+            var context = null;
+
+            // audio data
+            var audio = null;
+
+            // the whisper module instance
+            var whisper = null;
+            var instance = null;
+
+            // instantiate the whisper instance
+            // whisper_factory comes from the whisper.js module
+            whisper_factory().then(function(obj) {
+                whisper = obj;
+            });
+
+            // helper function
+            function convertTypedArray(src, type) {
+                var buffer = new ArrayBuffer(src.byteLength);
+                var baseView = new src.constructor(buffer).set(src);
+                return new type(buffer);
+            }
+
+            // initialize whisper
+            function init() {
+                if (!instance) {
+                    instance = whisper.init('ggml.bin');
+                    if (instance) {
+                        console.log('whisper instance initialized');
+                    }
+                }
+
+                if (!instance) {
+                    console.log('whisper instance initialization failed');
+                    return;
+                }
+
+                if (instance) {
+                    var ret = whisper.full_default(instance, audio);
+                    if (ret) {
+                        console.log('whisper full_default returned: ' + ret);
+                    }
+                }
+            }
+
+            function loadFile(event, fname) {
+                var file = event.target.files[0] || null;
+                if (file == null) {
+                    return;
+                }
+
+                console.log(
+                        "<p>File information: <strong>" + file.name +
+                        "</strong> type: <strong>" + file.type +
+                        "</strong> size: <strong>" + file.size +
+                        "</strong> bytes</p>"
+                );
+
+                var reader = new FileReader();
+                reader.onload = function(event) {
+                    var buf = new Uint8Array(reader.result);
+
+                    // write to WASM file using whisper.FS_createDataFile
+                    whisper.FS_createDataFile("/", fname, buf, true, true);
+                }
+                reader.readAsArrayBuffer(file);
+            }
+
+            function loadAudio(event) {
+                if (!context) {
+                    context = new AudioContext({sampleRate: 16000});
+                }
+
+                var file = event.target.files[0] || null;
+                if (file == null) {
+                    return;
+                }
+
+                console.log(
+                        "<p>Audio information: <strong>" + file.name +
+                        "</strong> type: <strong>" + file.type +
+                        "</strong> size: <strong>" + file.size +
+                        "</strong> bytes</p>"
+                );
+
+                var reader = new FileReader();
+                reader.onload = function(event) {
+                    var buf = new Uint8Array(reader.result);
+
+                    context.decodeAudioData(buf.buffer, function(audioBuffer) {
+                        var offlineContext = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
+                        var source = offlineContext.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(offlineContext.destination);
+                        source.start(0);
+
+                        offlineContext.startRendering().then(function(renderedBuffer) {
+                            audio = renderedBuffer.getChannelData(0);
+                            //var audio16 = convertTypedArray(data, Int16Array);
+                        });
+                    });
+                }
+                reader.readAsArrayBuffer(file);
+            }
+            //
+            // Transcribe
+            //
+
+            function onTranscribe() {
+                init();
+            }
+        </script>
+    </body>
+</html>
