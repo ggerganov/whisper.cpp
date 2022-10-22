@@ -21,15 +21,13 @@ if (WHISPER_WASM_SINGLE_FILE)
         )
 endif()
 
-#-s TOTAL_MEMORY=536870912 \
 set_target_properties(${TARGET} PROPERTIES LINK_FLAGS " \
     --bind \
-    -s MODULARIZE=1 \
-    -s ASSERTIONS=1 \
     -s USE_PTHREADS=1 \
-    -s PTHREAD_POOL_SIZE=9 \
-    -s ALLOW_MEMORY_GROWTH=1 \
+    -s PTHREAD_POOL_SIZE=8 \
+    -s INITIAL_MEMORY=1610612736 \
+    -s TOTAL_MEMORY=1610612736 \
     -s FORCE_FILESYSTEM=1 \
-    -s EXPORT_NAME=\"'whisper_factory'\" \
+    -s EXPORTED_RUNTIME_METHODS=\"['print', 'printErr', 'ccall', 'cwrap']\" \
     ${EXTRA_FLAGS} \
     ")
