@@ -289,7 +289,7 @@ You can download the converted models using the [download-ggml-model.sh](downloa
 
 https://ggml.ggerganov.com
 
-For more details, see the conversion script [convert-pt-to-ggml.py](convert-pt-to-ggml.py) or the README in [models](models).
+For more details, see the conversion script [models/convert-pt-to-ggml.py](models/convert-pt-to-ggml.py) or the README in [models](models).
 
 ## Bindings
 

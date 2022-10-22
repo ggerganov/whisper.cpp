@@ -90,7 +90,7 @@ libwhisper.a: ggml.o whisper.o
 	ar rcs libwhisper.a ggml.o whisper.o
 
 clean:
-	rm -f *.o main libwhisper.a
+	rm -f *.o main stream libwhisper.a
 
 #
 # Examples
