@@ -22,7 +22,7 @@ Supported platforms:
 - [x] [WebAssembly](https://github.com/ggerganov/whisper.cpp/tree/master/examples/whisper.wasm)
 - [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/issues/7)
 - [x] [Android](https://github.com/ggerganov/whisper.cpp/issues/30)
-- [ ] iOS
+- [x] [iOS](https://github.com/ggerganov/whisper.cpp/issues/45)
 
 Having such a lightweight implementation of the model allows to easily integrate it in different platforms and applications.
 As an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device:
