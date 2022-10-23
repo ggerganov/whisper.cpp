@@ -84,6 +84,9 @@ void AudioInputCallback(void * inUserData,
 
     _labelStatusInp.text = @"Status: Idle";
 
+    [_buttonToggleCapture setTitle:@"Start capturing" forState:UIControlStateNormal];
+    [_buttonToggleCapture setBackgroundColor:[UIColor grayColor]];
+
     stateInp.isCapturing = false;
 
     AudioQueueStop(stateInp.queue, true);
@@ -98,7 +101,6 @@ void AudioInputCallback(void * inUserData,
     if (stateInp.isCapturing) {
         // stop capturing
         [self stopCapturing];
-        [sender setTitle:@"Start Capturing" forState:UIControlStateNormal];
 
         return;
     }
@@ -127,6 +129,7 @@ void AudioInputCallback(void * inUserData,
         if (status == 0) {
             _labelStatusInp.text = @"Status: Capturing";
             [sender setTitle:@"Stop Capturing" forState:UIControlStateNormal];
+            [_buttonToggleCapture setBackgroundColor:[UIColor redColor]];
         }
     }
 
@@ -141,7 +144,6 @@ void AudioInputCallback(void * inUserData,
     if (stateInp.isCapturing) {
         // stop capturing
         [self stopCapturing];
-        [sender setTitle:@"Start Capturing" forState:UIControlStateNormal];
 
         return;
     }
@@ -168,12 +170,16 @@ void AudioInputCallback(void * inUserData,
     params.n_threads            = 4;
     params.offset_ms            = 0;
 
+    CFTimeInterval startTime = CACurrentMediaTime();
+
     if (whisper_full(stateInp.ctx, params, stateInp.audioBufferF32, stateInp.n_samples) != 0) {
         NSLog(@"Failed to run the model");
         _textviewResult.text = @"Failed to run the model";
 
         return;
     }
+
+    CFTimeInterval endTime = CACurrentMediaTime();
 
     // clear the text in the textview
     _textviewResult.text = @"";
@@ -186,7 +192,12 @@ void AudioInputCallback(void * inUserData,
         _textviewResult.text = [_textviewResult.text stringByAppendingString:[NSString stringWithUTF8String:text_cur]];
     }
 
+    // internal model timing
     whisper_print_timings(stateInp.ctx);
+
+    NSLog(@"\nProcessing time: %5.3f", endTime - startTime);
+
+    _textviewResult.text = [_textviewResult.text stringByAppendingString:[NSString stringWithFormat:@"\n\n[processing time: %5.3f s]", endTime - startTime]];
 }
 
 //
