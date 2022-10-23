@@ -13,7 +13,16 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Zero memory allocations at runtime
 - Runs on the CPU
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
-- Supported platforms: Linux, Mac OS (Intel and Arm), Windows (MSVC and MinGW), [WebAssembly](https://github.com/ggerganov/whisper.cpp/tree/master/examples/whisper.wasm), Raspberry Pi, Android
+
+Supported platforms:
+
+- [x] Mac OS (Intel and Arm)
+- [x] Linux
+- [x] [Windows (MSVC and MinGW)](https://github.com/ggerganov/whisper.cpp/issues/5)
+- [x] [WebAssembly](https://github.com/ggerganov/whisper.cpp/tree/master/examples/whisper.wasm)
+- [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/issues/7)
+- [x] [Android](https://github.com/ggerganov/whisper.cpp/issues/30)
+- [ ] iOS
 
 ## Usage
 
