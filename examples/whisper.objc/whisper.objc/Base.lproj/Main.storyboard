@@ -17,7 +17,7 @@
                         <autoresizingMask key="autoresizingMask" flexibleMinX="YES" widthSizable="YES" flexibleMinY="YES" heightSizable="YES"/>
                         <subviews>
                             <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="VOi-PT-Rbu">
-                                <rect key="frame" x="35" y="121" width="156" height="34"/>
+                                <rect key="frame" x="35" y="121" width="156" height="49"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <color key="backgroundColor" systemColor="opaqueSeparatorColor"/>
                                 <color key="tintColor" systemColor="opaqueSeparatorColor"/>
@@ -35,8 +35,16 @@
                                 <nil key="textColor"/>
                                 <nil key="highlightedColor"/>
                             </label>
+                            <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" text="Record some speech and press &quot;Transcribe&quot;. The result will be displayed here." textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="mv2-KD-7jn">
+                                <rect key="frame" x="35" y="248" width="320" height="300"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                                <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                                <color key="textColor" systemColor="labelColor"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="20"/>
+                                <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
+                            </textView>
                             <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="Brs-xi-o8i">
-                                <rect key="frame" x="35" y="177" width="156" height="34"/>
+                                <rect key="frame" x="35" y="191" width="156" height="49"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <color key="backgroundColor" systemColor="opaqueSeparatorColor"/>
                                 <color key="tintColor" systemColor="opaqueSeparatorColor"/>
@@ -48,14 +56,6 @@
                                     <action selector="onTranscribePrepare:" destination="BYZ-38-t0r" eventType="touchDown" id="16T-dN-dfB"/>
                                 </connections>
                             </button>
-                            <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" text="Record some speech and press &quot;Transcribe&quot;. The result will be displayed here." textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="mv2-KD-7jn">
-                                <rect key="frame" x="35" y="248" width="320" height="300"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                                <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                                <color key="textColor" systemColor="labelColor"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="14"/>
-                                <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
-                            </textView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -64,6 +64,7 @@
                         </constraints>
                     </view>
                     <connections>
+                        <outlet property="buttonToggleCapture" destination="VOi-PT-Rbu" id="nis-VC-DQO"/>
                         <outlet property="buttonTranscribe" destination="Brs-xi-o8i" id="N8h-9W-ywb"/>
                         <outlet property="labelStatusInp" destination="Tgu-2q-eHQ" id="1hH-Ql-K6j"/>
                         <outlet property="textviewResult" destination="mv2-KD-7jn" id="RBw-0L-iGj"/>
