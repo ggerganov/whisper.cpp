@@ -234,7 +234,7 @@ dir_tokenizer = tokenizer.name_or_path
 # output in the same directory as the model
 fname_out = dir_out + "/ggml-model.bin"
 
-with open(dir_tokenizer + "/vocab.json", "r") as f:
+with open(dir_tokenizer + "/vocab.json", "r", encoding="utf8") as f:
     tokens = json.load(f)
 
 # use 16-bit or 32-bit floats
