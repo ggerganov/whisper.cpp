@@ -12,3 +12,7 @@ out/
 .vscode/
 compile_commands.json
 .DS_Store
+
+examples/whisper.objc/whisper.objc.xcodeproj/xcshareddata
+examples/whisper.objc/whisper.objc.xcodeproj/xcuserdata/
+examples/whisper.objc/whisper.objc.xcodeproj/project.xcworkspace/xcuserdata
