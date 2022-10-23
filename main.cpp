@@ -246,7 +246,7 @@ bool output_vtt(struct whisper_context * ctx, const char * fname) {
     return true;
 }
 
-bool output_srt(struct whisper_context * ctx, const char * fname) {
+bool output_srt(struct whisper_context * ctx, const char * fname, const whisper_params & params) {
     std::ofstream fout(fname);
     if (!fout.is_open()) {
         fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
@@ -258,7 +258,12 @@ bool output_srt(struct whisper_context * ctx, const char * fname) {
     const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
         const char * text = whisper_full_get_segment_text(ctx, i);
-        fout << text;
+        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+
+        fout << i + 1 + params.offset_n << "\n";
+        fout << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
+        fout << text << "\n\n";
     }
 
     return true;
@@ -394,7 +399,7 @@ int main(int argc, char ** argv) {
             // output to SRT file
             if (params.output_srt) {
                 const auto fname_srt = fname_inp + ".srt";
-                output_srt(ctx, fname_srt.c_str());
+                output_srt(ctx, fname_srt.c_str(), params);
             }
         }
     }

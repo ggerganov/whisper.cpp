@@ -2526,7 +2526,7 @@ int whisper_full(
         // store the text from this iteration
         if (tokens_cur.size() > 0) {
             int  i0 = 0;
-            auto t0 = 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
+            auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
 
             std::string text = "";
 
@@ -2540,7 +2540,7 @@ int whisper_full(
                     text += whisper_token_to_str(ctx, tokens_cur[i].id);
                 }
                 if (tokens_cur[i].id > whisper_token_beg(ctx)) {
-                    const auto t1 = 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
+                    const auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
                     if (!text.empty()) {
                         if (params.print_realtime) {
                             if (params.print_timestamps) {
