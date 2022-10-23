@@ -3,7 +3,7 @@
 Minimal Obj-C application for automatic offline speech recognition.
 The inference runs locally, on-device.
 
-https://user-images.githubusercontent.com/1991296/197378526-835929d3-8d87-4904-9d2f-f2c286fa38ad.mp4
+https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-bf96-1d8c27b98c81.mp4
 
 ## Usage
 
