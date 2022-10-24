@@ -21,7 +21,7 @@ const std::vector<std::string> k_colors = {
 
 //  500 -> 00:05.000
 // 6000 -> 01:00.000
-std::string to_timestamp(int64_t t) {
+std::string to_timestamp(int64_t t, bool comma = false) {
     int64_t msec = t * 10;
     int64_t hr = msec / (1000 * 60 * 60);
     msec = msec - hr * (1000 * 60 * 60);
@@ -31,7 +31,7 @@ std::string to_timestamp(int64_t t) {
     msec = msec - sec * 1000;
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "%02d:%02d:%02d.%03d", (int) hr, (int) min, (int) sec, (int) msec);
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d%s%03d", (int) hr, (int) min, (int) sec, comma ? "," : ".", (int) msec);
 
     return std::string(buf);
 }
@@ -262,7 +262,7 @@ bool output_srt(struct whisper_context * ctx, const char * fname, const whisper_
         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
         fout << i + 1 + params.offset_n << "\n";
-        fout << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
+        fout << to_timestamp(t0, true) << " --> " << to_timestamp(t1, true) << "\n";
         fout << text << "\n\n";
     }
 
