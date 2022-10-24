@@ -239,7 +239,7 @@ bool output_vtt(struct whisper_context * ctx, const char * fname) {
         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
-        fout << to_timestamp(t0).replace() << " --> " << to_timestamp(t1) << "\n";
+        fout << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
         fout << text << "\n\n";
     }
 
