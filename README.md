@@ -17,12 +17,12 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 Supported platforms:
 
 - [x] Mac OS (Intel and Arm)
+- [x] [iOS](examples/whisper.objc)
 - [x] Linux
+- [x] [WebAssembly](examples/whisper.wasm)
 - [x] [Windows (MSVC and MinGW)](https://github.com/ggerganov/whisper.cpp/issues/5)
-- [x] [WebAssembly](https://github.com/ggerganov/whisper.cpp/tree/master/examples/whisper.wasm)
 - [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/issues/7)
 - [x] [Android](https://github.com/ggerganov/whisper.cpp/issues/30)
-- [x] [iOS](https://github.com/ggerganov/whisper.cpp/issues/45)
 
 Having such a lightweight implementation of the model allows to easily integrate it in different platforms and applications.
 As an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device:
@@ -316,5 +316,4 @@ For more details, see the conversion script [models/convert-pt-to-ggml.py](model
 
 - [X] Rust: [tazz4843/whisper-rs](https://github.com/tazz4843/whisper-rs)
 - [ ] Python:
-- [ ] Obj-C:
 - [ ] Java:
