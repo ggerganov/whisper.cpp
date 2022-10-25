@@ -48,7 +48,7 @@ option(WHISPER_NO_ACCELERATE           "whisper: disable Accelerate framework" O
 
 if (NOT MSVC)
     if (WHISPER_SANITIZE_THREAD)
-        set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -fsanitize=thread")
+        set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -fsanitize=thread")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
     endif()
 
@@ -133,7 +133,9 @@ else()
     endif()
 endif()
 
+#
 # whisper - this is the main library of the project
+#
 
 set(TARGET whisper)
 
@@ -167,40 +169,17 @@ install(TARGETS ${TARGET}
     ARCHIVE DESTINATION lib/static
     )
 
+#
 # bindings
+#
 
 add_subdirectory(bindings)
 
+#
 # programs, examples and tests
+#
 
 if (WHISPER_STANDALONE)
-    if (NOT EMSCRIPTEN)
-        # TODO: move to examples
-        # main
-        set(TARGET main)
-        add_executable(${TARGET} main.cpp)
-        target_link_libraries(${TARGET} PRIVATE whisper ${CMAKE_THREAD_LIBS_INIT})
-
-        # TODO: move to examples
-        if (WHISPER_SUPPORT_SDL2)
-            if (WHISPER_SUPPORT_SDL2)
-                # SDL2
-                find_package(SDL2 REQUIRED)
-
-                string(STRIP "${SDL2_LIBRARIES}" SDL2_LIBRARIES)
-
-                message(STATUS "SDL2_INCLUDE_DIRS = ${SDL2_INCLUDE_DIRS}")
-                message(STATUS "SDL2_LIBRARIES = ${SDL2_LIBRARIES}")
-            endif()
-
-            # stream
-            set(TARGET stream)
-            add_executable(${TARGET} stream.cpp)
-            target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS})
-            target_link_libraries(${TARGET} PRIVATE whisper ${SDL2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-        endif ()
-    endif()
-
     if (WHISPER_BUILD_TESTS)
         enable_testing()
         add_subdirectory(tests)

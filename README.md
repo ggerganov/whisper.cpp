@@ -24,23 +24,32 @@ Supported platforms:
 - [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/issues/7)
 - [x] [Android](https://github.com/ggerganov/whisper.cpp/issues/30)
 
+The entire implementation of the model is contained in 2 source files:
+
+- [ggml.h](ggml.h) / [ggml.c](ggml.c)
+- [whisper.h](whisper.h) / [whisper.cpp](whisper.cpp)
+
 Having such a lightweight implementation of the model allows to easily integrate it in different platforms and applications.
 As an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device:
 
 https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-bf96-1d8c27b98c81.mp4
 
-## Usage
+## Quick start
 
-To build the main program, run `make`. You can then transcribe a `.wav` file like this:
+First, download one of the Whisper models converted in [ggml format](models). For example:
 
 ```bash
-./main -f input.wav
+bash ./models/download-ggml-model.sh base.en
 ```
 
-Before running the program, make sure to download one of the ggml Whisper models. For example:
+Now build the [main](examples/main) example and transcribe an audio file like this:
 
 ```bash
-bash ./download-ggml-model.sh base.en
+# build the main example
+make
+
+# transcribe an audio file
+./main -f input.wav
 ```
 
 ---
@@ -73,7 +82,7 @@ options:
   -m FNAME, --model FNAME    model path (default: models/ggml-base.en.bin)
   -f FNAME, --file FNAME     input WAV file path
 
-bash ./download-ggml-model.sh base.en
+bash ./models/download-ggml-model.sh base.en
 Downloading ggml model base.en ...
 models/ggml-base.en.bin            100%[=============================================>] 141.11M  3.13MB/s    in 79s
 Done! Model 'base.en' saved in 'models/ggml-base.en.bin'
@@ -232,7 +241,7 @@ whisper_print_timings:    total time = 33686.27 ms
 ## Real-time audio input example
 
 This is a naive example of performing real-time inference on audio from your microphone.
-The `stream` tool samples the audio every half a second and runs the transcription continously.
+The [stream](examples/stream) tool samples the audio every half a second and runs the transcription continously.
 More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
 ```java
@@ -241,7 +250,7 @@ More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/i
 
 https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a80f-28ba83be7d09.mp4
 
-The `stream` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
+The [stream](examples/stream) tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
 
 ```bash
 # Install SDL2 on Linux
@@ -264,8 +273,9 @@ to highlight words with high or low confidence:
 
 - The core tensor operations are implemented in C ([ggml.h](ggml.h) / [ggml.c](ggml.c))
 - The high-level C-style API is implemented in C++ ([whisper.h](whisper.h) / [whisper.cpp](whisper.cpp))
-- Simple usage is demonstrated in [main.cpp](main.cpp)
-- Sample real-time audio transcription from the microphone is demonstrated in [stream.cpp](stream.cpp)
+- Sample usage is demonstrated in [main.cpp](examples/main)
+- Sample real-time audio transcription from the microphone is demonstrated in [stream.cpp](examples/stream)
+- Various other examples are available in the [examples](examples) folder
 
 The tensor operators are optimized heavily for Apple silicon CPUs. Depending on the computation size, Arm Neon SIMD
 instrisics or CBLAS Accelerate framework routines are used. The latter are especially effective for bigger sizes since
@@ -279,11 +289,11 @@ the Accelerate framework utilizes the special-purpose AMX coprocessor available 
   This should be similar to the [GreedyDecoder](https://github.com/openai/whisper/blob/main/whisper/decoding.py#L249-L274)
   from the original python implementation, so in order to make a fair comparison between the 2 implementations, make sure
   to run the python code with the following parameters:
-  
+
   ```
   whisper --best_of None --beam_size None ...
   ```
-    
+
   In the future, `whisper.cpp` will support more sampling strategies.
 
 ## Memory usage
@@ -306,7 +316,7 @@ The original models are converted to a custom binary format. This allows to pack
 - vocabulary
 - weights
 
-You can download the converted models using the [download-ggml-model.sh](download-ggml-model.sh) script or from here:
+You can download the converted models using the [models/download-ggml-model.sh](models/download-ggml-model.sh) script or from here:
 
 https://ggml.ggerganov.com
 
