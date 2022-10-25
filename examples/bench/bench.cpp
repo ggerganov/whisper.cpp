@@ -74,5 +74,20 @@ int main(int argc, char ** argv) {
     whisper_print_timings(ctx);
     whisper_free(ctx);
 
+    fprintf(stderr, "\n");
+    fprintf(stderr, "system_info: n_threads = %d | %s\n", params.n_threads, whisper_print_system_info());
+
+    fprintf(stderr, "\n");
+    fprintf(stderr, "If you wish, you can submit these results here:\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  https://github.com/ggerganov/whisper.cpp/issues/89\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "Please include the following information:\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  - CPU model\n");
+    fprintf(stderr, "  - Operating system\n");
+    fprintf(stderr, "  - Compiler\n");
+    fprintf(stderr, "\n");
+
     return 0;
 }
