@@ -4,7 +4,11 @@ A very basic tool for benchmarking the inference performance on your device. The
 
 Benchmark results are tracked in the following Github issue: https://github.com/ggerganov/whisper.cpp/issues/89
 
-```
+```bash
+# build the bench tool
+$ make bench
+
+# run it on the small.en model using 4 threads
 $ ./bench -m ./models/ggml-small.en.bin -t 4
 
 whisper_model_load: loading model from './models/ggml-small.en.bin'
