@@ -135,7 +135,7 @@ The command downloads the `base.en` model converted to custom `ggml` format and 
 
 For detailed usage instructions, run: `./main -h`
 
-Note that `whisper.cpp` currently runs only with 16-bit WAV files, so make sure to convert your input before running the tool.
+Note that the [main](examples/main) example currently runs only with 16-bit WAV files, so make sure to convert your input before running the tool.
 For example, you can use `ffmpeg` like this:
 
 ```java
@@ -171,6 +171,9 @@ make large
 Here is another example of transcribing a [3:24 min speech](https://upload.wikimedia.org/wikipedia/commons/1/1f/George_W_Bush_Columbia_FINAL.ogg)
 in about half a minute on a MacBook M1 Pro, using `medium.en` model:
 
+<details>
+  <summary>Expand to see the result</summary>
+  
 ```java
 $ ./main -m models/ggml-medium.en.bin -f samples/gb1.wav -t 8
 
@@ -237,6 +240,7 @@ whisper_print_timings:   encode time = 19552.61 ms / 814.69 ms per layer
 whisper_print_timings:   decode time = 13249.96 ms / 552.08 ms per layer
 whisper_print_timings:    total time = 33686.27 ms
 ```
+</details>
 
 ## Real-time audio input example
 
@@ -249,18 +253,6 @@ More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/i
 ```
 
 https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a80f-28ba83be7d09.mp4
-
-The [stream](examples/stream) tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
-
-```bash
-# Install SDL2 on Linux
-sudo apt-get install libsdl2-dev
-
-# Install SDL2 on Mac OS
-brew install sdl2
-
-make stream
-```
 
 ## Confidence color-coding
 
@@ -306,6 +298,13 @@ the Accelerate framework utilizes the special-purpose AMX coprocessor available 
 | medium | 1.5 GB | ~2.6 GB |
 | large  | 2.9 GB | ~4.7 GB |
 
+## Benchmarks
+
+In order to have an objective comparison of the performance of the inference across different system configurations,
+use the [bench](examples/bench) tool. The tool simply runs the Encoder part of the model and prints how much time it
+took to execute it. The results are summarized in the following Github issue:
+
+[Benchmark results](https://github.com/ggerganov/whisper.cpp/issues/89)
 
 ## ggml format
 
