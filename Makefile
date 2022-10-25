@@ -19,12 +19,9 @@ endif
 # Compile flags
 #
 
-CFLAGS   = -O3 -std=c11
-CXXFLAGS = -O3 -std=c++11
+CFLAGS   = -I.              -O3 -std=c11  
+CXXFLAGS = -I. -I./examples -O3 -std=c++11
 LDFLAGS  =
-
-CFLAGS   += -Wall -Wextra -Wno-unused-parameter -Wno-unused-function
-CXXFLAGS += -Wall -Wextra -Wno-unused-parameter -Wno-unused-function
 
 # OS specific
 # TODO: support Windows
@@ -76,8 +73,8 @@ endif
 # Build library + main
 #
 
-main: main.cpp ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) main.cpp whisper.o ggml.o -o main $(LDFLAGS)
+main: examples/main/main.cpp ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) examples/main/main.cpp whisper.o ggml.o -o main $(LDFLAGS)
 	./main -h
 
 ggml.o: ggml.c ggml.h
@@ -90,7 +87,7 @@ libwhisper.a: ggml.o whisper.o
 	ar rcs libwhisper.a ggml.o whisper.o
 
 clean:
-	rm -f *.o main stream libwhisper.a
+	rm -f *.o main stream bench libwhisper.a
 
 #
 # Examples
@@ -98,8 +95,11 @@ clean:
 
 CC_SDL=`sdl2-config --cflags --libs`
 
-stream: stream.cpp ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) stream.cpp ggml.o whisper.o -o stream $(CC_SDL) $(LDFLAGS)
+stream: examples/stream/stream.cpp ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp ggml.o whisper.o -o stream $(CC_SDL) $(LDFLAGS)
+
+bench: examples/bench/bench.cpp ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp ggml.o whisper.o -o bench $(LDFLAGS)
 
 #
 # Audio samples
@@ -139,7 +139,7 @@ samples:
 .PHONY: large
 
 tiny.en tiny base.en base small.en small medium.en medium large: main
-	bash ./download-ggml-model.sh $@
+	bash ./models/download-ggml-model.sh $@
 	@echo ""
 	@echo "==============================================="
 	@echo "Running $@ on all samples in ./samples ..."

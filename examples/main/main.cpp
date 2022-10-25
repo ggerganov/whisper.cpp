@@ -290,6 +290,11 @@ int main(int argc, char ** argv) {
 
     struct whisper_context * ctx = whisper_init(params.model.c_str());
 
+    if (ctx == nullptr) {
+        fprintf(stderr, "error: failed to initialize whisper context\n");
+        return 3;
+    }
+
     for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
         const auto fname_inp = params.fname_inp[f];
 
@@ -300,22 +305,22 @@ int main(int argc, char ** argv) {
             if (!drwav_init_file(&wav, fname_inp.c_str(), NULL)) {
                 fprintf(stderr, "%s: failed to open WAV file '%s' - check your input\n", argv[0], fname_inp.c_str());
                 whisper_print_usage(argc, argv, {});
-                return 3;
+                return 4;
             }
 
             if (wav.channels != 1 && wav.channels != 2) {
                 fprintf(stderr, "%s: WAV file '%s' must be mono or stereo\n", argv[0], fname_inp.c_str());
-                return 4;
+                return 5;
             }
 
             if (wav.sampleRate != WHISPER_SAMPLE_RATE) {
                 fprintf(stderr, "%s: WAV file '%s' must be 16 kHz\n", argv[0], fname_inp.c_str());
-                return 5;
+                return 6;
             }
 
             if (wav.bitsPerSample != 16) {
                 fprintf(stderr, "%s: WAV file '%s' must be 16-bit\n", argv[0], fname_inp.c_str());
-                return 6;
+                return 7;
             }
 
             int n = wav.totalPCMFrameCount;
@@ -379,7 +384,7 @@ int main(int argc, char ** argv) {
 
             if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
-                return 7;
+                return 8;
             }
 
             printf("\n");

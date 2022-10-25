@@ -3,7 +3,7 @@
 # This script downloads Whisper model files that have already been converted to ggml format.
 # This way you don't have to convert them yourself.
 
-ggml_path=$(dirname $(realpath $0))
+models_path=$(dirname $(realpath $0))
 
 # Whisper models
 models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large" )
@@ -38,14 +38,14 @@ fi
 
 printf "Downloading ggml model $model ...\n"
 
-mkdir -p models
+cd $models_path
 
-if [ -f "models/ggml-$model.bin" ]; then
+if [ -f "ggml-$model.bin" ]; then
     printf "Model $model already exists. Skipping download.\n"
     exit 0
 fi
 
-wget --quiet --show-progress -O models/ggml-$model.bin https://ggml.ggerganov.com/ggml-model-whisper-$model.bin
+wget --quiet --show-progress -O ggml-$model.bin https://ggml.ggerganov.com/ggml-model-whisper-$model.bin
 
 if [ $? -ne 0 ]; then
     printf "Failed to download ggml model $model \n"
