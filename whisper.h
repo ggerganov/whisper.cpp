@@ -225,6 +225,9 @@ extern "C" {
     // Get the probability of the specified token in the specified segment.
     WHISPER_API float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token);
 
+    // Print system information
+    WHISPER_API const char * whisper_print_system_info();
+
 #ifdef __cplusplus
 }
 #endif
