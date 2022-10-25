@@ -59,9 +59,9 @@ For a quick demo, simply run `make base.en`:
 ```java
 $ make base.en
 
-cc  -O3 -std=c11   -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread -DGGML_USE_ACCELERATE   -c ggml.c
-c++ -O3 -std=c++11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread -c whisper.cpp
-c++ -O3 -std=c++11 -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -pthread main.cpp whisper.o ggml.o -o main  -framework Accelerate
+cc  -I.              -O3 -std=c11   -pthread -DGGML_USE_ACCELERATE   -c ggml.c
+c++ -I. -I./examples -O3 -std=c++11 -pthread -c whisper.cpp
+c++ -I. -I./examples -O3 -std=c++11 -pthread examples/main/main.cpp whisper.o ggml.o -o main  -framework Accelerate
 ./main -h
 
 usage: ./main [options] file0.wav file1.wav ...
@@ -70,13 +70,15 @@ options:
   -h,       --help           show this help message and exit
   -s SEED,  --seed SEED      RNG seed (default: -1)
   -t N,     --threads N      number of threads to use during computation (default: 4)
-  -o N,     --offset N       offset in milliseconds (default: 0)
+  -ot N,    --offset-t N     time offset in milliseconds (default: 0)
+  -on N,    --offset-n N     segment index offset (default: 0)
   -v,       --verbose        verbose output
             --translate      translate from source language to english
   -otxt,    --output-txt     output result in a text file
   -ovtt,    --output-vtt     output result in a vtt file
   -osrt,    --output-srt     output result in a srt file
   -ps,      --print_special  print special tokens
+  -pc,      --print_colors   print colors
   -nt,      --no_timestamps  do not print timestamps
   -l LANG,  --language LANG  spoken language (default: en)
   -m FNAME, --model FNAME    model path (default: models/ggml-base.en.bin)
@@ -84,7 +86,7 @@ options:
 
 bash ./models/download-ggml-model.sh base.en
 Downloading ggml model base.en ...
-models/ggml-base.en.bin            100%[=============================================>] 141.11M  3.13MB/s    in 79s
+ggml-base.en.bin               100%[========================>] 141.11M  6.34MB/s    in 24s     
 Done! Model 'base.en' saved in 'models/ggml-base.en.bin'
 You can now use it like this:
 
@@ -326,3 +328,7 @@ For more details, see the conversion script [models/convert-pt-to-ggml.py](model
 - [X] Rust: [tazz4843/whisper-rs](https://github.com/tazz4843/whisper-rs)
 - [ ] Python:
 - [ ] Java:
+
+## Examples
+
+There are various examples of using the library for different projects in the [examples](examples) folder. Check them out!
