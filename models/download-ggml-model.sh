@@ -3,7 +3,17 @@
 # This script downloads Whisper model files that have already been converted to ggml format.
 # This way you don't have to convert them yourself.
 
-models_path=$(dirname $(realpath $0))
+# get the path of this script
+function get_script_path() {
+    if [ -x "$(command -v realpath)" ]; then
+        echo "$(dirname $(realpath $0))"
+    else
+        local ret="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)"
+        echo "$ret"
+    fi
+}
+
+models_path=$(get_script_path)
 
 # Whisper models
 models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large" )
@@ -45,7 +55,15 @@ if [ -f "ggml-$model.bin" ]; then
     exit 0
 fi
 
-wget --quiet --show-progress -O ggml-$model.bin https://ggml.ggerganov.com/ggml-model-whisper-$model.bin
+if [ -x "$(command -v wget)" ]; then
+    wget --quiet --show-progress -O ggml-$model.bin https://ggml.ggerganov.com/ggml-model-whisper-$model.bin
+elif [ -x "$(command -v curl)" ]; then
+    curl --output ggml-$model.bin https://ggml.ggerganov.com/ggml-model-whisper-$model.bin
+else
+    printf "Either wget or curl is required to download models.\n"
+    exit 1
+fi
+
 
 if [ $? -ne 0 ]; then
     printf "Failed to download ggml model $model \n"
