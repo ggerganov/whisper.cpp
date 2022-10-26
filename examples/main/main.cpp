@@ -412,5 +412,8 @@ int main(int argc, char ** argv) {
     whisper_print_timings(ctx);
     whisper_free(ctx);
 
+    fprintf(stderr, "\n");
+    fprintf(stderr, "system_info: n_threads = %d / %d | %s\n", params.n_threads, std::thread::hardware_concurrency(), whisper_print_system_info());
+
     return 0;
 }
