@@ -121,7 +121,8 @@ if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES
 else()
     message(STATUS "x86 detected")
     if (MSVC)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:AVX2 /D_CRT_SECURE_NO_WARNINGS=1")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:AVX2")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /arch:AVX2")
     else()
         if (EMSCRIPTEN)
             # we require support for WASM SIMD 128-bit
@@ -148,7 +149,11 @@ target_include_directories(${TARGET} PUBLIC
     .
     )
 
-target_link_libraries(${TARGET} PRIVATE m ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+if (MSVC)
+  target_link_libraries(${TARGET} PRIVATE ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+else()
+  target_link_libraries(${TARGET} PRIVATE m ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+endif()
 
 if (BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET} PUBLIC
@@ -158,6 +163,10 @@ if (BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET} PUBLIC
         WHISPER_SHARED
         )
+
+    if (MSVC)
+        target_compile_definitions(${TARGET} PUBLIC __AVX2__ _CRT_SECURE_NO_WARNINGS)
+    endif()
 endif()
 
 target_compile_definitions(${TARGET} PUBLIC
