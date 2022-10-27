@@ -56,6 +56,11 @@ int main(int argc, char ** argv) {
 
     struct whisper_context * ctx = whisper_init(params.model.c_str());
 
+    {
+        fprintf(stderr, "\n");
+        fprintf(stderr, "system_info: n_threads = %d / %d | %s\n", params.n_threads, std::thread::hardware_concurrency(), whisper_print_system_info());
+    }
+
     if (ctx == nullptr) {
         fprintf(stderr, "error: failed to initialize whisper context\n");
         return 2;
@@ -73,9 +78,6 @@ int main(int argc, char ** argv) {
 
     whisper_print_timings(ctx);
     whisper_free(ctx);
-
-    fprintf(stderr, "\n");
-    fprintf(stderr, "system_info: n_threads = %d / %d | %s\n", params.n_threads, std::thread::hardware_concurrency(), whisper_print_system_info());
 
     fprintf(stderr, "\n");
     fprintf(stderr, "If you wish, you can submit these results here:\n");
