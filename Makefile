@@ -43,7 +43,7 @@ endif
 #       feel free to update the Makefile for your architecture and send a pull request or issue
 ifeq ($(UNAME_M),x86_64)
 	# AVX 512
-	CFLAGS += -mavx512f -mavx512dq -mfma -mf16c
+	CFLAGS += -mavx512f -mfma -mf16c
 
 	# AVX 256
 	#CFLAGS += -mavx -mavx2 -mfma -mf16c
