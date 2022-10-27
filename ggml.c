@@ -76,6 +76,8 @@ typedef void* thread_ret_t;
 
 #ifdef GGML_USE_ACCELERATE
 #include <Accelerate/Accelerate.h>
+#elif GGML_USE_OPENBLAS
+#include <cblas.h>
 #endif
 
 // floating point type used to accumulate sums
@@ -4055,46 +4057,44 @@ void ggml_compute_forward_mul_mat_f32(
     // nb00 <  nb01 - src0 is transposed
     //   compute by src0 columns
 
-//#ifdef GGML_USE_ACCELERATE
-//    if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
-//        GGML_ASSERT(ggml_is_contiguous(src0));
-//        GGML_ASSERT(nb10 == sizeof(float));
-//
-//        if (params->ith != 0) return;
-//
-//        if (params->type == GGML_TASK_INIT) {
-//            return;
-//        }
-//
-//        if (params->type == GGML_TASK_FINALIZE) {
-//            return;
-//        }
-//
-//        float * const wdata = params->wdata;
-//
-//        for (int i03 = 0; i03 < ne03; i03++) {
-//            for (int i02 = 0; i02 < ne02; i02++) {
-//                const float * x = (float *) (src0->data);
-//                const float * y = (float *) ((char *) src1->data + i02*nb12 + i03*nb13);
-//
-//                float * d = (float *) ((char *) dst->data + i02*nb2 + i03*nb3);
-//
-//                // zT = y * xT
-//                {
-//                    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans,
-//                            ne11, ne01, ne10,
-//                            1.0f,    y, ne10,
-//                                     x, ne10,
-//                            0.0f,    d, ne01);
-//                }
-//            }
-//        }
-//
-//        //printf("CBLAS F32 = %f ms, %d x %d x %d x %d\n", (ggml_perf_time_us() - t0)/1000.0, ne0, ne1, ne2, ne3);
-//
-//        return;
-//    }
-//#endif
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
+    if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
+        GGML_ASSERT(ggml_is_contiguous(src0));
+        GGML_ASSERT(nb10 == sizeof(float));
+
+        if (params->ith != 0) return;
+
+        if (params->type == GGML_TASK_INIT) {
+            return;
+        }
+
+        if (params->type == GGML_TASK_FINALIZE) {
+            return;
+        }
+
+        for (int i03 = 0; i03 < ne03; i03++) {
+            for (int i02 = 0; i02 < ne02; i02++) {
+                const float * x = (float *) (src0->data);
+                const float * y = (float *) ((char *) src1->data + i02*nb12 + i03*nb13);
+
+                float * d = (float *) ((char *) dst->data + i02*nb2 + i03*nb3);
+
+                // zT = y * xT
+                {
+                    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans,
+                            ne11, ne01, ne10,
+                            1.0f,    y, ne10,
+                                     x, ne10,
+                            0.0f,    d, ne01);
+                }
+            }
+        }
+
+        //printf("CBLAS F32 = %f ms, %d x %d x %d x %d\n", (ggml_perf_time_us() - t0)/1000.0, ne0, ne1, ne2, ne3);
+
+        return;
+    }
+#endif
 
     if (params->type == GGML_TASK_INIT) {
         if (nb01 >= nb00) {
@@ -4301,7 +4301,7 @@ void ggml_compute_forward_mul_mat_f16_f32(
     // nb00 <  nb01 - src0 is transposed
     //   compute by src0 columns
 
-#ifdef GGML_USE_ACCELERATE
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
     if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
         GGML_ASSERT(nb10 == sizeof(float));
 
@@ -6857,7 +6857,7 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
                         } else {
                             if (node->src0->type == GGML_TYPE_F16 &&
                                 node->src1->type == GGML_TYPE_F32) {
-#ifdef GGML_USE_ACCELERATE
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
                                 if (ggml_compute_forward_mul_mat_use_blas(node->src0, node->src1, node)) {
                                     cur = sizeof(float)*(node->src0->ne[0]*node->src0->ne[1]);
                                 } else {
@@ -8074,7 +8074,7 @@ int ggml_cpu_has_wasm_simd(void) {
 }
 
 int ggml_cpu_has_blas(void) {
-#if defined(GGML_USE_BLAS) || defined(GGML_USE_ACCELERATE)
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
     return 1;
 #else
     return 0;

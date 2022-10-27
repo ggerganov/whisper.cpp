@@ -41,8 +41,13 @@ option(WHISPER_BUILD_EXAMPLES          "whisper: build examples" ${WHISPER_STAND
 
 option(WHISPER_SUPPORT_SDL2            "whisper: support for libSDL2" OFF)
 
+if (APPLE)
+    option(WHISPER_NO_ACCELERATE       "whisper: disable Accelerate framework" OFF)
+else()
+    option(WHISPER_SUPPORT_OPENBLAS    "whisper: support for OpenBLAS" OFF)
+endif()
+
 option(WHISPER_PERF                    "whisper: enable perf timings"          OFF)
-option(WHISPER_NO_ACCELERATE           "whisper: disable Accelerate framework" OFF)
 
 # sanitizers
 
@@ -83,6 +88,18 @@ if (APPLE AND NOT WHISPER_NO_ACCELERATE)
         set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_ACCELERATE)
     else()
         message(WARNING "Accelerate framework not found")
+    endif()
+endif()
+
+if (WHISPER_SUPPORT_OPENBLAS)
+    find_library(OPENBLAS_LIB openblas)
+    if (OPENBLAS_LIB)
+        message(STATUS "OpenBLAS found")
+
+        set(WHISPER_EXTRA_LIBS  ${WHISPER_EXTRA_LIBS}  ${OPENBLAS_LIB})
+        set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_OPENBLAS)
+    else()
+        message(WARNING "OpenBLAS not found")
     endif()
 endif()
 
