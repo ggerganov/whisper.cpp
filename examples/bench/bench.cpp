@@ -75,7 +75,7 @@ int main(int argc, char ** argv) {
     whisper_free(ctx);
 
     fprintf(stderr, "\n");
-    fprintf(stderr, "system_info: n_threads = %d | %s\n", params.n_threads, whisper_print_system_info());
+    fprintf(stderr, "system_info: n_threads = %d / %d | %s\n", params.n_threads, std::thread::hardware_concurrency(), whisper_print_system_info());
 
     fprintf(stderr, "\n");
     fprintf(stderr, "If you wish, you can submit these results here:\n");
