@@ -52,6 +52,10 @@ https://user-images.githubusercontent.com/1991296/198382564-784e9663-2037-4d04-9
   vnoremap <C-G> c<C-O>:!whisper.nvim<CR><C-O>:let @a = system("cat /tmp/whisper.nvim \| tail -n 1 \| xargs -0 \| tr -d '\\n' \| sed -e 's/^[[:space:]]*//'")<CR><C-R>a
   ```
   
+  Explanation: pressing `Ctrl-G` runs the [whisper.nvim](whisper.nvim) script which in turn calls the `stream` binary to transcribe your speech through the microphone. The results from the transcription are continuously dumped into `/tmp/whisper.nvim`. After you kill the program with `Ctrl-C`, the vim command grabs the last line from the `/tmp/whisper.nvim` file and puts it under the cursor.
+  
+  Probably there is a much more intelligent way to achieve all this, but this is what I could hack in an hour. Any suggestions how to improve this are welcome.
+  
 You are now ready to use speech-to-text in Neovim!
 
 ## TODO
@@ -67,10 +71,14 @@ There are a lot of ways to improve this idea and I don't have much experience wi
 
   This is probably a very long shot, but I think it will be very cool to have the functionality to select some code and then hit Ctrl-G and say something like:
   
-  *refactor this using stl containers*
+  *"refactor this using stl containers"*
   
   or
   
-  *optimize by sorting the data first*
+  *"optimize by sorting the data first"*
   
-  The plugin would then make an appropriate query using the selected text and some context to Copilot or GPT-3 and return the result.
+  The plugin would then make an appropriate query using the selected text and code context to Copilot or GPT-3 and return the result.
+
+## Discussion
+
+If you find this idea interesting, you can join the discussion here: https://github.com/ggerganov/whisper.cpp/discussions/108
