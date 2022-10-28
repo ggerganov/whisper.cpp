@@ -168,6 +168,16 @@ make medium
 make large
 ```
 
+## Memory usage
+
+| Model  | Disk   | Mem     | SHA                                        |
+| ---    | ---    | ---     | ---                                        |
+| tiny   |  75 MB | ~280 MB | `bd577a113a864445d4c299885e0cb97d4ba92b5f` |
+| base   | 142 MB | ~430 MB | `465707469ff3a37a2b9b8d8f89f2f99de7299dac` |
+| small  | 466 MB | ~1.0 GB | `55356645c2b361a969dfd0ef2c5a50d530afd8d5` |
+| medium | 1.5 GB | ~2.6 GB | `fd9727b6e1217c2f614f9b698455c4ffd82463b4` |
+| large  | 2.9 GB | ~4.7 GB | `b1caaf735c4cc1429223d5a74f0f4d0b9b59a299` |
+
 ## Another example
 
 Here is another example of transcribing a [3:24 min speech](https://upload.wikimedia.org/wikipedia/commons/1/1f/George_W_Bush_Columbia_FINAL.ogg)
@@ -289,16 +299,6 @@ the Accelerate framework utilizes the special-purpose AMX coprocessor available 
   ```
 
   In the future, `whisper.cpp` will support more sampling strategies.
-
-## Memory usage
-
-| Model  | Disk   | Mem     |
-| ---    | ---    | ---     |
-| tiny   |  75 MB | ~280 MB |
-| base   | 142 MB | ~430 MB |
-| small  | 466 MB | ~1.0 GB |
-| medium | 1.5 GB | ~2.6 GB |
-| large  | 2.9 GB | ~4.7 GB |
 
 ## Benchmarks
 
