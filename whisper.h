@@ -80,8 +80,6 @@ extern "C" {
     // Returns NULL on failure.
     WHISPER_API struct whisper_context * whisper_init(const char * path_model);
 
-    WHISPER_API struct whisper_context * whisper_init_parallel(const char * path_model, int n_processors);
-
     // Frees all memory allocated by the model.
     WHISPER_API void whisper_free(struct whisper_context * ctx);
 
@@ -179,7 +177,6 @@ extern "C" {
         enum whisper_sampling_strategy strategy;
 
         int n_threads;
-        int n_processors;
         int n_max_text_ctx;
         int offset_ms;
 
@@ -215,6 +212,13 @@ extern "C" {
             struct whisper_full_params params,
             const float * samples,
             int n_samples);
+
+    WHISPER_API int whisper_full_parallel(
+            struct whisper_context * ctx,
+            struct whisper_full_params params,
+            const float * samples,
+            int n_samples,
+            const int n_processors);
 
     // Number of generated text segments.
     // A segment can be a few words, a sentence, or even a paragraph.
