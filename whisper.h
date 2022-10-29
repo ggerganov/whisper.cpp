@@ -68,6 +68,14 @@ extern "C" {
 
     typedef int whisper_token;
 
+    struct whisper_token_data {
+        whisper_token id;  // token id
+        whisper_token tid; // forced timestamp token id
+
+        float p;  // probability of the token
+        float pt; // probability of the timestamp token
+    };
+
     // Allocates all memory needed for the model and loads the model from the given file.
     // Returns NULL on failure.
     WHISPER_API struct whisper_context * whisper_init(const char * path_model);
@@ -122,7 +130,7 @@ extern "C" {
     // You can also implement your own sampling method using the whisper_get_probs() function.
     // whisper_sample_best() returns the token with the highest probability
     // whisper_sample_timestamp() returns the most probable timestamp token
-    WHISPER_API whisper_token whisper_sample_best(struct whisper_context * ctx);
+    WHISPER_API whisper_token_data whisper_sample_best(struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_sample_timestamp(struct whisper_context * ctx);
 
     // Return the id of the specified language, returns -1 if not found
@@ -171,8 +179,9 @@ extern "C" {
         enum whisper_sampling_strategy strategy;
 
         int n_threads;
-        int offset_ms;
         int n_processors;
+        int n_max_text_ctx;
+        int offset_ms;
 
         bool translate;
         bool no_context;

@@ -42,6 +42,7 @@ struct whisper_params {
     int32_t n_threads   = std::min(4, (int32_t) std::thread::hardware_concurrency());
     int32_t offset_t_ms = 0;
     int32_t offset_n    = 0;
+    int32_t max_context = -1;
 
     bool verbose              = false;
     bool translate            = false;
@@ -77,6 +78,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             params.offset_t_ms = std::stoi(argv[++i]);
         } else if (arg == "-on" || arg == "--offset-n") {
             params.offset_n = std::stoi(argv[++i]);
+        } else if (arg == "-mc" || arg == "--max-context") {
+            params.max_context = std::stoi(argv[++i]);
         } else if (arg == "-v" || arg == "--verbose") {
             params.verbose = true;
         } else if (arg == "--translate") {
@@ -127,6 +130,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "  -t N,     --threads N      number of threads to use during computation (default: %d)\n", params.n_threads);
     fprintf(stderr, "  -ot N,    --offset-t N     time offset in milliseconds (default: %d)\n", params.offset_t_ms);
     fprintf(stderr, "  -on N,    --offset-n N     segment index offset (default: %d)\n", params.offset_n);
+    fprintf(stderr, "  -mc N,    --max-context N  maximum number of text context tokens to store (default: max)\n");
     fprintf(stderr, "  -v,       --verbose        verbose output\n");
     fprintf(stderr, "            --translate      translate from source language to english\n");
     fprintf(stderr, "  -otxt,    --output-txt     output result in a text file\n");
@@ -380,6 +384,8 @@ int main(int argc, char ** argv) {
             wparams.translate            = params.translate;
             wparams.language             = params.language.c_str();
             wparams.n_threads            = params.n_threads;
+            wparams.n_processors         = 1;
+            wparams.n_max_text_ctx       = params.max_context >= 0 ? params.max_context : wparams.n_max_text_ctx;
             wparams.offset_ms            = params.offset_t_ms;
 
             // this callback is called on each new segment
