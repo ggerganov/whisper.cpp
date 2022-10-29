@@ -11,7 +11,7 @@ extern "C" {
 #define GGML_MAX_DIMS     4
 #define GGML_MAX_NODES    4096
 #define GGML_MAX_PARAMS   16
-#define GGML_MAX_CONTEXTS 16
+#define GGML_MAX_CONTEXTS 64
 #define GGML_MAX_OPT      4
 
 #ifdef __ARM_NEON

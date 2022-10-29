@@ -378,6 +378,7 @@ struct whisper_model {
 
     // context
     struct ggml_context * ctx;
+    struct ggml_context * ctx_mem;
 
     // tensors
     int n_loaded;
@@ -392,9 +393,10 @@ struct whisper_context {
     int64_t t_decode_us = 0;
     int64_t t_start_us  = 0;
 
-    std::vector<uint8_t> buf_model;
-    std::vector<uint8_t> buf_compute;
-    std::vector<uint8_t> buf_compute_layer;
+    std::vector<uint8_t> * buf_model; // the model buffer is read-only and can be shared between processors
+    std::vector<uint8_t>   buf_memory;
+    std::vector<uint8_t>   buf_compute;
+    std::vector<uint8_t>   buf_compute_layer;
 
     whisper_model model;
     whisper_vocab vocab;
@@ -420,7 +422,7 @@ struct whisper_context {
 //
 // see the convert-pt-to-ggml.py script for details
 //
-bool whisper_model_load(const std::string & fname, const int n_processors, whisper_context & wctx) {
+bool whisper_model_load(const std::string & fname, whisper_context & wctx) {
     fprintf(stderr, "%s: loading model from '%s'\n", __func__, fname.c_str());
 
     auto & model = wctx.model;
@@ -493,13 +495,16 @@ bool whisper_model_load(const std::string & fname, const int n_processors, whisp
         fprintf(stderr, "%s: f16           = %d\n", __func__, hparams.f16);
         fprintf(stderr, "%s: type          = %d\n", __func__, model.type);
 
-        wctx.buf_model.resize(MEM_REQ_MODEL.at(model.type));
+        wctx.buf_model = new std::vector<uint8_t>();
+        wctx.buf_model->resize(MEM_REQ_MODEL.at(model.type));
+        wctx.buf_memory.resize(std::max(MEM_REQ_MODEL.at(model.type), MEM_REQ_MODEL.at(model.type))); // TODO: TMP !!!
         wctx.buf_compute.resize(std::max(MEM_REQ_ENCODE.at(model.type), MEM_REQ_DECODE.at(model.type)));
         wctx.buf_compute_layer.resize(std::max(MEM_REQ_ENCODE_LAYER.at(model.type), MEM_REQ_DECODE_LAYER.at(model.type)));
 
         // this is the total memory required to run the inference
         const size_t mem_required =
-                   wctx.buf_model.size() +
+                   wctx.buf_model->size() +
+                   wctx.buf_memory.size() +
                    wctx.buf_compute.size() +
                    wctx.buf_compute_layer.size();
 
@@ -582,6 +587,7 @@ bool whisper_model_load(const std::string & fname, const int n_processors, whisp
 
 
     size_t ctx_size = 0;
+    size_t ctx_mem_size = 0;
 
     {
         const auto & hparams = model.hparams;
@@ -690,11 +696,11 @@ bool whisper_model_load(const std::string & fname, const int n_processors, whisp
             ctx_size += n_text_layer*(             n_text_state*ggml_type_size(GGML_TYPE_F32)); // cross_attn_ln_1_b
         }
 
-        ctx_size += n_processors*n_text_layer*n_text_ctx*n_text_state*ggml_type_size(GGML_TYPE_F16); // memory_k
-        ctx_size += n_processors*n_text_layer*n_text_ctx*n_text_state*ggml_type_size(GGML_TYPE_F16); // memory_v
+        ctx_mem_size += n_text_layer*n_text_ctx*n_text_state*ggml_type_size(GGML_TYPE_F16); // memory_k
+        ctx_mem_size += n_text_layer*n_text_ctx*n_text_state*ggml_type_size(GGML_TYPE_F16); // memory_v
 
-        ctx_size += n_processors*n_text_layer*n_audio_ctx*n_text_state*ggml_type_size(GGML_TYPE_F16); // memory_cross_k
-        ctx_size += n_processors*n_text_layer*n_audio_ctx*n_text_state*ggml_type_size(GGML_TYPE_F16); // memory_cross_v
+        ctx_mem_size += n_text_layer*n_audio_ctx*n_text_state*ggml_type_size(GGML_TYPE_F16); // memory_cross_k
+        ctx_mem_size += n_text_layer*n_audio_ctx*n_text_state*ggml_type_size(GGML_TYPE_F16); // memory_cross_v
 
         ctx_size += (15 + 15*n_audio_layer + 24*n_text_layer)*256; // object overhead
 
@@ -704,12 +710,26 @@ bool whisper_model_load(const std::string & fname, const int n_processors, whisp
     // create the ggml context
     {
         struct ggml_init_params params = {
-            .mem_size   = wctx.buf_model.size(),
-            .mem_buffer = wctx.buf_model.data(),
+            .mem_size   = wctx.buf_model->size(),
+            .mem_buffer = wctx.buf_model->data(),
         };
 
         model.ctx = ggml_init(params);
         if (!model.ctx) {
+            fprintf(stderr, "%s: ggml_init() failed\n", __func__);
+            return false;
+        }
+    }
+
+    // create the ggml memory context
+    {
+        struct ggml_init_params params = {
+            .mem_size   = wctx.buf_memory.size(),
+            .mem_buffer = wctx.buf_memory.data(),
+        };
+
+        model.ctx_mem = ggml_init(params);
+        if (!model.ctx_mem) {
             fprintf(stderr, "%s: ggml_init() failed\n", __func__);
             return false;
         }
@@ -913,7 +933,7 @@ bool whisper_model_load(const std::string & fname, const int n_processors, whisp
 
     // key + value memory
     {
-        auto & ctx = model.ctx;
+        auto & ctx = model.ctx_mem;
 
         const auto & hparams = model.hparams;
 
@@ -924,7 +944,7 @@ bool whisper_model_load(const std::string & fname, const int n_processors, whisp
         // key/value memory for the self-attention layer
         {
             const int n_mem      = n_text_layer*n_text_ctx;
-            const int n_elements = n_text_state*n_mem*n_processors;
+            const int n_elements = n_text_state*n_mem;
 
             model.memory_k = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
             model.memory_v = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
@@ -935,7 +955,7 @@ bool whisper_model_load(const std::string & fname, const int n_processors, whisp
             const int n_audio_ctx   = hparams.n_audio_ctx;
 
             const int n_mem      = n_text_layer*n_audio_ctx;
-            const int n_elements = n_text_state*n_mem*n_processors;
+            const int n_elements = n_text_state*n_mem;
 
             model.memory_cross_k = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
             model.memory_cross_v = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
@@ -945,7 +965,7 @@ bool whisper_model_load(const std::string & fname, const int n_processors, whisp
             ggml_nbytes(model.memory_k)       + ggml_nbytes(model.memory_v) +
             ggml_nbytes(model.memory_cross_k) + ggml_nbytes(model.memory_cross_v);
 
-        fprintf(stderr, "%s: memory size = %8.2f MB (%d processors)\n", __func__, memory_size/1024.0/1024.0, n_processors);
+        fprintf(stderr, "%s: memory size = %8.2f MB\n", __func__, memory_size/1024.0/1024.0);
     }
 
     // load weights
@@ -1036,8 +1056,7 @@ bool whisper_model_load(const std::string & fname, const int n_processors, whisp
 bool whisper_encode(
               whisper_context & wctx,
         const int n_threads,
-        const int mel_offset,
-        const int processor_id) {
+        const int mel_offset) {
     const auto & model   = wctx.model;
     const auto & mel_inp = wctx.mel;
     const auto & hparams = model.hparams;
@@ -1391,11 +1410,8 @@ bool whisper_encode(
                         Vcross),
                     Vcross);
 
-            const size_t offset_k = processor_id*(ggml_element_size(model.memory_cross_k)*n_state)*(model.hparams.n_text_layer*n_ctx);
-            const size_t offset_v = processor_id*(ggml_element_size(model.memory_cross_v)*n_state)*(model.hparams.n_text_layer*n_ctx);
-
-            struct ggml_tensor * k = ggml_view_1d(ctx0, model.memory_cross_k, n_state*n_ctx, offset_k + (ggml_element_size(model.memory_cross_k)*n_state)*(il*n_ctx));
-            struct ggml_tensor * v = ggml_view_1d(ctx0, model.memory_cross_v, n_state*n_ctx, offset_v + (ggml_element_size(model.memory_cross_v)*n_state)*(il*n_ctx));
+            struct ggml_tensor * k = ggml_view_1d(ctx0, model.memory_cross_k, n_state*n_ctx, (ggml_element_size(model.memory_cross_k)*n_state)*(il*n_ctx));
+            struct ggml_tensor * v = ggml_view_1d(ctx0, model.memory_cross_v, n_state*n_ctx, (ggml_element_size(model.memory_cross_v)*n_state)*(il*n_ctx));
 
             ggml_build_forward_expand(&gf, ggml_cpy(ctx0, Kcross, k));
             ggml_build_forward_expand(&gf, ggml_cpy(ctx0, Vcross, v));
@@ -1428,8 +1444,7 @@ bool whisper_decode(
         const int n_threads,
         const whisper_token * tokens,
         const int n_tokens,
-        const int n_past,
-        const int processor_id) {
+        const int n_past) {
     const auto & model   = wctx.model;
     const auto & hparams = model.hparams;
 
@@ -1524,13 +1539,10 @@ bool whisper_decode(
                         Vcur),
                     Vcur);
 
-            const size_t offset_k = processor_id*(ggml_element_size(model.memory_k)*n_state)*(n_layer*n_ctx);
-            const size_t offset_v = processor_id*(ggml_element_size(model.memory_v)*n_state)*(n_layer*n_ctx);
-
             // store key and value to memory
             {
-                struct ggml_tensor * k = ggml_view_1d(ctxL, model.memory_k, N*n_state, offset_k + (ggml_element_size(model.memory_k)*n_state)*(il*n_ctx + n_past));
-                struct ggml_tensor * v = ggml_view_1d(ctxL, model.memory_v, N*n_state, offset_v + (ggml_element_size(model.memory_v)*n_state)*(il*n_ctx + n_past));
+                struct ggml_tensor * k = ggml_view_1d(ctxL, model.memory_k, N*n_state, (ggml_element_size(model.memory_k)*n_state)*(il*n_ctx + n_past));
+                struct ggml_tensor * v = ggml_view_1d(ctxL, model.memory_v, N*n_state, (ggml_element_size(model.memory_v)*n_state)*(il*n_ctx + n_past));
 
                 ggml_build_forward_expand(&gf, ggml_cpy(ctxL, Kcur, k));
                 ggml_build_forward_expand(&gf, ggml_cpy(ctxL, Vcur, v));
@@ -1548,7 +1560,7 @@ bool whisper_decode(
             struct ggml_tensor * K =
                 ggml_permute(ctxL,
                         ggml_reshape_3d(ctxL,
-                            ggml_view_1d(ctxL, model.memory_k, (n_past + N)*n_state, offset_k + il*n_ctx*ggml_element_size(model.memory_k)*n_state),
+                            ggml_view_1d(ctxL, model.memory_k, (n_past + N)*n_state, il*n_ctx*ggml_element_size(model.memory_k)*n_state),
                             n_state/n_head, n_head, n_past + N),
                         0, 2, 1, 3);
 
@@ -1568,7 +1580,7 @@ bool whisper_decode(
             struct ggml_tensor * V_trans =
                 ggml_permute(ctxL,
                         ggml_reshape_3d(ctxL,
-                            ggml_view_1d(ctxL, model.memory_v, (n_past + N)*n_state, offset_v + il*n_ctx*ggml_element_size(model.memory_v)*n_state),
+                            ggml_view_1d(ctxL, model.memory_v, (n_past + N)*n_state, il*n_ctx*ggml_element_size(model.memory_v)*n_state),
                             n_state/n_head, n_head, n_past + N),
                         1, 2, 0, 3);
 
@@ -1620,18 +1632,15 @@ bool whisper_decode(
 
             Qcur = ggml_scale(ctxL, Qcur, ggml_new_f32(ctxL, pow(float(n_state)/n_head, -0.25)));
 
-            const size_t offset_k = processor_id*(ggml_element_size(model.memory_cross_k)*n_state)*(n_layer*M);
-            const size_t offset_v = processor_id*(ggml_element_size(model.memory_cross_v)*n_state)*(n_layer*M);
-
             // Kcross is already scaled
             struct ggml_tensor * Kcross =
                 ggml_reshape_3d(ctxL,
-                        ggml_view_1d(ctxL, model.memory_cross_k, M*n_state, offset_k + il*M*ggml_element_size(model.memory_cross_k)*n_state),
+                        ggml_view_1d(ctxL, model.memory_cross_k, M*n_state, il*M*ggml_element_size(model.memory_cross_k)*n_state),
                         n_state/n_head, n_head, M);
 
             struct ggml_tensor * Vcross =
                 ggml_reshape_3d(ctxL,
-                        ggml_view_1d(ctxL, model.memory_cross_v, M*n_state, offset_v + il*M*ggml_element_size(model.memory_cross_v)*n_state),
+                        ggml_view_1d(ctxL, model.memory_cross_v, M*n_state, il*M*ggml_element_size(model.memory_cross_v)*n_state),
                         n_state/n_head, n_head, M);
 
             // ------
@@ -2117,26 +2126,7 @@ struct whisper_context * whisper_init(const char * path_model) {
 
     ctx->t_start_us = t_start_us;
 
-    if (!whisper_model_load(path_model, 1, *ctx)) {
-        fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, path_model);
-        return NULL;
-    }
-
-    ctx->t_load_us = ggml_time_us() - t_start_us;
-
-    return ctx;
-}
-
-struct whisper_context * whisper_init_parallel(const char * path_model, int n_processors) {
-    ggml_time_init();
-
-    whisper_context * ctx = new whisper_context;
-
-    const int64_t t_start_us = ggml_time_us();
-
-    ctx->t_start_us = t_start_us;
-
-    if (!whisper_model_load(path_model, n_processors, *ctx)) {
+    if (!whisper_model_load(path_model, *ctx)) {
         fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, path_model);
         return NULL;
     }
@@ -2148,6 +2138,9 @@ struct whisper_context * whisper_init_parallel(const char * path_model, int n_pr
 
 void whisper_free(struct whisper_context * ctx) {
     if (ctx) {
+        if (ctx->buf_model) {
+            delete ctx->buf_model;
+        }
         delete ctx;
     }
 }
@@ -2187,7 +2180,7 @@ int whisper_set_mel(
 int whisper_encode(struct whisper_context * ctx, int offset, int n_threads) {
     const int64_t t_start_us = ggml_time_us();
 
-    if (!whisper_encode(*ctx, n_threads, offset, 0)) {
+    if (!whisper_encode(*ctx, n_threads, offset)) {
         fprintf(stderr, "%s: failed to eval\n", __func__);
         return -1;
     }
@@ -2200,7 +2193,7 @@ int whisper_encode(struct whisper_context * ctx, int offset, int n_threads) {
 int whisper_decode(struct whisper_context * ctx, const whisper_token * tokens, int n_tokens, int n_past, int n_threads) {
     const int64_t t_start_us = ggml_time_us();
 
-    if (!whisper_decode(*ctx, n_threads, tokens, n_tokens, n_past, 0)) {
+    if (!whisper_decode(*ctx, n_threads, tokens, n_tokens, n_past)) {
         fprintf(stderr, "%s: failed to eval\n", __func__);
         return 1;
     }
@@ -2321,7 +2314,6 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.strategy             =*/ WHISPER_SAMPLING_GREEDY,
 
                     /*.n_threads            =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
-                    /*.n_processors         =*/ 1,
                     /*.n_max_text_ctx       =*/ 16384,
                     /*.offset_ms            =*/ 0,
 
@@ -2354,7 +2346,6 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.strategy             =*/ WHISPER_SAMPLING_BEAM_SEARCH,
 
                     /*.n_threads            =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
-                    /*.n_processors         =*/ 1,
                     /*.n_max_text_ctx       =*/ 16384,
                     /*.offset_ms            =*/ 0,
 
@@ -2626,6 +2617,135 @@ int whisper_full(
     }
 
     return 0;
+}
+
+int whisper_full_parallel(
+        struct whisper_context * ctx,
+        struct whisper_full_params params,
+        const float * samples,
+        int n_samples,
+        const int n_processors) {
+    if (n_processors == 1) {
+        return whisper_full(ctx, params, samples, n_samples);
+    }
+
+    int ret = 0;
+
+    // prepare separate contexts for each thread
+    std::vector<struct whisper_context> ctxs(n_processors - 1);
+
+    for (int i = 0; i < n_processors - 1; ++i) {
+        ctxs[i] = *ctx;
+
+        auto & model = ctxs[i].model;
+
+        // create the ggml memory context
+        {
+            struct ggml_init_params params = {
+                .mem_size   = ctxs[i].buf_memory.size(),
+                .mem_buffer = ctxs[i].buf_memory.data(),
+            };
+
+            model.ctx_mem = ggml_init(params);
+            if (!model.ctx_mem) {
+                fprintf(stderr, "%s: ggml_init() failed\n", __func__);
+                return false;
+            }
+        }
+
+        // separate key + value memory for each processor
+        {
+            auto & ctx = model.ctx_mem;
+
+            const auto & hparams = model.hparams;
+
+            const int n_text_state = hparams.n_text_state;
+            const int n_text_layer = hparams.n_text_layer;
+            const int n_text_ctx   = hparams.n_text_ctx;
+
+            // key/value memory for the self-attention layer
+            {
+                const int n_mem      = n_text_layer*n_text_ctx;
+                const int n_elements = n_text_state*n_mem;
+
+                model.memory_k = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
+                model.memory_v = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
+            }
+
+            // key/value memory for the cross-attention layer
+            {
+                const int n_audio_ctx   = hparams.n_audio_ctx;
+
+                const int n_mem      = n_text_layer*n_audio_ctx;
+                const int n_elements = n_text_state*n_mem;
+
+                model.memory_cross_k = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
+                model.memory_cross_v = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
+            }
+
+            const size_t memory_size =
+                ggml_nbytes(model.memory_k)       + ggml_nbytes(model.memory_v) +
+                ggml_nbytes(model.memory_cross_k) + ggml_nbytes(model.memory_cross_v);
+        }
+    }
+
+    const int offset_samples = (WHISPER_SAMPLE_RATE*params.offset_ms)/1000;
+    const int n_samples_per_processor = (n_samples - offset_samples)/n_processors;
+
+    // the calling thread will process the first chunk
+    // while the other threads will process the remaining chunks
+
+    std::vector<std::thread> workers(n_processors - 1);
+    for (int i = 0; i < n_processors - 1; ++i) {
+        const int start_samples = offset_samples + (i + 1)*n_samples_per_processor;
+        const int n_samples_cur = (i == n_processors - 2) ? n_samples - start_samples : n_samples_per_processor;
+
+        auto params_cur = params;
+
+        params_cur.offset_ms = 0;
+        params_cur.print_progress = false;
+        params_cur.print_realtime = false;
+
+        params_cur.new_segment_callback = nullptr;
+        params_cur.new_segment_callback_user_data = nullptr;
+
+        workers[i] = std::thread(whisper_full, &ctxs[i], std::move(params_cur), samples + start_samples, n_samples_cur);
+    }
+
+    {
+        auto params_cur = params;
+
+        ret = whisper_full(ctx, std::move(params_cur), samples, offset_samples + n_samples_per_processor);
+    }
+
+    for (int i = 0; i < n_processors - 1; ++i) {
+        workers[i].join();
+    }
+
+    const int64_t offset_t = (int64_t) params.offset_ms/10.0;
+
+    // combine results into ctx->result_all
+    for (int i = 0; i < n_processors - 1; ++i) {
+        auto & result_all = ctxs[i].result_all;
+
+        for (int j = 0; j < (int) result_all.size(); ++j) {
+            result_all[j].t0 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
+            result_all[j].t1 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
+
+            if (ctx->result_all.size() > 0) {
+                result_all[j].t0 = std::max(result_all[j].t0, ctx->result_all.back().t1);
+            }
+
+            ctx->result_all.push_back(std::move(result_all[j]));
+
+            // call the new_segment_callback for each segment
+            if (params.new_segment_callback) {
+                params.new_segment_callback(ctx, params.new_segment_callback_user_data);
+            }
+        }
+    }
+
+    return ret;
 }
 
 int whisper_full_n_segments(struct whisper_context * ctx) {
