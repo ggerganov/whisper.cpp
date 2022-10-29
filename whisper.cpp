@@ -211,14 +211,6 @@ struct whisper_vocab {
     }
 };
 
-struct whisper_token_data {
-    whisper_token id;  // token id
-    whisper_token tid; // forced timestamp token id
-
-    float p;  // probability of the token
-    float pt; // probability of the timestamp token
-};
-
 struct whisper_segment {
     int64_t t0;
     int64_t t1;
@@ -2219,7 +2211,7 @@ int whisper_decode(struct whisper_context * ctx, const whisper_token * tokens, i
     return 0;
 }
 
-whisper_token whisper_sample_best(struct whisper_context * ctx) {
+whisper_token_data whisper_sample_best(struct whisper_context * ctx) {
     const int64_t t_start_sample_us = ggml_time_us();
 
     // TODO: simplify
@@ -2227,7 +2219,7 @@ whisper_token whisper_sample_best(struct whisper_context * ctx) {
 
     ctx->t_sample_us += ggml_time_us() - t_start_sample_us;
 
-    return res.id;
+    return res;
 }
 
 whisper_token whisper_sample_timestamp(struct whisper_context * ctx) {
@@ -2330,8 +2322,9 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.strategy             =*/ WHISPER_SAMPLING_GREEDY,
 
                     /*.n_threads            =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
-                    /*.offset_ms            =*/ 0,
                     /*.n_processors         =*/ 1,
+                    /*.n_max_text_ctx       =*/ 16384,
+                    /*.offset_ms            =*/ 0,
 
                     /*.translate            =*/ false,
                     /*.no_context           =*/ false,
@@ -2362,8 +2355,9 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.strategy             =*/ WHISPER_SAMPLING_BEAM_SEARCH,
 
                     /*.n_threads            =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
-                    /*.offset_ms            =*/ 0,
                     /*.n_processors         =*/ 1,
+                    /*.n_max_text_ctx       =*/ 16384,
+                    /*.offset_ms            =*/ 0,
 
                     /*.translate            =*/ false,
                     /*.no_context           =*/ false,
@@ -2470,7 +2464,7 @@ int whisper_full(
 
         // if we have already generated some text, use it as a prompt to condition the next generation
         if (prompt_past.size() > 0) {
-            int n_take = std::min(whisper_n_text_ctx(ctx)/2, int(prompt_past.size()));
+            int n_take = std::min(std::min(params.n_max_text_ctx, whisper_n_text_ctx(ctx)/2), int(prompt_past.size()));
 
             prompt = { whisper_token_prev(ctx) };
             prompt.insert(prompt.begin() + 1, prompt_past.end() - n_take, prompt_past.end());
@@ -2512,7 +2506,7 @@ int whisper_full(
             // feel free to experiment!
             //
             {
-                auto token = whisper_sample_best(ctx->vocab, ctx->probs.data() + (ctx->probs.size() - ctx->vocab.n_vocab));
+                auto token = whisper_sample_best(ctx);
 
                 if (i == 0) {
                     token.tid = whisper_token_beg(ctx);
