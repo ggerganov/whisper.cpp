@@ -1136,7 +1136,7 @@ struct ggml_state {
 
 // global state
 struct ggml_state g_state;
-atomic_bool g_state_barrier = 0;
+atomic_int g_state_barrier = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 
