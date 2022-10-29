@@ -38,11 +38,12 @@ std::string to_timestamp(int64_t t, bool comma = false) {
 
 // command-line parameters
 struct whisper_params {
-    int32_t seed        = -1; // RNG seed, not used currently
-    int32_t n_threads   = std::min(4, (int32_t) std::thread::hardware_concurrency());
-    int32_t offset_t_ms = 0;
-    int32_t offset_n    = 0;
-    int32_t max_context = -1;
+    int32_t seed         = -1; // RNG seed, not used currently
+    int32_t n_threads    = std::min(4, (int32_t) std::thread::hardware_concurrency());
+    int32_t n_processors = 1;
+    int32_t offset_t_ms  = 0;
+    int32_t offset_n     = 0;
+    int32_t max_context  = -1;
 
     bool verbose              = false;
     bool translate            = false;
@@ -74,6 +75,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             params.seed = std::stoi(argv[++i]);
         } else if (arg == "-t" || arg == "--threads") {
             params.n_threads = std::stoi(argv[++i]);
+        } else if (arg == "-p" || arg == "--processors") {
+            params.n_processors = std::stoi(argv[++i]);
         } else if (arg == "-ot" || arg == "--offset-t") {
             params.offset_t_ms = std::stoi(argv[++i]);
         } else if (arg == "-on" || arg == "--offset-n") {
@@ -128,6 +131,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "  -h,       --help           show this help message and exit\n");
     fprintf(stderr, "  -s SEED,  --seed SEED      RNG seed (default: -1)\n");
     fprintf(stderr, "  -t N,     --threads N      number of threads to use during computation (default: %d)\n", params.n_threads);
+    fprintf(stderr, "  -p N,     --processors N   number of processors to use during computation (default: %d)\n", params.n_processors);
     fprintf(stderr, "  -ot N,    --offset-t N     time offset in milliseconds (default: %d)\n", params.offset_t_ms);
     fprintf(stderr, "  -on N,    --offset-n N     segment index offset (default: %d)\n", params.offset_n);
     fprintf(stderr, "  -mc N,    --max-context N  maximum number of text context tokens to store (default: max)\n");
@@ -350,7 +354,8 @@ int main(int argc, char ** argv) {
         // print system information
         {
             fprintf(stderr, "\n");
-            fprintf(stderr, "system_info: n_threads = %d / %d | %s\n", params.n_threads, std::thread::hardware_concurrency(), whisper_print_system_info());
+            fprintf(stderr, "system_info: n_threads = %d / %d | %s\n",
+                    params.n_threads*params.n_processors, std::thread::hardware_concurrency(), whisper_print_system_info());
         }
 
         // print some info about the processing
@@ -363,8 +368,9 @@ int main(int argc, char ** argv) {
                     fprintf(stderr, "%s: WARNING: model is not multilingual, ignoring language and translation options\n", __func__);
                 }
             }
-            fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, lang = %s, task = %s, timestamps = %d ...\n",
-                    __func__, fname_inp.c_str(), int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE, params.n_threads,
+            fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, lang = %s, task = %s, timestamps = %d ...\n",
+                    __func__, fname_inp.c_str(), int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE,
+                    params.n_threads, params.n_processors,
                     params.language.c_str(),
                     params.translate ? "translate" : "transcribe",
                     params.no_timestamps ? 0 : 1);
@@ -393,7 +399,7 @@ int main(int argc, char ** argv) {
                 wparams.new_segment_callback_user_data = &params;
             }
 
-            if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
+            if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), params.n_processors) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
                 return 8;
             }
