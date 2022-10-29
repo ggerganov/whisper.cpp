@@ -72,6 +72,8 @@ extern "C" {
     // Returns NULL on failure.
     WHISPER_API struct whisper_context * whisper_init(const char * path_model);
 
+    WHISPER_API struct whisper_context * whisper_init_parallel(const char * path_model, int n_processors);
+
     // Frees all memory allocated by the model.
     WHISPER_API void whisper_free(struct whisper_context * ctx);
 
@@ -170,6 +172,7 @@ extern "C" {
 
         int n_threads;
         int offset_ms;
+        int n_processors;
 
         bool translate;
         bool no_context;
