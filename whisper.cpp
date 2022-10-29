@@ -1,3 +1,4 @@
+#define WHISPER_BUILD
 #include "whisper.h"
 
 #include "ggml.h"
