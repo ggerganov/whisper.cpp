@@ -1910,14 +1910,19 @@ whisper_vocab::id whisper_sample_timestamp(
     return probs_id[0].second;
 }
 
-static std::string to_timestamp(int64_t t) {
-    int64_t sec = t/100;
-    int64_t msec = t - sec*100;
-    int64_t min = sec/60;
-    sec = sec - min*60;
+//  500 -> 00:05.000
+// 6000 -> 01:00.000
+std::string to_timestamp(int64_t t, bool comma = false) {
+    int64_t msec = t * 10;
+    int64_t hr = msec / (1000 * 60 * 60);
+    msec = msec - hr * (1000 * 60 * 60);
+    int64_t min = msec / (1000 * 60);
+    msec = msec - min * (1000 * 60);
+    int64_t sec = msec / 1000;
+    msec = msec - sec * 1000;
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "%02d:%02d.%03d", (int) min, (int) sec, (int) msec);
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d%s%03d", (int) hr, (int) min, (int) sec, comma ? "," : ".", (int) msec);
 
     return std::string(buf);
 }
@@ -2727,24 +2732,45 @@ int whisper_full_parallel(
 
     // combine results into ctx->result_all
     for (int i = 0; i < n_processors - 1; ++i) {
-        auto & result_all = ctxs[i].result_all;
+        auto & results_i = ctxs[i].result_all;
 
-        for (int j = 0; j < (int) result_all.size(); ++j) {
-            result_all[j].t0 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
-            result_all[j].t1 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
+        for (int j = 0; j < (int) results_i.size(); ++j) {
+            // correct the segment timestamp taking into account the offset
+            results_i[j].t0 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
+            results_i[j].t1 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
 
+            // make sure that segments are not overlapping
             if (ctx->result_all.size() > 0) {
-                result_all[j].t0 = std::max(result_all[j].t0, ctx->result_all.back().t1);
+                results_i[j].t0 = std::max(results_i[j].t0, ctx->result_all.back().t1);
             }
 
-            ctx->result_all.push_back(std::move(result_all[j]));
+            ctx->result_all.push_back(std::move(results_i[j]));
 
             // call the new_segment_callback for each segment
             if (params.new_segment_callback) {
                 params.new_segment_callback(ctx, params.new_segment_callback_user_data);
             }
         }
+
+        ctx->t_mel_us    += ctxs[i].t_mel_us;
+        ctx->t_sample_us += ctxs[i].t_sample_us;
+        ctx->t_encode_us += ctxs[i].t_encode_us;
+        ctx->t_decode_us += ctxs[i].t_decode_us;
     }
+
+    // average the timings
+    ctx->t_mel_us    /= n_processors;
+    ctx->t_sample_us /= n_processors;
+    ctx->t_encode_us /= n_processors;
+    ctx->t_decode_us /= n_processors;
+
+    // print information about the audio boundaries
+    fprintf(stderr, "\n");
+    fprintf(stderr, "%s: the audio has been split into %d chunks at the following times:\n", __func__, n_processors);
+    for (int i = 0; i < n_processors - 1; ++i) {
+        fprintf(stderr, "%s: split %d - %s\n", __func__, (i + 1), to_timestamp(100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t).c_str());
+    }
+    fprintf(stderr, "%s: the transcription quality may be degraded near these boundaries\n", __func__);
 
     return ret;
 }
