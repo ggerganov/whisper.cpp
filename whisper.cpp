@@ -1912,7 +1912,7 @@ whisper_vocab::id whisper_sample_timestamp(
 
 //  500 -> 00:05.000
 // 6000 -> 01:00.000
-std::string to_timestamp(int64_t t, bool comma = false) {
+static std::string to_timestamp(int64_t t, bool comma = false) {
     int64_t msec = t * 10;
     int64_t hr = msec / (1000 * 60 * 60);
     msec = msec - hr * (1000 * 60 * 60);
