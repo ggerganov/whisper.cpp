@@ -44,6 +44,11 @@ static int pthread_create(pthread_t* out, void* unused, thread_ret_t(*func)(void
 static int pthread_join(pthread_t thread, void* unused) {
     return (int) WaitForSingleObject(thread, INFINITE);
 }
+
+int sched_yield (void) {
+    Sleep (0);
+    return 0;
+}
 #else
 #include <pthread.h>
 #include <stdatomic.h>
