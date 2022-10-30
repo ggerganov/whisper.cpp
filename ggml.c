@@ -45,7 +45,7 @@ static int pthread_join(pthread_t thread, void* unused) {
     return (int) WaitForSingleObject(thread, INFINITE);
 }
 
-int sched_yield (void) {
+static int sched_yield (void) {
     Sleep (0);
     return 0;
 }
