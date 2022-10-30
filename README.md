@@ -273,6 +273,45 @@ to highlight words with high or low confidence:
 
 <img width="965" alt="image" src="https://user-images.githubusercontent.com/1991296/197356445-311c8643-9397-4e5e-b46e-0b4b4daa2530.png">
 
+## Word-level timestamps (experimental)
+
+The [main](examples/main) example has experimental support for word-level timestamp generation. The accuracy
+is not great, but might be improved in the future.
+
+To use it, simply add the `-owts` command-line argument. There is a free parameter `-wt` that should be around `0.01`.
+
+Here are a few *"typical"* examples:
+
+```java
+./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -owts -wt 0.01
+source ./samples/jfk.wav.wts
+ffplay ./samples/jfk.wav.mp4
+```
+
+https://user-images.githubusercontent.com/1991296/198885665-b34b6845-11b8-4449-a255-d9ec2eab1344.mp4
+
+---
+
+```java
+./main -m ./models/ggml-base.en.bin -f ./samples/mm0.wav -owts -wt 0.1
+source ./samples/mm0.wav.wts
+ffplay ./samples/mm0.wav.mp4
+```
+
+https://user-images.githubusercontent.com/1991296/198885703-0547ba17-c288-4827-8361-84cc440f2901.mp4
+
+---
+
+```java
+./main -m ./models/ggml-base.en.bin -f ./samples/gb0.wav -owts -wt 0.01
+source ./samples/gb0.wav.wts
+ffplay ./samples/gb0.wav.mp4
+```
+
+https://user-images.githubusercontent.com/1991296/198885729-3fc9028c-a50c-4549-a11f-3306ef97e0c4.mp4
+
+---
+
 ## Implementation details
 
 - The core tensor operations are implemented in C ([ggml.h](ggml.h) / [ggml.c](ggml.c))
