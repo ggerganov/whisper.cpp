@@ -1843,7 +1843,8 @@ whisper_token_data whisper_sample_best(
             }
         }
 
-        result.pt = max_ts/(sum_ts + 1e-6);
+        result.pt = max_ts/(sum_ts + 1e-10);
+        result.ptsum = sum_ts;
     }
 
     // find the top K tokens
@@ -2518,7 +2519,10 @@ int whisper_full(
                 prompt.push_back(token.id);
                 tokens_cur.push_back(token);
 
-                //printf("%s: %s\n", __func__, ctx->vocab.id_to_token[id].c_str());
+                //{
+                //    const auto tt = token.pt > 0.10 ? ctx->vocab.id_to_token[token.tid] : "[?]";
+                //    printf("%s: %10s %6.3f '%s'\n", __func__, tt.c_str(), token.pt, ctx->vocab.id_to_token[token.id].c_str());
+                //}
 
                 // end of text token
                 if (token.id == whisper_token_eot(ctx)) {
@@ -2801,6 +2805,10 @@ const char * whisper_full_get_token_text(struct whisper_context * ctx, int i_seg
 
 whisper_token whisper_full_get_token_id(struct whisper_context * ctx, int i_segment, int i_token) {
     return ctx->result_all[i_segment].tokens[i_token].id;
+}
+
+struct whisper_token_data whisper_full_get_token_data(struct whisper_context * ctx, int i_segment, int i_token) {
+    return ctx->result_all[i_segment].tokens[i_token];
 }
 
 float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token) {

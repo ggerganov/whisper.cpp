@@ -72,8 +72,9 @@ extern "C" {
         whisper_token id;  // token id
         whisper_token tid; // forced timestamp token id
 
-        float p;  // probability of the token
-        float pt; // probability of the timestamp token
+        float p;     // probability of the token
+        float pt;    // probability of the timestamp token
+        float ptsum; // sum of probabilities of all timestamp tokens
     };
 
     // Allocates all memory needed for the model and loads the model from the given file.
@@ -240,6 +241,10 @@ extern "C" {
     // Get the token text of the specified token in the specified segment.
     WHISPER_API const char * whisper_full_get_token_text(struct whisper_context * ctx, int i_segment, int i_token);
     WHISPER_API whisper_token whisper_full_get_token_id (struct whisper_context * ctx, int i_segment, int i_token);
+
+    // Get token data for the specified token in the specified segment.
+    // This contains probabilities, timestamps, etc.
+    WHISPER_API struct whisper_token_data whisper_full_get_token_data(struct whisper_context * ctx, int i_segment, int i_token);
 
     // Get the probability of the specified token in the specified segment.
     WHISPER_API float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token);
