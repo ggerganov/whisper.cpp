@@ -49,22 +49,20 @@ void replace_all(std::string & s, const std::string & search, const std::string 
 float voice_length(const std::string & text) {
     float res = 0.0f;
 
+    // letters - add 1
+    // digits - add 3
+    // else - 0
     for (size_t i = 0; i < text.size(); ++i) {
-        if (text[i] == ' ') {
-            res += 0.01f;
-        } else if (text[i] == ',') {
-            res += 2.00f;
-        } else if (text[i] == '.') {
-            res += 3.00f;
-        } else if (text[i] == '!') {
-            res += 3.00f;
-        } else if (text[i] == '?') {
-            res += 3.00f;
-        } else if (text[i] >= '0' && text[i] <= '9') {
-            res += 3.00f;
+        if (text[i] >= '0' && text[i] <= '9') {
+            res += 3.0f;
+        } else if (text[i] >= 'a' && text[i] <= 'z') {
+            res += 1.0f;
+        } else if (text[i] >= 'A' && text[i] <= 'Z') {
+            res += 1.0f;
         } else {
-            res += 1.00f;
+            res += 0.01f;
         }
+        // TODO: support unicode
     }
 
     return res;
@@ -79,7 +77,7 @@ struct whisper_params {
     int32_t offset_n     = 0;
     int32_t max_context  = -1;
 
-    float word_thold = 0.01f;
+    float word_thold = 0.1f;
 
     bool verbose              = false;
     bool translate            = false;
@@ -320,170 +318,434 @@ bool output_srt(struct whisper_context * ctx, const char * fname, const whisper_
     return true;
 }
 
+struct Interval {
+    int x0;
+    int x1;
+    int type;
+};
+
+struct IntervalArray : public std::vector<Interval> {
+    int F = -1;
+};
+
+std::vector<IntervalArray> fit_text_to_audio(const IntervalArray & input, int N, float alpha = 2.0f) {
+    const int x_max = input.back().x1;
+
+    std::vector<int> ls;
+    std::vector<int> rs;
+    std::vector<int> xs;
+    std::vector<int> gs;
+
+    int G_max = 0;
+
+    for (const auto & ii : input) {
+        if (ii.type == 0) {
+            continue;
+        }
+
+        ls.push_back(ii.x0);
+        rs.push_back(ii.x1);
+        xs.push_back(ii.x0);
+        xs.push_back(ii.x1);
+
+        gs.push_back(G_max);
+        G_max += ii.x1 - ii.x0;
+        gs.push_back(G_max);
+    }
+
+    const int inf = 100*G_max;
+
+    struct Cell {
+        int fval  = -1;
+        int xprev = -1;
+        int w     = -1;
+    };
+
+    // Function F + initial conditions
+    std::vector<std::vector<Cell>> F(xs.size());
+    for (auto & Fx : F) {
+        Fx.resize(N + 1);
+        for (auto & f : Fx) f.fval = inf;
+        Fx[0].fval = alpha*G_max;
+    }
+
+    // DP core
+    for (int n = 1; n <= N; ++n) {
+        for (int ix = 0; ix < (int) xs.size(); ++ix) {
+            const int x = xs[ix];
+
+            int best_fval  = inf;
+            int best_xprev = -1;
+            int best_w     = -1;
+
+            for (int il = 0; il < (int) ls.size(); ++il) {
+                const int l = ls[il];
+
+                if (l < n) continue;
+                if (l >= x) break;
+
+                for (int ir = il; ir < (int) rs.size(); ++ir) {
+                    const int r = rs[ir];
+
+                    if (r < l + 1) continue;
+                    if (r > x) break;
+
+                    const int cur_fval = F[2*il][n - 1].fval + (r - l) - (alpha + 1)*(gs[2*ir + 1] - gs[2*il]);
+
+                    if (cur_fval < best_fval) {
+                        best_fval  = cur_fval;
+                        best_xprev = 2*il;
+                        best_w     = r - l;
+                    }
+                }
+            }
+
+            F[ix][n].fval  = best_fval;
+            F[ix][n].xprev = best_xprev;
+            F[ix][n].w     = best_w;
+        }
+    }
+
+    // generate output
+    std::vector<IntervalArray> res(N + 1);
+    {
+        for (int i = 1; i <= N; ++i) {
+            IntervalArray resCur;
+
+            int n = i;
+
+            std::vector<int> grid(x_max + 1, 0); // initally, everything is background
+
+            int best_ix   = 0;
+            int best_fval = F[0][n].fval;
+            for (int ix = 1; ix < (int) xs.size(); ++ix) {
+                if (F[ix][n].fval < best_fval) {
+                    best_ix   = ix;
+                    best_fval = F[ix][n].fval;
+                }
+            }
+
+            resCur.F = (i == input.size()/2) ? 0 : best_fval;
+            while (true) {
+                const int ix = F[best_ix][n].xprev;
+                const int w  = F[best_ix][n].w;
+                for (int x = xs[ix]; x < xs[ix] + w; ++x) {
+                    grid[x] = 1; // i.e. green
+                }
+                best_ix = F[best_ix][n].xprev;
+                if (--n == 0) break;
+            }
+
+            int x0   = 0;
+            int type = grid[0];
+            for (int x1 = 1; x1 <= x_max; ++x1) {
+                if (grid[x1] != grid[x1 - 1] || x1 == x_max) {
+                    if (type == 1) {
+                        resCur.push_back({x0, x1, 1});
+                    }
+                    x0   = x1;
+                    type = grid[x1];
+                }
+            }
+
+            res[i] = std::move(resCur);
+        }
+    }
+
+    return res;
+}
+
+
 // word-level timestamps (experimental)
 // TODO: probably still has bugs, needs refactoring, etc..
 // TODO: auto threshold
 // TODO: extra pass to detect unused speech and assign to tokens
 // TODO: font parameter adjustments
 bool output_wts(struct whisper_context * ctx, const char * fname, const char * fname_inp, const whisper_params & params, const std::vector<float> & pcmf32) {
-    if (params.output_wts) {
-        std::vector<float> pcm_avg(pcmf32.size(), 0);
+    std::vector<float> pcm_avg(pcmf32.size(), 0);
 
-        // average the fabs of the signal
-        {
-            const int hw = 32;
+    // average the fabs of the signal
+    {
+        const int hw = 32;
 
-            for (int i = 0; i < pcmf32.size(); i++) {
-                float sum = 0;
-                for (int j = -hw; j <= hw; j++) {
-                    if (i + j >= 0 && i + j < pcmf32.size()) {
-                        sum += fabs(pcmf32[i + j]);
-                    }
+        for (int i = 0; i < pcmf32.size(); i++) {
+            float sum = 0;
+            for (int j = -hw; j <= hw; j++) {
+                if (i + j >= 0 && i + j < pcmf32.size()) {
+                    sum += fabs(pcmf32[i + j]);
                 }
-                pcm_avg[i] = sum/(2*hw + 1);
+            }
+            pcm_avg[i] = sum/(2*hw + 1);
+        }
+    }
+
+    struct token_info {
+        int64_t t0 = -1;
+        int64_t t1 = -1;
+
+        int64_t tt0 = -1;
+        int64_t tt1 = -1;
+
+        whisper_token id;
+        whisper_token tid;
+
+        float p     = 0.0f;
+        float pt    = 0.0f;
+        float ptsum = 0.0f;
+
+        std::string text;
+        float vlen = 0.0f; // voice length of this token
+
+        void calc_vlen(struct whisper_context * ctx) {
+            if (id >= whisper_token_eot(ctx)) {
+                vlen = 0.1f;
+                return;
+            }
+
+            vlen = voice_length(text);
+        }
+
+        bool is_voice() const {
+            return vlen > 0.5f;
+        }
+    };
+
+    int64_t t_beg  = 0;
+    int64_t t_last = 0;
+
+    whisper_token tid_last = 0;
+
+    std::ofstream fout(fname);
+
+    fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
+
+    fout << "!/bin/bash" << "\n";
+    fout << "\n";
+
+    fout << "ffmpeg -i " << fname_inp << " -f lavfi -i color=size=1200x120:duration=" << float(pcm_avg.size() + 1000)/WHISPER_SAMPLE_RATE << ":rate=25:color=black -vf \"";
+
+    bool is_first = true;
+
+    for (int i = 0; i < whisper_full_n_segments(ctx); i++) {
+        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+
+        const char *text = whisper_full_get_segment_text(ctx, i);
+
+        const int s0 = std::max(0,                   (int) (t0*WHISPER_SAMPLE_RATE/100));
+        const int s1 = std::min((int) pcm_avg.size(), (int) (t1*WHISPER_SAMPLE_RATE/100));
+
+        const int n = whisper_full_n_tokens(ctx, i);
+
+        std::vector<token_info> tokens(n);
+
+        if (n <= 1) {
+            continue;
+        }
+
+        for (int j = 0; j < n; ++j) {
+            struct whisper_token_data token = whisper_full_get_token_data(ctx, i, j);
+
+            if (j == 0) {
+                if (token.id == whisper_token_beg(ctx)) {
+                    tokens[j    ].t0 = t0;
+                    tokens[j    ].t1 = t0;
+                    tokens[j + 1].t0 = t0;
+
+                    t_beg  = t0;
+                    t_last = t0;
+                    tid_last = whisper_token_beg(ctx);
+                } else {
+                    tokens[j    ].t0 = t_last;
+                }
+            }
+
+            const int64_t tt = t_beg + 2*(token.tid - whisper_token_beg(ctx));
+
+            tokens[j].id    = token.id;
+            tokens[j].tid   = token.tid;
+            tokens[j].p     = token.p;
+            tokens[j].pt    = token.pt;
+            tokens[j].ptsum = token.ptsum;
+
+            tokens[j].text = whisper_token_to_str(ctx, token.id);
+            tokens[j].calc_vlen(ctx);
+
+            if (token.pt > params.word_thold && token.ptsum > 0.01 && token.tid > tid_last) {
+                if (j > 0) {
+                    tokens[j - 1].t1 = tt;
+                }
+                tokens[j].t0 = tt;
+                tid_last = token.tid;
             }
         }
 
-        struct token_info {
-            int64_t t0 = -1;
-            int64_t t1 = -1;
+        tokens[n - 2].t1 = t1;
+        tokens[n - 1].t0 = t1;
+        tokens[n - 1].t1 = t1;
 
-            int64_t tt0 = -1;
-            int64_t tt1 = -1;
+        t_last = t1;
 
-            whisper_token id;
-            whisper_token tid;
+        {
+            {
+                int p0 = 0;
+                int p1 = 0;
 
-            float p     = 0.0f;
-            float pt    = 0.0f;
-            float ptsum = 0.0f;
-
-            std::string text;
-            float vlen = 0.0f; // voice length of this token
-        };
-
-        int64_t t_beg  = 0;
-        int64_t t_last = 0;
-
-        whisper_token tid_last = 0;
-
-        std::ofstream fout(fname);
-
-        fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
-
-        fout << "!/bin/bash" << "\n";
-        fout << "\n";
-
-        fout << "ffmpeg -i " << fname_inp << " -f lavfi -i color=size=1200x120:duration=" << float(pcmf32.size() + 1000)/WHISPER_SAMPLE_RATE << ":rate=25:color=black -vf \"";
-
-        bool is_first = true;
-
-        for (int i = 0; i < whisper_full_n_segments(ctx); i++) {
-            const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-            const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-
-            const char *text = whisper_full_get_segment_text(ctx, i);
-
-            const int s0 = std::max(0,                   (int) (t0*WHISPER_SAMPLE_RATE/100));
-            const int s1 = std::min((int) pcmf32.size(), (int) (t1*WHISPER_SAMPLE_RATE/100));
-
-            const int n = whisper_full_n_tokens(ctx, i);
-
-            std::vector<token_info> tokens(n);
-
-            if (n <= 1) {
-                continue;
-            }
-
-            for (int j = 0; j < n; ++j) {
-                struct whisper_token_data token = whisper_full_get_token_data(ctx, i, j);
-
-                if (j == 0) {
-                    if (token.id == whisper_token_beg(ctx)) {
-                        tokens[j    ].t0 = t0;
-                        tokens[j    ].t1 = t0;
-                        tokens[j + 1].t0 = t0;
-
-                        t_beg  = t0;
-                        t_last = t0;
-                        tid_last = whisper_token_beg(ctx);
-                    } else {
-                        tokens[j    ].t0 = t_last;
+                while (true) {
+                    while (p1 < n && tokens[p1].t1 < 0) {
+                        p1++;
                     }
-                }
 
-                const int64_t tt = t_beg + 2*(token.tid - whisper_token_beg(ctx));
-
-                tokens[j].id    = token.id;
-                tokens[j].tid   = token.tid;
-                tokens[j].p     = token.p;
-                tokens[j].pt    = token.pt;
-                tokens[j].ptsum = token.ptsum;
-
-                tokens[j].text = whisper_token_to_str(ctx, token.id);
-                //tokens[j].vlen = tokens[j].pt;
-                tokens[j].vlen = voice_length(tokens[j].text);
-
-                if (token.pt > params.word_thold && token.ptsum > 0.01 && token.tid > tid_last) {
-                    if (j > 0) {
-                        tokens[j - 1].t1 = tt;
+                    if (p1 >= n) {
+                        p1--;
                     }
-                    tokens[j].t0 = tt;
-                    tid_last = token.tid;
-                }
-            }
 
-            tokens[n - 2].t1 = t1;
-            tokens[n - 1].t0 = t1;
-            tokens[n - 1].t1 = t1;
+                    if (p1 > p0) {
+                        IntervalArray arr;
 
-            t_last = t1;
+                        const int s0 = std::max(0,                        (int) (tokens[p0].t0*WHISPER_SAMPLE_RATE/100));
+                        const int s1 = std::min((int) pcm_avg.size() - 1, (int) (tokens[p1].t1*WHISPER_SAMPLE_RATE/100));
 
-            int p0 = 0;
-            int p1 = 0;
-            while (true) {
-                while (p1 < n && tokens[p1].t1 < 0) {
+                        const int ns = s1 - s0;
+
+                        float sum = 0.0f;
+                        for (int k = s0; k < s1; k++) {
+                            sum += pcm_avg[k];
+                        }
+
+                        const float thold = sum/ns;
+
+                        printf("segment %4d: s0 = %6d, s1 = %6d, ns = %6d, thold = %f\n", i, s0, s1, ns, thold);
+
+                        {
+                            int last_s    = -1;
+                            int last_type = -1;
+                            for (int k = s0; k < s1; k++) {
+                                const int type = pcm_avg[k] > thold ? 1 : 0;
+
+                                if (type != last_type) {
+                                    if (last_type != -1) {
+                                        arr.push_back({ last_s, k, last_type });
+                                    }
+                                    last_s    = k;
+                                    last_type = type;
+                                }
+                            }
+                        }
+
+                        //for (int k = 0; k < arr.size(); k++) {
+                        //    printf("  %4d: %6d, %6d, %d\n", k, arr[k].x0, arr[k].x1, arr[k].type);
+                        //}
+
+                        int n_voice = 0;
+
+                        for (int j = p0; j <= p1; ++j) {
+                            if (tokens[j].is_voice()) {
+                                n_voice++;
+                            }
+                        }
+
+                        if (n_voice > 0 && arr.size() > n_voice) {
+                            printf("xxxxxxxx n = %d, n_voice = %d, arr.size() = %d\n", n, n_voice, (int) arr.size());
+                            auto res = fit_text_to_audio(arr, n_voice, 2.0f);
+                            printf("done fit_text_to_audio, F = %d\n", res[n_voice].F);
+
+                            {
+                                int tid = p0;
+                                for (int k = 0; k < (int) res[n_voice].size(); ++k) {
+                                    while (!tokens[tid].is_voice() && tid <= p1) {
+                                        //if (tokens[tid].t0 < 0) {
+                                        //    tokens[tid].t0 = (int64_t) (100*res[n_voice][k].x0/WHISPER_SAMPLE_RATE);
+                                        //}
+                                        //if (tokens[tid].t1 < 0) {
+                                        //    tokens[tid].t1 = tokens[tid].t0;
+                                        //}
+
+                                        tid++;
+                                    }
+
+                                    if (tid > p1) {
+                                        break;
+                                    }
+
+                                    if (tokens[tid].t0 < 0) {
+                                        tokens[tid].t0 = (int64_t) (100*res[n_voice][k].x0/WHISPER_SAMPLE_RATE);
+                                        if (tid > 0) {
+                                            tokens[tid - 1].t1 = tokens[tid].t0;
+                                        }
+                                    }
+
+                                    if (tokens[tid].t1 < 0) {
+                                        tokens[tid].t1 = (int64_t) (100*res[n_voice][k].x1/WHISPER_SAMPLE_RATE);
+                                    }
+
+                                    tid++;
+                                }
+
+                                printf("xxxxxxxx n = %d, tid = %d\n", n, tid);
+                            }
+                        }
+                    }
+
                     p1++;
-                }
-
-                if (p1 >= n) {
-                    p1--;
-                }
-
-                if (p1 > p0) {
-                    double psum = 0.0;
-                    for (int j = p0; j <= p1; j++) {
-                        psum += tokens[j].vlen;
-                    }
-
-                    //printf("analyzing %d - %d, psum = %f\n", p0, p1, psum);
-
-                    const double dt = tokens[p1].t1 - tokens[p0].t0;
-
-                    for (int j = p0 + 1; j <= p1; j++) {
-                        const double ct = tokens[j - 1].t0 + dt*tokens[j - 1].vlen/psum;
-                        //const double ct = tokens[j - 1].t0 + (dt*(j - p0))/(p1 - p0 + 1);
-                        //const double ct = tokens[p0].t0 + (dt*(j - p0))/(p1 - p0 + 1);
-
-                        tokens[j - 1].t1 = ct;
-                        tokens[j    ].t0 = ct;
+                    p0 = p1;
+                    if (p1 >= n) {
+                        break;
                     }
                 }
+            }
 
-                p1++;
-                p0 = p1;
-                if (p1 >= n) {
-                    break;
+            {
+                int p0 = 0;
+                int p1 = 0;
+                while (true) {
+                    while (p1 < n && tokens[p1].t1 < 0) {
+                        p1++;
+                    }
+
+                    if (p1 >= n) {
+                        p1--;
+                    }
+
+                    if (p1 > p0) {
+                        double psum = 0.0;
+                        for (int j = p0; j <= p1; j++) {
+                            psum += tokens[j].vlen;
+                        }
+
+                        //printf("analyzing %d - %d, psum = %f\n", p0, p1, psum);
+
+                        const double dt = tokens[p1].t1 - tokens[p0].t0;
+
+                        for (int j = p0 + 1; j <= p1; j++) {
+                            const double ct = tokens[j - 1].t0 + dt*tokens[j - 1].vlen/psum;
+                            //const double ct = tokens[j - 1].t0 + (dt*(j - p0))/(p1 - p0 + 1);
+                            //const double ct = tokens[p0].t0 + (dt*(j - p0))/(p1 - p0 + 1);
+
+                            tokens[j - 1].t1 = ct;
+                            tokens[j    ].t0 = ct;
+                        }
+                    }
+
+                    p1++;
+                    p0 = p1;
+                    if (p1 >= n) {
+                        break;
+                    }
                 }
             }
 
             for (int j = 0; j < n - 1; j++) {
-                if (tokens[j].t1 < 0) {
+                if (tokens[j + 1].t0 < 0) {
                     tokens[j + 1].t0 = tokens[j].t1;
                 }
 
                 tokens[j].tt0 = tokens[j].t0;
                 tokens[j].tt1 = tokens[j].t1;
+
+                if (j < n - 2) {
+                    tokens[j].tt1 = std::max(tokens[j].tt1, tokens[j + 1].t0);
+                }
             }
 
             // VAD
@@ -495,10 +757,10 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
                     const int64_t t1 = tokens[j].t1;
 
                     int s0 = std::max(0,                        (int) (t0*WHISPER_SAMPLE_RATE/100));
-                    int s1 = std::min((int) pcmf32.size() - 1,  (int) (t1*WHISPER_SAMPLE_RATE/100));
+                    int s1 = std::min((int) pcm_avg.size() - 1, (int) (t1*WHISPER_SAMPLE_RATE/100));
 
-                    const int ss0 = std::max(0,                       (int) (t0*WHISPER_SAMPLE_RATE/100) - hw);
-                    const int ss1 = std::min((int) pcmf32.size() - 1, (int) (t1*WHISPER_SAMPLE_RATE/100) + hw);
+                    const int ss0 = std::max(0,                        (int) (t0*WHISPER_SAMPLE_RATE/100) - hw);
+                    const int ss1 = std::min((int) pcm_avg.size() - 1, (int) (t1*WHISPER_SAMPLE_RATE/100) + hw);
 
                     const int n = ss1 - ss0;
 
@@ -535,7 +797,7 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
                     {
                         int k = s1;
                         if (pcm_avg[k] > thold) {
-                            while (k < (int) pcmf32.size() - 1 && pcm_avg[k] > thold) {
+                            while (k < (int) pcm_avg.size() - 1 && pcm_avg[k] > thold) {
                                 k++;
                             }
                             tokens[j].t1 = 100*k/WHISPER_SAMPLE_RATE;
@@ -565,118 +827,145 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
                     tokens[j].t1 = tokens[j].t1 + t_expand;
                 }
             }
+        }
 
-            for (int j = 0; j < n; ++j) {
-                const auto & token = tokens[j];
-                const auto tt = token.pt > params.word_thold && token.ptsum > 0.01 ? whisper_token_to_str(ctx, token.tid) : "[?]";
-                printf("%s: %10s %6.3f %6.3f %6.3f %6.3f %5d %5d '%s'\n", __func__,
-                        tt, token.p, token.pt, token.ptsum, token.vlen, (int) token.t0, (int) token.t1, token.text.c_str());
+        {
+            const std::string fname_tokens = "tokens-" + std::to_string(i) + ".txt";
 
-                if (tokens[j].id >= whisper_token_eot(ctx)) {
-                    continue;
+            std::ofstream fout(fname_tokens);
+
+            int s0 = std::max(0,                        (int) (t0*WHISPER_SAMPLE_RATE/100));
+            int s1 = std::min((int) pcm_avg.size() - 1, (int) (t1*WHISPER_SAMPLE_RATE/100));
+
+            for (int j = s0; j < s1; j++) {
+                int k = -1;
+                for (int r = 0; r < n; r++) {
+                    if (j >= (int) (tokens[r].t0*WHISPER_SAMPLE_RATE/100) && j < (int) (tokens[r].t1*WHISPER_SAMPLE_RATE/100)) {
+                        k = r;
+                        break;
+                    }
                 }
 
-                //printf("[%s --> %s] %s\n", to_timestamp(token.t0).c_str(), to_timestamp(token.t1).c_str(), whisper_token_to_str(ctx, token.id));
-
-                //fout << "# " << to_timestamp(token.t0) << " --> " << to_timestamp(token.t1) << " " << whisper_token_to_str(ctx, token.id) << "\n";
+                fout << j << " " << pcm_avg[j] << " " << float(k%3 + 1)/30.0 << std::endl;
             }
 
-            static const int line_wrap = 60;
-            static const char * font = "/System/Library/Fonts/Supplemental/Courier New Bold.ttf";
+            fout.close();
+        }
 
-            if (!is_first) {
-                fout << ",";
+        for (int j = 0; j < n; ++j) {
+            const auto & token = tokens[j];
+            const auto tt = token.pt > params.word_thold && token.ptsum > 0.01 ? whisper_token_to_str(ctx, token.tid) : "[?]";
+            printf("%s: %10s %6.3f %6.3f %6.3f %6.3f %5d %5d '%s'\n", __func__,
+                    tt, token.p, token.pt, token.ptsum, token.vlen, (int) token.t0, (int) token.t1, token.text.c_str());
+
+            if (tokens[j].id >= whisper_token_eot(ctx)) {
+                continue;
             }
 
-            // background text
-            fout << "drawtext=fontfile='" << font << "':fontsize=24:fontcolor=gray:x=(w-text_w)/2:y=h/2:text='':enable='between(t," << t0/100.0 << "," << t0/100.0 << ")'";
+            //printf("[%s --> %s] %s\n", to_timestamp(token.t0).c_str(), to_timestamp(token.t1).c_str(), whisper_token_to_str(ctx, token.id));
 
-            is_first = false;
+            //fout << "# " << to_timestamp(token.t0) << " --> " << to_timestamp(token.t1) << " " << whisper_token_to_str(ctx, token.id) << "\n";
+        }
 
-            for (int j = 0; j < n; ++j) {
-                const auto & token = tokens[j];
+        static const int line_wrap = 60;
+        static const char * font = "/System/Library/Fonts/Supplemental/Courier New Bold.ttf";
 
-                if (tokens[j].id >= whisper_token_eot(ctx)) {
-                    continue;
-                }
+        if (!is_first) {
+            fout << ",";
+        }
 
-                std::string txt_bg;
-                std::string txt_fg; // highlight token
-                std::string txt_ul; // underline
+        // background text
+        fout << "drawtext=fontfile='" << font << "':fontsize=24:fontcolor=gray:x=(w-text_w)/2:y=h/2:text='':enable='between(t," << t0/100.0 << "," << t0/100.0 << ")'";
 
-                txt_bg = "> ";
-                txt_fg = "> ";
-                txt_ul = "\\ \\ ";
+        is_first = false;
 
-                {
-                    int ncnt = 0;
-                    for (int k = 0; k < n; ++k) {
-                        const auto & token2 = tokens[k];
+        for (int j = 0; j < n; ++j) {
+            const auto & token = tokens[j];
 
-                        if (tokens[k].id >= whisper_token_eot(ctx)) {
-                            continue;
+            if (tokens[j].id >= whisper_token_eot(ctx)) {
+                continue;
+            }
+
+            //if (!tokens[j].is_voice()) {
+            //    continue;
+            //}
+
+            std::string txt_bg;
+            std::string txt_fg; // highlight token
+            std::string txt_ul; // underline
+
+            txt_bg = "> ";
+            txt_fg = "> ";
+            txt_ul = "\\ \\ ";
+
+            {
+                int ncnt = 0;
+                for (int k = 0; k < n; ++k) {
+                    const auto & token2 = tokens[k];
+
+                    if (tokens[k].id >= whisper_token_eot(ctx)) {
+                        continue;
+                    }
+
+                    const std::string txt = whisper_token_to_str(ctx, token2.id);
+
+                    txt_bg += txt;
+
+                    if (k == j) {
+                        for (int l = 0; l < (int) txt.size(); ++l) {
+                            txt_fg += txt[l];
+                            txt_ul += "_";
                         }
-
-                        const std::string txt = whisper_token_to_str(ctx, token2.id);
-
-                        txt_bg += txt;
-
-                        if (k == j) {
-                            for (int l = 0; l < (int) txt.size(); ++l) {
-                                txt_fg += txt[l];
-                                txt_ul += "_";
-                            }
-                            txt_fg += "|";
-                        } else {
-                            for (int l = 0; l < (int) txt.size(); ++l) {
-                                txt_fg += "\\ ";
-                                txt_ul += "\\ ";
-                            }
-                        }
-
-                        ncnt += txt.size();
-
-                        if (ncnt > line_wrap) {
-                            if (k < j) {
-                                txt_bg = "> ";
-                                txt_fg = "> ";
-                                txt_ul = "\\ \\ ";
-                                ncnt = 0;
-                            } else {
-                                break;
-                            }
+                        txt_fg += "|";
+                    } else {
+                        for (int l = 0; l < (int) txt.size(); ++l) {
+                            txt_fg += "\\ ";
+                            txt_ul += "\\ ";
                         }
                     }
 
-                    ::replace_all(txt_bg, "'", "’");
-                    ::replace_all(txt_bg, "\"", "\\\"");
-                    ::replace_all(txt_fg, "'", "’");
-                    ::replace_all(txt_fg, "\"", "\\\"");
+                    ncnt += txt.size();
+
+                    if (ncnt > line_wrap) {
+                        if (k < j) {
+                            txt_bg = "> ";
+                            txt_fg = "> ";
+                            txt_ul = "\\ \\ ";
+                            ncnt = 0;
+                        } else {
+                            break;
+                        }
+                    }
                 }
 
-                // background text
-                fout << ",drawtext=fontfile='" << font << "':fontsize=24:fontcolor=gray:x=(w-text_w)/2:y=h/2:text='" << txt_bg << "':enable='between(t," << token.tt0/100.0 << "," << token.tt1/100.0 << ")'";
-
-                // foreground text
-                fout << ",drawtext=fontfile='" << font << "':fontsize=24:fontcolor=lightgreen:x=(w-text_w)/2+8:y=h/2:text='" << txt_fg << "':enable='between(t," << token.t0/100.0 << "," << token.t1/100.0 << ")'";
-
-                // underline
-                fout << ",drawtext=fontfile='" << font << "':fontsize=24:fontcolor=lightgreen:x=(w-text_w)/2+8:y=h/2+16:text='" << txt_ul << "':enable='between(t," << token.t0/100.0 << "," << token.t1/100.0 << ")'";
+                ::replace_all(txt_bg, "'", "’");
+                ::replace_all(txt_bg, "\"", "\\\"");
+                ::replace_all(txt_fg, "'", "’");
+                ::replace_all(txt_fg, "\"", "\\\"");
             }
+
+            // background text
+            fout << ",drawtext=fontfile='" << font << "':fontsize=24:fontcolor=gray:x=(w-text_w)/2:y=h/2:text='" << txt_bg << "':enable='between(t," << token.tt0/100.0 << "," << token.tt1/100.0 << ")'";
+
+            // foreground text
+            fout << ",drawtext=fontfile='" << font << "':fontsize=24:fontcolor=lightgreen:x=(w-text_w)/2+8:y=h/2:text='" << txt_fg << "':enable='between(t," << token.t0/100.0 << "," << token.t1/100.0 << ")'";
+
+            // underline
+            fout << ",drawtext=fontfile='" << font << "':fontsize=24:fontcolor=lightgreen:x=(w-text_w)/2+8:y=h/2+16:text='" << txt_ul << "':enable='between(t," << token.t0/100.0 << "," << token.t1/100.0 << ")'";
         }
-
-        fout << "\" -c:v libx264 -pix_fmt yuv420p -y " << fname_inp << ".mp4" << "\n";
-
-        fout << "\n\n";
-        fout << "echo \"Your video has been saved to " << fname_inp << ".mp4\"" << "\n";
-        fout << "\n";
-        fout << "echo \"  ffplay " << fname_inp << ".mp4\"\n";
-        fout << "\n";
-
-        fout.close();
-
-        fprintf(stderr, "%s: run 'source %s' to generate karaoke video\n", __func__, fname);
     }
+
+    fout << "\" -c:v libx264 -pix_fmt yuv420p -y " << fname_inp << ".mp4" << "\n";
+
+    fout << "\n\n";
+    fout << "echo \"Your video has been saved to " << fname_inp << ".mp4\"" << "\n";
+    fout << "\n";
+    fout << "echo \"  ffplay " << fname_inp << ".mp4\"\n";
+    fout << "\n";
+
+    fout.close();
+
+    fprintf(stderr, "%s: run 'source %s' to generate karaoke video\n", __func__, fname);
 
     return true;
 }
