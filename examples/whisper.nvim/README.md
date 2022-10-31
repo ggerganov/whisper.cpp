@@ -78,6 +78,11 @@ There are a lot of ways to improve this idea and I don't have much experience wi
   *"optimize by sorting the data first"*
   
   The plugin would then make an appropriate query using the selected text and code context to Copilot or GPT-3 and return the result.
+  
+  Here is a proof-of-concept:
+  
+  https://user-images.githubusercontent.com/1991296/199078847-0278fcde-5667-4748-ba0d-7d55381d6047.mp4
+    
 
 ## Discussion
 
