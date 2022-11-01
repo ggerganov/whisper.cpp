@@ -424,7 +424,7 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
                 //tokens[j].vlen = tokens[j].pt;
                 tokens[j].vlen = voice_length(tokens[j].text);
 
-                if (token.pt > params.word_thold && token.ptsum > 0.01 && token.tid > tid_last) {
+                if (token.pt > params.word_thold && token.ptsum > 0.01 && token.tid > tid_last && tt <= t1) {
                     if (j > 0) {
                         tokens[j - 1].t1 = tt;
                     }
@@ -482,15 +482,26 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
                     tokens[j + 1].t0 = tokens[j].t1;
                 }
 
+                if (j > 0) {
+                    if (tokens[j - 1].t1 > tokens[j].t0) {
+                        tokens[j].t0 = tokens[j - 1].t1;
+                        tokens[j].t1 = std::max(tokens[j].t0, tokens[j].t1);
+                    }
+                }
+
                 tokens[j].tt0 = tokens[j].t0;
                 tokens[j].tt1 = tokens[j].t1;
             }
 
             // VAD
             {
-                const int hw = WHISPER_SAMPLE_RATE; // take one second of audio around the token
+                const int hw = WHISPER_SAMPLE_RATE/8;
 
                 for (int j = 0; j < n; j++) {
+                    if (tokens[j].id >= whisper_token_eot(ctx)) {
+                        continue;
+                    }
+
                     const int64_t t0 = tokens[j].t0;
                     const int64_t t1 = tokens[j].t1;
 
@@ -503,13 +514,12 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
                     const int n = ss1 - ss0;
 
                     float sum = 0.0f;
+
                     for (int k = ss0; k < ss1; k++) {
                         sum += pcm_avg[k];
                     }
 
-                    const float avg = sum/n;
-
-                    const float thold = 0.5*avg;
+                    const float thold = 0.5*sum/n;
 
                     {
                         int k = s0;
