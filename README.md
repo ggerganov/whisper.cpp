@@ -283,32 +283,32 @@ To use it, simply add the `-owts` command-line argument. There is a free paramet
 Here are a few *"typical"* examples:
 
 ```java
-./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -owts -wt 0.01
+./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -owts
 source ./samples/jfk.wav.wts
 ffplay ./samples/jfk.wav.mp4
 ```
 
-https://user-images.githubusercontent.com/1991296/198885665-b34b6845-11b8-4449-a255-d9ec2eab1344.mp4
+https://user-images.githubusercontent.com/1991296/199337465-dbee4b5e-9aeb-48a3-b1c6-323ac4db5b2c.mp4
 
 ---
 
 ```java
-./main -m ./models/ggml-base.en.bin -f ./samples/mm0.wav -owts -wt 0.1
+./main -m ./models/ggml-base.en.bin -f ./samples/mm0.wav -owts
 source ./samples/mm0.wav.wts
 ffplay ./samples/mm0.wav.mp4
 ```
 
-https://user-images.githubusercontent.com/1991296/198885703-0547ba17-c288-4827-8361-84cc440f2901.mp4
+https://user-images.githubusercontent.com/1991296/199337504-cc8fd233-0cb7-4920-95f9-4227de3570aa.mp4
 
 ---
 
 ```java
-./main -m ./models/ggml-base.en.bin -f ./samples/gb0.wav -owts -wt 0.01
+./main -m ./models/ggml-base.en.bin -f ./samples/gb0.wav -owts
 source ./samples/gb0.wav.wts
 ffplay ./samples/gb0.wav.mp4
 ```
 
-https://user-images.githubusercontent.com/1991296/198885729-3fc9028c-a50c-4549-a11f-3306ef97e0c4.mp4
+https://user-images.githubusercontent.com/1991296/199337538-b7b0c7a3-2753-4a88-a0cd-f28a317987ba.mp4
 
 ---
 
