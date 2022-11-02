@@ -8089,7 +8089,7 @@ int ggml_cpu_has_avx512(void) {
 }
 
 int ggml_cpu_has_neon(void) {
-#if defined(__ARM_NEON__)
+#if defined(__ARM_NEON)
     return 1;
 #else
     return 0;
