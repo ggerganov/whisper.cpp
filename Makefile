@@ -86,7 +86,7 @@ main: examples/main/main.cpp ggml.o whisper.o
 	./main -h
 
 ggml.o: ggml.c ggml.h
-	$(CC) $(CFLAGS)   -c ggml.c -o ggml.o
+	$(CC)  $(CFLAGS)   -c ggml.c -o ggml.o
 
 whisper.o: whisper.cpp whisper.h
 	$(CXX) $(CXXFLAGS) -c whisper.cpp -o whisper.o
