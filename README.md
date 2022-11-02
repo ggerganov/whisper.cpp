@@ -308,12 +308,76 @@ to highlight words with high or low confidence:
 
 <img width="965" alt="image" src="https://user-images.githubusercontent.com/1991296/197356445-311c8643-9397-4e5e-b46e-0b4b4daa2530.png">
 
-## Word-level timestamps (experimental)
+## Controlling the length of the generated text segments (experimental)
 
-The [main](examples/main) example has experimental support for word-level timestamp generation. The accuracy
-is not great, but might be improved in the future.
+For example, to limit the line length to a maximum of 16 characters, simply add `-ml 16`: 
 
-To use it, simply add the `-owts` command-line argument. There is a free parameter `-wt` that should be around `0.01`.
+```java
+./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -ml 16
+
+whisper_model_load: loading model from './models/ggml-base.en.bin'
+...
+system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | 
+
+main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
+
+[00:00:00.000 --> 00:00:00.850]   And so my
+[00:00:00.850 --> 00:00:01.590]   fellow
+[00:00:01.590 --> 00:00:04.140]   Americans, ask
+[00:00:04.140 --> 00:00:05.660]   not what your
+[00:00:05.660 --> 00:00:06.840]   country can do
+[00:00:06.840 --> 00:00:08.430]   for you, ask
+[00:00:08.430 --> 00:00:09.440]   what you can do
+[00:00:09.440 --> 00:00:10.020]   for your
+[00:00:10.020 --> 00:00:11.000]   country.
+```
+
+## Word-level timestamp
+
+The `--max-len` argument can be used to obtain word-level timestamps. Simply use `-ml 1`:
+
+```java
+./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -ml 1
+
+whisper_model_load: loading model from './models/ggml-base.en.bin'
+...
+system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | 
+
+main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
+
+[00:00:00.000 --> 00:00:00.320]  
+[00:00:00.320 --> 00:00:00.370]   And
+[00:00:00.370 --> 00:00:00.690]   so
+[00:00:00.690 --> 00:00:00.850]   my
+[00:00:00.850 --> 00:00:01.590]   fellow
+[00:00:01.590 --> 00:00:02.850]   Americans
+[00:00:02.850 --> 00:00:03.300]  ,
+[00:00:03.300 --> 00:00:04.140]   ask
+[00:00:04.140 --> 00:00:04.990]   not
+[00:00:04.990 --> 00:00:05.410]   what
+[00:00:05.410 --> 00:00:05.660]   your
+[00:00:05.660 --> 00:00:06.260]   country
+[00:00:06.260 --> 00:00:06.600]   can
+[00:00:06.600 --> 00:00:06.840]   do
+[00:00:06.840 --> 00:00:07.010]   for
+[00:00:07.010 --> 00:00:08.170]   you
+[00:00:08.170 --> 00:00:08.190]  ,
+[00:00:08.190 --> 00:00:08.430]   ask
+[00:00:08.430 --> 00:00:08.910]   what
+[00:00:08.910 --> 00:00:09.040]   you
+[00:00:09.040 --> 00:00:09.320]   can
+[00:00:09.320 --> 00:00:09.440]   do
+[00:00:09.440 --> 00:00:09.760]   for
+[00:00:09.760 --> 00:00:10.020]   your
+[00:00:10.020 --> 00:00:10.510]   country
+[00:00:10.510 --> 00:00:11.000]  .
+```
+
+## Karaoke-style movie generation (experimental)
+
+The [main](examples/main) example provides support for output of karaoke-style movies, where the
+currently pronounced word is highlighted. Use the `-wts` argument and run the generated bash script.
+This requires to have `ffmpeg` installed.
 
 Here are a few *"typical"* examples:
 
