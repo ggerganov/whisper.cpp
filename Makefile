@@ -16,8 +16,8 @@ ifeq ($(UNAME_S),Darwin)
 	ifneq ($(UNAME_P),arm)
 		SYSCTL_M := $(shell sysctl -n hw.optional.arm64)
 		ifeq ($(SYSCTL_M),1)
-			UNAME_P := arm
-			UNAME_M := arm64
+			# UNAME_P := arm
+			# UNAME_M := arm64
 			warn := $(warning Your arch is announced as x86_64, but it seems to actually be ARM64. Not fixing that can lead to bad performance. For more info see: https://github.com/ggerganov/whisper.cpp/issues/66\#issuecomment-1282546789)
 		endif
 	endif
@@ -55,7 +55,7 @@ endif
 ifeq ($(UNAME_M),amd64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
 endif
-ifneq ($(filter arm%,$(UNAME_M)),)
+ifndef WHISPER_NO_ACCELERATE
 	# Mac M1 - include Accelerate framework
 	ifeq ($(UNAME_S),Darwin)
 		CFLAGS  += -DGGML_USE_ACCELERATE
