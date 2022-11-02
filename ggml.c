@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#if defined _MSC_VER
+#if defined _MSC_VER || defined(__MINGW32__)
 #include <Windows.h>
 
 typedef volatile LONG atomic_int;
@@ -198,7 +198,7 @@ static ggml_fp16_t table_exp_f16[1 << 16];
 // timing
 //
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__MINGW32__)
 static int64_t timer_freq;
 void ggml_time_init(void) {
     LARGE_INTEGER frequency;

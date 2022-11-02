@@ -1,6 +1,14 @@
+ifndef UNAME_S
 UNAME_S := $(shell uname -s)
+endif
+
+ifndef UNAME_P
 UNAME_P := $(shell uname -p)
+endif
+
+ifndef UNAME_M
 UNAME_M := $(shell uname -m)
+endif
 
 # Mac OS + Arm can report x86_64
 # ref: https://github.com/ggerganov/whisper.cpp/issues/66#issuecomment-1282546789
@@ -78,13 +86,13 @@ main: examples/main/main.cpp ggml.o whisper.o
 	./main -h
 
 ggml.o: ggml.c ggml.h
-	$(CC)  $(CFLAGS)   -c ggml.c
+	$(CC)  $(CFLAGS)   -c ggml.c -o ggml.o
 
 whisper.o: whisper.cpp whisper.h
-	$(CXX) $(CXXFLAGS) -c whisper.cpp
+	$(CXX) $(CXXFLAGS) -c whisper.cpp -o whisper.o
 
 libwhisper.a: ggml.o whisper.o
-	ar rcs libwhisper.a ggml.o whisper.o
+	$(AR) rcs libwhisper.a ggml.o whisper.o
 
 clean:
 	rm -f *.o main stream bench libwhisper.a
