@@ -81,9 +81,14 @@ endif
 # Build library + main
 #
 
-main: examples/main/main.cpp ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) examples/main/main.cpp whisper.o ggml.o -o main $(LDFLAGS)
-	./main -h
+# main: examples/main/main.cpp ggml.o whisper.o
+# 	$(CXX) $(CXXFLAGS) examples/main/main.cpp whisper.o ggml.o -o main $(LDFLAGS)
+# 	./main -h
+
+# change the main to my stripped down version
+main: examples/whisperer/whisperer.cpp ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) examples/whisperer/whisperer.cpp whisper.o ggml.o -o whisperer $(LDFLAGS)
+	./whisperer -h
 
 ggml.o: ggml.c ggml.h
 	$(CC)  $(CFLAGS)   -c ggml.c -o ggml.o
