@@ -55,7 +55,7 @@ endif
 ifeq ($(UNAME_M),amd64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
 endif
-ifneq ($(filter arm%,$(UNAME_M)),)
+ifndef WHISPER_NO_ACCELERATE
 	# Mac M1 - include Accelerate framework
 	ifeq ($(UNAME_S),Darwin)
 		CFLAGS  += -DGGML_USE_ACCELERATE
