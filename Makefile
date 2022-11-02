@@ -1,6 +1,21 @@
-UNAME_S=${UNAME_S:-shell uname -s}
-UNAME_P=${UNAME_P:-shell uname -p}
-UNAME_M=${UNAME_M:-shell uname -m}
+ifdef UNAME_S
+UNAME_S := $(UNAME_S)
+else
+UNAME_S := $(shell uname -s)
+endif
+
+ifdef UNAME_P
+UNAME_P := $(UNAME_P)
+else
+UNAME_P := $(shell uname -p)
+endif
+
+ifdef UNAME_S
+UNAME_M := $(UNAME_M)
+else
+UNAME_M := $(shell uname -m)
+endif
+
 
 # Mac OS + Arm can report x86_64
 # ref: https://github.com/ggerganov/whisper.cpp/issues/66#issuecomment-1282546789
@@ -72,6 +87,11 @@ endif
 #
 # Build library + main
 #
+
+all:
+	@echo $(UNAME_S)
+	@echo $(UNAME_P)
+	@echo $(UNAME_M)
 
 main: examples/main/main.cpp ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) examples/main/main.cpp whisper.o ggml.o -o main $(LDFLAGS)
