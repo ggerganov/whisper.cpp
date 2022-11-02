@@ -34,6 +34,33 @@ As an example, here is a video of running the model on an iPhone 13 device - ful
 
 https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-bf96-1d8c27b98c81.mp4
 
+## Implementation details
+
+- The core tensor operations are implemented in C ([ggml.h](ggml.h) / [ggml.c](ggml.c))
+- The transformer model and the high-level C-style API are implemented in C++ ([whisper.h](whisper.h) / [whisper.cpp](whisper.cpp))
+- Sample usage is demonstrated in [main.cpp](examples/main)
+- Sample real-time audio transcription from the microphone is demonstrated in [stream.cpp](examples/stream)
+- Various other examples are available in the [examples](examples) folder
+
+The tensor operators are optimized heavily for Apple silicon CPUs. Depending on the computation size, Arm Neon SIMD
+instrisics or CBLAS Accelerate framework routines are used. The latter are especially effective for bigger sizes since
+the Accelerate framework utilizes the special-purpose AMX coprocessor available in modern Apple products.
+
+## Limitations
+
+- Inference only
+- No GPU support
+- Very basic greedy sampling scheme - always pick up the token with highest probability.
+  This should be similar to the [GreedyDecoder](https://github.com/openai/whisper/blob/main/whisper/decoding.py#L249-L274)
+  from the original python implementation, so in order to make a fair comparison between the 2 implementations, make sure
+  to run the python code with the following parameters:
+
+  ```
+  whisper --best_of None --beam_size None ...
+  ```
+
+  In the future, `whisper.cpp` will support more sampling strategies.
+
 ## Quick start
 
 First, download one of the Whisper models converted in [ggml format](models). For example:
@@ -318,33 +345,6 @@ ffplay ./samples/gb0.wav.mp4
 https://user-images.githubusercontent.com/1991296/199337538-b7b0c7a3-2753-4a88-a0cd-f28a317987ba.mp4
 
 ---
-
-## Implementation details
-
-- The core tensor operations are implemented in C ([ggml.h](ggml.h) / [ggml.c](ggml.c))
-- The transformer model and the high-level C-style API are implemented in C++ ([whisper.h](whisper.h) / [whisper.cpp](whisper.cpp))
-- Sample usage is demonstrated in [main.cpp](examples/main)
-- Sample real-time audio transcription from the microphone is demonstrated in [stream.cpp](examples/stream)
-- Various other examples are available in the [examples](examples) folder
-
-The tensor operators are optimized heavily for Apple silicon CPUs. Depending on the computation size, Arm Neon SIMD
-instrisics or CBLAS Accelerate framework routines are used. The latter are especially effective for bigger sizes since
-the Accelerate framework utilizes the special-purpose AMX coprocessor available in modern Apple products.
-
-## Limitations
-
-- Inference only
-- No GPU support
-- Very basic greedy sampling scheme - always pick up the token with highest probability.
-  This should be similar to the [GreedyDecoder](https://github.com/openai/whisper/blob/main/whisper/decoding.py#L249-L274)
-  from the original python implementation, so in order to make a fair comparison between the 2 implementations, make sure
-  to run the python code with the following parameters:
-
-  ```
-  whisper --best_of None --beam_size None ...
-  ```
-
-  In the future, `whisper.cpp` will support more sampling strategies.
 
 ## Benchmarks
 
