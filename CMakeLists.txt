@@ -167,9 +167,11 @@ target_include_directories(${TARGET} PUBLIC
     )
 
 if (MSVC)
-  target_link_libraries(${TARGET} PRIVATE ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(${TARGET} PRIVATE ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+    set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -D_CRT_SECURE_NO_WARNINGS)
 else()
-  target_link_libraries(${TARGET} PRIVATE m ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(${TARGET} PRIVATE m ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 if (BUILD_SHARED_LIBS)
@@ -180,10 +182,6 @@ if (BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET} PUBLIC
         WHISPER_SHARED
         )
-
-    if (MSVC)
-        target_compile_definitions(${TARGET} PUBLIC __AVX2__ _CRT_SECURE_NO_WARNINGS)
-    endif()
 endif()
 
 target_compile_definitions(${TARGET} PUBLIC
