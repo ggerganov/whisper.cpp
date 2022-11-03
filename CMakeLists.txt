@@ -47,7 +47,7 @@ else()
     option(WHISPER_SUPPORT_OPENBLAS    "whisper: support for OpenBLAS" OFF)
 endif()
 
-option(WHISPER_PERF                    "whisper: enable perf timings"          OFF)
+option(WHISPER_PERF                    "whisper: enable perf timings" OFF)
 
 # sanitizers
 
@@ -149,6 +149,10 @@ else()
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -mavx2 -mfma -mf16c")
         endif()
     endif()
+endif()
+
+if (WHISPER_PERF)
+    set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_PERF)
 endif()
 
 #
