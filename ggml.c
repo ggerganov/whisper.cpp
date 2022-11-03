@@ -3150,7 +3150,10 @@ void ggml_compute_forward_add_f32(
     GGML_ASSERT(nb00 == sizeof(float));
 
     if (nb10 == sizeof(float)) {
-        for (int j = ith; j < n; j += nth) {
+        const int j0 = (n/nth)*ith;
+        const int j1 = ith == nth - 1 ? n : (n/nth)*(ith + 1);
+
+        for (int j = j0; j < j1; j++) {
             ggml_vec_add_f32(nc,
                     (float *) ((char *) dst->data  + j*nb1),
                     (float *) ((char *) src0->data + j*nb01),
@@ -6857,7 +6860,7 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
                     } break;
                 case GGML_OP_ADD:
                     {
-                        node->n_tasks = 1;
+                        node->n_tasks = n_threads;
                     } break;
                 case GGML_OP_SUB:
                 case GGML_OP_MUL:
