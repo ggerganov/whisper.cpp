@@ -313,7 +313,7 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
     // TODO: become parameter
     static const char * font = "/System/Library/Fonts/Supplemental/Courier New Bold.ttf";
 
-    fout << "!/bin/bash" << "\n";
+    fout << "#!/bin/bash" << "\n";
     fout << "\n";
 
     fout << "ffmpeg -i " << fname_inp << " -f lavfi -i color=size=1200x120:duration=" << t_sec << ":rate=25:color=black -vf \"";
