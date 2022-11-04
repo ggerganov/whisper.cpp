@@ -82,6 +82,8 @@ There are a lot of ways to improve this idea and I don't have much experience wi
   Here is a proof-of-concept:
   
   https://user-images.githubusercontent.com/1991296/199078847-0278fcde-5667-4748-ba0d-7d55381d6047.mp4
+    
+  https://user-images.githubusercontent.com/1991296/200067939-f98d2ac2-7519-438a-85f9-79db0841ba4f.mp4
   
   For explanation how this works see: https://twitter.com/ggerganov/status/1587168771789258756
 
