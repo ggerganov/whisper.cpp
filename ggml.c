@@ -589,7 +589,7 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
     const __m512 sum23 = _mm512_add_ps(sum2, sum3);
     const __m512 sum0123 = _mm512_add_ps(sum01, sum23);
 
-    sumf = sum0123[0] + sum0123[1] + sum0123[2] + sum0123[3] + sum0123[4] + sum0123[5] + sum0123[6] + sum0123[7];
+    sumf = sum0123[0] + sum0123[1] + sum0123[2] + sum0123[3] + sum0123[4] + sum0123[5] + sum0123[6] + sum0123[7] + sum0123[8] + sum0123[9] + sum0123[10] + sum0123[11] + sum0123[12] + sum0123[13] + sum0123[14] + sum0123[15];
 #elif defined(__AVX2__)
     // AVX 256-bit
     const int n32 = (n & ~31);
