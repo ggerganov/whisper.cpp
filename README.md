@@ -26,8 +26,8 @@ Supported platforms:
 
 The entire implementation of the model is contained in 2 source files:
 
-- [ggml.h](ggml.h) / [ggml.c](ggml.c)
-- [whisper.h](whisper.h) / [whisper.cpp](whisper.cpp)
+- Tensor operations: [ggml.h](ggml.h) / [ggml.c](ggml.c)
+- Transformer inference: [whisper.h](whisper.h) / [whisper.cpp](whisper.cpp)
 
 Having such a lightweight implementation of the model allows to easily integrate it in different platforms and applications.
 As an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device:
