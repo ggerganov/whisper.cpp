@@ -1,6 +1,14 @@
+ifndef UNAME_S
 UNAME_S := $(shell uname -s)
+endif
+
+ifndef UNAME_P
 UNAME_P := $(shell uname -p)
+endif
+
+ifndef UNAME_M
 UNAME_M := $(shell uname -m)
+endif
 
 # Mac OS + Arm can report x86_64
 # ref: https://github.com/ggerganov/whisper.cpp/issues/66#issuecomment-1282546789
@@ -8,8 +16,8 @@ ifeq ($(UNAME_S),Darwin)
 	ifneq ($(UNAME_P),arm)
 		SYSCTL_M := $(shell sysctl -n hw.optional.arm64)
 		ifeq ($(SYSCTL_M),1)
-			UNAME_P := arm
-			UNAME_M := arm64
+			# UNAME_P := arm
+			# UNAME_M := arm64
 			warn := $(warning Your arch is announced as x86_64, but it seems to actually be ARM64. Not fixing that can lead to bad performance. For more info see: https://github.com/ggerganov/whisper.cpp/issues/66\#issuecomment-1282546789)
 		endif
 	endif
@@ -51,7 +59,7 @@ endif
 ifeq ($(UNAME_M),amd64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
 endif
-ifneq ($(filter arm%,$(UNAME_M)),)
+ifndef WHISPER_NO_ACCELERATE
 	# Mac M1 - include Accelerate framework
 	ifeq ($(UNAME_S),Darwin)
 		CFLAGS  += -DGGML_USE_ACCELERATE
@@ -82,13 +90,13 @@ main: examples/main/main.cpp ggml.o whisper.o
 	./main -h
 
 ggml.o: ggml.c ggml.h
-	$(CC)  $(CFLAGS)   -c ggml.c
+	$(CC)  $(CFLAGS)   -c ggml.c -o ggml.o
 
 whisper.o: whisper.cpp whisper.h
-	$(CXX) $(CXXFLAGS) -c whisper.cpp
+	$(CXX) $(CXXFLAGS) -c whisper.cpp -o whisper.o
 
 libwhisper.a: ggml.o whisper.o
-	ar rcs libwhisper.a ggml.o whisper.o
+	$(AR) rcs libwhisper.a ggml.o whisper.o
 
 clean:
 	rm -f *.o main stream bench libwhisper.a

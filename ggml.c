@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#if defined _MSC_VER
+#if defined _MSC_VER || defined(__MINGW32__)
 #include <Windows.h>
 
 typedef volatile LONG atomic_int;
@@ -43,6 +43,11 @@ static int pthread_create(pthread_t* out, void* unused, thread_ret_t(*func)(void
 
 static int pthread_join(pthread_t thread, void* unused) {
     return (int) WaitForSingleObject(thread, INFINITE);
+}
+
+static int sched_yield (void) {
+    Sleep (0);
+    return 0;
 }
 #else
 #include <pthread.h>
@@ -76,6 +81,8 @@ typedef void* thread_ret_t;
 
 #ifdef GGML_USE_ACCELERATE
 #include <Accelerate/Accelerate.h>
+#elif GGML_USE_OPENBLAS
+#include <cblas.h>
 #endif
 
 // floating point type used to accumulate sums
@@ -191,7 +198,7 @@ static ggml_fp16_t table_exp_f16[1 << 16];
 // timing
 //
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__MINGW32__)
 static int64_t timer_freq;
 void ggml_time_init(void) {
     LARGE_INTEGER frequency;
@@ -1284,6 +1291,7 @@ struct ggml_state {
 
 // global state
 struct ggml_state g_state;
+atomic_int g_state_barrier = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1413,6 +1421,17 @@ int ggml_up64(int n) {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct ggml_context * ggml_init(struct ggml_init_params params) {
+    // make this function thread safe
+    {
+        int processing = atomic_fetch_add(&g_state_barrier, 1);
+        while (processing > 0) {
+            // wait for other threads to finish
+            atomic_fetch_sub(&g_state_barrier, 1);
+            sched_yield();
+            processing = atomic_fetch_add(&g_state_barrier, 1);
+        }
+    }
+
     static bool is_first_call = true;
     if (is_first_call) {
         const uint64_t t_start = ggml_time_us(); UNUSED(t_start);
@@ -1456,6 +1475,9 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
 
     if (ctx == NULL) {
         GGML_PRINT_DEBUG("%s: no unused context found\n", __func__);
+
+        atomic_fetch_sub(&g_state_barrier, 1);
+
         return NULL;
     }
 
@@ -1470,10 +1492,25 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
 
     ggml_assert_aligned(ctx->mem_buffer);
 
+    GGML_PRINT_DEBUG("%s: context initialized\n", __func__);
+
+    atomic_fetch_sub(&g_state_barrier, 1);
+
     return ctx;
 }
 
 void ggml_free(struct ggml_context * ctx) {
+    // make this function thread safe
+    {
+        int processing = atomic_fetch_add(&g_state_barrier, 1);
+        while (processing > 0) {
+            // wait for other threads to finish
+            atomic_fetch_sub(&g_state_barrier, 1);
+            sched_yield();
+            processing = atomic_fetch_add(&g_state_barrier, 1);
+        }
+    }
+
     for (int i = 0; i < GGML_MAX_CONTEXTS; i++) {
         if (&g_state.contexts[i].context == ctx) {
             g_state.contexts[i].used = false;
@@ -1485,11 +1522,15 @@ void ggml_free(struct ggml_context * ctx) {
                 free(ctx->mem_buffer);
             }
 
+            atomic_fetch_sub(&g_state_barrier, 1);
+
             return;
         }
     }
 
     GGML_PRINT_DEBUG("%s: context not found\n", __func__);
+
+    atomic_fetch_sub(&g_state_barrier, 1);
 }
 
 size_t ggml_used_mem(const struct ggml_context * ctx) {
@@ -3259,7 +3300,10 @@ void ggml_compute_forward_add_f32(
     GGML_ASSERT(nb00 == sizeof(float));
 
     if (nb10 == sizeof(float)) {
-        for (int j = ith; j < n; j += nth) {
+        const int j0 = (n/nth)*ith;
+        const int j1 = ith == nth - 1 ? n : (n/nth)*(ith + 1);
+
+        for (int j = j0; j < j1; j++) {
             ggml_vec_add_f32(nc,
                     (float *) ((char *) dst->data  + j*nb1),
                     (float *) ((char *) src0->data + j*nb01),
@@ -4205,46 +4249,44 @@ void ggml_compute_forward_mul_mat_f32(
     // nb00 <  nb01 - src0 is transposed
     //   compute by src0 columns
 
-//#ifdef GGML_USE_ACCELERATE
-//    if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
-//        GGML_ASSERT(ggml_is_contiguous(src0));
-//        GGML_ASSERT(nb10 == sizeof(float));
-//
-//        if (params->ith != 0) return;
-//
-//        if (params->type == GGML_TASK_INIT) {
-//            return;
-//        }
-//
-//        if (params->type == GGML_TASK_FINALIZE) {
-//            return;
-//        }
-//
-//        float * const wdata = params->wdata;
-//
-//        for (int i03 = 0; i03 < ne03; i03++) {
-//            for (int i02 = 0; i02 < ne02; i02++) {
-//                const float * x = (float *) (src0->data);
-//                const float * y = (float *) ((char *) src1->data + i02*nb12 + i03*nb13);
-//
-//                float * d = (float *) ((char *) dst->data + i02*nb2 + i03*nb3);
-//
-//                // zT = y * xT
-//                {
-//                    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans,
-//                            ne11, ne01, ne10,
-//                            1.0f,    y, ne10,
-//                                     x, ne10,
-//                            0.0f,    d, ne01);
-//                }
-//            }
-//        }
-//
-//        //printf("CBLAS F32 = %f ms, %d x %d x %d x %d\n", (ggml_perf_time_us() - t0)/1000.0, ne0, ne1, ne2, ne3);
-//
-//        return;
-//    }
-//#endif
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
+    if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
+        GGML_ASSERT(ggml_is_contiguous(src0));
+        GGML_ASSERT(nb10 == sizeof(float));
+
+        if (params->ith != 0) return;
+
+        if (params->type == GGML_TASK_INIT) {
+            return;
+        }
+
+        if (params->type == GGML_TASK_FINALIZE) {
+            return;
+        }
+
+        for (int i03 = 0; i03 < ne03; i03++) {
+            for (int i02 = 0; i02 < ne02; i02++) {
+                const float * x = (float *) (src0->data);
+                const float * y = (float *) ((char *) src1->data + i02*nb12 + i03*nb13);
+
+                float * d = (float *) ((char *) dst->data + i02*nb2 + i03*nb3);
+
+                // zT = y * xT
+                {
+                    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans,
+                            ne11, ne01, ne10,
+                            1.0f,    y, ne10,
+                                     x, ne10,
+                            0.0f,    d, ne01);
+                }
+            }
+        }
+
+        //printf("CBLAS F32 = %f ms, %d x %d x %d x %d\n", (ggml_perf_time_us() - t0)/1000.0, ne0, ne1, ne2, ne3);
+
+        return;
+    }
+#endif
 
     if (params->type == GGML_TASK_INIT) {
         if (nb01 >= nb00) {
@@ -4451,7 +4493,7 @@ void ggml_compute_forward_mul_mat_f16_f32(
     // nb00 <  nb01 - src0 is transposed
     //   compute by src0 columns
 
-#ifdef GGML_USE_ACCELERATE
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
     if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
         GGML_ASSERT(nb10 == sizeof(float));
 
@@ -6968,7 +7010,7 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
                     } break;
                 case GGML_OP_ADD:
                     {
-                        node->n_tasks = 1;
+                        node->n_tasks = n_threads;
                     } break;
                 case GGML_OP_SUB:
                 case GGML_OP_MUL:
@@ -7007,7 +7049,7 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
                         } else {
                             if (node->src0->type == GGML_TYPE_F16 &&
                                 node->src1->type == GGML_TYPE_F32) {
-#ifdef GGML_USE_ACCELERATE
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
                                 if (ggml_compute_forward_mul_mat_use_blas(node->src0, node->src1, node)) {
                                     cur = sizeof(float)*(node->src0->ne[0]*node->src0->ne[1]);
                                 } else {
@@ -8200,7 +8242,7 @@ int ggml_cpu_has_avx512(void) {
 }
 
 int ggml_cpu_has_neon(void) {
-#if defined(__ARM_NEON__)
+#if defined(__ARM_NEON)
     return 1;
 #else
     return 0;
@@ -8224,7 +8266,7 @@ int ggml_cpu_has_wasm_simd(void) {
 }
 
 int ggml_cpu_has_blas(void) {
-#if defined(GGML_USE_BLAS) || defined(GGML_USE_ACCELERATE)
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
     return 1;
 #else
     return 0;

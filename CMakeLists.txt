@@ -41,8 +41,13 @@ option(WHISPER_BUILD_EXAMPLES          "whisper: build examples" ${WHISPER_STAND
 
 option(WHISPER_SUPPORT_SDL2            "whisper: support for libSDL2" OFF)
 
-option(WHISPER_PERF                    "whisper: enable perf timings"          OFF)
-option(WHISPER_NO_ACCELERATE           "whisper: disable Accelerate framework" OFF)
+if (APPLE)
+    option(WHISPER_NO_ACCELERATE       "whisper: disable Accelerate framework" OFF)
+else()
+    option(WHISPER_SUPPORT_OPENBLAS    "whisper: support for OpenBLAS" OFF)
+endif()
+
+option(WHISPER_PERF                    "whisper: enable perf timings" OFF)
 
 # sanitizers
 
@@ -83,6 +88,18 @@ if (APPLE AND NOT WHISPER_NO_ACCELERATE)
         set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_ACCELERATE)
     else()
         message(WARNING "Accelerate framework not found")
+    endif()
+endif()
+
+if (WHISPER_SUPPORT_OPENBLAS)
+    find_library(OPENBLAS_LIB openblas)
+    if (OPENBLAS_LIB)
+        message(STATUS "OpenBLAS found")
+
+        set(WHISPER_EXTRA_LIBS  ${WHISPER_EXTRA_LIBS}  ${OPENBLAS_LIB})
+        set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_OPENBLAS)
+    else()
+        message(WARNING "OpenBLAS not found")
     endif()
 endif()
 
@@ -134,6 +151,10 @@ else()
     endif()
 endif()
 
+if (WHISPER_PERF)
+    set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_PERF)
+endif()
+
 #
 # whisper - this is the main library of the project
 #
@@ -150,9 +171,11 @@ target_include_directories(${TARGET} PUBLIC
     )
 
 if (MSVC)
-  target_link_libraries(${TARGET} PRIVATE ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(${TARGET} PRIVATE ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+    set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -D_CRT_SECURE_NO_WARNINGS)
 else()
-  target_link_libraries(${TARGET} PRIVATE m ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(${TARGET} PRIVATE m ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 if (BUILD_SHARED_LIBS)
@@ -163,10 +186,6 @@ if (BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET} PUBLIC
         WHISPER_SHARED
         )
-
-    if (MSVC)
-        target_compile_definitions(${TARGET} PUBLIC __AVX2__ _CRT_SECURE_NO_WARNINGS)
-    endif()
 endif()
 
 target_compile_definitions(${TARGET} PUBLIC

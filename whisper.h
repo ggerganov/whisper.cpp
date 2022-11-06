@@ -68,6 +68,22 @@ extern "C" {
 
     typedef int whisper_token;
 
+    typedef struct whisper_token_data {
+        whisper_token id;  // token id
+        whisper_token tid; // forced timestamp token id
+
+        float p;     // probability of the token
+        float pt;    // probability of the timestamp token
+        float ptsum; // sum of probabilities of all timestamp tokens
+
+        // token-level timestamp data
+        // do not use if you haven't computed token-level timestamps
+        int64_t t0; // start time of the token
+        int64_t t1; //   end time of the token
+
+        float vlen; // voice length of the token
+    } whisper_token_data;
+
     // Allocates all memory needed for the model and loads the model from the given file.
     // Returns NULL on failure.
     WHISPER_API struct whisper_context * whisper_init(const char * path_model);
@@ -120,7 +136,7 @@ extern "C" {
     // You can also implement your own sampling method using the whisper_get_probs() function.
     // whisper_sample_best() returns the token with the highest probability
     // whisper_sample_timestamp() returns the most probable timestamp token
-    WHISPER_API whisper_token whisper_sample_best(struct whisper_context * ctx);
+    WHISPER_API whisper_token_data whisper_sample_best(struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_sample_timestamp(struct whisper_context * ctx);
 
     // Return the id of the specified language, returns -1 if not found
@@ -163,12 +179,13 @@ extern "C" {
     // Text segment callback
     // Called on every newly generated text segment
     // Use the whisper_full_...() functions to obtain the text segments
-    typedef void (*whisper_new_segment_callback)(struct whisper_context * ctx, void * user_data);
+    typedef void (*whisper_new_segment_callback)(struct whisper_context * ctx, int n_new, void * user_data);
 
     struct whisper_full_params {
         enum whisper_sampling_strategy strategy;
 
         int n_threads;
+        int n_max_text_ctx;
         int offset_ms;
 
         bool translate;
@@ -177,6 +194,12 @@ extern "C" {
         bool print_progress;
         bool print_realtime;
         bool print_timestamps;
+
+        // [EXPERIMENTAL] token-level timestamps
+        bool  token_timestamps; // enable token-level timestamps
+        float thold_pt;         // timestamp token probability threshold (~0.01)
+        float thold_ptsum;      // timestamp token sum probability threshold (~0.01)
+        int   max_len;          // max segment length in characters
 
         const char * language;
 
@@ -204,6 +227,16 @@ extern "C" {
             const float * samples,
             int n_samples);
 
+    // Split the input audio in chunks and process each chunk separately using whisper_full()
+    // It seems this approach can offer some speedup in some cases.
+    // However, the transcription accuracy can be worse at the beginning and end of each chunk.
+    WHISPER_API int whisper_full_parallel(
+            struct whisper_context * ctx,
+            struct whisper_full_params params,
+            const float * samples,
+            int n_samples,
+            const int n_processors);
+
     // Number of generated text segments.
     // A segment can be a few words, a sentence, or even a paragraph.
     WHISPER_API int whisper_full_n_segments(struct whisper_context * ctx);
@@ -221,6 +254,10 @@ extern "C" {
     // Get the token text of the specified token in the specified segment.
     WHISPER_API const char * whisper_full_get_token_text(struct whisper_context * ctx, int i_segment, int i_token);
     WHISPER_API whisper_token whisper_full_get_token_id (struct whisper_context * ctx, int i_segment, int i_token);
+
+    // Get token data for the specified token in the specified segment.
+    // This contains probabilities, timestamps, etc.
+    WHISPER_API whisper_token_data whisper_full_get_token_data(struct whisper_context * ctx, int i_segment, int i_token);
 
     // Get the probability of the specified token in the specified segment.
     WHISPER_API float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token);
