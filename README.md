@@ -437,9 +437,12 @@ For more details, see the conversion script [models/convert-pt-to-ggml.py](model
 ## Bindings
 
 - [X] Rust: [tazz4843/whisper-rs](https://github.com/tazz4843/whisper-rs)
+- [X] Objective-C / Swift: [ggerganov/whisper.spm](https://github.com/ggerganov/whisper.spm)
 - [ ] Python:
 - [ ] Java:
 
 ## Examples
 
 There are various examples of using the library for different projects in the [examples](examples) folder. Check them out!
+
+## [Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126)
