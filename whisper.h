@@ -186,7 +186,8 @@ extern "C" {
 
         int n_threads;
         int n_max_text_ctx;
-        int offset_ms;
+        int offset_ms;      // start offset in ms
+        int duration_ms;    // audio duration to process in ms
 
         bool translate;
         bool no_context;

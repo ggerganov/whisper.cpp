@@ -53,6 +53,7 @@ struct whisper_params {
     int32_t n_processors = 1;
     int32_t offset_t_ms  = 0;
     int32_t offset_n     = 0;
+    int32_t duration_ms  = 0;
     int32_t max_context  = -1;
     int32_t max_len      = 0;
 
@@ -95,6 +96,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             params.offset_t_ms = std::stoi(argv[++i]);
         } else if (arg == "-on" || arg == "--offset-n") {
             params.offset_n = std::stoi(argv[++i]);
+        } else if (arg == "-d" || arg == "--duration") {
+            params.duration_ms = std::stoi(argv[++i]);
         } else if (arg == "-mc" || arg == "--max-context") {
             params.max_context = std::stoi(argv[++i]);
         } else if (arg == "-ml" || arg == "--max-len") {
@@ -154,6 +157,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "  -p N,     --processors N   number of processors to use during computation (default: %d)\n", params.n_processors);
     fprintf(stderr, "  -ot N,    --offset-t N     time offset in milliseconds (default: %d)\n", params.offset_t_ms);
     fprintf(stderr, "  -on N,    --offset-n N     segment index offset (default: %d)\n", params.offset_n);
+    fprintf(stderr, "  -d  N,    --duration N     duration of audio to process in milliseconds (default: %d)\n", params.duration_ms);
     fprintf(stderr, "  -mc N,    --max-context N  maximum number of text context tokens to store (default: max)\n");
     fprintf(stderr, "  -ml N,    --max-len N      maximum segment length in characters (default: %d)\n", params.max_len);
     fprintf(stderr, "  -wt N,    --word-thold N   word timestamp probability threshold (default: %f)\n", params.word_thold);
@@ -532,6 +536,7 @@ int main(int argc, char ** argv) {
             wparams.n_threads            = params.n_threads;
             wparams.n_max_text_ctx       = params.max_context >= 0 ? params.max_context : wparams.n_max_text_ctx;
             wparams.offset_ms            = params.offset_t_ms;
+            wparams.duration_ms          = params.duration_ms;
 
             wparams.token_timestamps     = params.output_wts || params.max_len > 0;
             wparams.thold_pt             = params.word_thold;

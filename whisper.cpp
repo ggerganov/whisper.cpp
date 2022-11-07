@@ -2339,6 +2339,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.n_threads            =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
                     /*.n_max_text_ctx       =*/ 16384,
                     /*.offset_ms            =*/ 0,
+                    /*.duration_ms          =*/ 0,
 
                     /*.translate            =*/ false,
                     /*.no_context           =*/ false,
@@ -2376,6 +2377,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.n_threads            =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
                     /*.n_max_text_ctx       =*/ 16384,
                     /*.offset_ms            =*/ 0,
+                    /*.duration_ms          =*/ 0,
 
                     /*.translate            =*/ false,
                     /*.no_context           =*/ false,
@@ -2496,11 +2498,12 @@ int whisper_full(
     }
 
     const int seek_start = params.offset_ms/10;
+    const int seek_end = seek_start + (params.duration_ms == 0 ? whisper_n_len(ctx) : params.duration_ms/10);
 
     // if length of spectrogram is less than 1s (100 samples), then return
     // basically don't process anything that is less than 1s
     // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
-    if (whisper_n_len(ctx) < 100 + seek_start) {
+    if (seek_end < 100 + seek_start) {
         return 0;
     }
 
@@ -2533,7 +2536,7 @@ int whisper_full(
     // main loop
     int seek = seek_start;
     while (true) {
-        int progress_cur = (100*seek)/whisper_n_len(ctx);
+        const int progress_cur = (100*(seek - seek_start))/(seek_end - seek_start);
         while (progress_cur >= progress_prev + progress_step) {
             progress_prev += progress_step;
             if (params.print_progress) {
@@ -2541,7 +2544,7 @@ int whisper_full(
             }
         }
 
-        if (seek + 100 >= whisper_n_len(ctx)) {
+        if (seek + 100 >= seek_end) {
             break;
         }
 
@@ -2622,7 +2625,7 @@ int whisper_full(
                 // end of text token
                 if (token.id == whisper_token_eot(ctx)) {
                     if (result_len == 0) {
-                        if (seek + seek_delta + 100 >= whisper_n_len(ctx)) {
+                        if (seek + seek_delta + 100 >= seek_end) {
                             result_len = i + 1;
                         } else {
                             // TODO: figure out how to resolve this
