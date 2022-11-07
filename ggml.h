@@ -108,7 +108,8 @@ struct ggml_tensor {
     int64_t perf_time_us;
 
     void * data;
-    char padding[8];
+    int32_t id; // TODO: mtl buffer id
+    char pad[4];
 };
 
 // computation graph
@@ -168,6 +169,12 @@ struct ggml_tensor * ggml_new_tensor_1d(
         int    ne0);
 
 struct ggml_tensor * ggml_new_tensor_2d(
+        struct ggml_context * ctx,
+        enum   ggml_type type,
+        int    ne0,
+        int    ne1);
+
+struct ggml_tensor * ggml_new_tensor_2d_mtl(
         struct ggml_context * ctx,
         enum   ggml_type type,
         int    ne0,
