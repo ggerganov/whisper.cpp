@@ -9,6 +9,11 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(WHISPER_STANDALONE ON)
     include(cmake/GitVars.cmake)
     include(cmake/BuildTypes.cmake)
+
+    # configure project version
+    if (EXISTS "${CMAKE_SOURCE_DIR}/bindings/ios/Makefile-tmpl")
+        configure_file(${CMAKE_SOURCE_DIR}/bindings/ios/Makefile-tmpl ${CMAKE_SOURCE_DIR}/bindings/ios/Makefile @ONLY)
+    endif()
 else()
     set(WHISPER_STANDALONE OFF)
 endif()

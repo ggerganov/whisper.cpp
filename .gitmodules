@@ -1,0 +1,3 @@
+[submodule "bindings/ios"]
+	path = bindings/ios
+	url = https://github.com/ggerganov/whisper.spm
