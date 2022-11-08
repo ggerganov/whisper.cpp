@@ -372,6 +372,10 @@ extern "C" {
     WHISPER_API int whisper_bench_memcpy(int n_threads);
     WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads);
 
+    // Temporary experimental API
+
+    WHISPER_API void whisper_full_cluster_segments(struct whisper_context * ctx);
+
 #ifdef __cplusplus
 }
 #endif
