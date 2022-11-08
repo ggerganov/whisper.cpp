@@ -143,8 +143,8 @@ if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES
 else()
     message(STATUS "x86 detected")
     if (MSVC)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:AVX2")
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /arch:AVX2")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /arch:AVX2")
     else()
         if (EMSCRIPTEN)
             # we require support for WASM SIMD 128-bit
