@@ -50,7 +50,19 @@ endif
 # TODO: probably these flags need to be tweaked on some architectures
 #       feel free to update the Makefile for your architecture and send a pull request or issue
 ifeq ($(UNAME_M),x86_64)
-	CFLAGS += -mavx -mavx2 -mfma -mf16c
+	CFLAGS += -mfma -mf16c
+	ifeq ($(UNAME_S),Darwin)
+		AVX1_M := $(shell sysctl machdep.cpu.features)
+		ifneq (,$(findstring AVX1.0,$(AVX1_M)))
+			CFLAGS += -mavx
+		endif
+		AVX2_M := $(shell sysctl machdep.cpu.leaf7_features)
+		ifneq (,$(findstring AVX2,$(AVX2_M)))
+			CFLAGS += -mavx2
+		endif
+	else
+		CFLAGS += -mavx -mavx2
+	endif
 endif
 ifeq ($(UNAME_M),amd64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
