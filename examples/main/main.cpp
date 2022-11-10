@@ -454,9 +454,30 @@ int main(int argc, char ** argv) {
         std::vector<float> pcmf32;
         {
             drwav wav;
-            if (!drwav_init_file(&wav, fname_inp.c_str(), NULL)) {
-                fprintf(stderr, "%s: failed to open WAV file '%s' - check your input\n", argv[0], fname_inp.c_str());
-                whisper_print_usage(argc, argv, {});
+            
+            if (fname_inp == "-") {
+                std::vector<uint8_t> wav_data;
+                {
+                    uint8_t buf[1024];
+                    while (true)
+                    {
+                        const size_t n = fread(buf, 1, sizeof(buf), stdin);
+                        if (n == 0)
+                        {
+                            break;
+                        }
+                        wav_data.insert(wav_data.end(), buf, buf + n);
+                    }
+                }
+
+                if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), NULL) == false)
+                {
+                    fprintf(stderr, "error: failed to open WAV file from stdin\n");
+                    return 4;
+                }
+            }
+            else if (drwav_init_file(&wav, fname_inp.c_str(), NULL) == false) {
+                fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname_inp.c_str());
                 return 4;
             }
 
