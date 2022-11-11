@@ -24,6 +24,9 @@
 #define WHISPER_HOP_LENGTH  160
 #define WHISPER_CHUNK_SIZE  30
 
+#define WHISPER_EXPERIMENT_AUDIO_CTX 512
+#define WHISPER_EXPERIMENT_MAX_TOKENS_PER_SEGMENT 32
+
 #ifdef __cplusplus
 extern "C" {
 #endif

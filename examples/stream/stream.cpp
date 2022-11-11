@@ -221,6 +221,7 @@ int main(int argc, char ** argv) {
     const int n_samples = (params.step_ms/1000.0)*WHISPER_SAMPLE_RATE;
     const int n_samples_len = (params.length_ms/1000.0)*WHISPER_SAMPLE_RATE;
     const int n_samples_30s = 30*WHISPER_SAMPLE_RATE;
+    const int n_samples_keep = 0.2*WHISPER_SAMPLE_RATE;
 
     std::vector<float> pcmf32(n_samples_30s, 0.0f);
     std::vector<float> pcmf32_old;
@@ -303,7 +304,7 @@ int main(int argc, char ** argv) {
         //const int n_samples_take = std::min((int) pcmf32_old.size(), std::max(0, n_samples_30s/30 - n_samples_new));
 
         // take up to params.length_ms audio from previous iteration
-        const int n_samples_take = std::min((int) pcmf32_old.size(), std::max(0, n_samples_len - n_samples_new));
+        const int n_samples_take = std::min((int) pcmf32_old.size(), std::max(0, n_samples_keep + n_samples_len - n_samples_new));
 
         //printf("processing: take = %d, new = %d, old = %d\n", n_samples_take, n_samples_new, (int) pcmf32_old.size());
 
@@ -379,7 +380,8 @@ int main(int argc, char ** argv) {
             if ((n_iter % n_new_line) == 0) {
                 printf("\n");
 
-                pcmf32_old.clear();
+                // keep part of the audio for next iteration to try to mitigate word boundary issues
+                pcmf32_old = std::vector<float>(pcmf32.end() - n_samples_keep, pcmf32.end());
             }
         }
     }
