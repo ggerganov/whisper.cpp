@@ -297,7 +297,6 @@ for name in list_vars.keys():
                 name == "encoder.conv2.bias"   or \
                 name == "encoder.positional_embedding" or \
                 name == "decoder.positional_embedding":
-            ftype = 0
             print("  Converting to float32")
             data = data.astype(np.float32)
             ftype = 0
