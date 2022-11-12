@@ -70,8 +70,8 @@ endif
 ifndef WHISPER_NO_ACCELERATE
 	# Mac M1 - include Accelerate framework
 	ifeq ($(UNAME_S),Darwin)
-		CFLAGS  += -DGGML_USE_ACCELERATE
-		LDFLAGS += -framework Accelerate
+		CFLAGS  += -DGGML_USE_ACCELERATE -DGGML_PERF
+		LDFLAGS += -framework Foundation -framework Accelerate -framework Metal -framework MetalKit -framework MetalPerformanceShaders
 	endif
 endif
 ifneq ($(filter aarch64%,$(UNAME_M)),)
@@ -93,18 +93,21 @@ endif
 # Build library + main
 #
 
-main: examples/main/main.cpp ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) examples/main/main.cpp whisper.o ggml.o -o main $(LDFLAGS)
+main: examples/main/main.cpp ggml.o ggml-mtl.o whisper.o
+	$(CXX) $(CXXFLAGS) examples/main/main.cpp whisper.o ggml.o ggml-mtl.o -o main $(LDFLAGS)
 	./main -h
 
 ggml.o: ggml.c ggml.h
 	$(CC)  $(CFLAGS)   -c ggml.c -o ggml.o
 
+ggml-mtl.o: ggml-mtl.m ggml-mtl.h
+	$(CC)  $(CFLAGS)   -c ggml-mtl.m -o ggml-mtl.o
+
 whisper.o: whisper.cpp whisper.h
 	$(CXX) $(CXXFLAGS) -c whisper.cpp -o whisper.o
 
-libwhisper.a: ggml.o whisper.o
-	$(AR) rcs libwhisper.a ggml.o whisper.o
+libwhisper.a: ggml.o ggml-mtl.o whisper.o
+	$(AR) rcs libwhisper.a ggml.o ggml-mtl.o whisper.o
 
 clean:
 	rm -f *.o main stream bench libwhisper.a

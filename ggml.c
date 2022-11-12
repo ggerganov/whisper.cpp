@@ -1,5 +1,7 @@
 #include "ggml.h"
 
+#include "ggml-mtl.h"
+
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
 #elif !defined(__FreeBSD__)
@@ -1313,6 +1315,8 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
 
     static bool first_time = true;
     if (first_time) {
+        ggml_mtl_init(); // TODO: fix this
+
         for (int i = 0; i < GGML_MAX_CONTEXTS; i++) {
             g_state.contexts[i].used = false;
         }
@@ -1468,6 +1472,104 @@ struct ggml_tensor * ggml_new_tensor_impl(
         /*.perf_cycles  =*/ 0,
         /*.perf_time_us =*/ 0,
         /*.data         =*/ data == NULL ? (void *)(result + 1) : data,
+        /*.id           =*/ -1,
+        /*.pad          =*/ { 0 },
+    };
+
+    ggml_assert_aligned(result->data);
+
+    for (int i = 0; i < n_dims; i++) {
+        result->ne[i] = ne[i];
+    }
+
+    result->nb[0] = GGML_TYPE_SIZE[type];
+    for (int i = 1; i < GGML_MAX_DIMS; i++) {
+        result->nb[i] = result->nb[i - 1]*result->ne[i - 1];
+    }
+
+    ctx->n_objects++;
+
+    return result;
+}
+
+struct ggml_tensor * ggml_new_tensor_mtl_impl(
+        struct ggml_context * ctx,
+        enum   ggml_type type,
+        int    n_dims,
+        const int* ne,
+        void*  data) {
+    // always insert objects at the end of the context's memory pool
+    struct ggml_object * obj_cur = ctx->objects_end;
+
+    const size_t cur_offset = obj_cur == NULL ? 0 : obj_cur->offset;
+    const size_t cur_size   = obj_cur == NULL ? 0 : obj_cur->size;
+    const size_t cur_end    = cur_offset + cur_size;
+
+    struct ggml_mtl_object obj_mtl;
+    {
+        assert(data == NULL); // TODO: in-place metal buffer, need page aligned memory
+        size_t size_needed_mtl = 0;
+        if (data == NULL) {
+            size_needed_mtl += GGML_TYPE_SIZE[type];
+            for (int i = 0; i < n_dims; i++) {
+                size_needed_mtl *= ne[i];
+            }
+        }
+
+        obj_mtl = ggml_mtl_alloc(size_needed_mtl);
+    }
+
+    size_t size_needed = 0;
+    size_needed += sizeof(struct ggml_tensor);
+
+    if (cur_end + size_needed + GGML_OBJECT_SIZE > ctx->mem_size) {
+        GGML_PRINT("%s: not enough space in the context's memory pool\n", __func__);
+        assert(false);
+        return NULL;
+    }
+
+    char * const mem_buffer = ctx->mem_buffer;
+
+    struct ggml_object * const obj_new = (struct ggml_object *)(mem_buffer + cur_end);
+
+    *obj_new = (struct ggml_object) {
+        .offset = cur_end + GGML_OBJECT_SIZE,
+        .size   = size_needed,
+        .next   = NULL,
+    };
+
+    if (obj_cur != NULL) {
+        obj_cur->next = obj_new;
+    } else {
+        // this is the first object in this context
+        ctx->objects_begin = obj_new;
+    }
+
+    ctx->objects_end = obj_new;
+
+    //GGML_PRINT_DEBUG("%s: inserted new object at %zu\n", __func__, cur_end);
+
+    struct ggml_tensor * const result = (struct ggml_tensor *)(mem_buffer + obj_new->offset);
+
+    ggml_assert_aligned(result);
+
+    *result = (struct ggml_tensor) {
+        /*.type         =*/ type,
+        /*.n_dims       =*/ n_dims,
+        /*.ne           =*/ { 1, 1, 1, 1 },
+        /*.nb           =*/ { 0, 0, 0, 0 },
+        /*.op           =*/ GGML_OP_NONE,
+        /*.is_param     =*/ false,
+        /*.grad         =*/ NULL,
+        /*.src0         =*/ NULL,
+        /*.src1         =*/ NULL,
+        /*.opt          =*/ { NULL },
+        /*.n_tasks      =*/ 0,
+        /*.perf_runs    =*/ 0,
+        /*.perf_cycles  =*/ 0,
+        /*.perf_time_us =*/ 0,
+        /*.data         =*/ obj_mtl.data,
+        /*.id           =*/ obj_mtl.id,
         /*.pad          =*/ { 0 },
     };
 
@@ -1495,6 +1597,14 @@ struct ggml_tensor * ggml_new_tensor(
     return ggml_new_tensor_impl(ctx, type, n_dims, ne, NULL);
 }
 
+struct ggml_tensor * ggml_new_tensor_mtl(
+        struct ggml_context * ctx,
+        enum   ggml_type type,
+        int    n_dims,
+        const int* ne) {
+    return ggml_new_tensor_mtl_impl(ctx, type, n_dims, ne, NULL);
+}
+
 struct ggml_tensor * ggml_new_tensor_1d(
         struct ggml_context * ctx,
         enum   ggml_type type,
@@ -1509,6 +1619,15 @@ struct ggml_tensor * ggml_new_tensor_2d(
         int    ne1) {
     const int ne[2] = { ne0, ne1 };
     return ggml_new_tensor(ctx, type, 2, ne);
+}
+
+struct ggml_tensor * ggml_new_tensor_2d_mtl(
+        struct ggml_context * ctx,
+        enum   ggml_type type,
+        int    ne0,
+        int    ne1) {
+    const int ne[2] = { ne0, ne1 };
+    return ggml_new_tensor_mtl(ctx, type, 2, ne);
 }
 
 struct ggml_tensor * ggml_new_tensor_3d(
@@ -4349,8 +4468,11 @@ void ggml_compute_forward_mul_mat_f16_f32(
     // nb00 <  nb01 - src0 is transposed
     //   compute by src0 columns
 
+    // are we using Metal?
+    const bool is_mtl = src0->id >= 0;
+
 #if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
-    if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
+    if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst) && !is_mtl) {
         GGML_ASSERT(nb10 == sizeof(float));
 
         if (params->ith != 0) return;
@@ -4477,6 +4599,20 @@ void ggml_compute_forward_mul_mat_f16_f32(
         assert(nb10/2 == sizeof(ggml_fp16_t));
 
         // parallelize by src0 rows using ggml_vec_dot_f32
+
+        if (is_mtl) {
+            assert(ne02 == 1);
+            assert(ne03 == 1);
+
+            if (params->ith == 0) {
+                printf("XXXXXXXXXXX src0->ne[0] = %d, src0->ne[1] = %d\n", src0->ne[0], src0->ne[1]);
+                printf("XXXXXXXXXXX src1->ne[0] = %d, src1->ne[1] = %d\n", src1->ne[0], src1->ne[1]);
+                struct ggml_mtl_object src0_mtl = { src0->id, src0->data };
+                ggml_fp16_t * src1_fp16 = params->wdata;
+                ggml_mtl_mul_mat_f16(NULL, src0_mtl, src1_fp16, dst->data, ne01, ne11, ne00);
+            }
+            return;
+        }
 
         // total rows in src0
         const int nr = ne01*ne02*ne03;

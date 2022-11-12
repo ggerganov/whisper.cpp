@@ -788,10 +788,10 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
                 layer.mlp_ln_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_audio_state);
                 layer.mlp_ln_b = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_audio_state);
 
-                layer.mlp_0_w = ggml_new_tensor_2d(ctx, wtype,           n_audio_state, 4*n_audio_state);
+                layer.mlp_0_w = ggml_new_tensor_2d_mtl(ctx, wtype,       n_audio_state, 4*n_audio_state); // offload to GPU
                 layer.mlp_0_b = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, 4*n_audio_state);
 
-                layer.mlp_1_w = ggml_new_tensor_2d(ctx, wtype,         4*n_audio_state, n_audio_state);
+                layer.mlp_1_w = ggml_new_tensor_2d_mtl(ctx, wtype,     4*n_audio_state, n_audio_state);   // offload to GPU
                 layer.mlp_1_b = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_audio_state);
 
                 layer.attn_ln_0_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_audio_state);
@@ -1342,7 +1342,7 @@ static bool whisper_encode(
             ggml_build_forward_expand(&gf, inpO);
             ggml_graph_compute       (ctxL, &gf);
 
-            //ggml_graph_print(&gf);
+            ggml_graph_print(&gf);
         }
 
         // TODO: this is a hack to have per-layer computation graphs - need to come up with something better
