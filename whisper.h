@@ -202,6 +202,9 @@ extern "C" {
         float thold_ptsum;      // timestamp token sum probability threshold (~0.01)
         int   max_len;          // max segment length in characters
 
+        // [EXPERIMENTAL] speed-up techniques
+        bool speed_up; // speed-up the audio by 2x using Phase Vocoder
+
         const char * language;
 
         struct {

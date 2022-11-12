@@ -41,6 +41,7 @@ struct whisper_params {
     int32_t length_ms  = 10000;
     int32_t capture_id = -1;
 
+    bool speed_up             = false;
     bool verbose              = false;
     bool translate            = false;
     bool no_context           = true;
@@ -68,6 +69,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             params.length_ms = std::stoi(argv[++i]);
         } else if (arg == "-c" || arg == "--capture") {
             params.capture_id = std::stoi(argv[++i]);
+        } else if (arg == "-su" || arg == "--speed-up") {
+            params.speed_up = true;
         } else if (arg == "-v" || arg == "--verbose") {
             params.verbose = true;
         } else if (arg == "--translate") {
@@ -113,6 +116,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "            --step N         audio step size in milliseconds (default: %d)\n", params.step_ms);
     fprintf(stderr, "            --length N       audio length in milliseconds (default: %d)\n", params.length_ms);
     fprintf(stderr, "  -c ID,    --capture ID     capture device ID (default: -1)\n");
+    fprintf(stderr, "  -su,      --speed-up       speed up audio by factor of 2 (faster processing, reduced accuracy, default: %s)\n", params.speed_up ? "true" : "false");
     fprintf(stderr, "  -v,       --verbose        verbose output\n");
     fprintf(stderr, "            --translate      translate from source language to english\n");
     fprintf(stderr, "  -kc,      --keep-context   keep text context from earlier audio (default: false)\n");
@@ -325,6 +329,8 @@ int main(int argc, char ** argv) {
             wparams.no_context           = params.no_context;
             wparams.language             = params.language.c_str();
             wparams.n_threads            = params.n_threads;
+
+            wparams.speed_up             = params.speed_up;
 
             if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);

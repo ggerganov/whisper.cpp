@@ -2031,6 +2031,7 @@ static bool log_mel_spectrogram(
     const int n_mel,
     const int n_threads,
     const whisper_filters & filters,
+    const bool speed_up,
     whisper_mel & mel) {
 
     // Hanning window
@@ -2044,7 +2045,7 @@ static bool log_mel_spectrogram(
     mel.n_len = (n_samples)/fft_step;
     mel.data.resize(mel.n_mel*mel.n_len);
 
-    const int n_fft = 1 + fft_size/2;
+    const int n_fft = 1 + (speed_up ? fft_size/4 : fft_size/2);
 
     //printf("%s: n_samples = %d, n_len = %d\n", __func__, n_samples, mel.n_len);
     //printf("%s: recording length: %f s\n", __func__, (float) n_samples/sample_rate);
@@ -2089,6 +2090,13 @@ static bool log_mel_spectrogram(
                     //for (int j = 0; j < fft_size; j++) {
                     //    printf("%d: %e\n", j, fft_out[j]);
                     //}
+                }
+
+                if (speed_up) {
+                    // scale down in the frequency domain results in a speed up in the time domain
+                    for (int j = 0; j < n_fft; j++) {
+                        fft_out[j] = 0.5*(fft_out[2*j] + fft_out[2*j + 1]);
+                    }
                 }
 
                 // mel spectrogram
@@ -2171,7 +2179,21 @@ void whisper_free(struct whisper_context * ctx) {
 int whisper_pcm_to_mel(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads) {
     const int64_t t_start_us = ggml_time_us();
 
-    if (!log_mel_spectrogram(samples, n_samples, WHISPER_SAMPLE_RATE, WHISPER_N_FFT, WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, ctx->mel)) {
+    if (!log_mel_spectrogram(samples, n_samples, WHISPER_SAMPLE_RATE, WHISPER_N_FFT, WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, false, ctx->mel)) {
+        fprintf(stderr, "%s: failed to compute mel spectrogram\n", __func__);
+        return -1;
+    }
+
+    ctx->t_mel_us = ggml_time_us() - t_start_us;
+
+    return 0;
+}
+
+// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2
+int whisper_pcm_to_mel_phase_vocoder(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads) {
+    const int64_t t_start_us = ggml_time_us();
+
+    if (!log_mel_spectrogram(samples, n_samples, WHISPER_SAMPLE_RATE, 2*WHISPER_N_FFT, 2*WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, true, ctx->mel)) {
         fprintf(stderr, "%s: failed to compute mel spectrogram\n", __func__);
         return -1;
     }
@@ -2353,6 +2375,8 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.thold_ptsum          =*/ 0.01f,
                     /*.max_len              =*/ 0,
 
+                    /*.speed_up             =*/ false,
+
                     /*.language             =*/ "en",
 
                     /*.greedy               =*/ {
@@ -2390,6 +2414,8 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.thold_pt             =*/ 0.01f,
                     /*.thold_ptsum          =*/ 0.01f,
                     /*.max_len              =*/ 0,
+
+                    /*.speed_up             =*/ false,
 
                     /*.language             =*/ "en",
 
@@ -2485,9 +2511,16 @@ int whisper_full(
     result_all.clear();
 
     // compute log mel spectrogram
-    if (whisper_pcm_to_mel(ctx, samples, n_samples, params.n_threads) != 0) {
-        fprintf(stderr, "%s: failed to compute log mel spectrogram\n", __func__);
-        return -1;
+    if (params.speed_up) {
+        if (whisper_pcm_to_mel_phase_vocoder(ctx, samples, n_samples, params.n_threads) != 0) {
+            fprintf(stderr, "%s: failed to compute log mel spectrogram\n", __func__);
+            return -1;
+        }
+    } else {
+        if (whisper_pcm_to_mel(ctx, samples, n_samples, params.n_threads) != 0) {
+            fprintf(stderr, "%s: failed to compute log mel spectrogram\n", __func__);
+            return -1;
+        }
     }
 
     if (params.token_timestamps) {
@@ -2673,16 +2706,19 @@ int whisper_full(
                 if (tokens_cur[i].id > whisper_token_beg(ctx)) {
                     const auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
                     if (!text.empty()) {
+                        const auto tt0 = params.speed_up ? 2*t0 : t0;
+                        const auto tt1 = params.speed_up ? 2*t1 : t1;
+
                         if (params.print_realtime) {
                             if (params.print_timestamps) {
-                                printf("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text.c_str());
+                                printf("[%s --> %s]  %s\n", to_timestamp(tt0).c_str(), to_timestamp(tt1).c_str(), text.c_str());
                             } else {
                                 printf("%s", text.c_str());
                                 fflush(stdout);
                             }
                         }
 
-                        result_all.push_back({ t0, t1, text, {} });
+                        result_all.push_back({ tt0, tt1, text, {} });
                         for (int j = i0; j <= i; j++) {
                             result_all.back().tokens.push_back(tokens_cur[j]);
                         }
@@ -2714,16 +2750,19 @@ int whisper_full(
             if (!text.empty()) {
                 const auto t1 = seek + seek_delta;
 
+                const auto tt0 = params.speed_up ? 2*t0 : t0;
+                const auto tt1 = params.speed_up ? 2*t1 : t1;
+
                 if (params.print_realtime) {
                     if (params.print_timestamps) {
-                        printf("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text.c_str());
+                        printf("[%s --> %s]  %s\n", to_timestamp(tt0).c_str(), to_timestamp(tt1).c_str(), text.c_str());
                     } else {
                         printf("%s", text.c_str());
                         fflush(stdout);
                     }
                 }
 
-                result_all.push_back({ t0, t1, text, {} });
+                result_all.push_back({ tt0, tt1, text, {} });
                 for (int j = i0; j < (int) tokens_cur.size(); j++) {
                     result_all.back().tokens.push_back(tokens_cur[j]);
                 }
