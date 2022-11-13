@@ -89,13 +89,11 @@ ifneq ($(filter armv8%,$(UNAME_M)),)
 	CFLAGS += -mfp16-format=ieee -mno-unaligned-access
 endif
 
-#
-# Build library + main
-#
+default: main
 
-main: examples/main/main.cpp ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) examples/main/main.cpp whisper.o ggml.o -o main $(LDFLAGS)
-	./main -h
+#
+# Build library
+#
 
 ggml.o: ggml.c ggml.h
 	$(CC)  $(CFLAGS)   -c ggml.c -o ggml.o
@@ -106,14 +104,21 @@ whisper.o: whisper.cpp whisper.h
 libwhisper.a: ggml.o whisper.o
 	$(AR) rcs libwhisper.a ggml.o whisper.o
 
+libwhisper.so: ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o whisper.o $(LDFLAGS)
+
 clean:
-	rm -f *.o main stream bench libwhisper.a
+	rm -f *.o main stream bench libwhisper.a libwhisper.so
 
 #
 # Examples
 #
 
 CC_SDL=`sdl2-config --cflags --libs`
+
+main: examples/main/main.cpp ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) examples/main/main.cpp ggml.o whisper.o -o main $(LDFLAGS)
+	./main -h
 
 stream: examples/stream/stream.cpp ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp ggml.o whisper.o -o stream $(CC_SDL) $(LDFLAGS)
