@@ -18,7 +18,7 @@ if %argc% neq 1 (
 
 set model=%1
 
-for %%b in (%models%) do ( 
+for %%b in (%models%) do (
   if "%%b"=="%model%" (
     CALL :download_model
     goto :eof
@@ -41,7 +41,7 @@ if exist "ggml-%model%.bin" (
 
 PowerShell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri https://ggml.ggerganov.com/ggml-model-whisper-%model%.bin -OutFile ggml-%model%.bin"
 
-if %ERRORLEVEL% neq 0 ( 
+if %ERRORLEVEL% neq 0 (
   echo Failed to download ggml model %model%
   echo Please try again later or download the original Whisper model files and convert them yourself.
   goto :eof
