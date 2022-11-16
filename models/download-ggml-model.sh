@@ -64,7 +64,7 @@ fi
 if [ -x "$(command -v wget)" ]; then
     wget --quiet --show-progress -O ggml-$model.bin $src/$pfx-$model.bin
 elif [ -x "$(command -v curl)" ]; then
-    curl --output ggml-$model.bin $src/$pfx-$model.bin
+    curl -L --output ggml-$model.bin $src/$pfx-$model.bin
 else
     printf "Either wget or curl is required to download models.\n"
     exit 1
