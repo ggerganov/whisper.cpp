@@ -40,8 +40,8 @@ import code
 import torch
 import numpy as np
 
-from transformers import GPTJForCausalLM
-from transformers import GPT2TokenizerFast
+#from transformers import GPTJForCausalLM
+#from transformers import GPT2TokenizerFast
 
 # ref: https://github.com/openai/whisper/blob/8cf36f3508c9acd341a45eb2364239a3d81458b9/whisper/tokenizer.py#L10-L110
 LANGUAGES = {
@@ -146,25 +146,25 @@ LANGUAGES = {
     "su": "sundanese",
 }
 
-# ref: https://github.com/openai/whisper/blob/8cf36f3508c9acd341a45eb2364239a3d81458b9/whisper/tokenizer.py#L273-L292
-def build_tokenizer(path_to_whisper_repo: str, name: str = "gpt2"):
-    os.environ["TOKENIZERS_PARALLELISM"] = "false"
-    path = os.path.join(path_to_whisper_repo, "whisper/assets", name)
-    tokenizer = GPT2TokenizerFast.from_pretrained(path)
-
-    specials = [
-        "<|startoftranscript|>",
-        *[f"<|{lang}|>" for lang in LANGUAGES.keys()],
-        "<|translate|>",
-        "<|transcribe|>",
-        "<|startoflm|>",
-        "<|startofprev|>",
-        "<|nocaptions|>",
-        "<|notimestamps|>",
-    ]
-
-    tokenizer.add_special_tokens(dict(additional_special_tokens=specials))
-    return tokenizer
+## ref: https://github.com/openai/whisper/blob/8cf36f3508c9acd341a45eb2364239a3d81458b9/whisper/tokenizer.py#L273-L292
+#def build_tokenizer(path_to_whisper_repo: str, name: str = "gpt2"):
+#    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+#    path = os.path.join(path_to_whisper_repo, "whisper/assets", name)
+#    tokenizer = GPT2TokenizerFast.from_pretrained(path)
+#
+#    specials = [
+#        "<|startoftranscript|>",
+#        *[f"<|{lang}|>" for lang in LANGUAGES.keys()],
+#        "<|translate|>",
+#        "<|transcribe|>",
+#        "<|startoflm|>",
+#        "<|startofprev|>",
+#        "<|nocaptions|>",
+#        "<|notimestamps|>",
+#    ]
+#
+#    tokenizer.add_special_tokens(dict(additional_special_tokens=specials))
+#    return tokenizer
 
 # ref: https://github.com/openai/gpt-2/blob/master/src/encoder.py
 def bytes_to_unicode():
@@ -224,12 +224,12 @@ with np.load(os.path.join(dir_whisper, "whisper/assets", "mel_filters.npz")) as 
 #code.interact(local=locals())
 
 multilingual = hparams["n_vocab"] == 51865
-tokenizer = build_tokenizer(dir_whisper, multilingual and "multilingual" or "gpt2")
+dir_tokenizer = os.path.join(dir_whisper, "whisper/assets", multilingual and "multilingual" or "gpt2")
 
+#tokenizer = build_tokenizer(dir_whisper, multilingual and "multilingual" or "gpt2")
 #print(tokenizer)
 #print(tokenizer.name_or_path)
 #print(len(tokenizer.additional_special_tokens))
-dir_tokenizer = tokenizer.name_or_path
 
 # output in the same directory as the model
 fname_out = dir_out + "/ggml-model.bin"
