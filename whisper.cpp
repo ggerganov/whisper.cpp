@@ -2169,6 +2169,12 @@ struct whisper_context * whisper_init(const char * path_model) {
 
 void whisper_free(struct whisper_context * ctx) {
     if (ctx) {
+        if (ctx->model.ctx) {
+            ggml_free(ctx->model.ctx);
+        }
+        if (ctx->model.ctx_mem) {
+            ggml_free(ctx->model.ctx_mem);
+        }
         if (ctx->buf_model) {
             delete ctx->buf_model;
         }
