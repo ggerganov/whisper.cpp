@@ -579,6 +579,8 @@ int main(int argc, char ** argv) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
                 return 8;
             }
+
+            whisper_full_cluster_segments(ctx);
         }
 
         // output stuff
