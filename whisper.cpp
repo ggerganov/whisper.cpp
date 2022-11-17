@@ -930,7 +930,6 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
                 model.tensors["decoder.blocks." + std::to_string(i) + ".cross_attn.out.bias"]   = layer.cross_attn_ln_1_b;
             }
         }
-        ggml_free(ctx);
     }
 
     // create the ggml memory context
@@ -982,7 +981,6 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             ggml_nbytes(model.memory_cross_k) + ggml_nbytes(model.memory_cross_v);
 
         fprintf(stderr, "%s: memory size = %8.2f MB\n", __func__, memory_size/1024.0/1024.0);
-        ggml_free(ctx);
     }
 
     // load weights
@@ -2171,6 +2169,12 @@ struct whisper_context * whisper_init(const char * path_model) {
 
 void whisper_free(struct whisper_context * ctx) {
     if (ctx) {
+        if (ctx->model.ctx) {
+            ggml_free(ctx->model.ctx);
+        }
+        if (ctx->model.ctx_mem) {
+            ggml_free(ctx->model.ctx_mem);
+        }
         if (ctx->buf_model) {
             delete ctx->buf_model;
         }
