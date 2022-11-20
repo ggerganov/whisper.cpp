@@ -328,6 +328,7 @@ int main(int argc, char ** argv) {
             wparams.print_timestamps     = !params.no_timestamps;
             wparams.translate            = params.translate;
             wparams.no_context           = params.no_context;
+            wparams.single_segment       = true;
             wparams.language             = params.language.c_str();
             wparams.n_threads            = params.n_threads;
 

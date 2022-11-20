@@ -2392,6 +2392,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
                     /*.translate            =*/ false,
                     /*.no_context           =*/ false,
+                    /*.single_segment       =*/ false,
                     /*.print_special_tokens =*/ false,
                     /*.print_progress       =*/ true,
                     /*.print_realtime       =*/ false,
@@ -2432,6 +2433,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
                     /*.translate            =*/ false,
                     /*.no_context           =*/ false,
+                    /*.single_segment       =*/ false,
                     /*.print_special_tokens =*/ false,
                     /*.print_progress       =*/ true,
                     /*.print_realtime       =*/ false,
@@ -2693,10 +2695,10 @@ int whisper_full(
                         }
                     }
 
-                    // TODO: TMP TO MAKE STREAM WORK ON RPI4 ===
-                    result_len = i + 1;
-                    seek_delta = 100*WHISPER_CHUNK_SIZE;
-                    // =========================================
+                    if (params.single_segment) {
+                        result_len = i + 1;
+                        seek_delta = 100*WHISPER_CHUNK_SIZE;
+                    }
 
                     break;
                 }
