@@ -40,6 +40,7 @@ struct whisper_params {
     int32_t step_ms    = 3000;
     int32_t length_ms  = 10000;
     int32_t capture_id = -1;
+    int32_t max_tokens = 32;
     int32_t audio_ctx  = 0;
 
     bool speed_up             = false;
@@ -70,6 +71,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             params.length_ms = std::stoi(argv[++i]);
         } else if (arg == "-c" || arg == "--capture") {
             params.capture_id = std::stoi(argv[++i]);
+        } else if (arg == "-mt" || arg == "--max_tokens") {
+            params.max_tokens = std::stoi(argv[++i]);
         } else if (arg == "-ac" || arg == "--audio_ctx") {
             params.audio_ctx = std::stoi(argv[++i]);
         } else if (arg == "-su" || arg == "--speed-up") {
@@ -119,6 +122,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "            --step N         audio step size in milliseconds (default: %d)\n", params.step_ms);
     fprintf(stderr, "            --length N       audio length in milliseconds (default: %d)\n", params.length_ms);
     fprintf(stderr, "  -c ID,    --capture ID     capture device ID (default: -1)\n");
+    fprintf(stderr, "  -mt N,    --max_tokens N   maximum number of tokens per audio chunk (default: %d)\n", params.max_tokens);
     fprintf(stderr, "  -ac N,    --audio_ctx N    audio context size (default: %d, 0 - all)\n", params.audio_ctx);
     fprintf(stderr, "  -su,      --speed-up       speed up audio by factor of 2 (faster processing, reduced accuracy, default: %s)\n", params.speed_up ? "true" : "false");
     fprintf(stderr, "  -v,       --verbose        verbose output\n");
@@ -333,7 +337,7 @@ int main(int argc, char ** argv) {
             wparams.translate            = params.translate;
             wparams.no_context           = params.no_context;
             wparams.single_segment       = true;
-            wparams.max_tokens           = 32;
+            wparams.max_tokens           = params.max_tokens;
             wparams.language             = params.language.c_str();
             wparams.n_threads            = params.n_threads;
 
