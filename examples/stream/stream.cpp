@@ -322,6 +322,7 @@ int main(int argc, char ** argv) {
         {
             whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
+            wparams.max_tokens           = 32;
             wparams.print_progress       = false;
             wparams.print_special_tokens = params.print_special_tokens;
             wparams.print_realtime       = false;
