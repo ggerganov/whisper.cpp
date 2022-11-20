@@ -424,6 +424,9 @@ struct whisper_context {
     int64_t t_last;
     whisper_token tid_last;
     std::vector<float> energy; // PCM signal energy
+
+    // [EXPERIMENTAL] speed-up techniques
+    int32_t exp_n_audio_ctx; // 0 - use default
 };
 
 // load the model from a ggml file
@@ -974,9 +977,6 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
 
             model.memory_cross_k = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
             model.memory_cross_v = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
-
-            //memset(model.memory_cross_k->data, 0, ggml_nbytes(model.memory_cross_k));
-            //memset(model.memory_cross_v->data, 0, ggml_nbytes(model.memory_cross_v));
         }
 
         const size_t memory_size =
@@ -1079,7 +1079,7 @@ static bool whisper_encode(
     const auto & mel_inp = wctx.mel;
     const auto & hparams = model.hparams;
 
-    const int n_ctx   = WHISPER_EXPERIMENT_AUDIO_CTX;
+    const int n_ctx   = wctx.exp_n_audio_ctx > 0 ? wctx.exp_n_audio_ctx : hparams.n_audio_ctx;
     const int n_state = hparams.n_audio_state;
     const int n_head  = hparams.n_audio_head;
     const int n_layer = hparams.n_audio_layer;
@@ -1133,6 +1133,8 @@ static bool whisper_encode(
         cur = ggml_gelu(ctx0, cur);
     }
 
+    // ===================================================================
+    // NOTE: experimenting with partial evaluation of the encoder (ignore)
     //static int iter = -1;
     //const int n_iter = 1500/n_ctx;
 
@@ -1151,6 +1153,10 @@ static bool whisper_encode(
     struct ggml_tensor * e_pe = ggml_view_2d(ctx0, model.e_pe, model.e_pe->ne[0], n_ctx, e_pe_stride, e_pe_offset);
 
     cur = ggml_add(ctx0, e_pe, ggml_transpose(ctx0, cur));
+    // ===================================================================
+
+    // original:
+    //cur = ggml_add(ctx0, model.e_pe, ggml_transpose(ctx0, cur));
 
     struct ggml_tensor * inpL = cur;
 
@@ -1494,8 +1500,7 @@ static bool whisper_decode(
     const int n_layer = hparams.n_text_layer;
 
     const int N = n_tokens;
-    //const int M = hparams.n_audio_ctx;
-    const int M = WHISPER_EXPERIMENT_AUDIO_CTX;
+    const int M = wctx.exp_n_audio_ctx > 0 ? wctx.exp_n_audio_ctx : hparams.n_audio_ctx;
 
     struct ggml_init_params params = {
             .mem_size   = wctx.buf_compute.size(),
@@ -2405,6 +2410,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.max_tokens           =*/ 0,
 
                     /*.speed_up             =*/ false,
+                    /*.audio_ctx            =*/ 0,
 
                     /*.language             =*/ "en",
 
@@ -2447,6 +2453,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.max_tokens           =*/ 0,
 
                     /*.speed_up             =*/ false,
+                    /*.audio_ctx            =*/ 0,
 
                     /*.language             =*/ "en",
 
@@ -2576,6 +2583,9 @@ int whisper_full(
     if (params.no_context) {
         prompt_past.clear();
     }
+
+    // overwrite audio_ctx
+    ctx->exp_n_audio_ctx = params.audio_ctx;
 
     // these tokens determine the task that will be performed
     std::vector<whisper_token> prompt_init = { whisper_token_sot(ctx) };

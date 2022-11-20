@@ -24,8 +24,6 @@
 #define WHISPER_HOP_LENGTH  160
 #define WHISPER_CHUNK_SIZE  30
 
-#define WHISPER_EXPERIMENT_AUDIO_CTX 512
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -207,7 +205,8 @@ extern "C" {
         int   max_tokens;       // max tokens per segment (0 = no limit)
 
         // [EXPERIMENTAL] speed-up techniques
-        bool speed_up; // speed-up the audio by 2x using Phase Vocoder
+        bool speed_up;  // speed-up the audio by 2x using Phase Vocoder
+        int  audio_ctx; // overwrite the audio context size (0 = use default)
 
         const char * language;
 
