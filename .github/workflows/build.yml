@@ -113,3 +113,32 @@ jobs:
               run: |
                 make
                 ctest -L gh --output-on-failure
+
+    windows:
+        runs-on: windows-latest
+
+        strategy:
+            matrix:
+                arch: ["Win32", "x64"]
+
+        steps:
+            - name: Clone
+              uses: actions/checkout@v1
+
+            - name: Add msbuild to PATH
+              uses: microsoft/setup-msbuild@v1
+
+            - name: CMake
+              shell: powershell
+              run: cmake -S . -B ./build_${{matrix.arch}} -A ${{matrix.arch}} -DCMAKE_BUILD_TYPE=Release
+
+            - name: MSBuild
+              run: |
+                cd ./build_${{matrix.arch}}
+                msbuild INSTALL.vcxproj /t:build /p:configuration=Release /p:platform=${{matrix.arch}} -maxcpucount
+
+            - name: Upload binaries
+              uses: actions/upload-artifact@v1
+              with:
+                name: whisper-bin-${{matrix.arch}}
+                path: build_${{matrix.arch}}/bin/Release
