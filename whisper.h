@@ -25,7 +25,6 @@
 #define WHISPER_CHUNK_SIZE  30
 
 #define WHISPER_EXPERIMENT_AUDIO_CTX 512
-#define WHISPER_EXPERIMENT_MAX_TOKENS_PER_SEGMENT 32
 
 #ifdef __cplusplus
 extern "C" {
@@ -205,6 +204,7 @@ extern "C" {
         float thold_pt;         // timestamp token probability threshold (~0.01)
         float thold_ptsum;      // timestamp token sum probability threshold (~0.01)
         int   max_len;          // max segment length in characters
+        int   max_tokens;       // max tokens per segment (0 = no limit)
 
         // [EXPERIMENTAL] speed-up techniques
         bool speed_up; // speed-up the audio by 2x using Phase Vocoder

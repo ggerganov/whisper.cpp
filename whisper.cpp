@@ -2396,6 +2396,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.thold_pt             =*/ 0.01f,
                     /*.thold_ptsum          =*/ 0.01f,
                     /*.max_len              =*/ 0,
+                    /*.max_tokens           =*/ 0,
 
                     /*.speed_up             =*/ false,
 
@@ -2437,6 +2438,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.thold_pt             =*/ 0.01f,
                     /*.thold_ptsum          =*/ 0.01f,
                     /*.max_len              =*/ 0,
+                    /*.max_tokens           =*/ 0,
 
                     /*.speed_up             =*/ false,
 
@@ -2679,7 +2681,7 @@ int whisper_full(
                 //}
 
                 // end of text token
-                if (token.id == whisper_token_eot(ctx) || (i > WHISPER_EXPERIMENT_MAX_TOKENS_PER_SEGMENT)) {
+                if (token.id == whisper_token_eot(ctx) || (params.max_tokens > 0 && i > params.max_tokens)) {
                     if (result_len == 0) {
                         if (seek + seek_delta + 100 >= seek_end) {
                             result_len = i + 1;
