@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <vector>
 
 #ifdef WHISPER_SHARED
 #    ifdef _WIN32
@@ -208,6 +209,7 @@ extern "C" {
         bool speed_up;  // speed-up the audio by 2x using Phase Vocoder
         int  audio_ctx; // overwrite the audio context size (0 = use default)
 
+        const std::vector<whisper_token> * prompt_tokens;
         const char * language;
 
         struct {
