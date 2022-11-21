@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <vector>
 
 #ifdef WHISPER_SHARED
 #    ifdef _WIN32
@@ -209,7 +208,7 @@ extern "C" {
         bool speed_up;  // speed-up the audio by 2x using Phase Vocoder
         int  audio_ctx; // overwrite the audio context size (0 = use default)
 
-        // std::vector<whisper_token>: tokents to provide the whisper model as initial prompt
+        // std::vector<whisper_token>: tokens to provide the whisper model as initial prompt
         const whisper_token * prompt_tokens;
         int prompt_n_tokens;
 

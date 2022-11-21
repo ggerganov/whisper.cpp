@@ -2591,7 +2591,7 @@ int whisper_full(
     }
 
     // Prepend the prompt tokens to the prompt_past
-    if (params.prompt_tokens) {
+    if (params.prompt_tokens && params.prompt_n_tokens > 0) {
         // Parse tokens from the pointer (it points to an std::vector)
         for (int i = 0; i < params.prompt_n_tokens; i++) {
             prompt_past.push_back(params.prompt_tokens[i]);
