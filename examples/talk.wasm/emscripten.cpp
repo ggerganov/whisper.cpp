@@ -949,7 +949,7 @@ bool gpt2_eval(
 
 /////////////////////////////// GPT-2 END ////////////////////////////////
 
-constexpr int N_THREAD = 7;
+constexpr int N_THREAD = 8;
 
 struct gpt2_state {
     std::string prompt_base = R"(Hello, how are you?

@@ -22,7 +22,7 @@ if (WHISPER_WASM_SINGLE_FILE)
         TARGET ${TARGET} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
         ${CMAKE_BINARY_DIR}/bin/libtalk.js
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/talk/talk.js
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/talk.wasm/talk.js
         )
 endif()
 
@@ -38,9 +38,9 @@ set_target_properties(${TARGET} PROPERTIES LINK_FLAGS " \
     ")
 
 #
-# talk
+# talk.wasm
 #
 
-set(TARGET talk)
+set(TARGET talk.wasm)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/index-tmpl.html  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET}/index.html @ONLY)
