@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en-us">
     <head>
-        <title>talk : GPT-2 meets Whisper in WebAssembly</title>
+        <title>Talk - GPT-2 meets Whisper in WebAssembly</title>
 
         <style>
             #output {
@@ -27,29 +27,50 @@
     </head>
     <body>
         <div id="main-container">
-            <b>talk : GPT-2 meets Whisper in WebAssembly</b>
+            <b>Talk - GPT-2 meets Whisper in WebAssembly</b>
 
             <br><br>
 
-            WIP IN PROGRESS
+            On this page you can talk with an AI entity. It uses:
 
-            <br><br><hr>
+            <ul>
+                <li><a href="https://github.com/ggerganov/whisper.cpp">OpenAI's Whisper</a> model to listen to you as you speak in the microphone</li>
+                <li><a href="https://github.com/ggerganov/ggml/tree/master/examples/gpt-2">OpenAI's GPT-2</a> model to generate a text response</li>
+                <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API">Web Speech API</a> to speak the response to you through the speakers</li>
+            </ul>
+
+            All of this runs <b>locally in your browser</b> using WebAssembly.<br>
+            You can find more about this project on <a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/talk.wasm">GitHub</a>.
+
+            <br><br>
+
+            The page does some heavy computations, so make sure:
+
+            <ul>
+                <li>To use a modern web browser (e.g. Chrome, Firefox)</li>
+                <li>To use a fast desktop or laptop computer (e.g. not a mobile phone)</li>
+                <li>Your browser supports WASM <a href="https://webassembly.org/roadmap/">Fixed-width SIMD</a></li>
+            </ul>
+
+            <hr>
+
+            <br>
 
             <div id="model-whisper">
-                Whisper Model:
+                <span id="model-whisper-status">Whisper model:</span>
                 <button id="fetch-whisper-tiny-en" onclick="loadWhisper('tiny.en')">tiny.en (75 MB)</button>
                 <button id="fetch-whisper-base-en" onclick="loadWhisper('base.en')">base.en (142 MB)</button>
                 <span id="fetch-whisper-progress"></span>
 
                 <!--
-                <input type="file" id="file" name="file" onchange="loadFile(event, 'whisper.bin')" />
+                    <input type="file" id="file" name="file" onchange="loadFile(event, 'whisper.bin')" />
                 -->
             </div>
 
             <br>
 
             <div id="model-gpt-2">
-                GPT-2 Model:
+                <span id="model-gpt-2-status">GPT-2 model:</span>
                 <button id="fetch-gpt-2-small" onclick="loadGPT2('small')">small 117M (240 MB)</button>
                 <!--<button id="fetch-gpt-2-medium" onclick="loadGPT2('medium')">medium 345M (720 MB)</button>-->
                 <span id="fetch-gpt-2-progress"></span>
@@ -64,14 +85,14 @@
             <div id="input_mic">
                 <button id="start" onclick="onStart()">Start</button>
                 <button id="stop" onclick="onStop()" disabled>Stop</button>
-                <button id="speak" onclick="speakTest()">Speak</button>
+                <select id="voice" onchange="onVoiceChange()">
+                    <option value="0">Default</option>
+                </select>
+                <button id="speak" onclick="onSpeak('Hello')">Say Hello</button>
                 <button id="speak" onclick="clearCache()">Clear Cache</button>
             </div>
 
-            <audio controls="controls" id="audio" loop hidden>
-                Your browser does not support the &lt;audio&gt; tag.
-                <source id="source" src="" type="audio/wav" />
-            </audio>
+            <br>
 
             <hr><br>
 
@@ -94,21 +115,6 @@
         </div>
 
         <script type='text/javascript'>
-            // TODO: convert audio buffer to WAV
-            function setAudio(audio) {
-                //if (audio) {
-                //    // convert to 16-bit PCM
-                //    var blob = new Blob([audio], { type: 'audio/wav' });
-                //    var url = URL.createObjectURL(blob);
-                //    document.getElementById('source').src = url;
-                //    document.getElementById('audio').hidden = false;
-                //    document.getElementById('audio').loop = false;
-                //    document.getElementById('audio').load();
-                //} else {
-                //    document.getElementById('audio').hidden = true;
-                //}
-            }
-
             function changeInput(input) {
                 if (input == 'file') {
                     document.getElementById('input_file').style.display = 'block';
@@ -132,16 +138,6 @@
                     };
                 })();
 
-            var Module = {
-                print: printTextarea,
-                printErr: printTextarea,
-                setStatus: function(text) {
-                    printTextarea('js: ' + text);
-                },
-                monitorRunDependencies: function(left) {
-                }
-            };
-
             const kMaxAudio_s = 10;
             const kRestartRecording_s = 15;
             const kSampleRate = 16000;
@@ -159,8 +155,50 @@
             // the talk instance
             var instance = null;
 
+            // model names
+            var model_whisper = null;
+            var model_gpt_2 = null;
+
             // speech synthesis
             const synth = window.speechSynthesis;
+            var voice = null;
+
+            var Module = {
+                print: printTextarea,
+                printErr: printTextarea,
+                setStatus: function(text) {
+                    printTextarea('js: ' + text);
+                },
+                monitorRunDependencies: function(left) {
+                },
+                preRun: function() {
+                    printTextarea('js: preparing ...');
+                },
+                postRun: function() {
+                    printTextarea('js: loaded successfully!');
+
+                    // populate the voice list
+                    var voices = synth.getVoices();
+                    var el = document.getElementById('voice');
+
+                    var n = 0;
+                    voices.forEach(function(voice, i) {
+                        if (!voice.lang.startsWith('en')) return;
+                        var option = document.createElement('option');
+                        option.value = i;
+                        option.innerHTML = voice.name + ' (' + voice.lang + ')';
+                        el.appendChild(option);
+                        n++;
+                    });
+
+                    // select random voice
+                    if (n > 0) {
+                        var i = Math.floor(Math.random() * n);
+                        el.selectedIndex = i;
+                        voice = voices[document.getElementById('voice').options[i].value];
+                    }
+                }
+            };
 
             // helper function
             function convertTypedArray(src, type) {
@@ -185,6 +223,12 @@
                 Module.FS_createDataFile("/", fname, buf, true, true);
 
                 printTextarea('js: stored model: ' + fname + ' size: ' + buf.length);
+
+                if (fname == 'whisper.bin') {
+                    document.getElementById('model-whisper').innerHTML = 'Whisper model: loaded "' + model_whisper + '"!';
+                } else if (fname == 'gpt-2.bin') {
+                    document.getElementById('model-gpt-2').innerHTML = 'GPT-2 model: loaded "' + model_gpt_2 + '"!';
+                }
             }
 
             let dbVersion = 1
@@ -230,9 +274,10 @@
 
                     if (contentLength) {
                         // update progress bar element with the new percentage
+                        elProgress.innerHTML = Math.round((receivedLength / total) * 100) + '%';
+
                         var progressCur = Math.round((receivedLength / total) * 10);
                         if (progressCur != progressLast) {
-                            elProgress.innerHTML = 10*progressCur + '%';
                             printTextarea('js: fetching ' + 10*progressCur + '% ...');
                             progressLast = progressCur;
                         }
@@ -253,7 +298,7 @@
             // - check if the data is already in the IndexedDB
             // - if not, fetch it from the remote URL and store it in the IndexedDB
             // - store it in WASM memory
-            function loadRemote(url, dst, elProgress) {
+            function loadRemote(url, dst, elProgress, size_mb) {
                 // query the storage quota and print it
                 navigator.storage.estimate().then(function (estimate) {
                     printTextarea('js: storage quota: ' + estimate.quota + ' bytes');
@@ -289,6 +334,14 @@
                         } else {
                             // data is not in the IndexedDB
                             printTextarea('js: "' + url + '" is not in the IndexedDB');
+
+                            // alert and ask the user to confirm
+                            if (!confirm('You are about to download ' + size_mb + ' MB of data.\nThe model data will be cached in the browser for future use.\n\nPress OK to continue.')) {
+                                document.getElementById('fetch-whisper-tiny-en').style.display = 'inline-block';
+                                document.getElementById('fetch-whisper-base-en').style.display = 'inline-block';
+                                document.getElementById('fetch-gpt-2-small').style.display = 'inline-block';
+                                return;
+                            }
 
                             fetchRemote(url, elProgress).then(function (data) {
                                 if (data) {
@@ -338,11 +391,23 @@
                     'base.en': 'https://talk.ggerganov.com/ggml-model-whisper-base.en.bin',
                 };
 
-                let url = urls[model];
-                let dst = 'whisper.bin';
-                let el  = document.getElementById('fetch-whisper-progress');
+                let sizes = {
+                    'tiny.en': 75,
+                    'base.en': 142,
+                };
 
-                loadRemote(url, dst, el);
+                let url     = urls[model];
+                let dst     = 'whisper.bin';
+                let el      = document.getElementById('fetch-whisper-progress');
+                let size_mb = sizes[model];
+
+                model_whisper = model;
+
+                document.getElementById('fetch-whisper-tiny-en').style.display = 'none';
+                document.getElementById('fetch-whisper-base-en').style.display = 'none';
+                document.getElementById('model-whisper-status').innerHTML = 'Whisper model: loading "' + model + '" ... ';
+
+                loadRemote(url, dst, el, size_mb);
             }
 
             function loadGPT2(model) {
@@ -351,11 +416,22 @@
                     'medium': 'https://talk.ggerganov.com/ggml-model-gpt-2-345M.bin',
                 };
 
-                let url = urls[model];
-                let dst = 'gpt-2.bin';
-                let el  = document.getElementById('fetch-gpt-2-progress');
+                let sizes = {
+                    'small':  240,
+                    'medium': 712,
+                };
 
-                loadRemote(url, dst, el);
+                let url     = urls[model];
+                let dst     = 'gpt-2.bin';
+                let el      = document.getElementById('fetch-gpt-2-progress');
+                let size_mb = sizes[model];
+
+                model_gpt_2 = model;
+
+                document.getElementById('fetch-gpt-2-small').style.display = 'none';
+                document.getElementById('model-gpt-2-status').innerHTML = 'GPT-2 model: loading "' + model + '" ... ';
+
+                loadRemote(url, dst, el, size_mb);
             }
 
             //
@@ -420,13 +496,9 @@
                                         if (instance) {
                                             Module.set_audio(instance, audioAll);
                                         }
-
-                                        setAudio(audio);
                                     });
                                 }, function(e) {
-                                    printTextarea('js: error decoding audio: ' + e);
                                     audio = null;
-                                    setAudio(audio);
                                 });
                             }
 
@@ -482,14 +554,11 @@
             // speak
             //
 
-            var voice = null;
-
             function onSpeak(text) {
                 var voices = synth.getVoices();
                 var msg = new SpeechSynthesisUtterance(text);
 
                 if (voice == null) {
-                    //voice = voices[Math.floor(Math.random() * 2)];
                     voice = voices[0];
                 }
 
@@ -511,8 +580,10 @@
 
             async function clearCache() {
                 if (confirm('Are you sure you want to clear the cache?\nAll the models will be downloaded again.')) {
-                    const dbs = await window.indexedDB.databases();
-                    dbs.forEach(db => { window.indexedDB.deleteDatabase(db.name) });
+                    //const dbs = await indexedDB.databases();
+                    //dbs.forEach(db => { indexedDB.deleteDatabase(db.name) });
+
+                    indexedDB.deleteDatabase(dbName);
                 }
             }
 
@@ -556,6 +627,11 @@
 
                     printTextarea("js: talk instance freed");
                 }
+            }
+
+            function onVoiceChange() {
+                printTextarea('js: voice changed to: ' + document.getElementById('voice').value);
+                voice = synth.getVoices()[document.getElementById('voice').value];
             }
 
         </script>
