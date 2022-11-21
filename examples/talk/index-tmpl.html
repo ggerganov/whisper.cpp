@@ -44,17 +44,7 @@
 
             <br><br>
 
-            The page does some heavy computations, so make sure:
-
-            <ul>
-                <li>To use a modern web browser (e.g. Chrome, Firefox)</li>
-                <li>To use a fast desktop or laptop computer (e.g. not a mobile phone)</li>
-                <li>Your browser supports WASM <a href="https://webassembly.org/roadmap/">Fixed-width SIMD</a></li>
-            </ul>
-
             <hr>
-
-            <br>
 
             <div id="model-whisper">
                 <span id="model-whisper-status">Whisper model:</span>
@@ -82,24 +72,43 @@
 
             <br>
 
-            <div id="input_mic">
+            <div id="input">
                 <button id="start" onclick="onStart()">Start</button>
                 <button id="stop" onclick="onStop()" disabled>Stop</button>
                 <select id="voice" onchange="onVoiceChange()">
                     <option value="0">Default</option>
                 </select>
-                <button id="speak" onclick="onSpeak('Hello')">Say Hello</button>
+                <button id="speak" onclick="onSpeak('Hello')">Say hello</button>
+                <button id="speak" onclick="onSpeakRandom()">Say something</button>
                 <button id="speak" onclick="clearCache()">Clear Cache</button>
             </div>
 
             <br>
 
-            <hr><br>
+            <div id="state">
+                Status: <b><span id="state-status">idle</span></b>
+
+                <pre id="state-context">[The text context will be displayed here]</pre>
+            </div>
+
+            <hr>
+
+            Debug output:
+            <textarea id="output" rows="20"></textarea>
 
             <br>
 
-            <!-- textarea with height filling the rest of the page -->
-            <textarea id="output" rows="20"></textarea>
+            <b>Troubleshooting</b>
+
+            <br><br>
+
+            The page does some heavy computations, so make sure:
+
+            <ul>
+                <li>To use a modern web browser (e.g. Chrome, Firefox)</li>
+                <li>To use a fast desktop or laptop computer (e.g. not a mobile phone)</li>
+                <li>Your browser supports WASM <a href="https://webassembly.org/roadmap/">Fixed-width SIMD</a></li>
+            </ul>
 
             <br><br>
 
@@ -115,16 +124,6 @@
         </div>
 
         <script type='text/javascript'>
-            function changeInput(input) {
-                if (input == 'file') {
-                    document.getElementById('input_file').style.display = 'block';
-                    document.getElementById('input_mic').style.display = 'none';
-                } else {
-                    document.getElementById('input_file').style.display = 'none';
-                    document.getElementById('input_mic').style.display = 'block';
-                }
-            }
-
             var printTextarea = (function() {
                     var element = document.getElementById('output');
                     if (element) element.alue = ''; // clear browser cache
@@ -138,7 +137,6 @@
                     };
                 })();
 
-            const kMaxAudio_s = 10;
             const kRestartRecording_s = 15;
             const kSampleRate = 16000;
 
@@ -172,10 +170,10 @@
                 monitorRunDependencies: function(left) {
                 },
                 preRun: function() {
-                    printTextarea('js: preparing ...');
+                    printTextarea('js: Preparing ...');
                 },
                 postRun: function() {
-                    printTextarea('js: loaded successfully!');
+                    printTextarea('js: Initialized successfully!');
 
                     // populate the voice list
                     var voices = synth.getVoices();
@@ -193,9 +191,14 @@
 
                     // select random voice
                     if (n > 0) {
-                        var i = Math.floor(Math.random() * n);
-                        el.selectedIndex = i;
-                        voice = voices[document.getElementById('voice').options[i].value];
+                        for (var k = 0; k < 10; k++) {
+                            var i = Math.floor(Math.random() * n);
+                            el.selectedIndex = i;
+                            voice = voices[document.getElementById('voice').options[i].value];
+
+                            // give preference to Google voices
+                            if (voice.name.startsWith('Google')) break;
+                        }
                     }
                 }
             };
@@ -443,6 +446,7 @@
             var startTime = 0;
 
             function stopRecording() {
+                Module.set_status("paused");
                 doRecording = false;
                 audio0 = null;
                 audio = null;
@@ -452,6 +456,8 @@
                 if (!context) {
                     context = new AudioContext({sampleRate: 16000});
                 }
+
+                Module.set_status("");
 
                 document.getElementById('start').disabled = true;
                 document.getElementById('stop').disabled = false;
@@ -566,6 +572,7 @@
                 synth.speak(msg);
 
                 if (doRecording) {
+                    Module.set_status("speaking ...");
                     printTextarea('js: speaking');
                     stopRecording();
                     var interval = setInterval(function() {
@@ -573,16 +580,19 @@
                             printTextarea('js: done speaking');
                             clearInterval(interval);
                             startRecording();
+                        } else {
+                            Module.set_status("");
                         }
                     }, 100);
                 }
             }
 
+            function onSpeakRandom() {
+                Module.force_speak(instance);
+            }
+
             async function clearCache() {
                 if (confirm('Are you sure you want to clear the cache?\nAll the models will be downloaded again.')) {
-                    //const dbs = await indexedDB.databases();
-                    //dbs.forEach(db => { indexedDB.deleteDatabase(db.name) });
-
                     indexedDB.deleteDatabase(dbName);
                 }
             }
@@ -591,7 +601,7 @@
             // main
             //
 
-            var intervalSpeak = null;
+            var intervalUpdate = null;
 
             function onStart() {
                 if (!instance) {
@@ -609,24 +619,20 @@
 
                 startRecording();
 
-                intervalSpeak = setInterval(function() {
+                intervalUpdate = setInterval(function() {
                     var textToSpeak = Module.get_text_to_speak();
 
                     if (textToSpeak != null && textToSpeak.length > 1) {
                         onSpeak(textToSpeak);
                     }
+
+                    document.getElementById('state-status').innerHTML = Module.get_status();
+                    document.getElementById('state-context').innerHTML = Module.get_text_context();
                 }, 100);
             }
 
             function onStop() {
                 stopRecording();
-
-                if (instance) {
-                    Module.free(instance);
-                    instance = null;
-
-                    printTextarea("js: talk instance freed");
-                }
             }
 
             function onVoiceChange() {

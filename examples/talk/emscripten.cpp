@@ -949,7 +949,7 @@ bool gpt2_eval(
 
 /////////////////////////////// GPT-2 END ////////////////////////////////
 
-constexpr int N_THREAD = 8;
+constexpr int N_THREAD = 7;
 
 struct gpt2_state {
     std::string prompt_base = R"(Hello, how are you?
@@ -986,7 +986,10 @@ std::mutex g_mutex;
 std::thread g_worker;
 std::atomic<bool> g_running(false);
 
+bool g_force_speak = false;
 std::string g_text_to_speak = "";
+std::string g_status = "idle";
+std::string g_status_forced = "";
 
 std::string gpt2_gen_text(const std::string & prompt) {
     int n_past = 0;
@@ -1044,7 +1047,14 @@ std::string gpt2_gen_text(const std::string & prompt) {
     return result;
 }
 
+void talk_set_status(const std::string & status) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_status = status;
+}
+
 void talk_main(size_t index) {
+    talk_set_status("loading data ...");
+
     struct whisper_full_params wparams = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
 
     wparams.n_threads            = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
@@ -1058,7 +1068,7 @@ void talk_main(size_t index) {
     wparams.print_special_tokens = false;
 
     wparams.max_tokens           = 32;
-    wparams.audio_ctx            = 512;
+    wparams.audio_ctx            = 768;
 
     wparams.language             = "en";
 
@@ -1082,12 +1092,16 @@ void talk_main(size_t index) {
 
     auto & ctx = g_contexts[index];
 
-    const int64_t step_samples = 5*WHISPER_SAMPLE_RATE;
+    const int64_t step_samples = 2*WHISPER_SAMPLE_RATE;
     const int64_t step_ms = (step_samples*1000)/WHISPER_SAMPLE_RATE;
+    const int64_t window_samples = 9*WHISPER_SAMPLE_RATE;
 
     auto t_last = std::chrono::high_resolution_clock::now();
 
+    talk_set_status("listening ...");
+
     while (g_running) {
+
         const auto t_now = std::chrono::high_resolution_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(t_now - t_last).count() < step_ms) {
             {
@@ -1097,6 +1111,8 @@ void talk_main(size_t index) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
         }
+
+        talk_set_status("listening ...");
 
         {
             std::unique_lock<std::mutex> lock(g_mutex);
@@ -1109,7 +1125,7 @@ void talk_main(size_t index) {
                 continue;
             }
 
-            pcmf32 = std::vector<float>(g_pcmf32.end() - step_samples, g_pcmf32.end());
+            pcmf32 = std::vector<float>(g_pcmf32.end() - std::min((int64_t) g_pcmf32.size(), window_samples), g_pcmf32.end());
         }
 
         // if energy in during last second is above threshold, then skip
@@ -1128,11 +1144,15 @@ void talk_main(size_t index) {
             energy_all /= pcmf32.size();
             energy_1s  /= WHISPER_SAMPLE_RATE;
 
-            if (energy_1s > 0.1f*energy_all) {
+            if (energy_1s > 0.1f*energy_all && !g_force_speak) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 continue;
             }
         }
+
+        talk_set_status("processing ...");
+
+        g_force_speak = false;
 
         t_last = t_now;
 
@@ -1187,16 +1207,20 @@ void talk_main(size_t index) {
             text_heard = std::regex_replace(text_heard, std::regex("^\\s+"), "");
             text_heard = std::regex_replace(text_heard, std::regex("\\s+$"), "");
 
+            talk_set_status("'" + text_heard + "' - thinking how to respond ...");
+
             const std::vector<gpt_vocab::id> tokens = ::gpt_tokenize(g_gpt2.vocab, text_heard);
 
             printf("whisper: number of tokens: %d, '%s'\n", (int) tokens.size(), text_heard.c_str());
 
             std::string text_to_speak;
 
-            if (tokens.size() > 2) {
+            if (tokens.size() > 0) {
                 text_to_speak = gpt2_gen_text(text_heard + "\n");
                 text_to_speak = std::regex_replace(text_to_speak, std::regex("[^a-zA-Z0-9\\.,\\?!\\s\\:\\'\\-]"), "");
                 text_to_speak = text_to_speak.substr(0, text_to_speak.find_first_of("\n"));
+
+                std::lock_guard<std::mutex> lock(g_mutex);
 
                 // remove first 2 lines of base prompt
                 {
@@ -1217,6 +1241,8 @@ void talk_main(size_t index) {
                 text_to_speak = std::regex_replace(text_to_speak, std::regex("[^a-zA-Z0-9\\.,\\?!\\s\\:\\'\\-]"), "");
                 text_to_speak = text_to_speak.substr(0, text_to_speak.find_first_of("\n"));
 
+                std::lock_guard<std::mutex> lock(g_mutex);
+
                 const size_t pos = g_gpt2.prompt_base.find_first_of("\n");
                 if (pos != std::string::npos) {
                     g_gpt2.prompt_base = g_gpt2.prompt_base.substr(pos + 1);
@@ -1226,15 +1252,18 @@ void talk_main(size_t index) {
 
             printf("gpt-2: %s\n", text_to_speak.c_str());
 
-            printf("========================\n");
-            printf("gpt-2: prompt_base:\n'%s'\n", g_gpt2.prompt_base.c_str());
-            printf("========================\n");
+            //printf("========================\n");
+            //printf("gpt-2: prompt_base:\n'%s'\n", g_gpt2.prompt_base.c_str());
+            //printf("========================\n");
 
             {
                 std::lock_guard<std::mutex> lock(g_mutex);
                 t_last = std::chrono::high_resolution_clock::now();
                 g_text_to_speak = text_to_speak;
+                g_pcmf32.clear();
             }
+
+            talk_set_status("speaking ...");
         }
     }
 
@@ -1301,6 +1330,24 @@ EMSCRIPTEN_BINDINGS(talk) {
         return 0;
     }));
 
+    emscripten::function("force_speak", emscripten::optional_override([](size_t index) {
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_force_speak = true;
+        }
+    }));
+
+    emscripten::function("get_text_context", emscripten::optional_override([]() {
+        std::string text_context;
+
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            text_context = g_gpt2.prompt_base;
+        }
+
+        return text_context;
+    }));
+
     emscripten::function("get_text_to_speak", emscripten::optional_override([]() {
         std::string text_to_speak;
 
@@ -1310,5 +1357,23 @@ EMSCRIPTEN_BINDINGS(talk) {
         }
 
         return text_to_speak;
+    }));
+
+    emscripten::function("get_status", emscripten::optional_override([]() {
+        std::string status;
+
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            status = g_status_forced.empty() ? g_status : g_status_forced;
+        }
+
+        return status;
+    }));
+
+    emscripten::function("set_status", emscripten::optional_override([](const std::string & status) {
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_status_forced = status;
+        }
     }));
 }
