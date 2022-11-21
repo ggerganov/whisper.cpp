@@ -20,6 +20,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 if (EMSCRIPTEN)
     add_subdirectory(whisper.wasm)
+    add_subdirectory(talk.wasm)
 else()
     add_subdirectory(main)
     add_subdirectory(stream)

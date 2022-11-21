@@ -2750,7 +2750,7 @@ int whisper_full(
                 } else {
                     text += whisper_token_to_str(ctx, tokens_cur[i].id);
                 }
-                if (tokens_cur[i].id > whisper_token_beg(ctx)) {
+                if (tokens_cur[i].id > whisper_token_beg(ctx) && !params.single_segment) {
                     const auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
                     if (!text.empty()) {
                         const auto tt0 = params.speed_up ? 2*t0 : t0;
