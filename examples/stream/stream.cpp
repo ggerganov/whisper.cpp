@@ -345,7 +345,7 @@ int main(int argc, char ** argv) {
             wparams.audio_ctx            = params.audio_ctx;
             wparams.speed_up             = params.speed_up;
 
-            wparams.prompt_tokens        = &prompt_tokens[0];
+            wparams.prompt_tokens        = prompt_tokens.data();
             wparams.prompt_n_tokens      = prompt_tokens.size();
             
             if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
