@@ -1,8 +1,8 @@
 # talk.wasm
 
-Talk with an Artificial Intelligence entity in your browser:
+Talk with an Artificial Intelligence in your browser:
 
-https://user-images.githubusercontent.com/1991296/202914175-115793b1-d32e-4aaa-a45b-59e313707ff6.mp4
+https://user-images.githubusercontent.com/1991296/203411580-fedb4839-05e4-4474-8364-aaf1e9a9b615.mp4
 
 Online demo: https://talk.ggerganov.com
 
@@ -14,13 +14,12 @@ This demo leverages 2 modern neural network models to create a high-quality voic
 - Upon receiving some voice input, the AI generates a text response using [OpenAI's GPT-2](https://github.com/openai/gpt-2) language model
 - The AI then vocalizes the response using the browser's [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API)
 
-The web page does the processing locally on your machine. However, in order to run the models, it first needs to
-download the model data which is about ~350 MB. The model data is then cached in your browser's cache and can be reused
-in future visits without downloading it again.
+The web page does the processing locally on your machine. The processing of these heavy neural network models in the
+browser is possible by implementing them efficiently in C/C++ and using the browser's WebAssembly SIMD capabilities for
+extra performance. For more detailed information, checkout the [current repository](https://github.com/ggerganov/whisper.cpp).
 
-The processing of these heavy neural network models in the browser is possible by implementing them efficiently in C/C++
-and using WebAssembly SIMD capabilities for extra performance. For more detailed information, checkout the
-[current repository](https://github.com/ggerganov/whisper.cpp).
+In order to run the models, the web page first needs to download the model data which is about ~350 MB. The model data
+is then cached in your browser's cache and can be reused in future visits without downloading it again.
 
 ## Requirements
 
@@ -37,8 +36,13 @@ Also, the prompting strategy can likely be improved to achieve better results.
 The demo is quite computationally heavy - it's not usual to run these transformer models in a browser. Typically, they
 run on powerful GPU hardware. So for better experience, you do need to have a powerful computer.
 
-Probably in the near future, mobile browsers will start to support the WASM SIMD capabilities and this will allow
-to run the demo on your phone or tablet. But for now it seems to be not supported (at least on iPhone).
+Probably in the near future, mobile browsers will start supporting WASM SIMD. This will allow to run the demo on your
+phone or tablet. But for now this functionality is not supported on mobile devices (at least not on iPhone).
+
+## Todo
+
+- Better UI (contributions are welcome)
+- Better GPT-2 prompting
 
 ## Feedback
 

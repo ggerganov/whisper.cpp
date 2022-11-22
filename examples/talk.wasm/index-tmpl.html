@@ -137,6 +137,16 @@
                 <li>Your browser supports WASM <a href="https://webassembly.org/roadmap/">Fixed-width SIMD</a></li>
             </ul>
 
+            Note that these neural network models were not meant to be used in a browser, so the performance and <br>
+            quality of the results may not be optimal. If you have any questions or suggestions, checkout the following
+            <a href="https://github.com/ggerganov/whisper.cpp/discussions/167">discussion</a>.
+
+            <br><br>
+
+            Here is a short video of the demo in action: <a href="https://youtu.be/2om-7tFMaNs">https://youtu.be/2om-7tFMaNs</a>
+
+            <br><br>
+
             <div class="cell-version">
                 <span>
                     |
@@ -230,6 +240,8 @@
                             }
                         }
                     }
+
+                    onPromptChange();
                 }
             };
 
@@ -487,6 +499,7 @@
                 doRecording = false;
                 audio0 = null;
                 audio = null;
+                context = null;
             }
 
             function startRecording() {
@@ -519,6 +532,9 @@
                             reader.onload = function(event) {
                                 var buf = new Uint8Array(reader.result);
 
+                                if (!context) {
+                                    return;
+                                }
                                 context.decodeAudioData(buf.buffer, function(audioBuffer) {
                                     var offlineContext = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
                                     var source = offlineContext.createBufferSource();
@@ -695,9 +711,9 @@ I'm fine, thanks. How are you?\n\
 Thanks, I'm fine too. What are you doing?\n\
 I'm just sitting here.\n\
 It's a lovely day, isn't it?\n\
-Yes, it is.\n\
-Did you know that I'm a robot?\n\
-I wasn't aware of that.\n";
+Yes, it is. I love the weather this time of year.\n\
+I wish it would rain a little bit.\n\
+Me too.\n";
                         break;
                     case '1':
                         // Robot
