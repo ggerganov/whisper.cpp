@@ -2412,6 +2412,9 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
                     /*.speed_up             =*/ false,
                     /*.audio_ctx            =*/ 0,
 
+                    /*.prompt_tokens        =*/ nullptr,
+                    /*.prompt_n_tokens      =*/ 0,
+
                     /*.language             =*/ "en",
 
                     /*.greedy               =*/ {
@@ -2454,6 +2457,9 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
                     /*.speed_up             =*/ false,
                     /*.audio_ctx            =*/ 0,
+
+                    /*.prompt_tokens        =*/ nullptr,
+                    /*.prompt_n_tokens      =*/ 0,
 
                     /*.language             =*/ "en",
 
@@ -2582,6 +2588,15 @@ int whisper_full(
     auto & prompt_past = ctx->prompt_past;
     if (params.no_context) {
         prompt_past.clear();
+    }
+
+    // Prepend the prompt tokens to the prompt_past
+    if (params.prompt_tokens && params.prompt_n_tokens > 0) {
+        // Parse tokens from the pointer (it points to an std::vector)
+        for (int i = 0; i < params.prompt_n_tokens; i++) {
+            prompt_past.push_back(params.prompt_tokens[i]);
+        }
+        std::rotate(prompt_past.begin(), prompt_past.end() - params.prompt_n_tokens, prompt_past.end());
     }
 
     // overwrite audio_ctx

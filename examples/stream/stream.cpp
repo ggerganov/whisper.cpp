@@ -234,6 +234,7 @@ int main(int argc, char ** argv) {
     std::vector<float> pcmf32(n_samples_30s, 0.0f);
     std::vector<float> pcmf32_old;
 
+    std::vector<whisper_token> prompt_tokens;
     const int n_new_line = params.length_ms / params.step_ms - 1;
 
     // print some info about the processing
@@ -344,6 +345,9 @@ int main(int argc, char ** argv) {
             wparams.audio_ctx            = params.audio_ctx;
             wparams.speed_up             = params.speed_up;
 
+            wparams.prompt_tokens        = prompt_tokens.data();
+            wparams.prompt_n_tokens      = prompt_tokens.size();
+            
             if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
                 return 6;
@@ -393,6 +397,16 @@ int main(int argc, char ** argv) {
 
                 // keep part of the audio for next iteration to try to mitigate word boundary issues
                 pcmf32_old = std::vector<float>(pcmf32.end() - n_samples_keep, pcmf32.end());
+
+                // Add tokens of the last full length segment as the prompt
+                prompt_tokens.clear();
+                const int n_segments = whisper_full_n_segments(ctx);
+                for (int i = 0; i < n_segments; ++i) {
+                    const int token_count = whisper_full_n_tokens(ctx, i);
+                    for (int j = 0; j < token_count; ++j) {
+                        prompt_tokens.push_back(whisper_full_get_token_id(ctx, i, j));
+                    }
+                }
             }
         }
     }
