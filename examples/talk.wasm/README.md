@@ -31,6 +31,15 @@ In order to run this demo efficiently, you need to have the following:
 - Speak phrases that are no longer than 10 seconds - this is the audio context of the AI
 - The web-page uses about 1.4GB of RAM
 
+Notice that this demo is using the smallest GPT-2 model, so the generated text responses are not always very good.
+Also, the prompting strategy can likely be improved to achieve better results.
+
+The demo is quite computationally heavy - it's not usual to run these transformer models in a browser. Typically, they
+run on powerful GPU hardware. So for better experience, you do need to have a powerful computer.
+
+Probably in the near future, mobile browsers will start to support the WASM SIMD capabilities and this will allow
+to run the demo on your phone or tablet. But for now it seems to be not supported (at least on iPhone).
+
 ## Feedback
 
 If you have any comments or ideas for improvement, please drop a comment in the following discussion:

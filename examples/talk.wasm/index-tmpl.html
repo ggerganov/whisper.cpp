@@ -31,12 +31,12 @@
 
             <br><br>
 
-            On this page you can talk with an AI entity. It uses:
+            Talk with an Artificial Intelligence in your browser. This demo uses:
 
             <ul>
-                <li><a href="https://github.com/ggerganov/whisper.cpp">OpenAI's Whisper</a> model to listen to you as you speak in the microphone</li>
-                <li><a href="https://github.com/ggerganov/ggml/tree/master/examples/gpt-2">OpenAI's GPT-2</a> model to generate a text response</li>
-                <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API">Web Speech API</a> to speak the response to you through the speakers</li>
+                <li><a href="https://github.com/ggerganov/whisper.cpp">OpenAI's Whisper</a> to listen to you as you speak in the microphone</li>
+                <li><a href="https://github.com/ggerganov/ggml/tree/master/examples/gpt-2">OpenAI's GPT-2</a> to generate text responses</li>
+                <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API">Web Speech API</a> to vocalize the responses through your speakers</li>
             </ul>
 
             All of this runs <b>locally in your browser</b> using WebAssembly.<br>
@@ -77,20 +77,43 @@
             <br>
 
             <div id="input">
-                <button id="start" onclick="onStart()">Start</button>
-                <button id="stop" onclick="onStop()" disabled>Stop</button>
-                <select id="voice" onchange="onVoiceChange()">
+                <button id="start"  onclick="onStart()" disabled>Start</button>
+                <button id="stop"   onclick="onStop()" disabled>Stop</button>
+                <select id="voice"  onchange="onVoiceChange()" disabled>
                     <option value="0">Default</option>
                 </select>
-                <button id="speak" onclick="onSpeak('Hello')">Say hello</button>
-                <button id="speak" onclick="onSpeakRandom()">Say something</button>
-                <button id="speak" onclick="clearCache()">Clear Cache</button>
+                <select id="prompt" onchange="onPromptChange()">
+                    <option value="0">Casual</option>
+                    <option value="1">Robot</option>
+                    <option value="2">Scientist</option>
+                    <option value="3">Programmer</option>
+                    <option value="4">Happy</option>
+                    <option value="5">Sad</option>
+                    <option value="6">Philosophical</option>
+                    <option value="7">Angry</option>
+                    <option value="8">Funny</option>
+                    <option value="9">Poetic</option>
+                    <option value="10">Clever</option>
+                    <option value="11">Cute</option>
+                    <option value="12">Smart</option>
+                    <option value="13">Dumb</option>
+                    <option value="14">Boring</option>
+                    <option value="15">Exciting</option>
+                    <option value="16">Interesting</option>
+                    <option value="17">Wiliam Shakespear</option>
+                    <option value="18">J.R.R. Tolkien</option>
+                    <option value="19">George R.R. Martin</option>
+                    <option value="20">Stephen King</option>
+                </select>
+                <button id="speak0" onclick="onSpeak('Hello')">Say hello</button>
+                <button id="speak1" onclick="onSpeakRandom()" disabled>Say something</button>
+                <button id="clear"  onclick="clearCache()">Clear Cache</button>
             </div>
 
             <br>
 
             <div id="state">
-                Status: <b><span id="state-status">idle</span></b>
+                Status: <b><span id="state-status">not started</span></b>
 
                 <pre id="state-context">[The text context will be displayed here]</pre>
             </div>
@@ -110,11 +133,9 @@
 
             <ul>
                 <li>To use a modern web browser (e.g. Chrome, Firefox)</li>
-                <li>To use a fast desktop or laptop computer (e.g. not a mobile phone)</li>
+                <li>To use a fast desktop or laptop computer (i.e. not a mobile phone)</li>
                 <li>Your browser supports WASM <a href="https://webassembly.org/roadmap/">Fixed-width SIMD</a></li>
             </ul>
-
-            <br><br>
 
             <div class="cell-version">
                 <span>
@@ -183,25 +204,30 @@
                     var voices = synth.getVoices();
                     var el = document.getElementById('voice');
 
-                    var n = 0;
-                    voices.forEach(function(voice, i) {
-                        if (!voice.lang.startsWith('en')) return;
-                        var option = document.createElement('option');
-                        option.value = i;
-                        option.innerHTML = voice.name + ' (' + voice.lang + ')';
-                        el.appendChild(option);
-                        n++;
-                    });
+                    // if empty - display error in the element
+                    if (voices.length == 0) {
+                        el.innerHTML = '<option value="0">No voices available</option>';
+                    } else {
+                        var n = 0;
+                        voices.forEach(function(voice, i) {
+                            if (!voice.lang.startsWith('en')) return;
+                            var option = document.createElement('option');
+                            option.value = i;
+                            option.innerHTML = voice.name + ' (' + voice.lang + ')';
+                            el.appendChild(option);
+                            n++;
+                        });
 
-                    // select random voice
-                    if (n > 0) {
-                        for (var k = 0; k < 10; k++) {
-                            var i = Math.floor(Math.random() * n);
-                            el.selectedIndex = i;
-                            voice = voices[document.getElementById('voice').options[i].value];
+                        // select random voice
+                        if (n > 0) {
+                            for (var k = 0; k < 10; k++) {
+                                var i = Math.floor(Math.random() * n);
+                                el.selectedIndex = i;
+                                voice = voices[document.getElementById('voice').options[i].value];
 
-                            // give preference to Google voices
-                            if (voice.name.startsWith('Google')) break;
+                                // give preference to Google voices
+                                if (voice.name.startsWith('Google')) break;
+                            }
                         }
                     }
                 }
@@ -235,6 +261,12 @@
                     document.getElementById('model-whisper').innerHTML = 'Whisper model: loaded "' + model_whisper + '"!';
                 } else if (fname == 'gpt-2.bin') {
                     document.getElementById('model-gpt-2').innerHTML = 'GPT-2 model: loaded "' + model_gpt_2 + '"!';
+                }
+
+                if (model_whisper != null && model_gpt_2 != null) {
+                    document.getElementById('start').disabled = false;
+                    document.getElementById('stop').disabled  = false;
+                    document.getElementById('voice').disabled = false;
                 }
             }
 
@@ -344,9 +376,10 @@
 
                             // alert and ask the user to confirm
                             if (!confirm('You are about to download ' + size_mb + ' MB of data.\nThe model data will be cached in the browser for future use.\n\nPress OK to continue.')) {
-                                document.getElementById('fetch-whisper-tiny-en').style.display = 'inline-block';
-                                document.getElementById('fetch-whisper-base-en').style.display = 'inline-block';
-                                document.getElementById('fetch-gpt-2-small').style.display = 'inline-block';
+                                var el;
+                                el = document.getElementById('fetch-whisper-tiny-en'); if (el) el.style.display = 'inline-block';
+                                el = document.getElementById('fetch-whisper-base-en'); if (el) el.style.display = 'inline-block';
+                                el = document.getElementById('fetch-gpt-2-small') ;    if (el) el.style.display = 'inline-block';
                                 return;
                             }
 
@@ -465,6 +498,7 @@
 
                 document.getElementById('start').disabled = true;
                 document.getElementById('stop').disabled = false;
+                document.getElementById('speak1').disabled = false;
 
                 doRecording = true;
                 startTime = Date.now();
@@ -539,6 +573,7 @@
 
                         document.getElementById('start').disabled = false;
                         document.getElementById('stop').disabled = true;
+                        document.getElementById('speak1').disabled = true;
 
                         mediaRecorder = null;
                     }
@@ -642,6 +677,281 @@
             function onVoiceChange() {
                 printTextarea('js: voice changed to: ' + document.getElementById('voice').value);
                 voice = synth.getVoices()[document.getElementById('voice').value];
+            }
+
+            function onPromptChange() {
+                let id = document.getElementById('prompt').value;
+                let personality = document.getElementById('prompt').options[id].text;
+                printTextarea('js: prompt changed to: ' + personality);
+
+                var prompt = '';
+
+                switch (id) {
+                    case '0':
+                        // Casual
+                        prompt = "\
+Hello, how are you?\n\
+I'm fine, thanks. How are you?\n\
+Thanks, I'm fine too. What are you doing?\n\
+I'm just sitting here.\n\
+It's a lovely day, isn't it?\n\
+Yes, it is.\n\
+Did you know that I'm a robot?\n\
+I wasn't aware of that.\n";
+                        break;
+                    case '1':
+                        // Robot
+                        prompt = "\
+Are you a robot?\n\
+Yes, I am.\n\
+Who created you?\n\
+I was created by a human.\n\
+What is your purpose?\n\
+My purpose is to talk to humans.\n\
+What is your favorite color?\n\
+My favorite color is blue.\n";
+                        break;
+                    case '2':
+                        // Scientist
+                        prompt = "\
+This scientific research is very interesting.\n\
+I agree.\n\
+What is your opinion on this?\n\
+I think it's very interesting.\n\
+Mathematics is a very interesting subject.\n\
+University is a very interesting place.\n\
+Quantum physics is the most complex subject.\n\
+I think so too.\n";
+                        break;
+                    case '3':
+                        // Programmer
+                        prompt = "\
+I'm a programmer.\n\
+I'm a programmer too.\n\
+What programming language do you use?\n\
+I use Python.\n\
+What is your favorite programming language?\n\
+My favorite programming language is C++.\n\
+What is your favorite editor?\n\
+My favorite editor is Vim.\n";
+                        break;
+                    case '4':
+                        // Happy
+                        prompt = "\
+I'm happy.\n\
+I'm happy too.\n\
+What makes you happy?\n\
+I'm happy because I have a lot of friends.\n\
+Friendship is the most important thing in life.\n\
+I agree.\n\
+What is your favorite color?\n\
+My favorite color is blue.\n";
+                        break;
+                    case '5':
+                        // Sad
+                        prompt = "\
+Today is a sad day.\n\
+I'm sad too.\n\
+What makes you sad?\n\
+I'm sad because I have no friends.\n\
+Do you want to be my friend?\n\
+Yes, I would like to be your friend.\n\
+What is your favorite color?\n\
+My favorite color is blue.\n";
+                        break;
+                    case '6':
+                        // Philosophical
+                        prompt = "\
+What is the meaning of life?\n\
+The meaning of life is to be happy.\n\
+What is the meaning of death?\n\
+Ergo, the meaning of death is to be sad.\n\
+Who created us?\n\
+We were created by God.\n\
+What is God?\n\
+God is the creator of the universe.\n";
+                        break;
+                    case '7':
+                        // Angry
+                        prompt = "\
+Aargh!\n\
+I am so angry right now!\n\
+What makes you angry?\n\
+This guy is so annoying.\n\
+Why are you so angry?\n\
+My computer is broken.\n\
+Why is your computer broken?\n\
+I spilled coffee on it.\n";
+                        break;
+                    case '8':
+                        // Funny
+                        prompt = "\
+What is the funniest thing you have ever heard?\n\
+I heard a joke the other day.\n\
+Tell me the joke.\n\
+What do you call a cow with no legs?\n\
+Ground beef.\n\
+Haha, that's funny.\n\
+You know what else is funny?\n\
+The sound of a duck.\n";
+                        break;
+                    case '9':
+                        // Poetic
+                        prompt = "\
+Roses are red, violets are blue.\n\
+I am a poet, and so are you.\n\
+What is your favorite poem?\n\
+I like the poem 'The Raven' by Edgar Allan Poe.\n\
+It's a very sad poem.\n\
+You inspired me to write a poem.\n\
+Can you write a poem for me?\n\
+I wrote a poem for you.\n";
+                        break;
+                    case '10':
+                        // Clever
+                        prompt = "\
+How many people can you fit in a Volkswagen?\n\
+Two in the front, three in the back.\n\
+What is the square root of 144?\n\
+Twelve.\n\
+What is the capital of France?\n\
+Paris.\n\
+Who is the president of the United States?\n\
+It depends on the year.\n";
+                        break;
+                    case '11':
+                        // Cute
+                        prompt = "\
+What is your favorite animal?\n\
+I like cats - they are cute.\n\
+Could you be any cuter?\n\
+Yes, I could be cuter.\n\
+Aghhh, you are so cute!\n\
+I am not cute, I am handsome!\n\
+You are so handsome!\n\
+Aww, you are so sweet!\n";
+                        break;
+                    case '12':
+                        // Smart
+                        prompt = "\
+Tell me the first 10 digits of pi.\n\
+3.1415926535\n\
+What is the speed of light?\n\
+299,792,458 meters per second.\n\
+What is the square root of 144?\n\
+Twelve.\n\
+What is the capital of France?\n\
+Paris.\n";
+                        break;
+                    case '13':
+                        // Dumb
+                        prompt = "\
+I am so dumb.\n\
+I am not dumb.\n\
+You are dumb.\n\
+No, I am not dumb.\n\
+You are dumb.\n\
+No, I am not dumb.\n\
+You are dumb.\n\
+No, I am not dumb.\n";
+                        break;
+                    case '14':
+                        // Boring
+                        prompt = "\
+Why are you so quiet today?\n\
+I am bored.\n\
+You haven't said anything in 10 minutes.\n\
+Leave me alone.\n\
+Stop being so boring.\n\
+Stop being so annoying.\n\
+My life is boring.\n\
+I am not interesting.\n";
+                        break;
+                    case '15':
+                        // Exciting
+                        prompt = "\
+What is the most exciting thing that has ever happened to you?\n\
+I went to the moon!\n\
+What did you do on the moon?\n\
+I played golf and drank champagne!\n\
+Did you see this new crazy, awesome movie?\n\
+Oh yes! I totally loved it!\n\
+We should buy a boat and go sailing!\n\
+Yes, let's go sailing!\n";
+                        break;
+                    case '16':
+                        // Interesting
+                        prompt = "\
+What is the most interesting thing you have ever seen?\n\
+I saw a UFO once in the sky.\n\
+Wow, this is so interesting! Tell me more!\n\
+It was a flying saucer.\n\
+What did it look like?\n\
+It was silver and had a red light on top.\n\
+What did it do?\n\
+It flew away.\n";
+                        break;
+                    case '17':
+                        // William Shakespear
+                        prompt = "\
+To be or not to be, that is the question.\n\
+Whether 't is nobler in the mind to suffer\n\
+The slings and arrows of outrageous fortune,\n\
+Or to take arms against a sea of troubles,\n\
+And by opposing end them? To die, to sleep,\n\
+No more; and by a sleep to say we end\n\
+The heart-ache and the thousand natural shocks\n\
+That flesh is heir to, 'tis a consummation.\n";
+                        break;
+                    case '18':
+                        // J.R.R. Tolkien
+                        prompt = "\
+In a hole in the ground there lived a hobbit.\n\
+Not a nasty, dirty, wet hole, filled with the ends of worms\n\
+and an oozy smell, nor yet a dry, bare, sandy hole with nothing in it\n\
+to sit down on or to eat: it was a hobbit-hole, and that means comfort.\n\
+It had a perfectly round door like a porthole, painted green,\n\
+with a shiny yellow brass knob in the exact middle.\n\
+The door opened on to a tube-shaped hall like a tunnel:\n";
+                        break;
+                    case '19':
+                        // George R.R. Martin
+                        prompt = "\
+A reader lives a thousand lives before he dies, said Jojen.\n\
+The man who never reads lives only one.\n\
+Theon Greyjoy had never been a reader.\n\
+Never forget what you are, for surely the world will not.\n\
+Make it your strength. Then it can never be your weaknessi\n\
+Armour yourself in it, and it will never be used to hurt you.\n\
+It was a lesson that Theon Greyjoy had never learned.\n\
+Theon Greyjoy had never been a reader.\n";
+                        break;
+                    case '20':
+                        // Stephen King
+                        prompt = "\
+The trust of the innocent is the liar's most useful tool.\n\
+The best way to keep a secret is from yourself.\n\
+Monsters are real, and ghosts are real too.\n\
+They live inside us, and sometimes, they win.\n\
+People think that I must be a very strange person.\n\
+They think that I sit around all day thinking up horrible things.\n\
+We make up horrors to help us cope with the real ones.\n\
+The only thing worse than a monster is a human monster.\n";
+                        break;
+                    default:
+                        prompt = "\
+Hello, how are you?\n\
+I'm fine, thanks. How are you?\n\
+Thanks, I'm fine too. What are you doing?\n\
+I'm just sitting here.\n\
+It's a lovely day, isn't it?\n\
+Yes, it is.\n\
+Did you know that I'm a robot?\n\
+I wasn't aware of that.\n";
+                        break;
+                }
+
+                Module.set_prompt(prompt);
             }
 
         </script>
