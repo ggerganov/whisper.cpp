@@ -46,7 +46,12 @@
 
             <div id="model">
                 Model:
-                <input type="file" id="file" name="file" onchange="loadFile(event, 'ggml.bin')" />
+                <button id="fetch-whisper-tiny-en" onclick="loadWhisper('tiny.en')">tiny.en (75 MB)</button>
+                <button id="fetch-whisper-tiny"    onclick="loadWhisper('tiny')">tiny (75 MB)</button>
+                <button id="fetch-whisper-base-en" onclick="loadWhisper('base.en')">base.en (142 MB)</button>
+                <button id="fetch-whisper-base"    onclick="loadWhisper('base')">base (142 MB)</button>
+                <span id="fetch-whisper-progress"></span>
+                <input type="file" id="file" name="file" onchange="loadFile(event, 'whisper.bin')" />
             </div>
 
             <br>
@@ -258,6 +263,25 @@
             // load model
             //
 
+            let dbVersion = 1
+            let dbName    = 'whisper.ggerganov.com';
+            let indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB
+
+            function storeFS(fname, buf) {
+                // write to WASM file using FS_createDataFile
+                // if the file exists, delete it
+                try {
+                    Module.FS_unlink(fname);
+                } catch (e) {
+                    // ignore
+                }
+
+                Module.FS_createDataFile("/", fname, buf, true, true);
+
+                model_fname = fname;
+                printTextarea('js: stored model: ' + fname + ' size: ' + buf.length);
+            }
+
             function loadFile(event, fname) {
                 var file = event.target.files[0] || null;
                 if (file == null) {
@@ -270,19 +294,191 @@
                 var reader = new FileReader();
                 reader.onload = function(event) {
                     var buf = new Uint8Array(reader.result);
-
-                    // write to WASM file using whisper.FS_createDataFile
-                    // if the file exists, delete it
-                    try {
-                        Module.FS_unlink(fname);
-                    } catch (e) {
-                    }
-                    Module.FS_createDataFile("/", fname, buf, true, true);
-
-                    model_fname = file.name;
-                    printTextarea('js: loaded model: ' + model_fname + ' size: ' + buf.length);
+                    storeFS(fname, buf);
                 }
                 reader.readAsArrayBuffer(file);
+            }
+
+            // fetch a remote file from remote URL using the Fetch API
+            async function fetchRemote(url, elProgress) {
+                printTextarea('js: downloading with fetch()...');
+
+                const response = await fetch(
+                    url,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/octet-stream',
+                        },
+                    }
+                );
+
+                if (!response.ok) {
+                    printTextarea('js: failed to fetch ' + url);
+                    return;
+                }
+
+                const contentLength = response.headers.get('content-length');
+                const total = parseInt(contentLength, 10);
+                const reader = response.body.getReader();
+
+                var chunks = [];
+                var receivedLength = 0;
+                var progressLast = -1;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+
+                    if (done) {
+                        break;
+                    }
+
+                    chunks.push(value);
+                    receivedLength += value.length;
+
+                    if (contentLength) {
+                        // update progress bar element with the new percentage
+                        elProgress.innerHTML = Math.round((receivedLength / total) * 100) + '%';
+
+                        var progressCur = Math.round((receivedLength / total) * 10);
+                        if (progressCur != progressLast) {
+                            printTextarea('js: fetching ' + 10*progressCur + '% ...');
+                            progressLast = progressCur;
+                        }
+                    }
+                }
+
+                var chunksAll = new Uint8Array(receivedLength);
+                var position = 0;
+                for (var chunk of chunks) {
+                    chunksAll.set(chunk, position);
+                    position += chunk.length;
+                }
+
+                return chunksAll;
+            }
+
+            // load remote data
+            // - check if the data is already in the IndexedDB
+            // - if not, fetch it from the remote URL and store it in the IndexedDB
+            // - store it in WASM memory
+            function loadRemote(url, dst, elProgress, size_mb) {
+                // query the storage quota and print it
+                navigator.storage.estimate().then(function (estimate) {
+                    printTextarea('js: storage quota: ' + estimate.quota + ' bytes');
+                    printTextarea('js: storage usage: ' + estimate.usage + ' bytes');
+                });
+
+                // check if the data is already in the IndexedDB
+                var request = indexedDB.open(dbName, dbVersion);
+
+                request.onupgradeneeded = function (event) {
+                    var db = event.target.result;
+                    if (db.version == 1) {
+                        var objectStore = db.createObjectStore('models', { autoIncrement: false });
+                        printTextarea('js: created IndexedDB ' + db.name + ' version ' + db.version);
+                    } else {
+                        // clear the database
+                        var objectStore = event.currentTarget.transaction.objectStore('models');
+                        objectStore.clear();
+                        printTextarea('js: cleared IndexedDB ' + db.name + ' version ' + db.version);
+                    }
+                };
+
+                request.onsuccess = function (event) {
+                    var db = event.target.result;
+                    var transaction = db.transaction(['models'], 'readonly');
+                    var objectStore = transaction.objectStore('models');
+                    var request = objectStore.get(url);
+
+                    request.onsuccess = function (event) {
+                        if (request.result) {
+                            printTextarea('js: "' + url + '" is already in the IndexedDB');
+                            storeFS(dst, request.result);
+                        } else {
+                            // data is not in the IndexedDB
+                            printTextarea('js: "' + url + '" is not in the IndexedDB');
+
+                            // alert and ask the user to confirm
+                            if (!confirm('You are about to download ' + size_mb + ' MB of data.\nThe model data will be cached in the browser for future use.\n\nPress OK to continue.')) {
+                                var el;
+                                el = document.getElementById('fetch-whisper-tiny-en'); if (el) el.style.display = 'inline-block';
+                                el = document.getElementById('fetch-whisper-tiny'); if (el) el.style.display = 'inline-block';
+                                el = document.getElementById('fetch-whisper-base-en'); if (el) el.style.display = 'inline-block';
+                                el = document.getElementById('fetch-whisper-base'); if (el) el.style.display = 'inline-block';
+                                return;
+                            }
+
+                            fetchRemote(url, elProgress).then(function (data) {
+                                if (data) {
+                                    // store the data in the IndexedDB
+                                    var request = indexedDB.open(dbName, dbVersion);
+                                    request.onsuccess = function (event) {
+                                        var db = event.target.result;
+                                        var transaction = db.transaction(['models'], 'readwrite');
+                                        var objectStore = transaction.objectStore('models');
+                                        var request = objectStore.put(data, url);
+
+                                        request.onsuccess = function (event) {
+                                            printTextarea('js: "' + url + '" stored in the IndexedDB');
+                                            storeFS(dst, data);
+                                        };
+
+                                        request.onerror = function (event) {
+                                            printTextarea('js: failed to store "' + url + '" in the IndexedDB');
+                                        };
+                                    };
+                                }
+                            });
+                        }
+                    };
+
+                    request.onerror = function (event) {
+                        printTextarea('js: failed to get data from the IndexedDB');
+                    };
+                };
+
+                request.onerror = function (event) {
+                    printTextarea('js: failed to open IndexedDB');
+                };
+
+                request.onblocked = function (event) {
+                    printTextarea('js: failed to open IndexedDB: blocked');
+                };
+
+                request.onabort = function (event) {
+                    printTextarea('js: failed to open IndexedDB: abort');
+                };
+            }
+
+            function loadWhisper(model) {
+                let urls = {
+                    'tiny.en': 'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en.bin',
+                    'tiny':    'https://whisper.ggerganov.com/ggml-model-whisper-tiny.bin',
+                    'base.en': 'https://whisper.ggerganov.com/ggml-model-whisper-base.en.bin',
+                    'base':    'https://whisper.ggerganov.com/ggml-model-whisper-base.bin',
+                };
+
+                let sizes = {
+                    'tiny.en': 75,
+                    'tiny':    75,
+                    'base.en': 142,
+                    'base':    142,
+                };
+
+                let url     = urls[model];
+                let dst     = 'whisper.bin';
+                let el      = document.getElementById('fetch-whisper-progress');
+                let size_mb = sizes[model];
+
+                model_whisper = model;
+
+                document.getElementById('fetch-whisper-tiny-en').style.display = 'none';
+                document.getElementById('fetch-whisper-base-en').style.display = 'none';
+                document.getElementById('fetch-whisper-tiny').style.display = 'none';
+                document.getElementById('fetch-whisper-base').style.display = 'none';
+
+                loadRemote(url, dst, el, size_mb);
             }
 
             //
@@ -446,7 +642,7 @@
 
             function onProcess(translate) {
                 if (!instance) {
-                    instance = Module.init('ggml.bin');
+                    instance = Module.init('whisper.bin');
 
                     if (instance) {
                         printTextarea("js: whisper initialized, instance: " + instance);
