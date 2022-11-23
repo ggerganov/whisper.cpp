@@ -65,6 +65,7 @@ struct whisper_params {
     bool output_txt           = false;
     bool output_vtt           = false;
     bool output_srt           = false;
+    bool output_json          = false;
     bool output_wts           = false;
     bool print_special_tokens = false;
     bool print_colors         = false;
@@ -126,6 +127,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             params.output_srt = true;
         } else if (arg == "-owts" || arg == "--output-words") {
             params.output_wts = true;
+        } else if (arg == "-ojson" || arg == "--output-json") {
+            params.output_json = true;
         } else if (arg == "-ps" || arg == "--print_special") {
             params.print_special_tokens = true;
         } else if (arg == "-pc" || arg == "--print_colors") {
@@ -170,6 +173,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "  -otxt,    --output-txt     output result in a text file\n");
     fprintf(stderr, "  -ovtt,    --output-vtt     output result in a vtt file\n");
     fprintf(stderr, "  -osrt,    --output-srt     output result in a srt file\n");
+    fprintf(stderr, "  -ojson,   --output-json    output result with confidence in a json file\n");
     fprintf(stderr, "  -owts,    --output-words   output script for generating karaoke video\n");
     fprintf(stderr, "  -ps,      --print_special  print special tokens\n");
     fprintf(stderr, "  -pc,      --print_colors   print colors\n");
@@ -306,6 +310,67 @@ bool output_srt(struct whisper_context * ctx, const char * fname, const whisper_
         fout << to_timestamp(t0, true) << " --> " << to_timestamp(t1, true) << "\n";
         fout << text << "\n\n";
     }
+
+    return true;
+}
+
+bool output_json(struct whisper_context * ctx, const char * fname, whisper_params params) {
+    std::ofstream fout(fname);
+    if (!fout.is_open()) {
+        fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
+        return 9;
+    }
+
+    fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
+
+    fout << "[\n";
+
+    const int n_segments = whisper_full_n_segments(ctx);
+    for (int i = 0; i < n_segments; ++i) {
+        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+        fout << "{\"start\":" << t0 << ", \"end\": " << t1;
+        fout << ", \"text\": [";
+        int n_token = whisper_full_n_tokens(ctx, i);
+        if (whisper_full_get_token_id(ctx, i, n_token - 1) >= whisper_token_eot(ctx)) {
+            --n_token;
+        }
+        for (int j = 0; j < n_token; ++j) {
+            const whisper_token id = whisper_full_get_token_id(ctx, i, j);
+            if (id >= whisper_token_eot(ctx)) {
+                continue;
+            }
+            const char * text = whisper_full_get_token_text(ctx, i, j);
+            size_t len = strlen(text) + 1;
+            char esc[len * 2];
+            memset (esc, 0, len * 2);
+            memcpy(esc, text, len);
+            size_t off = 0;
+            for (size_t tp = 0; text[tp] != '\0'; tp++) {
+                if (text[tp] == '"') {
+                    esc[tp + off] = '\\';
+                    ++off;
+                }
+                esc[tp + off] = text[tp];
+            }
+            const float  p    = whisper_full_get_token_p   (ctx, i, j);
+            const int conf = std::max(0, std::min((int) k_colors.size(), (int) (std::pow(p, 3)*float(k_colors.size()))));
+            fout << "[" << conf << ", \"" << esc << "\"]";
+            if (j != n_token - 1){
+                fout << ",";
+            }
+        }
+        fout << "";
+        fout << "]}";
+        if (i != n_segments - 1){
+            fout << ",";
+        }
+        fout << "\n";
+    }
+    fout << "]";
+
+
+
 
     return true;
 }
@@ -603,11 +668,18 @@ int main(int argc, char ** argv) {
                 output_srt(ctx, fname_srt.c_str(), params);
             }
 
+            // output to JSON file
+            if (params.output_json) {
+                const auto fname_json = fname_inp + ".json";
+                output_json(ctx, fname_json.c_str(), params);
+            }
+
             // output to WTS file
             if (params.output_wts) {
                 const auto fname_wts = fname_inp + ".wts";
                 output_wts(ctx, fname_wts.c_str(), fname_inp.c_str(), params, float(pcmf32.size() + 1000)/WHISPER_SAMPLE_RATE);
             }
+
         }
     }
 

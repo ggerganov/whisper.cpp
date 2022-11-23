@@ -112,6 +112,7 @@ options:
   -otxt,    --output-txt     output result in a text file
   -ovtt,    --output-vtt     output result in a vtt file
   -osrt,    --output-srt     output result in a srt file
+  -ojson    --output-json    output result with confidence in a json file
   -owts,    --output-words   output script for generating karaoke video
   -ps,      --print_special  print special tokens
   -pc,      --print_colors   print colors
@@ -314,14 +315,14 @@ to highlight words with high or low confidence:
 
 ## Controlling the length of the generated text segments (experimental)
 
-For example, to limit the line length to a maximum of 16 characters, simply add `-ml 16`: 
+For example, to limit the line length to a maximum of 16 characters, simply add `-ml 16`:
 
 ```java
 ./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -ml 16
 
 whisper_model_load: loading model from './models/ggml-base.en.bin'
 ...
-system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | 
+system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 |
 
 main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
 
@@ -345,11 +346,11 @@ The `--max-len` argument can be used to obtain word-level timestamps. Simply use
 
 whisper_model_load: loading model from './models/ggml-base.en.bin'
 ...
-system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | 
+system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 |
 
 main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
 
-[00:00:00.000 --> 00:00:00.320]  
+[00:00:00.000 --> 00:00:00.320]
 [00:00:00.320 --> 00:00:00.370]   And
 [00:00:00.370 --> 00:00:00.690]   so
 [00:00:00.690 --> 00:00:00.850]   my
