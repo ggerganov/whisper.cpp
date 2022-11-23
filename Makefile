@@ -96,6 +96,10 @@ ifdef WHISPER_OPENBLAS
 	CFLAGS  += -DGGML_USE_OPENBLAS -I/usr/local/include/openblas
 	LDFLAGS += -lopenblas
 endif
+ifdef WHISPER_GPROF
+	CFLAGS  += -pg
+	CXXFLAGS  += -pg
+endif
 ifneq ($(filter aarch64%,$(UNAME_M)),)
 endif
 ifneq ($(filter armv6%,$(UNAME_M)),)
