@@ -1,3 +1,20 @@
+# Convert Hugging Face fine-tuned models to ggml format
+#
+# Usage:
+#
+#   git clone https://github.com/openai/whisper
+#   git clone https://github.com/ggerganov/whisper.cpp
+#   git clone https://huggingface.co/openai/whisper-medium
+#
+#   python3 ./whisper.cpp/models/convert-h5-to-ggml.py ./whisper-medium/ ./whisper .
+#
+# This script is similar to "convert-pt-to-ggml.py"
+#
+# For more info:
+#
+#   https://github.com/ggerganov/whisper.cpp/issues/157
+#
+
 import io
 import os
 import sys
