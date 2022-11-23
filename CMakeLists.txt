@@ -99,7 +99,9 @@ if (APPLE AND NOT WHISPER_NO_ACCELERATE)
 endif()
 
 if (WHISPER_SUPPORT_OPENBLAS)
-    find_library(OPENBLAS_LIB openblas)
+    find_library(OPENBLAS_LIB
+        NAMES openblas libopenblas
+        )
     if (OPENBLAS_LIB)
         message(STATUS "OpenBLAS found")
 
