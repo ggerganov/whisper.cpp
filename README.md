@@ -1,5 +1,7 @@
 # whisper.cpp
 
+Add AVX support to ggerganov's whisper.cpp.
+
 [![Actions Status](https://github.com/ggerganov/whisper.cpp/workflows/CI/badge.svg)](https://github.com/ggerganov/whisper.cpp/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
