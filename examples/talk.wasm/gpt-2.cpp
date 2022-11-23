@@ -513,7 +513,7 @@ bool gpt2_eval(
     const int n_head  = hparams.n_head;
     const int n_vocab = hparams.n_vocab;
 
-    static size_t buf_size = 512u*1024*1024;
+    static size_t buf_size = 640u*1024*1024;
     static void * buf = malloc(buf_size);
 
     if (mem_per_token > 0 && mem_per_token*N > buf_size) {

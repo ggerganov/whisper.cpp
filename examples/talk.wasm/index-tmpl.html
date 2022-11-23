@@ -504,7 +504,13 @@
 
             function startRecording() {
                 if (!context) {
-                    context = new AudioContext({sampleRate: 16000, noiseSuppression: true});
+                    context = new AudioContext({
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        autoGainControl:  true,
+                        noiseSuppression: true,
+                    });
                 }
 
                 Module.set_status("");
