@@ -3041,6 +3041,7 @@ const char * whisper_print_system_info() {
     static std::string s;
 
     s  = "";
+    s += "AVX = "       + std::to_string(ggml_cpu_has_avx())       + " | ";
     s += "AVX2 = "      + std::to_string(ggml_cpu_has_avx2())      + " | ";
     s += "AVX512 = "    + std::to_string(ggml_cpu_has_avx512())    + " | ";
     s += "NEON = "      + std::to_string(ggml_cpu_has_neon())      + " | ";
