@@ -9,27 +9,28 @@ import numpy as np
 
 from transformers import WhisperForConditionalGeneration
 
-conv_map = {'self_attn_layer_norm': 'attn_ln',
- 'encoder_attn.k_proj': 'attn.key',
- 'self_attn.out_proj': 'attn.out',
- 'encoder_attn.out_proj': 'cross_attn.out',
- 'self_attn.q_proj': 'attn.query',
- 'encoder_attn.q_proj': 'cross_attn.query',
- 'self_attn.v_proj': 'attn.value',
- 'encoder_attn.v_proj': 'cross_attn.value',
- 'encoder_attn_layer_norm': 'cross_attn_ln',
- 'fc1': 'mlp.0',
- 'fc2': 'mlp.2',
- 'final_layer_norm': 'mlp_ln',
- 'encoder.layer_norm.bias': 'encoder.ln_post.bias',
- 'encoder.layer_norm.weight': 'encoder.ln_post.weight',
- 'encoder.embed_positions.weight': 'encoder.positional_embedding',
- 'decoder.layer_norm.bias': 'decoder.ln.bias',
- 'decoder.layer_norm.weight': 'decoder.ln.weight',
- 'decoder.embed_positions.weight': 'decoder.positional_embedding',
- 'decoder.embed_tokens.weight': 'decoder.token_embedding.weight',
- 'proj_out.weight': 'decoder.proj.weight',
-}
+conv_map = {
+        'self_attn.k_proj'              : 'attn.key',
+        'self_attn.q_proj'              : 'attn.query',
+        'self_attn.v_proj'              : 'attn.value',
+        'self_attn.out_proj'            : 'attn.out',
+        'self_attn_layer_norm'          : 'attn_ln',
+        'encoder_attn.q_proj'           : 'cross_attn.query',
+        'encoder_attn.v_proj'           : 'cross_attn.value',
+        'encoder_attn.out_proj'         : 'cross_attn.out',
+        'encoder_attn_layer_norm'       : 'cross_attn_ln',
+        'fc1'                           : 'mlp.0',
+        'fc2'                           : 'mlp.2',
+        'final_layer_norm'              : 'mlp_ln',
+        'encoder.layer_norm.bias'       : 'encoder.ln_post.bias',
+        'encoder.layer_norm.weight'     : 'encoder.ln_post.weight',
+        'encoder.embed_positions.weight': 'encoder.positional_embedding',
+        'decoder.layer_norm.bias'       : 'decoder.ln.bias',
+        'decoder.layer_norm.weight'     : 'decoder.ln.weight',
+        'decoder.embed_positions.weight': 'decoder.positional_embedding',
+        'decoder.embed_tokens.weight'   : 'decoder.token_embedding.weight',
+        'proj_out.weight'               : 'decoder.proj.weight',
+        }
 
 # ref: https://github.com/openai/gpt-2/blob/master/src/encoder.py
 def bytes_to_unicode():
@@ -95,12 +96,12 @@ fout.write(struct.pack("i", 0x67676d6c)) # magic: ggml in hex
 fout.write(struct.pack("i", hparams["vocab_size"]))
 fout.write(struct.pack("i", hparams["max_source_positions"]))
 fout.write(struct.pack("i", hparams["d_model"]))
-fout.write(struct.pack("i", hparams["decoder_attention_heads"]))
-fout.write(struct.pack("i", hparams["decoder_layers"]))
-fout.write(struct.pack("i", hparams["max_length"]))
-fout.write(struct.pack("i", hparams["d_model"]))
 fout.write(struct.pack("i", hparams["encoder_attention_heads"]))
 fout.write(struct.pack("i", hparams["encoder_layers"]))
+fout.write(struct.pack("i", hparams["max_length"]))
+fout.write(struct.pack("i", hparams["d_model"]))
+fout.write(struct.pack("i", hparams["decoder_attention_heads"]))
+fout.write(struct.pack("i", hparams["decoder_layers"]))
 fout.write(struct.pack("i", hparams["num_mel_bins"]))
 fout.write(struct.pack("i", use_f16))
 
@@ -139,7 +140,7 @@ for name in list_vars.keys():
 
     if nn[1] == "layers":
         nn[1] = "blocks"
-        if ".".join(nn[3:-1]) == "self_attn.k_proj":
+        if ".".join(nn[3:-1]) == "encoder_attn.k_proj":
             mapped = "attn.key" if nn[0] == "encoder" else "cross_attn.key"
         else:
             mapped = conv_map[".".join(nn[3:-1])]
