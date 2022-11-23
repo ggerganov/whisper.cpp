@@ -16,7 +16,7 @@
 
 #if defined _MSC_VER || defined(__MINGW32__)
 
-#ifndef(__MINGW32__)
+#if !defined(__MINGW32__)
 #include <Windows.h>
 #else
 // ref: https://github.com/ggerganov/whisper.cpp/issues/168
