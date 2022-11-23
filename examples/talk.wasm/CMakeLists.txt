@@ -6,6 +6,7 @@ set(TARGET libtalk)
 
 add_executable(${TARGET}
     emscripten.cpp
+    gpt-2.cpp
     )
 
 target_link_libraries(${TARGET} PRIVATE

@@ -504,7 +504,7 @@
 
             function startRecording() {
                 if (!context) {
-                    context = new AudioContext({sampleRate: 16000});
+                    context = new AudioContext({sampleRate: 16000, noiseSuppression: true});
                 }
 
                 Module.set_status("");
