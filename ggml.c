@@ -140,7 +140,7 @@ static inline uint32_t fp32_to_bits(float f) {
 	return fp32.as_bits;
 }
 
-float ggml_fp16_to_fp32(ggml_fp16_t h) {
+inline float ggml_fp16_to_fp32(ggml_fp16_t h) {
     const uint32_t w = (uint32_t) h << 16;
     const uint32_t sign = w & UINT32_C(0x80000000);
     const uint32_t two_w = w + w;
@@ -163,7 +163,7 @@ float ggml_fp16_to_fp32(ggml_fp16_t h) {
     return fp32_from_bits(result);
 }
 
-ggml_fp16_t ggml_fp32_to_fp16(float f) {
+inline ggml_fp16_t ggml_fp32_to_fp16(float f) {
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) || defined(__GNUC__) && !defined(__STRICT_ANSI__)
     const float scale_to_inf = 0x1.0p+112f;
     const float scale_to_zero = 0x1.0p-110f;
