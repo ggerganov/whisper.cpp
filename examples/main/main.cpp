@@ -390,9 +390,9 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
                     ncnt += txt.size();
                 }
 
-                ::replace_all(txt_bg, "'", "’");
+                ::replace_all(txt_bg, "'", "\u2019");
                 ::replace_all(txt_bg, "\"", "\\\"");
-                ::replace_all(txt_fg, "'", "’");
+                ::replace_all(txt_fg, "'", "\u2019");
                 ::replace_all(txt_fg, "\"", "\\\"");
             }
 
