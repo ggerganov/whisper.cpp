@@ -30,9 +30,13 @@ The entire implementation of the model is contained in 2 source files:
 - Transformer inference: [whisper.h](whisper.h) / [whisper.cpp](whisper.cpp)
 
 Having such a lightweight implementation of the model allows to easily integrate it in different platforms and applications.
-As an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device:
+As an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device: [whisper.objc](https://github.com/ggerganov/whisper.cpp/tree/master/examples/whisper.objc)
 
 https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-bf96-1d8c27b98c81.mp4
+
+Or you can even run it in the straigt in your browser: [talk.wasm](https://github.com/ggerganov/whisper.cpp/tree/master/examples/talk.wasm)
+
+https://user-images.githubusercontent.com/1991296/203411580-fedb4839-05e4-4474-8364-aaf1e9a9b615.mp4
 
 ## Implementation details
 
