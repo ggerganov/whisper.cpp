@@ -518,15 +518,6 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
         wctx.buf_memory.resize(MEM_REQ_MEMORY.at(model.type));
         wctx.buf_compute.resize(std::max(MEM_REQ_ENCODE.at(model.type), MEM_REQ_DECODE.at(model.type)));
         wctx.buf_compute_layer.resize(std::max(MEM_REQ_ENCODE_LAYER.at(model.type), MEM_REQ_DECODE_LAYER.at(model.type)));
-
-        // this is the total memory required to run the inference
-        const size_t mem_required =
-                   wctx.buf_model->size() +
-                   wctx.buf_memory.size() +
-                   wctx.buf_compute.size() +
-                   wctx.buf_compute_layer.size();
-
-        fprintf(stderr, "%s: mem_required  = %.2f MB\n", __func__, mem_required / 1024.0 / 1024.0);
     }
 
     // load mel filters
@@ -599,10 +590,20 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
         }
     }
 
+    {
+        // this is the total memory required to run the inference
+        const size_t mem_required =
+                   wctx.buf_model->size() +
+                   wctx.buf_memory.size() +
+                   wctx.buf_compute.size() +
+                   wctx.buf_compute_layer.size();
+
+        fprintf(stderr, "%s: mem_required  = %7.2f MB\n", __func__, mem_required / 1024.0 / 1024.0);
+    }
+
     // for the big tensors, we have the option to store the data in 16-bit floats
     // in order to save memory and also to speed up the computation
     const ggml_type wtype = model.hparams.f16 ? GGML_TYPE_F16 : GGML_TYPE_F32;
-
 
     size_t ctx_size = 0;
     size_t ctx_mem_size = 0;
@@ -722,7 +723,7 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
 
         ctx_size += (15 + 15*n_audio_layer + 24*n_text_layer)*256; // object overhead
 
-        fprintf(stderr, "%s: ggml ctx size = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
+        fprintf(stderr, "%s: ggml ctx size = %7.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
     }
 
     // create the ggml context
@@ -983,7 +984,7 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             ggml_nbytes(model.memory_k)       + ggml_nbytes(model.memory_v) +
             ggml_nbytes(model.memory_cross_k) + ggml_nbytes(model.memory_cross_v);
 
-        fprintf(stderr, "%s: memory size = %8.2f MB\n", __func__, memory_size/1024.0/1024.0);
+        fprintf(stderr, "%s: memory size   = %7.2f MB\n", __func__, memory_size/1024.0/1024.0);
     }
 
     // load weights
@@ -1047,7 +1048,7 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             model.n_loaded++;
         }
 
-        fprintf(stderr, "%s: model size  = %8.2f MB\n", __func__, total_size/1024.0/1024.0);
+        fprintf(stderr, "%s: model size    = %7.2f MB\n", __func__, total_size/1024.0/1024.0);
 
         if (model.n_loaded == 0) {
             fprintf(stderr, "%s: WARN no tensors loaded from model file - assuming empty model for testing\n", __func__);
