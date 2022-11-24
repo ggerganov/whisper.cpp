@@ -44,7 +44,6 @@ struct whisper_params {
     int32_t audio_ctx  = 0;
 
     bool speed_up             = false;
-    bool verbose              = false;
     bool translate            = false;
     bool no_context           = true;
     bool print_special_tokens = false;
@@ -77,9 +76,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             params.audio_ctx = std::stoi(argv[++i]);
         } else if (arg == "-su" || arg == "--speed-up") {
             params.speed_up = true;
-        } else if (arg == "-v" || arg == "--verbose") {
-            params.verbose = true;
-        } else if (arg == "--translate") {
+        } else if (arg == "-tr" || arg == "--translate") {
             params.translate = true;
         } else if (arg == "-kc" || arg == "--keep-context") {
             params.no_context = false;
@@ -125,8 +122,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "  -mt N,    --max_tokens N   maximum number of tokens per audio chunk (default: %d)\n", params.max_tokens);
     fprintf(stderr, "  -ac N,    --audio_ctx N    audio context size (default: %d, 0 - all)\n", params.audio_ctx);
     fprintf(stderr, "  -su,      --speed-up       speed up audio by factor of 2 (faster processing, reduced accuracy, default: %s)\n", params.speed_up ? "true" : "false");
-    fprintf(stderr, "  -v,       --verbose        verbose output\n");
-    fprintf(stderr, "            --translate      translate from source language to english\n");
+    fprintf(stderr, "  -tr,      --translate      translate from source language to english\n");
     fprintf(stderr, "  -kc,      --keep-context   keep text context from earlier audio (default: false)\n");
     fprintf(stderr, "  -ps,      --print_special  print special tokens\n");
     fprintf(stderr, "  -nt,      --no_timestamps  do not print timestamps\n");
