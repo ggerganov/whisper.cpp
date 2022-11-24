@@ -135,11 +135,9 @@ void talk_main(size_t index) {
 
         talk_set_status("processing ...");
 
-        g_force_speak = false;
-
         t_last = t_now;
 
-        {
+        if (!g_force_speak) {
             const auto t_start = std::chrono::high_resolution_clock::now();
 
             int ret = whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size());
@@ -156,17 +154,21 @@ void talk_main(size_t index) {
         {
             std::string text_heard;
 
-            const int n_segments = whisper_full_n_segments(ctx);
-            for (int i = n_segments - 1; i < n_segments; ++i) {
-                const char * text = whisper_full_get_segment_text(ctx, i);
+            if (!g_force_speak) {
+                const int n_segments = whisper_full_n_segments(ctx);
+                for (int i = n_segments - 1; i < n_segments; ++i) {
+                    const char * text = whisper_full_get_segment_text(ctx, i);
 
-                const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                    const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+                    const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
-                printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
+                    printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
 
-                text_heard += text;
+                    text_heard += text;
+                }
             }
+
+            g_force_speak = false;
 
             // remove text between brackets using regex
             {
