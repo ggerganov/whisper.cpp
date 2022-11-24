@@ -4,7 +4,7 @@ Talk with an Artificial Intelligence in your browser:
 
 https://user-images.githubusercontent.com/1991296/203411580-fedb4839-05e4-4474-8364-aaf1e9a9b615.mp4
 
-Online demo: https://talk.ggerganov.com
+Online demo: https://whisper.ggerganov.com/talk/
 
 ## How it works?
 
@@ -49,6 +49,22 @@ on a phone or a tablet. Hopefully, in the near future this will become supported
 
 - Better UI (contributions are welcome)
 - Better GPT-2 prompting
+
+## Build instructions
+
+```bash
+# build using Emscripten (v3.1.2)
+git clone https://github.com/ggerganov/whisper.cpp
+cd whisper.cpp
+mkdir build-em && cd build-em
+emcmake cmake ..
+make -j
+
+# copy the produced page to your HTTP path
+cp bin/talk.wasm/index.html /path/to/html/
+cp bin/talk.wasm/talk.js    /path/to/html/
+cp bin/libtalk.worker.js    /path/to/html/
+```
 
 ## Feedback
 

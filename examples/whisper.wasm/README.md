@@ -26,10 +26,9 @@ Link: https://whisper.ggerganov.com
 
 ![image](https://user-images.githubusercontent.com/1991296/197348344-1a7fead8-3dae-4922-8b06-df223a206603.png)
 
-
 ## Build instructions
 
-```bash
+```bash (v3.1.2)
 # build using Emscripten
 git clone https://github.com/ggerganov/whisper.cpp
 cd whisper.cpp
@@ -41,3 +40,4 @@ make -j
 cp bin/whisper.wasm/index.html /path/to/html/
 cp bin/whisper.wasm/whisper.js /path/to/html/
 cp bin/libwhisper.worker.js    /path/to/html/
+```

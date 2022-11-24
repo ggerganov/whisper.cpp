@@ -35,7 +35,7 @@
 
             <ul>
                 <li><a href="https://github.com/ggerganov/whisper.cpp">OpenAI's Whisper</a> to listen to you as you speak in the microphone</li>
-                <li><a href="https://github.com/ggerganov/ggml/tree/master/examples/gpt-2">OpenAI's GPT-2</a> to generate text responses</li>
+                <li><a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/talk.wasm">OpenAI's GPT-2</a> to generate text responses</li>
                 <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API">Web Speech API</a> to vocalize the responses through your speakers</li>
             </ul>
 
@@ -283,7 +283,7 @@
             }
 
             let dbVersion = 1
-            let dbName    = 'talk.ggerganov.com';
+            let dbName    = 'whisper.ggerganov.com';
             let indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB
 
             // fetch a remote file from remote URL using the Fetch API
@@ -439,8 +439,8 @@
 
             function loadWhisper(model) {
                 let urls = {
-                    'tiny.en': 'https://talk.ggerganov.com/ggml-model-whisper-tiny.en.bin',
-                    'base.en': 'https://talk.ggerganov.com/ggml-model-whisper-base.en.bin',
+                    'tiny.en': 'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en.bin',
+                    'base.en': 'https://whisper.ggerganov.com/ggml-model-whisper-base.en.bin',
                 };
 
                 let sizes = {
@@ -464,8 +464,8 @@
 
             function loadGPT2(model) {
                 let urls = {
-                    'small':  'https://talk.ggerganov.com/ggml-model-gpt-2-117M.bin',
-                    'medium': 'https://talk.ggerganov.com/ggml-model-gpt-2-345M.bin',
+                    'small':  'https://whisper.ggerganov.com/ggml-model-gpt-2-117M.bin',
+                    'medium': 'https://whisper.ggerganov.com/ggml-model-gpt-2-345M.bin',
                 };
 
                 let sizes = {

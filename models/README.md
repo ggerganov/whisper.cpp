@@ -52,7 +52,7 @@ There are community efforts for creating fine-tuned Whisper models using extra t
 Transformer implementation of Whisper. The produced models are in slightly different format compared to the original
 OpenAI format. To read the HF models you can use the [convert-h5-to-ggml.py](convert-h5-to-ggml.py) script like this:
 
-```
+```bash
 git clone https://github.com/openai/whisper
 git clone https://github.com/ggerganov/whisper.cpp
 
