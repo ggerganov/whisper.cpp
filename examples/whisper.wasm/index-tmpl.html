@@ -297,6 +297,11 @@
                     storeFS(fname, buf);
                 }
                 reader.readAsArrayBuffer(file);
+
+                document.getElementById('fetch-whisper-tiny-en').style.display = 'none';
+                document.getElementById('fetch-whisper-base-en').style.display = 'none';
+                document.getElementById('fetch-whisper-tiny').style.display = 'none';
+                document.getElementById('fetch-whisper-base').style.display = 'none';
             }
 
             // fetch a remote file from remote URL using the Fetch API
