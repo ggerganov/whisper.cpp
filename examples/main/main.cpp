@@ -450,28 +450,27 @@ int main(int argc, char ** argv) {
     for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
         const auto fname_inp = params.fname_inp[f];
 
+        std::vector<float> pcmf32; // mono-channel F32 PCM
+
         // WAV input
-        std::vector<float> pcmf32;
         {
             drwav wav;
+            std::vector<uint8_t> wav_data; // used for pipe input from stdin
 
             if (fname_inp == "-") {
-                std::vector<uint8_t> wav_data;
                 {
                     uint8_t buf[1024];
                     while (true)
                     {
                         const size_t n = fread(buf, 1, sizeof(buf), stdin);
-                        if (n == 0)
-                        {
+                        if (n == 0) {
                             break;
                         }
                         wav_data.insert(wav_data.end(), buf, buf + n);
                     }
                 }
 
-                if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), NULL) == false)
-                {
+                if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), NULL) == false) {
                     fprintf(stderr, "error: failed to open WAV file from stdin\n");
                     return 4;
                 }
