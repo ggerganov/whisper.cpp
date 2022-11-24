@@ -36,7 +36,7 @@ https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-b
 
 Or you can even run it straight in the browser: [talk.wasm](examples/talk.wasm)
 
-https://user-images.githubusercontent.com/1991296/203411580-fedb4839-05e4-4474-8364-aaf1e9a9b615.mp4
+https://user-images.githubusercontent.com/1991296/203845553-f7b44e13-9a15-4fc8-b518-ae8f4c6770fe.mp4
 
 ## Implementation details
 
