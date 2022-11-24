@@ -37,7 +37,6 @@ emcmake cmake ..
 make -j
 
 # copy the produced page to your HTTP path
-cp bin/whisper.wasm/index.html /path/to/html/
-cp bin/whisper.wasm/whisper.js /path/to/html/
-cp bin/libwhisper.worker.js    /path/to/html/
+cp bin/whisper.wasm/*       /path/to/html/
+cp bin/libwhisper.worker.js /path/to/html/
 ```

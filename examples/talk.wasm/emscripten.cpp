@@ -62,7 +62,7 @@ void talk_main(size_t index) {
     wparams.print_special_tokens = false;
 
     wparams.max_tokens           = 32;
-    wparams.audio_ctx            = 768;
+    wparams.audio_ctx            = 768; // partial encoder context for better performance
 
     wparams.language             = "en";
 
@@ -133,7 +133,7 @@ void talk_main(size_t index) {
             }
         }
 
-        talk_set_status("processing ...");
+        talk_set_status("processing audio (whisper)...");
 
         t_last = t_now;
 
@@ -192,7 +192,7 @@ void talk_main(size_t index) {
             text_heard = std::regex_replace(text_heard, std::regex("^\\s+"), "");
             text_heard = std::regex_replace(text_heard, std::regex("\\s+$"), "");
 
-            talk_set_status("'" + text_heard + "' - thinking how to respond ...");
+            talk_set_status("'" + text_heard + "' - thinking how to respond (gpt-2) ...");
 
             const std::vector<gpt_vocab::id> tokens = gpt2_tokenize(g_gpt2, text_heard.c_str());
 

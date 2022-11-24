@@ -51,7 +51,7 @@
             <br><br>
 
             <div id="model-whisper">
-                <span id="model-whisper-status">Whisper model:</span>
+                Whisper model: <span id="model-whisper-status"></span>
                 <button id="fetch-whisper-tiny-en" onclick="loadWhisper('tiny.en')">tiny.en (75 MB)</button>
                 <button id="fetch-whisper-base-en" onclick="loadWhisper('base.en')">base.en (142 MB)</button>
                 <span id="fetch-whisper-progress"></span>
@@ -64,7 +64,7 @@
             <br>
 
             <div id="model-gpt-2">
-                <span id="model-gpt-2-status">GPT-2 model:</span>
+                GPT-2 model: <span id="model-gpt-2-status"></span>
                 <button id="fetch-gpt-2-small" onclick="loadGPT2('small')">small 117M (240 MB)</button>
                 <!--<button id="fetch-gpt-2-medium" onclick="loadGPT2('medium')">medium 345M (720 MB)</button>-->
                 <span id="fetch-gpt-2-progress"></span>
@@ -158,20 +158,8 @@
             </div>
         </div>
 
+        <script type="text/javascript" src="helpers.js"></script>
         <script type='text/javascript'>
-            var printTextarea = (function() {
-                    var element = document.getElementById('output');
-                    if (element) element.alue = ''; // clear browser cache
-                    return function(text) {
-                        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-                        console.log(text);
-                        if (element) {
-                            element.value += text + "\n";
-                            element.scrollTop = element.scrollHeight; // focus on bottom
-                        }
-                    };
-                })();
-
             const kRestartRecording_s = 15;
             const kSampleRate = 16000;
 
@@ -218,6 +206,7 @@
                     if (voices.length == 0) {
                         el.innerHTML = '<option value="0">No voices available</option>';
                     } else {
+                        // populate voice list
                         var n = 0;
                         voices.forEach(function(voice, i) {
                             if (!voice.lang.startsWith('en')) return;
@@ -245,16 +234,13 @@
                 }
             };
 
-            // helper function
-            function convertTypedArray(src, type) {
-                var buffer = new ArrayBuffer(src.byteLength);
-                var baseView = new src.constructor(buffer).set(src);
-                return new type(buffer);
-            }
-
             //
             // fetch models
             //
+
+            let dbVersion = 1
+            let dbName    = 'whisper.ggerganov.com';
+            let indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB
 
             function storeFS(fname, buf) {
                 // write to WASM file using FS_createDataFile
@@ -267,174 +253,19 @@
 
                 Module.FS_createDataFile("/", fname, buf, true, true);
 
-                printTextarea('js: stored model: ' + fname + ' size: ' + buf.length);
+                printTextarea('storeFS: stored model: ' + fname + ' size: ' + buf.length);
 
                 if (fname == 'whisper.bin') {
-                    document.getElementById('model-whisper').innerHTML = 'Whisper model: loaded "' + model_whisper + '"!';
+                    document.getElementById('model-whisper-status').innerHTML = 'loaded "' + model_whisper + '"!';
                 } else if (fname == 'gpt-2.bin') {
-                    document.getElementById('model-gpt-2').innerHTML = 'GPT-2 model: loaded "' + model_gpt_2 + '"!';
+                    document.getElementById('model-gpt-2-status').innerHTML = 'loaded "' + model_gpt_2 + '"!';
                 }
 
                 if (model_whisper != null && model_gpt_2 != null) {
                     document.getElementById('start').disabled = false;
-                    document.getElementById('stop').disabled  = false;
+                    document.getElementById('stop' ).disabled = false;
                     document.getElementById('voice').disabled = false;
                 }
-            }
-
-            let dbVersion = 1
-            let dbName    = 'whisper.ggerganov.com';
-            let indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB
-
-            // fetch a remote file from remote URL using the Fetch API
-            async function fetchRemote(url, elProgress) {
-                printTextarea('js: downloading with fetch()...');
-
-                const response = await fetch(
-                    url,
-                    {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/octet-stream',
-                        },
-                    }
-                );
-
-                if (!response.ok) {
-                    printTextarea('js: failed to fetch ' + url);
-                    return;
-                }
-
-                const contentLength = response.headers.get('content-length');
-                const total = parseInt(contentLength, 10);
-                const reader = response.body.getReader();
-
-                var chunks = [];
-                var receivedLength = 0;
-                var progressLast = -1;
-
-                while (true) {
-                    const { done, value } = await reader.read();
-
-                    if (done) {
-                        break;
-                    }
-
-                    chunks.push(value);
-                    receivedLength += value.length;
-
-                    if (contentLength) {
-                        // update progress bar element with the new percentage
-                        elProgress.innerHTML = Math.round((receivedLength / total) * 100) + '%';
-
-                        var progressCur = Math.round((receivedLength / total) * 10);
-                        if (progressCur != progressLast) {
-                            printTextarea('js: fetching ' + 10*progressCur + '% ...');
-                            progressLast = progressCur;
-                        }
-                    }
-                }
-
-                var chunksAll = new Uint8Array(receivedLength);
-                var position = 0;
-                for (var chunk of chunks) {
-                    chunksAll.set(chunk, position);
-                    position += chunk.length;
-                }
-
-                return chunksAll;
-            }
-
-            // load remote data
-            // - check if the data is already in the IndexedDB
-            // - if not, fetch it from the remote URL and store it in the IndexedDB
-            // - store it in WASM memory
-            function loadRemote(url, dst, elProgress, size_mb) {
-                // query the storage quota and print it
-                navigator.storage.estimate().then(function (estimate) {
-                    printTextarea('js: storage quota: ' + estimate.quota + ' bytes');
-                    printTextarea('js: storage usage: ' + estimate.usage + ' bytes');
-                });
-
-                // check if the data is already in the IndexedDB
-                var request = indexedDB.open(dbName, dbVersion);
-
-                request.onupgradeneeded = function (event) {
-                    var db = event.target.result;
-                    if (db.version == 1) {
-                        var objectStore = db.createObjectStore('models', { autoIncrement: false });
-                        printTextarea('js: created IndexedDB ' + db.name + ' version ' + db.version);
-                    } else {
-                        // clear the database
-                        var objectStore = event.currentTarget.transaction.objectStore('models');
-                        objectStore.clear();
-                        printTextarea('js: cleared IndexedDB ' + db.name + ' version ' + db.version);
-                    }
-                };
-
-                request.onsuccess = function (event) {
-                    var db = event.target.result;
-                    var transaction = db.transaction(['models'], 'readonly');
-                    var objectStore = transaction.objectStore('models');
-                    var request = objectStore.get(url);
-
-                    request.onsuccess = function (event) {
-                        if (request.result) {
-                            printTextarea('js: "' + url + '" is already in the IndexedDB');
-                            storeFS(dst, request.result);
-                        } else {
-                            // data is not in the IndexedDB
-                            printTextarea('js: "' + url + '" is not in the IndexedDB');
-
-                            // alert and ask the user to confirm
-                            if (!confirm('You are about to download ' + size_mb + ' MB of data.\nThe model data will be cached in the browser for future use.\n\nPress OK to continue.')) {
-                                var el;
-                                el = document.getElementById('fetch-whisper-tiny-en'); if (el) el.style.display = 'inline-block';
-                                el = document.getElementById('fetch-whisper-base-en'); if (el) el.style.display = 'inline-block';
-                                el = document.getElementById('fetch-gpt-2-small') ;    if (el) el.style.display = 'inline-block';
-                                return;
-                            }
-
-                            fetchRemote(url, elProgress).then(function (data) {
-                                if (data) {
-                                    // store the data in the IndexedDB
-                                    var request = indexedDB.open(dbName, dbVersion);
-                                    request.onsuccess = function (event) {
-                                        var db = event.target.result;
-                                        var transaction = db.transaction(['models'], 'readwrite');
-                                        var objectStore = transaction.objectStore('models');
-                                        var request = objectStore.put(data, url);
-
-                                        request.onsuccess = function (event) {
-                                            printTextarea('js: "' + url + '" stored in the IndexedDB');
-                                            storeFS(dst, data);
-                                        };
-
-                                        request.onerror = function (event) {
-                                            printTextarea('js: failed to store "' + url + '" in the IndexedDB');
-                                        };
-                                    };
-                                }
-                            });
-                        }
-                    };
-
-                    request.onerror = function (event) {
-                        printTextarea('js: failed to get data from the IndexedDB');
-                    };
-                };
-
-                request.onerror = function (event) {
-                    printTextarea('js: failed to open IndexedDB');
-                };
-
-                request.onblocked = function (event) {
-                    printTextarea('js: failed to open IndexedDB: blocked');
-                };
-
-                request.onabort = function (event) {
-                    printTextarea('js: failed to open IndexedDB: abort');
-                };
             }
 
             function loadWhisper(model) {
@@ -450,16 +281,27 @@
 
                 let url     = urls[model];
                 let dst     = 'whisper.bin';
-                let el      = document.getElementById('fetch-whisper-progress');
                 let size_mb = sizes[model];
 
                 model_whisper = model;
 
                 document.getElementById('fetch-whisper-tiny-en').style.display = 'none';
                 document.getElementById('fetch-whisper-base-en').style.display = 'none';
-                document.getElementById('model-whisper-status').innerHTML = 'Whisper model: loading "' + model + '" ... ';
+                document.getElementById('model-whisper-status').innerHTML = 'loading "' + model + '" ... ';
 
-                loadRemote(url, dst, el, size_mb);
+                cbProgress = function(p) {
+                    let el = document.getElementById('fetch-whisper-progress');
+                    el.innerHTML = Math.round(100*p) + '%';
+                };
+
+                cbCancel = function() {
+                    var el;
+                    el = document.getElementById('fetch-whisper-tiny-en'); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('fetch-whisper-base-en'); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('model-whisper-status');  if (el) el.innerHTML = '';
+                };
+
+                loadRemote(url, dst, size_mb, cbProgress, storeFS, cbCancel, printTextarea);
             }
 
             function loadGPT2(model) {
@@ -475,15 +317,25 @@
 
                 let url     = urls[model];
                 let dst     = 'gpt-2.bin';
-                let el      = document.getElementById('fetch-gpt-2-progress');
                 let size_mb = sizes[model];
 
                 model_gpt_2 = model;
 
                 document.getElementById('fetch-gpt-2-small').style.display = 'none';
-                document.getElementById('model-gpt-2-status').innerHTML = 'GPT-2 model: loading "' + model + '" ... ';
+                document.getElementById('model-gpt-2-status').innerHTML = 'loading "' + model + '" ... ';
 
-                loadRemote(url, dst, el, size_mb);
+                cbProgress = function(p) {
+                    let el = document.getElementById('fetch-gpt-2-progress');
+                    el.innerHTML = Math.round(100*p) + '%';
+                };
+
+                cbCancel = function() {
+                    var el;
+                    el = document.getElementById('fetch-gpt-2-small') ; if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('model-gpt-2-status'); if (el) el.innerHTML = '';
+                };
+
+                loadRemote(url, dst, size_mb, cbProgress, storeFS, cbCancel, printTextarea);
             }
 
             //

@@ -61,9 +61,8 @@ emcmake cmake ..
 make -j
 
 # copy the produced page to your HTTP path
-cp bin/talk.wasm/index.html /path/to/html/
-cp bin/talk.wasm/talk.js    /path/to/html/
-cp bin/libtalk.worker.js    /path/to/html/
+cp bin/talk.wasm/*       /path/to/html/
+cp bin/libtalk.worker.js /path/to/html/
 ```
 
 ## Feedback
