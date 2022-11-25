@@ -13,6 +13,7 @@ build-sanitize-thread/
 
 main
 stream
+command
 bench
 sync.sh
 compile_commands.json

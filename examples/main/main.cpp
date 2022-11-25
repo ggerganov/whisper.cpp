@@ -132,7 +132,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "  -d  N,    --duration N    [%-7d] duration of audio to process in milliseconds\n",   params.duration_ms);
     fprintf(stderr, "  -mc N,    --max-context N [%-7d] maximum number of text context tokens to store\n", params.max_context);
     fprintf(stderr, "  -ml N,    --max-len N     [%-7d] maximum segment length in characters\n",           params.max_len);
-    fprintf(stderr, "  -wt N,    --word-thold N  [%-7f] word timestamp probability threshold\n",           params.word_thold);
+    fprintf(stderr, "  -wt N,    --word-thold N  [%-7.2f] word timestamp probability threshold\n",         params.word_thold);
     fprintf(stderr, "  -su,      --speed-up      [%-7s] speed up audio by x2 (reduced accuracy)\n",        params.speed_up ? "true" : "false");
     fprintf(stderr, "  -tr,      --translate     [%-7s] translate from source language to english\n",      params.translate ? "true" : "false");
     fprintf(stderr, "  -otxt,    --output-txt    [%-7s] output result in a text file\n",                   params.output_txt ? "true" : "false");

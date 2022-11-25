@@ -98,26 +98,27 @@ c++ -I. -I./examples -O3 -std=c++11 -pthread examples/main/main.cpp whisper.o gg
 usage: ./main [options] file0.wav file1.wav ...
 
 options:
-  -h,       --help           show this help message and exit
-  -t N,     --threads N      number of threads to use during computation (default: 4)
-  -p N,     --processors N   number of processors to use during computation (default: 1)
-  -ot N,    --offset-t N     time offset in milliseconds (default: 0)
-  -on N,    --offset-n N     segment index offset (default: 0)
-  -mc N,    --max-context N  maximum number of text context tokens to store (default: max)
-  -ml N,    --max-len N      maximum segment length in characters (default: 0)
-  -wt N,    --word-thold N   word timestamp probability threshold (default: 0.010000)
-  -v,       --verbose        verbose output
-            --translate      translate from source language to english
-  -otxt,    --output-txt     output result in a text file
-  -ovtt,    --output-vtt     output result in a vtt file
-  -osrt,    --output-srt     output result in a srt file
-  -owts,    --output-words   output script for generating karaoke video
-  -ps,      --print_special  print special tokens
-  -pc,      --print_colors   print colors
-  -nt,      --no_timestamps  do not print timestamps
-  -l LANG,  --language LANG  spoken language (default: en)
-  -m FNAME, --model FNAME    model path (default: models/ggml-base.en.bin)
-  -f FNAME, --file FNAME     input WAV file path
+  -h,       --help          [default] show this help message and exit
+  -t N,     --threads N     [4      ] number of threads to use during computation
+  -p N,     --processors N  [1      ] number of processors to use during computation
+  -ot N,    --offset-t N    [0      ] time offset in milliseconds
+  -on N,    --offset-n N    [0      ] segment index offset
+  -d  N,    --duration N    [0      ] duration of audio to process in milliseconds
+  -mc N,    --max-context N [-1     ] maximum number of text context tokens to store
+  -ml N,    --max-len N     [0      ] maximum segment length in characters
+  -wt N,    --word-thold N  [0.01   ] word timestamp probability threshold
+  -su,      --speed-up      [false  ] speed up audio by x2 (reduced accuracy)
+  -tr,      --translate     [false  ] translate from source language to english
+  -otxt,    --output-txt    [false  ] output result in a text file
+  -ovtt,    --output-vtt    [false  ] output result in a vtt file
+  -osrt,    --output-srt    [false  ] output result in a srt file
+  -owts,    --output-words  [false  ] output script for generating karaoke video
+  -ps,      --print-special [false  ] print special tokens
+  -pc,      --print-colors  [false  ] print colors
+  -nt,      --no-timestamps [true   ] do not print timestamps
+  -l LANG,  --language LANG [en     ] spoken language
+  -m FNAME, --model FNAME   [models/ggml-base.en.bin] model path
+  -f FNAME, --file FNAME    [       ] input WAV file path
 
 bash ./models/download-ggml-model.sh base.en
 Downloading ggml model base.en ...
@@ -149,13 +150,13 @@ whisper_model_load: n_text_layer  = 6
 whisper_model_load: n_mels        = 80
 whisper_model_load: f16           = 1
 whisper_model_load: type          = 2
-whisper_model_load: mem_required  = 670.00 MB
 whisper_model_load: adding 1607 extra tokens
-whisper_model_load: ggml ctx size = 140.60 MB
-whisper_model_load: memory size =    22.83 MB
-whisper_model_load: model size  =   140.54 MB
+whisper_model_load: mem_required  =  506.00 MB
+whisper_model_load: ggml ctx size =  140.60 MB
+whisper_model_load: memory size   =   22.83 MB
+whisper_model_load: model size    =  140.54 MB
 
-system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 |
+system_info: n_threads = 4 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 |
 
 main: processing 'samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
 
