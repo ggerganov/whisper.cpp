@@ -109,9 +109,8 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
 
 class audio_async {
 public:
-    audio_async(int len_ms) {
-        m_len_ms = len_ms;
-    }
+    audio_async(int len_ms);
+    ~audio_async();
 
     bool init(int capture_id, int sample_rate);
 
@@ -141,6 +140,16 @@ private:
     size_t             m_audio_pos = 0;
     size_t             m_audio_len = 0;
 };
+
+audio_async::audio_async(int len_ms) {
+    m_len_ms = len_ms;
+}
+
+audio_async::~audio_async() {
+    if (m_dev_id_in) {
+        SDL_CloseAudioDevice(m_dev_id_in);
+    }
+}
 
 bool audio_async::init(int capture_id, int sample_rate) {
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);

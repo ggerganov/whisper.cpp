@@ -2380,6 +2380,12 @@ void whisper_print_timings(struct whisper_context * ctx) {
     fprintf(stderr, "%s:    total time = %8.2f ms\n", __func__, (t_end_us - ctx->t_start_us)/1000.0f);
 }
 
+void whisper_reset_timings(struct whisper_context * ctx) {
+    ctx->t_sample_us = 0;
+    ctx->t_encode_us = 0;
+    ctx->t_decode_us = 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////
 
 struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy) {

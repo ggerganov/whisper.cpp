@@ -384,6 +384,10 @@ int main(int argc, char ** argv) {
         }
     }
 
+    if (g_dev_id_in >= 0) {
+        SDL_CloseAudioDevice(g_dev_id_in);
+    }
+
     whisper_print_timings(ctx);
     whisper_free(ctx);
 

@@ -167,6 +167,7 @@ extern "C" {
 
     // Performance information
     WHISPER_API void whisper_print_timings(struct whisper_context * ctx);
+    WHISPER_API void whisper_reset_timings(struct whisper_context * ctx);
 
     ////////////////////////////////////////////////////////////////////////////
 
