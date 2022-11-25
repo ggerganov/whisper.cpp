@@ -11,6 +11,8 @@ More info is available in [issue #171](https://github.com/ggerganov/whisper.cpp/
 ./command -m ./models/ggml-tiny.en.bin -ac 768 -t 4 -c 0
 ```
 
+https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
+
 ## Building
 
 The `command` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:

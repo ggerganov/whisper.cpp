@@ -34,9 +34,11 @@ As an example, here is a video of running the model on an iPhone 13 device - ful
 
 https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-bf96-1d8c27b98c81.mp4
 
-Or you can even run it straight in the browser: [talk.wasm](examples/talk.wasm)
+You can also easily make your own offline voice assistant application:
 
-https://user-images.githubusercontent.com/1991296/203845553-f7b44e13-9a15-4fc8-b518-ae8f4c6770fe.mp4
+https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
+
+Or you can even run it straight in the browser: [talk.wasm](examples/talk.wasm)
 
 ## Implementation details
 
