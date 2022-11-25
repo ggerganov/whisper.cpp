@@ -198,7 +198,7 @@ tiny.en tiny base.en base small.en small medium.en medium large: main
 	@echo ""
 	@for f in samples/*.wav; do \
 		echo "----------------------------------------------" ; \
-		echo "[+] Running base.en on $$f ... (run 'ffplay $$f' to listen)" ; \
+		echo "[+] Running $@ on $$f ... (run 'ffplay $$f' to listen)" ; \
 	    echo "----------------------------------------------" ; \
 		echo "" ; \
 		./main -m models/ggml-$@.bin -f $$f ; \
