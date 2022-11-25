@@ -19,6 +19,12 @@ var printTextarea = (function() {
     };
 })();
 
+async function clearCache() {
+    if (confirm('Are you sure you want to clear the cache?\nAll the models will be downloaded again.')) {
+        indexedDB.deleteDatabase(dbName);
+    }
+}
+
 // fetch a remote file from remote URL using the Fetch API
 async function fetchRemote(url, cbProgress, cbPrint) {
     cbPrint('fetchRemote: downloading with fetch()...');

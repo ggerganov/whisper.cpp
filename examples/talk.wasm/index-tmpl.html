@@ -504,12 +504,6 @@
                 Module.force_speak(instance);
             }
 
-            async function clearCache() {
-                if (confirm('Are you sure you want to clear the cache?\nAll the models will be downloaded again.')) {
-                    indexedDB.deleteDatabase(dbName);
-                }
-            }
-
             //
             // main
             //

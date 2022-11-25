@@ -61,10 +61,10 @@ void talk_main(size_t index) {
     wparams.print_timestamps = true;
     wparams.print_special    = false;
 
-    wparams.max_tokens           = 32;
-    wparams.audio_ctx            = 768; // partial encoder context for better performance
+    wparams.max_tokens       = 32;
+    wparams.audio_ctx        = 768; // partial encoder context for better performance
 
-    wparams.language             = "en";
+    wparams.language         = "en";
 
     g_gpt2 = gpt2_init("gpt-2.bin");
 
