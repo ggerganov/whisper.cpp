@@ -51,15 +51,15 @@ void talk_main(size_t index) {
 
     struct whisper_full_params wparams = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
 
-    wparams.n_threads            = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
-    wparams.offset_ms            = 0;
-    wparams.translate            = false;
-    wparams.no_context           = true;
-    wparams.single_segment       = true;
-    wparams.print_realtime       = false;
-    wparams.print_progress       = false;
-    wparams.print_timestamps     = true;
-    wparams.print_special_tokens = false;
+    wparams.n_threads        = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
+    wparams.offset_ms        = 0;
+    wparams.translate        = false;
+    wparams.no_context       = true;
+    wparams.single_segment   = true;
+    wparams.print_realtime   = false;
+    wparams.print_progress   = false;
+    wparams.print_timestamps = true;
+    wparams.print_special    = false;
 
     wparams.max_tokens           = 32;
     wparams.audio_ctx            = 768; // partial encoder context for better performance
@@ -75,9 +75,9 @@ void talk_main(size_t index) {
     // whisper context
     auto & ctx = g_contexts[index];
 
-    const int64_t step_samples = 2*WHISPER_SAMPLE_RATE;
-    const int64_t step_ms = (step_samples*1000)/WHISPER_SAMPLE_RATE;
+    const int64_t step_samples   = 2*WHISPER_SAMPLE_RATE;
     const int64_t window_samples = 9*WHISPER_SAMPLE_RATE;
+    const int64_t step_ms        = (step_samples*1000)/WHISPER_SAMPLE_RATE;
 
     auto t_last = std::chrono::high_resolution_clock::now();
 
@@ -111,7 +111,7 @@ void talk_main(size_t index) {
             pcmf32 = std::vector<float>(g_pcmf32.end() - std::min((int64_t) g_pcmf32.size(), window_samples), g_pcmf32.end());
         }
 
-        // if energy in during last second is above threshold, then skip
+        // VAD: if energy in during last second is above threshold, then skip
         {
             float energy_all = 0.0f;
             float energy_1s  = 0.0f;

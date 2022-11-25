@@ -161,14 +161,14 @@ void AudioInputCallback(void * inUserData,
     // run the model
     struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
-    params.print_realtime       = true;
-    params.print_progress       = false;
-    params.print_timestamps     = true;
-    params.print_special_tokens = false;
-    params.translate            = false;
-    params.language             = "en";
-    params.n_threads            = 4;
-    params.offset_ms            = 0;
+    params.print_realtime   = true;
+    params.print_progress   = false;
+    params.print_timestamps = true;
+    params.print_special    = false;
+    params.translate        = false;
+    params.language         = "en";
+    params.n_threads        = 4;
+    params.offset_ms        = 0;
 
     CFTimeInterval startTime = CACurrentMediaTime();
 

@@ -46,14 +46,14 @@ EMSCRIPTEN_BINDINGS(whisper) {
 
         struct whisper_full_params params = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
 
-        params.print_realtime       = true;
-        params.print_progress       = false;
-        params.print_timestamps     = true;
-        params.print_special_tokens = false;
-        params.translate            = translate;
-        params.language             = whisper_is_multilingual(g_contexts[index]) ? lang.c_str() : "en";
-        params.n_threads            = std::min(8, (int) std::thread::hardware_concurrency());
-        params.offset_ms            = 0;
+        params.print_realtime   = true;
+        params.print_progress   = false;
+        params.print_timestamps = true;
+        params.print_special    = false;
+        params.translate        = translate;
+        params.language         = whisper_is_multilingual(g_contexts[index]) ? lang.c_str() : "en";
+        params.n_threads        = std::min(8, (int) std::thread::hardware_concurrency());
+        params.offset_ms        = 0;
 
         std::vector<float> pcmf32;
         const int n = audio["length"].as<int>();

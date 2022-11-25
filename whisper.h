@@ -192,7 +192,7 @@ extern "C" {
         bool translate;
         bool no_context;
         bool single_segment; // force single segment output (useful for streaming)
-        bool print_special_tokens;
+        bool print_special;
         bool print_progress;
         bool print_realtime;
         bool print_timestamps;

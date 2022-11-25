@@ -99,7 +99,6 @@ usage: ./main [options] file0.wav file1.wav ...
 
 options:
   -h,       --help           show this help message and exit
-  -s SEED,  --seed SEED      RNG seed (default: -1)
   -t N,     --threads N      number of threads to use during computation (default: 4)
   -p N,     --processors N   number of processors to use during computation (default: 1)
   -ot N,    --offset-t N     time offset in milliseconds (default: 0)
