@@ -3,12 +3,12 @@
 This is a basic Voice Assistant example that accepts voice commands from the microphone.
 More info is available in [issue #171](https://github.com/ggerganov/whisper.cpp/issues/171).
 
-```java
+```bash
 # Run with default arguments and small model
 ./command -m ./models/ggml-small.en.bin -t 8
 
 # On Raspberry Pi, use tiny or base models + "-ac 768" for better performance
-./bin/command -m ../models/ggml-tiny.en.bin -ac 768
+./command -m ./models/ggml-tiny.en.bin -ac 768 -t 4 -c 0
 ```
 
 ## Building

@@ -13,11 +13,12 @@
 
 #include <cassert>
 #include <cstdio>
+#include <fstream>
+#include <mutex>
+#include <regex>
 #include <string>
 #include <thread>
 #include <vector>
-#include <fstream>
-#include <regex>
 
 // command-line parameters
 struct whisper_params {
@@ -561,7 +562,7 @@ int main(int argc, char ** argv) {
 
         if (ask_prompt) {
             fprintf(stdout, "\n");
-            fprintf(stdout, "%s: Say the following phrase: '%s'\n", __func__, k_prompt.c_str());
+            fprintf(stdout, "%s: Say the following phrase: '%s%s%s'\n", __func__, "\033[1m", k_prompt.c_str(), "\033[0m");
             fprintf(stdout, "\n");
 
             ask_prompt = false;
@@ -573,14 +574,14 @@ int main(int argc, char ** argv) {
             audio.get(2000, pcmf32_cur);
 
             if (vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
-                fprintf(stdout, "%s: Speech detected!\n", __func__);
+                fprintf(stdout, "%s: Speech detected! Processing ...\n", __func__);
 
                 if (!have_prompt) {
                     audio.get(params.prompt_ms, pcmf32_cur);
 
                     const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob0, t_ms));
 
-                    fprintf(stdout, "%s: Heard '%s', (prob = %6.3f, t = %d ms)\n", __func__, txt.c_str(), prob0, (int) t_ms);
+                    fprintf(stdout, "%s: Heard '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", txt.c_str(), "\033[0m", (int) t_ms);
 
                     const float sim = similarity(txt, k_prompt);
 
@@ -605,7 +606,6 @@ int main(int argc, char ** argv) {
 
                     const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob, t_ms));
 
-                    printf("prob0 = %6.3f, prob = %6.3f, t = %d ms\n", prob0, prob, (int) t_ms);
                     prob = 100.0f*(prob - prob0);
 
                     //fprintf(stdout, "%s: heard '%s'\n", __func__, txt.c_str());
@@ -628,7 +628,7 @@ int main(int argc, char ** argv) {
 
                     const std::string command = ::trim(txt.substr(best_len));
 
-                    fprintf(stdout, "%s: Command '%s', (prob = %6.3f, t = %d ms)\n", __func__, command.c_str(), prob, (int) t_ms);
+                    fprintf(stdout, "%s: Command '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", command.c_str(), "\033[0m", (int) t_ms);
                     fprintf(stdout, "\n");
                 }
 
