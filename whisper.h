@@ -72,16 +72,16 @@ extern "C" {
         whisper_token id;  // token id
         whisper_token tid; // forced timestamp token id
 
-        float p;     // probability of the token
-        float pt;    // probability of the timestamp token
-        float ptsum; // sum of probabilities of all timestamp tokens
+        float p;           // probability of the token
+        float pt;          // probability of the timestamp token
+        float ptsum;       // sum of probabilities of all timestamp tokens
 
         // token-level timestamp data
         // do not use if you haven't computed token-level timestamps
-        int64_t t0; // start time of the token
-        int64_t t1; //   end time of the token
+        int64_t t0;        // start time of the token
+        int64_t t1;        //   end time of the token
 
-        float vlen; // voice length of the token
+        float vlen;        // voice length of the token
     } whisper_token_data;
 
     // Allocates all memory needed for the model and loads the model from the given file.
@@ -96,9 +96,9 @@ extern "C" {
     // Returns 0 on success
     WHISPER_API int whisper_pcm_to_mel(
             struct whisper_context * ctx,
-            const float * samples,
-            int n_samples,
-            int n_threads);
+                       const float * samples,
+                               int   n_samples,
+                               int   n_threads);
 
     // This can be used to set a custom log mel spectrogram inside the provided whisper context.
     // Use this instead of whisper_pcm_to_mel() if you want to provide your own log mel spectrogram.
@@ -106,9 +106,9 @@ extern "C" {
     // Returns 0 on success
     WHISPER_API int whisper_set_mel(
             struct whisper_context * ctx,
-            const float * data,
-            int n_len,
-            int n_mel);
+                       const float * data,
+                               int   n_len,
+                               int   n_mel);
 
     // Run the Whisper encoder on the log mel spectrogram stored inside the provided whisper context.
     // Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first.
@@ -116,8 +116,8 @@ extern "C" {
     // Returns 0 on success
     WHISPER_API int whisper_encode(
             struct whisper_context * ctx,
-            int offset,
-            int n_threads);
+                               int   offset,
+                               int   n_threads);
 
     // Run the Whisper decoder to obtain the logits and probabilities for the next token.
     // Make sure to call whisper_encode() first.
@@ -126,10 +126,10 @@ extern "C" {
     // Returns 0 on success
     WHISPER_API int whisper_decode(
             struct whisper_context * ctx,
-            const whisper_token * tokens,
-            int n_tokens,
-            int n_past,
-            int n_threads);
+               const whisper_token * tokens,
+                               int   n_tokens,
+                               int   n_past,
+                               int   n_threads);
 
     // Token sampling methods.
     // These are provided for convenience and can be used after each call to whisper_decode().
@@ -169,6 +169,9 @@ extern "C" {
     WHISPER_API void whisper_print_timings(struct whisper_context * ctx);
     WHISPER_API void whisper_reset_timings(struct whisper_context * ctx);
 
+    // Print system information
+    WHISPER_API const char * whisper_print_system_info(void);
+
     ////////////////////////////////////////////////////////////////////////////
 
     // Available sampling strategies
@@ -187,12 +190,12 @@ extern "C" {
 
         int n_threads;
         int n_max_text_ctx;
-        int offset_ms;      // start offset in ms
-        int duration_ms;    // audio duration to process in ms
+        int offset_ms;          // start offset in ms
+        int duration_ms;        // audio duration to process in ms
 
         bool translate;
         bool no_context;
-        bool single_segment; // force single segment output (useful for streaming)
+        bool single_segment;    // force single segment output (useful for streaming)
         bool print_special;
         bool print_progress;
         bool print_realtime;
@@ -206,8 +209,8 @@ extern "C" {
         int   max_tokens;       // max tokens per segment (0 = no limit)
 
         // [EXPERIMENTAL] speed-up techniques
-        bool speed_up;  // speed-up the audio by 2x using Phase Vocoder
-        int  audio_ctx; // overwrite the audio context size (0 = use default)
+        bool speed_up;          // speed-up the audio by 2x using Phase Vocoder
+        int  audio_ctx;         // overwrite the audio context size (0 = use default)
 
         // tokens to provide the whisper model as initial prompt
         // these are prepended to any existing text context from a previous call
@@ -235,20 +238,20 @@ extern "C" {
     // Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text
     // Uses the specified decoding strategy to obtain the text.
     WHISPER_API int whisper_full(
-            struct whisper_context * ctx,
-            struct whisper_full_params params,
-            const float * samples,
-            int n_samples);
+                struct whisper_context * ctx,
+            struct whisper_full_params   params,
+                           const float * samples,
+                                   int   n_samples);
 
     // Split the input audio in chunks and process each chunk separately using whisper_full()
     // It seems this approach can offer some speedup in some cases.
     // However, the transcription accuracy can be worse at the beginning and end of each chunk.
     WHISPER_API int whisper_full_parallel(
-            struct whisper_context * ctx,
-            struct whisper_full_params params,
-            const float * samples,
-            int n_samples,
-            const int n_processors);
+                struct whisper_context * ctx,
+            struct whisper_full_params   params,
+                           const float * samples,
+                                   int   n_samples,
+                                   int   n_processors);
 
     // Number of generated text segments.
     // A segment can be a few words, a sentence, or even a paragraph.
@@ -274,9 +277,6 @@ extern "C" {
 
     // Get the probability of the specified token in the specified segment.
     WHISPER_API float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token);
-
-    // Print system information
-    WHISPER_API const char * whisper_print_system_info(void);
 
 #ifdef __cplusplus
 }

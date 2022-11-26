@@ -20,6 +20,8 @@ typedef struct
 {
     int ggwaveId;
     bool isCapturing;
+    bool isTranscribing;
+    bool isRealtime;
     UILabel * labelReceived;
 
     AudioQueueRef queue;
@@ -31,6 +33,8 @@ typedef struct
     float   * audioBufferF32;
 
     struct whisper_context * ctx;
+
+    void * vc;
 } StateInp;
 
 @interface ViewController : UIViewController
