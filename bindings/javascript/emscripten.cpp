@@ -6,10 +6,16 @@
 #include <vector>
 #include <thread>
 
+std::thread g_worker;
+
 std::vector<struct whisper_context *> g_contexts(4, nullptr);
 
 EMSCRIPTEN_BINDINGS(whisper) {
     emscripten::function("init", emscripten::optional_override([](const std::string & path_model) {
+        if (g_worker.joinable()) {
+            g_worker.join();
+        }
+
         for (size_t i = 0; i < g_contexts.size(); ++i) {
             if (g_contexts[i] == nullptr) {
                 g_contexts[i] = whisper_init(path_model.c_str());
@@ -25,6 +31,10 @@ EMSCRIPTEN_BINDINGS(whisper) {
     }));
 
     emscripten::function("free", emscripten::optional_override([](size_t index) {
+        if (g_worker.joinable()) {
+            g_worker.join();
+        }
+
         --index;
 
         if (index < g_contexts.size()) {
@@ -34,6 +44,10 @@ EMSCRIPTEN_BINDINGS(whisper) {
     }));
 
     emscripten::function("full_default", emscripten::optional_override([](size_t index, const emscripten::val & audio, const std::string & lang, bool translate) {
+        if (g_worker.joinable()) {
+            g_worker.join();
+        }
+
         --index;
 
         if (index >= g_contexts.size()) {
@@ -46,14 +60,14 @@ EMSCRIPTEN_BINDINGS(whisper) {
 
         struct whisper_full_params params = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
 
-        params.print_realtime       = true;
-        params.print_progress       = false;
-        params.print_timestamps     = true;
-        params.print_special_tokens = false;
-        params.translate            = translate;
-        params.language             = whisper_is_multilingual(g_contexts[index]) ? lang.c_str() : "en";
-        params.n_threads            = std::min(8, (int) std::thread::hardware_concurrency());
-        params.offset_ms            = 0;
+        params.print_realtime   = true;
+        params.print_progress   = false;
+        params.print_timestamps = true;
+        params.print_special    = false;
+        params.translate        = translate;
+        params.language         = whisper_is_multilingual(g_contexts[index]) ? lang.c_str() : "en";
+        params.n_threads        = std::min(8, (int) std::thread::hardware_concurrency());
+        params.offset_ms        = 0;
 
         std::vector<float> pcmf32;
         const int n = audio["length"].as<int>();
@@ -80,10 +94,15 @@ EMSCRIPTEN_BINDINGS(whisper) {
             printf("\n");
         }
 
-        int ret = whisper_full(g_contexts[index], params, pcmf32.data(), pcmf32.size());
+        // run the worker
+        {
+            g_worker = std::thread([index, params, pcmf32 = std::move(pcmf32)]() {
+                whisper_reset_timings(g_contexts[index]);
+                whisper_full(g_contexts[index], params, pcmf32.data(), pcmf32.size());
+                whisper_print_timings(g_contexts[index]);
+            });
+        }
 
-        whisper_print_timings(g_contexts[index]);
-
-        return ret;
+        return 0;
     }));
 }

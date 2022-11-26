@@ -518,15 +518,6 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
         wctx.buf_memory.resize(MEM_REQ_MEMORY.at(model.type));
         wctx.buf_compute.resize(std::max(MEM_REQ_ENCODE.at(model.type), MEM_REQ_DECODE.at(model.type)));
         wctx.buf_compute_layer.resize(std::max(MEM_REQ_ENCODE_LAYER.at(model.type), MEM_REQ_DECODE_LAYER.at(model.type)));
-
-        // this is the total memory required to run the inference
-        const size_t mem_required =
-                   wctx.buf_model->size() +
-                   wctx.buf_memory.size() +
-                   wctx.buf_compute.size() +
-                   wctx.buf_compute_layer.size();
-
-        fprintf(stderr, "%s: mem_required  = %.2f MB\n", __func__, mem_required / 1024.0 / 1024.0);
     }
 
     // load mel filters
@@ -599,10 +590,20 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
         }
     }
 
+    {
+        // this is the total memory required to run the inference
+        const size_t mem_required =
+                   wctx.buf_model->size() +
+                   wctx.buf_memory.size() +
+                   wctx.buf_compute.size() +
+                   wctx.buf_compute_layer.size();
+
+        fprintf(stderr, "%s: mem_required  = %7.2f MB\n", __func__, mem_required / 1024.0 / 1024.0);
+    }
+
     // for the big tensors, we have the option to store the data in 16-bit floats
     // in order to save memory and also to speed up the computation
     const ggml_type wtype = model.hparams.f16 ? GGML_TYPE_F16 : GGML_TYPE_F32;
-
 
     size_t ctx_size = 0;
     size_t ctx_mem_size = 0;
@@ -722,7 +723,7 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
 
         ctx_size += (15 + 15*n_audio_layer + 24*n_text_layer)*256; // object overhead
 
-        fprintf(stderr, "%s: ggml ctx size = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
+        fprintf(stderr, "%s: ggml ctx size = %7.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
     }
 
     // create the ggml context
@@ -983,7 +984,7 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             ggml_nbytes(model.memory_k)       + ggml_nbytes(model.memory_v) +
             ggml_nbytes(model.memory_cross_k) + ggml_nbytes(model.memory_cross_v);
 
-        fprintf(stderr, "%s: memory size = %8.2f MB\n", __func__, memory_size/1024.0/1024.0);
+        fprintf(stderr, "%s: memory size   = %7.2f MB\n", __func__, memory_size/1024.0/1024.0);
     }
 
     // load weights
@@ -1047,7 +1048,7 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             model.n_loaded++;
         }
 
-        fprintf(stderr, "%s: model size  = %8.2f MB\n", __func__, total_size/1024.0/1024.0);
+        fprintf(stderr, "%s: model size    = %7.2f MB\n", __func__, total_size/1024.0/1024.0);
 
         if (model.n_loaded == 0) {
             fprintf(stderr, "%s: WARN no tensors loaded from model file - assuming empty model for testing\n", __func__);
@@ -2379,6 +2380,12 @@ void whisper_print_timings(struct whisper_context * ctx) {
     fprintf(stderr, "%s:    total time = %8.2f ms\n", __func__, (t_end_us - ctx->t_start_us)/1000.0f);
 }
 
+void whisper_reset_timings(struct whisper_context * ctx) {
+    ctx->t_sample_us = 0;
+    ctx->t_encode_us = 0;
+    ctx->t_decode_us = 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////
 
 struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy) {
@@ -2388,92 +2395,92 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         case WHISPER_SAMPLING_GREEDY:
             {
                 result = {
-                    /*.strategy             =*/ WHISPER_SAMPLING_GREEDY,
+                    /*.strategy         =*/ WHISPER_SAMPLING_GREEDY,
 
-                    /*.n_threads            =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
-                    /*.n_max_text_ctx       =*/ 16384,
-                    /*.offset_ms            =*/ 0,
-                    /*.duration_ms          =*/ 0,
+                    /*.n_threads        =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
+                    /*.n_max_text_ctx   =*/ 16384,
+                    /*.offset_ms        =*/ 0,
+                    /*.duration_ms      =*/ 0,
 
-                    /*.translate            =*/ false,
-                    /*.no_context           =*/ false,
-                    /*.single_segment       =*/ false,
-                    /*.print_special_tokens =*/ false,
-                    /*.print_progress       =*/ true,
-                    /*.print_realtime       =*/ false,
-                    /*.print_timestamps     =*/ true,
+                    /*.translate        =*/ false,
+                    /*.no_context       =*/ false,
+                    /*.single_segment   =*/ false,
+                    /*.print_special    =*/ false,
+                    /*.print_progress   =*/ true,
+                    /*.print_realtime   =*/ false,
+                    /*.print_timestamps =*/ true,
 
-                    /*.token_timestamps     =*/ false,
-                    /*.thold_pt             =*/ 0.01f,
-                    /*.thold_ptsum          =*/ 0.01f,
-                    /*.max_len              =*/ 0,
-                    /*.max_tokens           =*/ 0,
+                    /*.token_timestamps =*/ false,
+                    /*.thold_pt         =*/ 0.01f,
+                    /*.thold_ptsum      =*/ 0.01f,
+                    /*.max_len          =*/ 0,
+                    /*.max_tokens       =*/ 0,
 
-                    /*.speed_up             =*/ false,
-                    /*.audio_ctx            =*/ 0,
+                    /*.speed_up         =*/ false,
+                    /*.audio_ctx        =*/ 0,
 
-                    /*.prompt_tokens        =*/ nullptr,
-                    /*.prompt_n_tokens      =*/ 0,
+                    /*.prompt_tokens    =*/ nullptr,
+                    /*.prompt_n_tokens  =*/ 0,
 
-                    /*.language             =*/ "en",
+                    /*.language         =*/ "en",
 
-                    /*.greedy               =*/ {
+                    /*.greedy           =*/ {
                         /*.n_past =*/ 0,
                     },
 
-                    /*.beam_search          =*/ {
+                    /*.beam_search      =*/ {
                         /*.n_past     =*/ -1,
                         /*.beam_width =*/ -1,
                         /*.n_best     =*/ -1,
                     },
 
-                    /*.new_segment_callback =*/ nullptr,
+                    /*.new_segment_callback           =*/ nullptr,
                     /*.new_segment_callback_user_data =*/ nullptr,
                 };
             } break;
         case WHISPER_SAMPLING_BEAM_SEARCH:
             {
                 result = {
-                    /*.strategy             =*/ WHISPER_SAMPLING_BEAM_SEARCH,
+                    /*.strategy         =*/ WHISPER_SAMPLING_BEAM_SEARCH,
 
-                    /*.n_threads            =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
-                    /*.n_max_text_ctx       =*/ 16384,
-                    /*.offset_ms            =*/ 0,
-                    /*.duration_ms          =*/ 0,
+                    /*.n_threads        =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
+                    /*.n_max_text_ctx   =*/ 16384,
+                    /*.offset_ms        =*/ 0,
+                    /*.duration_ms      =*/ 0,
 
-                    /*.translate            =*/ false,
-                    /*.no_context           =*/ false,
-                    /*.single_segment       =*/ false,
-                    /*.print_special_tokens =*/ false,
-                    /*.print_progress       =*/ true,
-                    /*.print_realtime       =*/ false,
-                    /*.print_timestamps     =*/ true,
+                    /*.translate        =*/ false,
+                    /*.no_context       =*/ false,
+                    /*.single_segment   =*/ false,
+                    /*.print_special    =*/ false,
+                    /*.print_progress   =*/ true,
+                    /*.print_realtime   =*/ false,
+                    /*.print_timestamps =*/ true,
 
-                    /*.token_timestamps     =*/ false,
-                    /*.thold_pt             =*/ 0.01f,
-                    /*.thold_ptsum          =*/ 0.01f,
-                    /*.max_len              =*/ 0,
-                    /*.max_tokens           =*/ 0,
+                    /*.token_timestamps =*/ false,
+                    /*.thold_pt         =*/ 0.01f,
+                    /*.thold_ptsum      =*/ 0.01f,
+                    /*.max_len          =*/ 0,
+                    /*.max_tokens       =*/ 0,
 
-                    /*.speed_up             =*/ false,
-                    /*.audio_ctx            =*/ 0,
+                    /*.speed_up         =*/ false,
+                    /*.audio_ctx        =*/ 0,
 
-                    /*.prompt_tokens        =*/ nullptr,
-                    /*.prompt_n_tokens      =*/ 0,
+                    /*.prompt_tokens    =*/ nullptr,
+                    /*.prompt_n_tokens  =*/ 0,
 
-                    /*.language             =*/ "en",
+                    /*.language         =*/ "en",
 
-                    /*.greedy               =*/ {
+                    /*.greedy           =*/ {
                         /*.n_past =*/ -1,
                     },
 
-                    /*.beam_search          =*/ {
+                    /*.beam_search      =*/ {
                         /*.n_past     =*/ 0,
                         /*.beam_width =*/ 10,
                         /*.n_best     =*/ 5,
                     },
 
-                    /*.new_segment_callback =*/ nullptr,
+                    /*.new_segment_callback           =*/ nullptr,
                     /*.new_segment_callback_user_data =*/ nullptr,
                 };
             } break;
@@ -2761,7 +2768,7 @@ int whisper_full(
                 //        ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].p,
                 //        ctx->vocab.id_to_token[tokens_cur[i].tid].c_str(), tokens_cur[i].pt);
 
-                if (params.print_special_tokens == false && tokens_cur[i].id >= whisper_token_eot(ctx)) {
+                if (params.print_special == false && tokens_cur[i].id >= whisper_token_eot(ctx)) {
                 } else {
                     text += whisper_token_to_str(ctx, tokens_cur[i].id);
                 }

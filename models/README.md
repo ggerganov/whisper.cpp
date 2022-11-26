@@ -41,5 +41,24 @@ https://huggingface.co/datasets/ggerganov/whisper.cpp/tree/main
 
 ## Model files for testing purposes
 
-The model files pefixed with `for-tests-` are empty (i.e. do not contain any weights) and are used by the CI for testing purposes.
-They are directly included in this repository for convenience and the Github Actions CI uses them to run various sanitizer tests.
+The model files prefixed with `for-tests-` are empty (i.e. do not contain any weights) and are used by the CI for
+testing purposes. They are directly included in this repository for convenience and the Github Actions CI uses them to
+run various sanitizer tests.
+
+## Fine-tuned models
+
+There are community efforts for creating fine-tuned Whisper models using extra training data. For example, this
+[blog post](https://huggingface.co/blog/fine-tune-whisper) describes a method for fine-tuning using Hugging Face (HF)
+Transformer implementation of Whisper. The produced models are in slightly different format compared to the original
+OpenAI format. To read the HF models you can use the [convert-h5-to-ggml.py](convert-h5-to-ggml.py) script like this:
+
+```bash
+git clone https://github.com/openai/whisper
+git clone https://github.com/ggerganov/whisper.cpp
+
+# clone HF fine-tuned model (this is just an example)
+git clone https://huggingface.co/openai/whisper-base.en
+
+# convert the model to ggml
+python3 ./whisper.cpp/models/convert-h5-to-ggml.py ./whisper-medium/ ./whisper .
+```

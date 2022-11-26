@@ -167,6 +167,7 @@ extern "C" {
 
     // Performance information
     WHISPER_API void whisper_print_timings(struct whisper_context * ctx);
+    WHISPER_API void whisper_reset_timings(struct whisper_context * ctx);
 
     ////////////////////////////////////////////////////////////////////////////
 
@@ -192,7 +193,7 @@ extern "C" {
         bool translate;
         bool no_context;
         bool single_segment; // force single segment output (useful for streaming)
-        bool print_special_tokens;
+        bool print_special;
         bool print_progress;
         bool print_realtime;
         bool print_timestamps;

@@ -4,11 +4,6 @@
 
 #include "whisper.h"
 
-// third-party utilities
-// use your favorite implementations
-#define DR_WAV_IMPLEMENTATION
-#include "dr_wav.h"
-
 #include <SDL.h>
 #include <SDL_audio.h>
 
@@ -35,7 +30,6 @@ std::string to_timestamp(int64_t t) {
 
 // command-line parameters
 struct whisper_params {
-    int32_t seed       = -1; // RNG seed, not used currently
     int32_t n_threads  = std::min(4, (int32_t) std::thread::hardware_concurrency());
     int32_t step_ms    = 3000;
     int32_t length_ms  = 10000;
@@ -43,12 +37,11 @@ struct whisper_params {
     int32_t max_tokens = 32;
     int32_t audio_ctx  = 0;
 
-    bool speed_up             = false;
-    bool verbose              = false;
-    bool translate            = false;
-    bool no_context           = true;
-    bool print_special_tokens = false;
-    bool no_timestamps        = true;
+    bool speed_up      = false;
+    bool translate     = false;
+    bool no_context    = true;
+    bool print_special = false;
+    bool no_timestamps = true;
 
     std::string language  = "en";
     std::string model     = "models/ggml-base.en.bin";
@@ -61,47 +54,24 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
-        if (arg == "-s" || arg == "--seed") {
-            params.seed = std::stoi(argv[++i]);
-        } else if (arg == "-t" || arg == "--threads") {
-            params.n_threads = std::stoi(argv[++i]);
-        } else if (arg == "--step") {
-            params.step_ms = std::stoi(argv[++i]);
-        } else if (arg == "--length") {
-            params.length_ms = std::stoi(argv[++i]);
-        } else if (arg == "-c" || arg == "--capture") {
-            params.capture_id = std::stoi(argv[++i]);
-        } else if (arg == "-mt" || arg == "--max_tokens") {
-            params.max_tokens = std::stoi(argv[++i]);
-        } else if (arg == "-ac" || arg == "--audio_ctx") {
-            params.audio_ctx = std::stoi(argv[++i]);
-        } else if (arg == "-su" || arg == "--speed-up") {
-            params.speed_up = true;
-        } else if (arg == "-v" || arg == "--verbose") {
-            params.verbose = true;
-        } else if (arg == "--translate") {
-            params.translate = true;
-        } else if (arg == "-kc" || arg == "--keep-context") {
-            params.no_context = false;
-        } else if (arg == "-l" || arg == "--language") {
-            params.language = argv[++i];
-            if (whisper_lang_id(params.language.c_str()) == -1) {
-                fprintf(stderr, "error: unknown language '%s'\n", params.language.c_str());
-                whisper_print_usage(argc, argv, params);
-                exit(0);
-            }
-        } else if (arg == "-ps" || arg == "--print_special") {
-            params.print_special_tokens = true;
-        } else if (arg == "-nt" || arg == "--no_timestamps") {
-            params.no_timestamps = true;
-        } else if (arg == "-m" || arg == "--model") {
-            params.model = argv[++i];
-        } else if (arg == "-f" || arg == "--file") {
-            params.fname_out = argv[++i];
-        } else if (arg == "-h" || arg == "--help") {
+        if (arg == "-h" || arg == "--help") {
             whisper_print_usage(argc, argv, params);
             exit(0);
-        } else {
+        }
+        else if (arg == "-t"   || arg == "--threads")       { params.n_threads     = std::stoi(argv[++i]); }
+        else if (                 arg == "--step")          { params.step_ms       = std::stoi(argv[++i]); }
+        else if (                 arg == "--length")        { params.length_ms     = std::stoi(argv[++i]); }
+        else if (arg == "-c"   || arg == "--capture")       { params.capture_id    = std::stoi(argv[++i]); }
+        else if (arg == "-mt"  || arg == "--max-tokens")    { params.max_tokens    = std::stoi(argv[++i]); }
+        else if (arg == "-ac"  || arg == "--audio-ctx")     { params.audio_ctx     = std::stoi(argv[++i]); }
+        else if (arg == "-su"  || arg == "--speed-up")      { params.speed_up      = true; }
+        else if (arg == "-tr"  || arg == "--translate")     { params.translate     = true; }
+        else if (arg == "-kc"  || arg == "--keep-context")  { params.no_context    = false; }
+        else if (arg == "-ps"  || arg == "--print-special") { params.print_special = true; }
+        else if (arg == "-l"   || arg == "--language")      { params.language      = argv[++i]; }
+        else if (arg == "-m"   || arg == "--model")         { params.model         = argv[++i]; }
+        else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
+        else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
             exit(0);
@@ -116,23 +86,20 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "usage: %s [options]\n", argv[0]);
     fprintf(stderr, "\n");
     fprintf(stderr, "options:\n");
-    fprintf(stderr, "  -h,       --help           show this help message and exit\n");
-    fprintf(stderr, "  -s SEED,  --seed SEED      RNG seed (default: -1)\n");
-    fprintf(stderr, "  -t N,     --threads N      number of threads to use during computation (default: %d)\n", params.n_threads);
-    fprintf(stderr, "            --step N         audio step size in milliseconds (default: %d)\n", params.step_ms);
-    fprintf(stderr, "            --length N       audio length in milliseconds (default: %d)\n", params.length_ms);
-    fprintf(stderr, "  -c ID,    --capture ID     capture device ID (default: -1)\n");
-    fprintf(stderr, "  -mt N,    --max_tokens N   maximum number of tokens per audio chunk (default: %d)\n", params.max_tokens);
-    fprintf(stderr, "  -ac N,    --audio_ctx N    audio context size (default: %d, 0 - all)\n", params.audio_ctx);
-    fprintf(stderr, "  -su,      --speed-up       speed up audio by factor of 2 (faster processing, reduced accuracy, default: %s)\n", params.speed_up ? "true" : "false");
-    fprintf(stderr, "  -v,       --verbose        verbose output\n");
-    fprintf(stderr, "            --translate      translate from source language to english\n");
-    fprintf(stderr, "  -kc,      --keep-context   keep text context from earlier audio (default: false)\n");
-    fprintf(stderr, "  -ps,      --print_special  print special tokens\n");
-    fprintf(stderr, "  -nt,      --no_timestamps  do not print timestamps\n");
-    fprintf(stderr, "  -l LANG,  --language LANG  spoken language (default: %s)\n", params.language.c_str());
-    fprintf(stderr, "  -m FNAME, --model FNAME    model path (default: %s)\n", params.model.c_str());
-    fprintf(stderr, "  -f FNAME, --file FNAME     text output file name (default: no output to file)\n");
+    fprintf(stderr, "  -h,       --help          [default] show this help message and exit\n");
+    fprintf(stderr, "  -t N,     --threads N     [%-7d] number of threads to use during computation\n", params.n_threads);
+    fprintf(stderr, "            --step N        [%-7d] audio step size in milliseconds\n",             params.step_ms);
+    fprintf(stderr, "            --length N      [%-7d] audio length in milliseconds\n",                params.length_ms);
+    fprintf(stderr, "  -c ID,    --capture ID    [%-7d] capture device ID\n",                           params.capture_id);
+    fprintf(stderr, "  -mt N,    --max-tokens N  [%-7d] maximum number of tokens per audio chunk\n",    params.max_tokens);
+    fprintf(stderr, "  -ac N,    --audio-ctx N   [%-7d] audio context size (0 - all)\n",                params.audio_ctx);
+    fprintf(stderr, "  -su,      --speed-up      [%-7s] speed up audio by x2 (reduced accuracy)\n",     params.speed_up ? "true" : "false");
+    fprintf(stderr, "  -tr,      --translate     [%-7s] translate from source language to english\n",   params.translate ? "true" : "false");
+    fprintf(stderr, "  -kc,      --keep-context  [%-7s] keep context between audio chunks\n",           params.no_context ? "false" : "true");
+    fprintf(stderr, "  -ps,      --print-special [%-7s] print special tokens\n",                        params.print_special ? "true" : "false");
+    fprintf(stderr, "  -l LANG,  --language LANG [%-7s] spoken language\n",                             params.language.c_str());
+    fprintf(stderr, "  -m FNAME, --model FNAME   [%-7s] model path\n",                                  params.model.c_str());
+    fprintf(stderr, "  -f FNAME, --file FNAME    [%-7s] text output file name\n",                       params.fname_out.c_str());
     fprintf(stderr, "\n");
 }
 
@@ -148,56 +115,51 @@ bool audio_sdl_init(const int capture_id) {
         return false;
     }
 
-    if (g_dev_id_in == 0) {
-        SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
+    SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
 
-        if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s\n", SDL_GetError());
-            return (1);
-        }
+    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s\n", SDL_GetError());
+        return (1);
+    }
 
-        SDL_SetHintWithPriority(SDL_HINT_AUDIO_RESAMPLING_MODE, "medium", SDL_HINT_OVERRIDE);
+    SDL_SetHintWithPriority(SDL_HINT_AUDIO_RESAMPLING_MODE, "medium", SDL_HINT_OVERRIDE);
 
-        {
-            int nDevices = SDL_GetNumAudioDevices(SDL_TRUE);
-            fprintf(stderr, "%s: found %d capture devices:\n", __func__, nDevices);
-            for (int i = 0; i < nDevices; i++) {
-                fprintf(stderr, "%s:    - Capture device #%d: '%s'\n", __func__, i, SDL_GetAudioDeviceName(i, SDL_TRUE));
-            }
+    {
+        int nDevices = SDL_GetNumAudioDevices(SDL_TRUE);
+        fprintf(stderr, "%s: found %d capture devices:\n", __func__, nDevices);
+        for (int i = 0; i < nDevices; i++) {
+            fprintf(stderr, "%s:    - Capture device #%d: '%s'\n", __func__, i, SDL_GetAudioDeviceName(i, SDL_TRUE));
         }
     }
 
-    if (g_dev_id_in == 0) {
-        SDL_AudioSpec capture_spec_requested;
-        SDL_AudioSpec capture_spec_obtained;
+    SDL_AudioSpec capture_spec_requested;
+    SDL_AudioSpec capture_spec_obtained;
 
-        SDL_zero(capture_spec_requested);
-        SDL_zero(capture_spec_obtained);
+    SDL_zero(capture_spec_requested);
+    SDL_zero(capture_spec_obtained);
 
-        capture_spec_requested.freq     = WHISPER_SAMPLE_RATE;
-        capture_spec_requested.format   = AUDIO_F32;
-        capture_spec_requested.channels = 1;
-        capture_spec_requested.samples  = 1024;
+    capture_spec_requested.freq     = WHISPER_SAMPLE_RATE;
+    capture_spec_requested.format   = AUDIO_F32;
+    capture_spec_requested.channels = 1;
+    capture_spec_requested.samples  = 1024;
 
-        if (capture_id >= 0) {
-            fprintf(stderr, "%s: attempt to open capture device %d : '%s' ...\n", __func__, capture_id, SDL_GetAudioDeviceName(capture_id, SDL_TRUE));
-            g_dev_id_in = SDL_OpenAudioDevice(SDL_GetAudioDeviceName(capture_id, SDL_TRUE), SDL_TRUE, &capture_spec_requested, &capture_spec_obtained, 0);
-        } else {
-            fprintf(stderr, "%s: attempt to open default capture device ...\n", __func__);
-            g_dev_id_in = SDL_OpenAudioDevice(nullptr, SDL_TRUE, &capture_spec_requested, &capture_spec_obtained, 0);
-        }
-        if (!g_dev_id_in) {
-            fprintf(stderr, "%s: couldn't open an audio device for capture: %s!\n", __func__, SDL_GetError());
-            g_dev_id_in = 0;
-        } else {
-            fprintf(stderr, "%s: obtained spec for input device (SDL Id = %d):\n", __func__, g_dev_id_in);
-            fprintf(stderr, "%s:     - sample rate:       %d\n", __func__, capture_spec_obtained.freq);
-            fprintf(stderr, "%s:     - format:            %d (required: %d)\n", __func__, capture_spec_obtained.format, capture_spec_requested.format);
-            fprintf(stderr, "%s:     - channels:          %d (required: %d)\n", __func__, capture_spec_obtained.channels, capture_spec_requested.channels);
-            fprintf(stderr, "%s:     - samples per frame: %d\n", __func__, capture_spec_obtained.samples);
-        }
+    if (capture_id >= 0) {
+        fprintf(stderr, "%s: attempt to open capture device %d : '%s' ...\n", __func__, capture_id, SDL_GetAudioDeviceName(capture_id, SDL_TRUE));
+        g_dev_id_in = SDL_OpenAudioDevice(SDL_GetAudioDeviceName(capture_id, SDL_TRUE), SDL_TRUE, &capture_spec_requested, &capture_spec_obtained, 0);
+    } else {
+        fprintf(stderr, "%s: attempt to open default capture device ...\n", __func__);
+        g_dev_id_in = SDL_OpenAudioDevice(nullptr, SDL_TRUE, &capture_spec_requested, &capture_spec_obtained, 0);
     }
-
+    if (!g_dev_id_in) {
+        fprintf(stderr, "%s: couldn't open an audio device for capture: %s!\n", __func__, SDL_GetError());
+        g_dev_id_in = 0;
+    } else {
+        fprintf(stderr, "%s: obtained spec for input device (SDL Id = %d):\n", __func__, g_dev_id_in);
+        fprintf(stderr, "%s:     - sample rate:       %d\n", __func__, capture_spec_obtained.freq);
+        fprintf(stderr, "%s:     - format:            %d (required: %d)\n", __func__, capture_spec_obtained.format, capture_spec_requested.format);
+        fprintf(stderr, "%s:     - channels:          %d (required: %d)\n", __func__, capture_spec_obtained.channels, capture_spec_requested.channels);
+        fprintf(stderr, "%s:     - samples per frame: %d\n", __func__, capture_spec_obtained.samples);
+    }
 
     return true;
 }
@@ -211,15 +173,17 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    if (params.seed < 0) {
-        params.seed = time(NULL);
-    }
-
     // init audio
 
     if (!audio_sdl_init(params.capture_id)) {
         fprintf(stderr, "%s: audio_sdl_init() failed!\n", __func__);
         return 1;
+    }
+
+    if (whisper_lang_id(params.language.c_str()) == -1) {
+        fprintf(stderr, "error: unknown language '%s'\n", params.language.c_str());
+        whisper_print_usage(argc, argv, params);
+        exit(0);
     }
 
     // whisper init
@@ -280,16 +244,22 @@ int main(int argc, char ** argv) {
 
     // main audio loop
     while (is_running) {
-        // process SDL events:
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-                case SDL_QUIT:
-                    {
-                        is_running = false;
-                    } break;
-                default:
-                    break;
+        // handle Ctrl + C
+        {
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                switch (event.type) {
+                    case SDL_QUIT:
+                        {
+                            is_running = false;
+                        } break;
+                    default:
+                        break;
+                }
+            }
+
+            if (!is_running) {
+                break;
             }
         }
 
@@ -331,22 +301,22 @@ int main(int argc, char ** argv) {
         {
             whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
-            wparams.print_progress       = false;
-            wparams.print_special_tokens = params.print_special_tokens;
-            wparams.print_realtime       = false;
-            wparams.print_timestamps     = !params.no_timestamps;
-            wparams.translate            = params.translate;
-            wparams.no_context           = true;
-            wparams.single_segment       = true;
-            wparams.max_tokens           = params.max_tokens;
-            wparams.language             = params.language.c_str();
-            wparams.n_threads            = params.n_threads;
+            wparams.print_progress   = false;
+            wparams.print_special    = params.print_special;
+            wparams.print_realtime   = false;
+            wparams.print_timestamps = !params.no_timestamps;
+            wparams.translate        = params.translate;
+            wparams.no_context       = true;
+            wparams.single_segment   = true;
+            wparams.max_tokens       = params.max_tokens;
+            wparams.language         = params.language.c_str();
+            wparams.n_threads        = params.n_threads;
 
-            wparams.audio_ctx            = params.audio_ctx;
-            wparams.speed_up             = params.speed_up;
+            wparams.audio_ctx        = params.audio_ctx;
+            wparams.speed_up         = params.speed_up;
 
-            wparams.prompt_tokens        = params.no_context ? nullptr : prompt_tokens.data();
-            wparams.prompt_n_tokens      = params.no_context ? 0       : prompt_tokens.size();
+            wparams.prompt_tokens    = params.no_context ? nullptr : prompt_tokens.data();
+            wparams.prompt_n_tokens  = params.no_context ? 0       : prompt_tokens.size();
 
             if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
@@ -412,6 +382,10 @@ int main(int argc, char ** argv) {
                 }
             }
         }
+    }
+
+    if (g_dev_id_in >= 0) {
+        SDL_CloseAudioDevice(g_dev_id_in);
     }
 
     whisper_print_timings(ctx);

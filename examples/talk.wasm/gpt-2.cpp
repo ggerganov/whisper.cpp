@@ -812,9 +812,9 @@ I'm fine, thanks. How are you?
 Thanks, I'm fine too. What are you doing?
 I'm just sitting here.
 It's a lovely day, isn't it?
-Yes, it is.
-Did you know that I'm a robot?
-I wasn't aware of that.
+Yes, it is. I love the weather this time of year.
+I wish it would rain a little bit.
+Me too.
 )";
 
     std::mt19937 rng;

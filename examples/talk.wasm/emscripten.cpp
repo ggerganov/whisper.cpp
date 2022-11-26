@@ -51,20 +51,20 @@ void talk_main(size_t index) {
 
     struct whisper_full_params wparams = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
 
-    wparams.n_threads            = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
-    wparams.offset_ms            = 0;
-    wparams.translate            = false;
-    wparams.no_context           = true;
-    wparams.single_segment       = true;
-    wparams.print_realtime       = false;
-    wparams.print_progress       = false;
-    wparams.print_timestamps     = true;
-    wparams.print_special_tokens = false;
+    wparams.n_threads        = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
+    wparams.offset_ms        = 0;
+    wparams.translate        = false;
+    wparams.no_context       = true;
+    wparams.single_segment   = true;
+    wparams.print_realtime   = false;
+    wparams.print_progress   = false;
+    wparams.print_timestamps = true;
+    wparams.print_special    = false;
 
-    wparams.max_tokens           = 32;
-    wparams.audio_ctx            = 768;
+    wparams.max_tokens       = 32;
+    wparams.audio_ctx        = 768; // partial encoder context for better performance
 
-    wparams.language             = "en";
+    wparams.language         = "en";
 
     g_gpt2 = gpt2_init("gpt-2.bin");
 
@@ -75,9 +75,9 @@ void talk_main(size_t index) {
     // whisper context
     auto & ctx = g_contexts[index];
 
-    const int64_t step_samples = 2*WHISPER_SAMPLE_RATE;
-    const int64_t step_ms = (step_samples*1000)/WHISPER_SAMPLE_RATE;
+    const int64_t step_samples   = 2*WHISPER_SAMPLE_RATE;
     const int64_t window_samples = 9*WHISPER_SAMPLE_RATE;
+    const int64_t step_ms        = (step_samples*1000)/WHISPER_SAMPLE_RATE;
 
     auto t_last = std::chrono::high_resolution_clock::now();
 
@@ -111,7 +111,7 @@ void talk_main(size_t index) {
             pcmf32 = std::vector<float>(g_pcmf32.end() - std::min((int64_t) g_pcmf32.size(), window_samples), g_pcmf32.end());
         }
 
-        // if energy in during last second is above threshold, then skip
+        // VAD: if energy in during last second is above threshold, then skip
         {
             float energy_all = 0.0f;
             float energy_1s  = 0.0f;
@@ -133,13 +133,11 @@ void talk_main(size_t index) {
             }
         }
 
-        talk_set_status("processing ...");
-
-        g_force_speak = false;
+        talk_set_status("processing audio (whisper)...");
 
         t_last = t_now;
 
-        {
+        if (!g_force_speak) {
             const auto t_start = std::chrono::high_resolution_clock::now();
 
             int ret = whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size());
@@ -156,17 +154,21 @@ void talk_main(size_t index) {
         {
             std::string text_heard;
 
-            const int n_segments = whisper_full_n_segments(ctx);
-            for (int i = n_segments - 1; i < n_segments; ++i) {
-                const char * text = whisper_full_get_segment_text(ctx, i);
+            if (!g_force_speak) {
+                const int n_segments = whisper_full_n_segments(ctx);
+                for (int i = n_segments - 1; i < n_segments; ++i) {
+                    const char * text = whisper_full_get_segment_text(ctx, i);
 
-                const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                    const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+                    const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
-                printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
+                    printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
 
-                text_heard += text;
+                    text_heard += text;
+                }
             }
+
+            g_force_speak = false;
 
             // remove text between brackets using regex
             {
@@ -190,7 +192,7 @@ void talk_main(size_t index) {
             text_heard = std::regex_replace(text_heard, std::regex("^\\s+"), "");
             text_heard = std::regex_replace(text_heard, std::regex("\\s+$"), "");
 
-            talk_set_status("'" + text_heard + "' - thinking how to respond ...");
+            talk_set_status("'" + text_heard + "' - thinking how to respond (gpt-2) ...");
 
             const std::vector<gpt_vocab::id> tokens = gpt2_tokenize(g_gpt2, text_heard.c_str());
 

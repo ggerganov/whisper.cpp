@@ -21,3 +21,7 @@ brew install sdl2
 
 make stream
 ```
+
+## Web version
+
+This tool can also run in the browser: [examples/stream.wasm](/examples/stream.wasm)
