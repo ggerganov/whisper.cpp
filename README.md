@@ -466,5 +466,6 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | [examples/whisper.nvim](examples/whisper.nvim) | | Speech-to-text plugin for Neovim |
 | [examples/generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |
 | [examples/livestream.sh](examples/livestream.sh) | | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |
+| [examples/yt-wsp.sh](examples/yt-wsp.sh) | | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |
 
 ## [Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126)
