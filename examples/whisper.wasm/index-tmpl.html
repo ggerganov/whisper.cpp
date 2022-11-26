@@ -225,12 +225,6 @@
                 }
             };
 
-            const kMaxAudio_s = 120;
-            const kSampleRate = 16000;
-
-            window.AudioContext = window.AudioContext || window.webkitAudioContext;
-            window.OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-
             // web audio context
             var context = null;
 
@@ -348,9 +342,21 @@
             // audio file
             //
 
+            const kMaxAudio_s = 120;
+            const kSampleRate = 16000;
+
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            window.OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+
             function loadAudio(event) {
                 if (!context) {
-                    context = new AudioContext({sampleRate: 16000});
+                    context = new AudioContext({
+                        sampleRate: kSampleRate,
+                        channelCount: 1,
+                        echoCancellation: false,
+                        autoGainControl:  true,
+                        noiseSuppression: true,
+                    });
                 }
 
                 var file = event.target.files[0] || null;
@@ -410,7 +416,13 @@
             // update progress information
             function startRecording() {
                 if (!context) {
-                    context = new AudioContext({sampleRate: 16000});
+                    context = new AudioContext({
+                        sampleRate: kSampleRate,
+                        channelCount: 1,
+                        echoCancellation: false,
+                        autoGainControl:  true,
+                        noiseSuppression: true,
+                    });
                 }
 
                 document.getElementById('start').disabled = true;

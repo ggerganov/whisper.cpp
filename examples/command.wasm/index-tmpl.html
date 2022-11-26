@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en-us">
     <head>
-        <title>stream : Real-time Whisper transcription in WebAssembly</title>
+        <title>command : Voice assistant example using Whisper + WebAssembly</title>
 
         <style>
             #output {
@@ -27,17 +27,17 @@
     </head>
     <body>
         <div id="main-container">
-            <b>stream : Real-time Whisper transcription in WebAssembly</b>
+            <b>command : Voice assistant example using Whisper + WebAssembly</b>
 
             <br><br>
 
-            You can find more about this project on <a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/stream.wasm">GitHub</a>.
+            You can find more about this project on <a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/command.wasm">GitHub</a>.
 
             <br><br>
 
             <hr>
 
-            Select the model you would like to use, click the "Start" button and start speaking
+            Select the model you would like to use, click the "Start" button and follow the instructions.
 
             <br><br>
 
@@ -55,9 +55,9 @@
             <br>
 
             <div id="input">
-                <button id="start"  onclick="onStart()" disabled>Start</button>
-                <button id="stop"   onclick="onStop()" disabled>Stop</button>
-                <button id="clear"  onclick="clearCache()">Clear Cache</button>
+                <button id="start" onclick="onStart()" disabled>Start</button>
+                <button id="stop"  onclick="onStop()" disabled>Stop</button>
+                <button id="clear" onclick="clearCache()">Clear Cache</button>
             </div>
 
             <br>
@@ -65,7 +65,7 @@
             <div id="state">
                 Status: <b><span id="state-status">not started</span></b>
 
-                <pre id="state-transcribed">[The transcribed text will be displayed here]</pre>
+                <pre id="state-transcribed">[The recognized voice commands will be displayed here]</pre>
             </div>
 
             <hr>
@@ -93,7 +93,7 @@
                     Build time: <span class="nav-link">@GIT_DATE@</span> |
                     Commit hash: <a class="nav-link" href="https://github.com/ggerganov/whisper.cpp/commit/@GIT_SHA1@">@GIT_SHA1@</a> |
                     Commit subject: <span class="nav-link">@GIT_COMMIT_SUBJECT@</span> |
-                    <a class="nav-link" href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/stream.wasm">Source Code</a> |
+                    <a class="nav-link" href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/command.wasm">Source Code</a> |
                 </span>
             </div>
         </div>
@@ -107,7 +107,7 @@
             var audio = null;
             var audio0 = null;
 
-            // the stream instance
+            // the command instance
             var instance = null;
 
             // model name
@@ -200,7 +200,7 @@
 
             const kSampleRate = 16000;
             const kRestartRecording_s = 120;
-            const kIntervalAudio_ms = 5000; // pass the recorded audio to the C++ instance at this rate
+            const kIntervalAudio_ms = 250; // pass the recorded audio to the C++ instance at this rate
 
             var mediaRecorder = null;
             var doRecording = false;
@@ -381,6 +381,6 @@
             }
 
         </script>
-        <script type="text/javascript" src="stream.js"></script>
+        <script type="text/javascript" src="command.js"></script>
     </body>
 </html>

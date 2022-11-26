@@ -34,7 +34,7 @@ As an example, here is a video of running the model on an iPhone 13 device - ful
 
 https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-bf96-1d8c27b98c81.mp4
 
-You can also easily make your own offline voice assistant application:
+You can also easily make your own offline voice assistant application: [command](examples/command)
 
 https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
 
