@@ -68,7 +68,7 @@ void talk_main(size_t index) {
 
     g_gpt2 = gpt2_init("gpt-2.bin");
 
-    printf("talk: using %d threads\n", N_THREAD);
+    printf("talk: using %d threads\n", wparams.n_threads);
 
     std::vector<float> pcmf32;
 
