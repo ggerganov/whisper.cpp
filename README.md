@@ -457,15 +457,15 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 
 | Example | Web | Description |
 | ---     | --- | ---         |
-| [examples/main](examples/main) | [examples/whisper.wasm](examples/whisper.wasm) | Tool for translating and transcribing audio using Whisper |
-| [examples/bench](examples/bench) | | Benchmark the performance of Whisper on your machine |
-| [examples/stream](examples/stream) | [examples/stream.wasm](examples/stream.wasm) | Real-time transcription of raw microphone capture |
-| [examples/command](examples/command) | [examples/command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
-| | [examples/talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot in your browser |
-| [examples/whisper.objc](examples/whisper.objc) | | iOS mobile application using whisper.cpp |
-| [examples/whisper.nvim](examples/whisper.nvim) | | Speech-to-text plugin for Neovim |
-| [examples/generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |
-| [examples/livestream.sh](examples/livestream.sh) | | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |
-| [examples/yt-wsp.sh](examples/yt-wsp.sh) | | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |
+| [main](examples/main) | [whisper.wasm](examples/whisper.wasm) | Tool for translating and transcribing audio using Whisper |
+| [bench](examples/bench) | | Benchmark the performance of Whisper on your machine |
+| [stream](examples/stream) | [stream.wasm](examples/stream.wasm) | Real-time transcription of raw microphone capture |
+| [command](examples/command) | [command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
+| | [talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot in your browser |
+| [whisper.objc](examples/whisper.objc) | | iOS mobile application using whisper.cpp |
+| [whisper.nvim](examples/whisper.nvim) | | Speech-to-text plugin for Neovim |
+| [generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |
+| [livestream.sh](examples/livestream.sh) | | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |
+| [yt-wsp.sh](examples/yt-wsp.sh) | | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |
 
 ## [Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126)
