@@ -452,6 +452,19 @@ in [models](models).
 
 ## Examples
 
-There are various examples of using the library for different projects in the [examples](examples) folder. Check them out!
+There are various examples of using the library for different projects in the [examples](examples) folder.
+Some of the examples are even ported to run in the browser using WebAssembly. Check them out!
+
+| Example | Web | Description |
+| ---     | --- | ---         |
+| [examples/main](examples/main) | [examples/whisper.wasm](examples/whisper.wasm) | Tool for translating and transcribing audio using Whisper |
+| [examples/bench](examples/bench) | | Benchmark the performance of Whisper on your machine |
+| [examples/stream](examples/stream) | [examples/stream.wasm](examples/stream.wasm) | Real-time transcription of raw microphone capture |
+| [examples/command](examples/command) | [examples/command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
+| | [examples/talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot in your browser |
+| [examples/whisper.objc](examples/whisper.objc) | | iOS mobile application using whisper.cpp |
+| [examples/whisper.nvim](examples/whisper.nvim) | | Speech-to-text plugin for Neovim |
+| [examples/generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |
+| [examples/livestream.sh](examples/livestream.sh) | | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |
 
 ## [Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126)
