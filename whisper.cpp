@@ -2360,11 +2360,11 @@ whisper_token whisper_token_beg(struct whisper_context * ctx) {
     return ctx->vocab.token_beg;
 }
 
-whisper_token whisper_token_translate() {
+whisper_token whisper_token_translate(void) {
     return whisper_vocab::token_translate;
 }
 
-whisper_token whisper_token_transcribe() {
+whisper_token whisper_token_transcribe(void) {
     return whisper_vocab::token_transcribe;
 }
 
@@ -2921,10 +2921,6 @@ int whisper_full_parallel(
                 model.memory_cross_k = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
                 model.memory_cross_v = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
             }
-
-            const size_t memory_size =
-                ggml_nbytes(model.memory_k)       + ggml_nbytes(model.memory_v) +
-                ggml_nbytes(model.memory_cross_k) + ggml_nbytes(model.memory_cross_v);
         }
     }
 
@@ -3044,7 +3040,7 @@ float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int 
     return ctx->result_all[i_segment].tokens[i_token].p;
 }
 
-const char * whisper_print_system_info() {
+const char * whisper_print_system_info(void) {
     static std::string s;
 
     s  = "";
@@ -3144,9 +3140,6 @@ static void whisper_exp_compute_token_level_timestamps(
 
     const int64_t t0 = segment.t0;
     const int64_t t1 = segment.t1;
-
-    const int s0 = timestamp_to_sample(t0, n_samples);
-    const int s1 = timestamp_to_sample(t1, n_samples);
 
     const int n = tokens.size();
 

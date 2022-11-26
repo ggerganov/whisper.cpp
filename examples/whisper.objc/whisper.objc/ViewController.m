@@ -21,9 +21,9 @@ void AudioInputCallback(void * inUserData,
 
 @interface ViewController ()
 
-@property (weak, nonatomic) IBOutlet UILabel *labelStatusInp;
-@property (weak, nonatomic) IBOutlet UIButton *buttonToggleCapture;
-@property (weak, nonatomic) IBOutlet UIButton *buttonTranscribe;
+@property (weak, nonatomic) IBOutlet UILabel    *labelStatusInp;
+@property (weak, nonatomic) IBOutlet UIButton   *buttonToggleCapture;
+@property (weak, nonatomic) IBOutlet UIButton   *buttonTranscribe;
 @property (weak, nonatomic) IBOutlet UITextView *textviewResult;
 
 @end
@@ -32,7 +32,7 @@ void AudioInputCallback(void * inUserData,
 
 - (void)setupAudioFormat:(AudioStreamBasicDescription*)format
 {
-    format->mSampleRate       = 16000;
+    format->mSampleRate       = WHISPER_SAMPLE_RATE;
     format->mFormatID         = kAudioFormatLinearPCM;
     format->mFramesPerPacket  = 1;
     format->mChannelsPerFrame = 1;

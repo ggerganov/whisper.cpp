@@ -162,8 +162,8 @@ extern "C" {
     WHISPER_API whisper_token whisper_token_beg (struct whisper_context * ctx);
 
     // Task tokens
-    WHISPER_API whisper_token whisper_token_translate ();
-    WHISPER_API whisper_token whisper_token_transcribe();
+    WHISPER_API whisper_token whisper_token_translate (void);
+    WHISPER_API whisper_token whisper_token_transcribe(void);
 
     // Performance information
     WHISPER_API void whisper_print_timings(struct whisper_context * ctx);
@@ -276,7 +276,7 @@ extern "C" {
     WHISPER_API float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token);
 
     // Print system information
-    WHISPER_API const char * whisper_print_system_info();
+    WHISPER_API const char * whisper_print_system_info(void);
 
 #ifdef __cplusplus
 }
