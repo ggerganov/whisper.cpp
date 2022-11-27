@@ -2451,6 +2451,9 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
                     /*.new_segment_callback           =*/ nullptr,
                     /*.new_segment_callback_user_data =*/ nullptr,
+
+                    /*.encoder_begin_callback           =*/ nullptr,
+                    /*.encoder_begin_callback_user_data =*/ nullptr,
                 };
             } break;
         case WHISPER_SAMPLING_BEAM_SEARCH:
@@ -2497,6 +2500,9 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
                     /*.new_segment_callback           =*/ nullptr,
                     /*.new_segment_callback_user_data =*/ nullptr,
+
+                    /*.encoder_begin_callback           =*/ nullptr,
+                    /*.encoder_begin_callback_user_data =*/ nullptr,
                 };
             } break;
     }
@@ -2657,6 +2663,13 @@ int whisper_full(
 
         if (seek + 100 >= seek_end) {
             break;
+        }
+
+        if (params.encoder_begin_callback) {
+            if (params.encoder_begin_callback(ctx, params.encoder_begin_callback_user_data) == false) {
+                fprintf(stderr, "%s: encoder_begin_callback returned false - aborting\n", __func__);
+                break;
+            }
         }
 
         // encode audio features starting at offset seek
