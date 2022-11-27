@@ -198,6 +198,7 @@ void AudioInputCallback(void * inUserData,
         params.language         = "en";
         params.n_threads        = max_threads;
         params.offset_ms        = 0;
+        params.no_context       = true;
         params.single_segment   = self->stateInp.isRealtime;
 
         CFTimeInterval startTime = CACurrentMediaTime();
@@ -228,8 +229,11 @@ void AudioInputCallback(void * inUserData,
             result = [result stringByAppendingString:[NSString stringWithUTF8String:text_cur]];
         }
 
+        const float tRecording = (float)self->stateInp.n_samples / (float)self->stateInp.dataFormat.mSampleRate;
+
         // append processing time
-        result = [result stringByAppendingString:[NSString stringWithFormat:@"\n\n[processing time: %5.3f s]", endTime - startTime]];
+        result = [result stringByAppendingString:[NSString stringWithFormat:@"\n\n[recording time:  %5.3f s]", tRecording]];
+        result = [result stringByAppendingString:[NSString stringWithFormat:@"  \n[processing time: %5.3f s]", endTime - startTime]];
 
         // dispatch the result to the main thread
         dispatch_async(dispatch_get_main_queue(), ^{

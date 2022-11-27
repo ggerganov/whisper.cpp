@@ -5,7 +5,7 @@ It runs in fully in the browser via WebAseembly.
 
 Online demo: https://whisper.ggerganov.com/command/
 
-Terminal version: https://github.com/ggerganov/whisper.cpp/examples/command
+Terminal version: [examples/command](/examples/command)
 
 ## Build instructions
 

@@ -13,7 +13,7 @@ More info is available in [issue #171](https://github.com/ggerganov/whisper.cpp/
 
 https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
 
-Web version: https://github.com/ggerganov/whisper.cpp/examples/command.wasm
+Web version: [examples/command.wasm](/examples/command.wasm)
 
 ## Building
 
