@@ -468,4 +468,9 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | [livestream.sh](examples/livestream.sh) | | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |
 | [yt-wsp.sh](examples/yt-wsp.sh) | | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |
 
-## [Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126)
+## [Discussions](https://github.com/ggerganov/whisper.cpp/discussions)
+
+If you have any kind of feedback about this project feel free to use the Discussions section and open a new topic.
+You can use the [Show and tell](https://github.com/ggerganov/whisper.cpp/discussions/categories/show-and-tell) category
+to share your own projects that use `whisper.cpp`. If you have a question, make sure to check the
+[Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126) discussion.
