@@ -185,6 +185,14 @@ extern "C" {
     // Use the whisper_full_...() functions to obtain the text segments
     typedef void (*whisper_new_segment_callback)(struct whisper_context * ctx, int n_new, void * user_data);
 
+    // Encoder begin callback
+    // If not NULL, called before the encoder starts
+    // If it returns false, the computation is aborted
+    typedef bool (*whisper_encoder_begin_callback)(struct whisper_context * ctx, void * user_data);
+
+    // Parameters for the whisper_full() function
+    // If you chnage the order or add new parameters, make sure to update the default values in whisper.cpp:
+    // whisper_full_default_params()
     struct whisper_full_params {
         enum whisper_sampling_strategy strategy;
 
@@ -231,6 +239,9 @@ extern "C" {
 
         whisper_new_segment_callback new_segment_callback;
         void * new_segment_callback_user_data;
+
+        whisper_encoder_begin_callback encoder_begin_callback;
+        void * encoder_begin_callback_user_data;
     };
 
     WHISPER_API struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy);

@@ -607,6 +607,19 @@ int main(int argc, char ** argv) {
                 wparams.new_segment_callback_user_data = &user_data;
             }
 
+            // example for abort mechanism
+            // in this example, we do not abort the processing, but we could if the flag is set to true
+            // the callback is called before every encoder run - if it returns false, the processing is aborted
+            {
+                static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
+
+                wparams.encoder_begin_callback = [](struct whisper_context * ctx, void * user_data) {
+                    bool is_aborted = *(bool*)user_data;
+                    return !is_aborted;
+                };
+                wparams.encoder_begin_callback_user_data = &is_aborted;
+            }
+
             if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), params.n_processors) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
                 return 10;
