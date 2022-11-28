@@ -206,3 +206,11 @@ tiny.en tiny base.en base small.en small medium.en medium large: main
 		./main -m models/ggml-$@.bin -f $$f ; \
 		echo "" ; \
 	done
+
+#
+# Tests
+#
+
+.PHONY: tests
+tests:
+	bash ./tests/run-tests.sh
