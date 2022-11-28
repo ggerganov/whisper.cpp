@@ -1871,15 +1871,18 @@ static whisper_token_data whisper_sample_best(
             max_tx = std::max(max_tx, probs_id[i].first);
         }
 
+        const auto i0 = is_initial ? vocab.token_beg + 101 : vocab.token_beg;
+        const auto i1 = is_initial ? vocab.token_beg + 101 : n_logits;
+
         // the initial timestamp cannot be larger than 100
         // ref: https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L426-L429
         if (is_initial) {
-            for (int i = vocab.token_beg + 101; i < (int) probs_id.size(); ++ i) {
+            for (int i = i0; i < n_logits; ++ i) {
                 probs_id[i].first = -INFINITY;
             }
         }
 
-        for (int i = vocab.token_beg; i < n_logits; i++) {
+        for (int i = vocab.token_beg; i < i1; i++) {
             sum_ts += probs_id[i].first;
             if  (probs_id[i].first > max_ts) {
                 max_ts = probs_id[i].first;
@@ -2669,7 +2672,6 @@ int whisper_full(
 
         prompt.insert(prompt.end(), prompt_init.begin(), prompt_init.end());
 
-        bool done = false;
         int seek_delta = 100*WHISPER_CHUNK_SIZE;
 
         // print the prompt
@@ -2683,7 +2685,9 @@ int whisper_full(
         int result_len = 0;
         tokens_cur.clear();
 
-        for (int i = 0; i < whisper_n_text_ctx(ctx)/2 - 4; ++i) {
+        bool failed = false;
+
+        for (int i = 0, n_max = whisper_n_text_ctx(ctx)/2 - 4; i < n_max; ++i) {
             if (whisper_decode(ctx, prompt.data(), prompt.size(), n_past, params.n_threads) != 0) {
                 fprintf(stderr, "%s: failed to decode\n", __func__);
                 return 8;
@@ -2731,8 +2735,8 @@ int whisper_full(
                         if (seek + seek_delta + 100 >= seek_end) {
                             result_len = i + 1;
                         } else {
-                            // TODO: figure out how to resolve this
-                            fprintf(stderr, "\n%s: failed to generate timestamp token - this should not happen\n\n", __func__);
+                            failed = true;
+                            break;
                         }
                     }
 
@@ -2751,9 +2755,19 @@ int whisper_full(
                 }
             }
 
-            if (done) {
+            // sometimes, the decoding can get stuck in a repetition loop
+            // this is a simple strategy to avoid such cases - we simply flag the decoding as failed and advance
+            // the sliding window by 1 second
+            if (i == n_max - 1 && (result_len == 0 || seek_delta < 100*WHISPER_CHUNK_SIZE/2)) {
+                failed = true;
                 break;
             }
+        }
+
+        if (failed) {
+            fprintf(stderr, "\n%s: failed to generate timestamp token - using fallback strategy\n\n", __func__);
+            seek += 100;
+            continue;
         }
 
         // shrink down to result_len
