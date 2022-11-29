@@ -14,7 +14,7 @@
 #include <string>
 #include <thread>
 #include <vector>
-
+#include <iostream>
 #define USE_FLASH_ATTN
 //#define USE_FLASH_FF
 
@@ -242,6 +242,15 @@ struct whisper_segment {
 // 'n_text_layer': 24
 // }
 //
+// Your First C++ Program
+
+#include <iostream>
+
+int main() {
+    std::cout << "Hello World!";
+    return 0;
+}
+
 // default hparams (Whisper tiny)
 struct whisper_hparams {
     int32_t n_vocab       = 51864;
