@@ -82,7 +82,7 @@ while [ $running -eq 1 ]; do
     fi
     ./main -t 8 -m ./models/ggml-base.en.bin -f /tmp/whisper-live.wav --no-timestamps -otxt 2> /tmp/whispererr | tail -n 1
     echo
-    while [ $SECONDS -lt 30 ]; do
+    while [ $SECONDS -lt $step_s ]; do
         sleep 1
     done
     ((i=i+1))
