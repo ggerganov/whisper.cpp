@@ -53,36 +53,46 @@ if [[ ! " ${models[@]} " =~ " ${model} " ]]; then
     exit 1
 fi
 
+running=1
+
+trap "running=0" SIGINT SIGTERM
+
 printf "[+] Transcribing stream with model '$model', step_s $step_s (press Ctrl+C to stop):\n\n"
 
 # continuous stream in native fmt (this file will grow forever!)
-ffmpeg -loglevel quiet -y -re -probesize 32 -i $url -c copy /tmp/whisper-live0.${fmt}  &
+ffmpeg -loglevel quiet -y -re -probesize 32 -i $url -c copy /tmp/whisper-live0.${fmt} &
 if [ $? -ne 0 ]; then
     printf "Error: ffmpeg failed to capture audio stream\n"
     exit 1
 fi
-printf "Buffering audio. Please wait...\n"
 
-# For some reason, the initial buffer can end up smaller than step_s (even though we sleep for step_s)
-sleep $(($step_s*2))
+printf "Buffering audio. Please wait...\n\n"
+sleep $(($step_s))
+
+# do not stop script on error
+set +e
 
 i=0
-while [ true ]; do
-    # a handy bash built-in, SECONDS,
-    # > "This variable expands to the number of seconds since the shell was started. Assignment to this variable resets the count to the value assigned, and the expanded value becomes the value assigned
-    # > plus the number of seconds since the assignment."
-    SECONDS=0
+SECONDS=0
+while [ $running -eq 1 ]; do
     # extract the next piece from the main file above and transcode to wav. -ss sets start time and nudges it by -0.5s to catch missing words (??)
-    if [ $i -gt 0 ]; then
-        ffmpeg -loglevel quiet -noaccurate_seek -i /tmp/whisper-live0.${fmt} -y -ar 16000 -ac 1 -c:a pcm_s16le -ss $(($i*$step_s-1)).5 -t $step_s /tmp/whisper-live.wav
-    else
-        ffmpeg -loglevel quiet -noaccurate_seek -i /tmp/whisper-live0.${fmt} -y -ar 16000 -ac 1 -c:a pcm_s16le -ss $(($i*$step_s)) -t $step_s /tmp/whisper-live.wav
-    fi
+    err=1
+    while [ $err -ne 0 ]; do
+        if [ $i -gt 0 ]; then
+            ffmpeg -loglevel quiet -v error -noaccurate_seek -i /tmp/whisper-live0.${fmt} -y -ar 16000 -ac 1 -c:a pcm_s16le -ss $(($i*$step_s-1)).5 -t $step_s /tmp/whisper-live.wav 2> /tmp/whisper-live.err
+        else
+            ffmpeg -loglevel quiet -v error -noaccurate_seek -i /tmp/whisper-live0.${fmt} -y -ar 16000 -ac 1 -c:a pcm_s16le -ss $(($i*$step_s)) -t $step_s /tmp/whisper-live.wav 2> /tmp/whisper-live.err
+        fi
+        err=$(cat /tmp/whisper-live.err | wc -l)
+    done
 
     ./main -t 8 -m ./models/ggml-base.en.bin -f /tmp/whisper-live.wav --no-timestamps -otxt 2> /tmp/whispererr | tail -n 1
 
-    while [ $SECONDS -lt $step_s ]; do
+    while [ $SECONDS -lt $((($i+1)*$step_s)) ]; do
         sleep 1
     done
     ((i=i+1))
 done
+
+killall -v ffmpeg
+killall -v main
