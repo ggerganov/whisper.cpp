@@ -53,10 +53,6 @@ if [[ ! " ${models[@]} " =~ " ${model} " ]]; then
     exit 1
 fi
 
-running=1
-
-#trap "running=0" SIGINT SIGTERM
-
 printf "[+] Transcribing stream with model '$model', step_s $step_s (press Ctrl+C to stop):\n\n"
 
 # continuous stream in native fmt (this file will grow forever!)
@@ -66,10 +62,12 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 printf "Buffering audio. Please wait...\n"
+
 # For some reason, the initial buffer can end up smaller than step_s (even though we sleep for step_s)
 sleep $(($step_s*2))
+
 i=0
-while [ $running -eq 1 ]; do
+while [ true ]; do
     # a handy bash built-in, SECONDS,
     # > "This variable expands to the number of seconds since the shell was started. Assignment to this variable resets the count to the value assigned, and the expanded value becomes the value assigned
     # > plus the number of seconds since the assignment."
@@ -80,8 +78,9 @@ while [ $running -eq 1 ]; do
     else
         ffmpeg -loglevel quiet -noaccurate_seek -i /tmp/whisper-live0.${fmt} -y -ar 16000 -ac 1 -c:a pcm_s16le -ss $(($i*$step_s)) -t $step_s /tmp/whisper-live.wav
     fi
+
     ./main -t 8 -m ./models/ggml-base.en.bin -f /tmp/whisper-live.wav --no-timestamps -otxt 2> /tmp/whispererr | tail -n 1
-    echo
+
     while [ $SECONDS -lt $step_s ]; do
         sleep 1
     done
