@@ -137,7 +137,7 @@ extern "C" {
     // whisper_sample_best() returns the token with the highest probability
     // whisper_sample_timestamp() returns the most probable timestamp token
     WHISPER_API whisper_token_data whisper_sample_best(struct whisper_context * ctx);
-    WHISPER_API whisper_token whisper_sample_timestamp(struct whisper_context * ctx);
+    WHISPER_API whisper_token_data whisper_sample_timestamp(struct whisper_context * ctx, bool is_initial);
 
     // Return the id of the specified language, returns -1 if not found
     WHISPER_API int whisper_lang_id(const char * lang);
