@@ -237,6 +237,7 @@ void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, voi
 
                 printf("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
             }
+            fflush(stdout);
         }
     }
 }
@@ -454,7 +455,7 @@ int main(int argc, char ** argv) {
         std::vector<float> pcmf32;
         {
             drwav wav;
-            
+
             if (fname_inp == "-") {
                 std::vector<uint8_t> wav_data;
                 {
