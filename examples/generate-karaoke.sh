@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# Simple tool to record audio from the microphone and generate a karaoke video
+# Usage:
+#
+#  cd whisper.cpp
+#  make
+#
+#  ./examples/generate-karaoke.sh [model] [step_ms]
+#
+# Press Ctrl+C to stop recording
+#
+
 executable="./main"
 model="base.en"
 model_path="models/ggml-$model.bin"

@@ -535,7 +535,7 @@ int main(int argc, char ** argv) {
 
     bool is_running  = true;
     bool have_prompt = false;
-    bool ask_prompt = true;
+    bool ask_prompt  = true;
 
     float prob0 = 0.0f;
     float prob  = 0.0f;

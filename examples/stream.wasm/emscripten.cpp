@@ -51,7 +51,7 @@ void stream_main(size_t index) {
 
     wparams.language         = "en";
 
-    printf("stream: using %d threads\n", N_THREAD);
+    printf("stream: using %d threads\n", wparams.n_threads);
 
     std::vector<float> pcmf32;
 

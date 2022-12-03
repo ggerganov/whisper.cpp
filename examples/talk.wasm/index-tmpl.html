@@ -160,12 +160,6 @@
 
         <script type="text/javascript" src="helpers.js"></script>
         <script type='text/javascript'>
-            const kRestartRecording_s = 15;
-            const kSampleRate = 16000;
-
-            window.AudioContext = window.AudioContext || window.webkitAudioContext;
-            window.OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-
             // web audio context
             var context = null;
 
@@ -342,9 +336,16 @@
             // microphone
             //
 
+            const kSampleRate = 16000;
+            const kRestartRecording_s = 120;
+            const kIntervalAudio_ms = 250; // pass the recorded audio to the C++ instance at this rate
+
             var mediaRecorder = null;
             var doRecording = false;
             var startTime = 0;
+
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            window.OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
 
             function stopRecording() {
                 Module.set_status("paused");
@@ -357,7 +358,7 @@
             function startRecording() {
                 if (!context) {
                     context = new AudioContext({
-                        sampleRate: 16000,
+                        sampleRate: kSampleRate,
                         channelCount: 1,
                         echoCancellation: false,
                         autoGainControl:  true,
@@ -431,7 +432,7 @@
                             }
                         };
 
-                        mediaRecorder.start(250);
+                        mediaRecorder.start(kIntervalAudio_ms);
                     })
                     .catch(function(err) {
                         printTextarea('js: error getting audio stream: ' + err);
@@ -466,7 +467,7 @@
                             });
                         }
                     }
-                }, 250);
+                }, 100);
             }
 
             //

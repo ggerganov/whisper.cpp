@@ -36,7 +36,7 @@ As an example, here is a video of running the model on an iPhone 13 device - ful
 
 https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-bf96-1d8c27b98c81.mp4
 
-You can also easily make your own offline voice assistant application:
+You can also easily make your own offline voice assistant application: [command](examples/command)
 
 https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
 
@@ -454,6 +454,25 @@ in [models](models).
 
 ## Examples
 
-There are various examples of using the library for different projects in the [examples](examples) folder. Check them out!
+There are various examples of using the library for different projects in the [examples](examples) folder.
+Some of the examples are even ported to run in the browser using WebAssembly. Check them out!
 
-## [Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126)
+| Example | Web | Description |
+| ---     | --- | ---         |
+| [main](examples/main) | [whisper.wasm](examples/whisper.wasm) | Tool for translating and transcribing audio using Whisper |
+| [bench](examples/bench) | | Benchmark the performance of Whisper on your machine |
+| [stream](examples/stream) | [stream.wasm](examples/stream.wasm) | Real-time transcription of raw microphone capture |
+| [command](examples/command) | [command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
+| | [talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot in your browser |
+| [whisper.objc](examples/whisper.objc) | | iOS mobile application using whisper.cpp |
+| [whisper.nvim](examples/whisper.nvim) | | Speech-to-text plugin for Neovim |
+| [generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |
+| [livestream.sh](examples/livestream.sh) | | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |
+| [yt-wsp.sh](examples/yt-wsp.sh) | | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |
+
+## [Discussions](https://github.com/ggerganov/whisper.cpp/discussions)
+
+If you have any kind of feedback about this project feel free to use the Discussions section and open a new topic.
+You can use the [Show and tell](https://github.com/ggerganov/whisper.cpp/discussions/categories/show-and-tell) category
+to share your own projects that use `whisper.cpp`. If you have a question, make sure to check the
+[Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126) discussion.
