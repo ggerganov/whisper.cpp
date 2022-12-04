@@ -6,9 +6,9 @@
 
 // command-line parameters
 struct whisper_params {
-    int32_t n_threads   = std::min(4, (int32_t) std::thread::hardware_concurrency());
+    int32_t n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency());
 
-    std::string model     = "models/ggml-base.en.bin";
+    std::string model = "models/ggml-base.en.bin";
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -17,14 +17,13 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
-        if (arg == "-t" || arg == "--threads") {
-            params.n_threads = std::stoi(argv[++i]);
-        } else if (arg == "-m" || arg == "--model") {
-            params.model = argv[++i];
-        } else if (arg == "-h" || arg == "--help") {
+        if (arg == "-h" || arg == "--help") {
             whisper_print_usage(argc, argv, params);
             exit(0);
-        } else {
+        }
+        else if (arg == "-t" || arg == "--threads") { params.n_threads = std::stoi(argv[++i]); }
+        else if (arg == "-m" || arg == "--model")   { params.model     = argv[++i]; }
+        else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
             exit(0);
@@ -39,9 +38,9 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "usage: %s [options]\n", argv[0]);
     fprintf(stderr, "\n");
     fprintf(stderr, "options:\n");
-    fprintf(stderr, "  -h,       --help           show this help message and exit\n");
-    fprintf(stderr, "  -t N,     --threads N      number of threads to use during computation (default: %d)\n", params.n_threads);
-    fprintf(stderr, "  -m FNAME, --model FNAME    model path (default: %s)\n", params.model.c_str());
+    fprintf(stderr, "  -h,       --help        [default] show this help message and exit\n");
+    fprintf(stderr, "  -t N,     --threads N   [%-7d] number of threads to use during computation\n", params.n_threads);
+    fprintf(stderr, "  -m FNAME, --model FNAME [%-7s] model path\n",                                  params.model.c_str());
     fprintf(stderr, "\n");
 }
 

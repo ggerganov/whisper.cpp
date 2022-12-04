@@ -21,9 +21,10 @@ void AudioInputCallback(void * inUserData,
 
 @interface ViewController ()
 
-@property (weak, nonatomic) IBOutlet UILabel *labelStatusInp;
-@property (weak, nonatomic) IBOutlet UIButton *buttonToggleCapture;
-@property (weak, nonatomic) IBOutlet UIButton *buttonTranscribe;
+@property (weak, nonatomic) IBOutlet UILabel    *labelStatusInp;
+@property (weak, nonatomic) IBOutlet UIButton   *buttonToggleCapture;
+@property (weak, nonatomic) IBOutlet UIButton   *buttonTranscribe;
+@property (weak, nonatomic) IBOutlet UIButton   *buttonRealtime;
 @property (weak, nonatomic) IBOutlet UITextView *textviewResult;
 
 @end
@@ -32,7 +33,7 @@ void AudioInputCallback(void * inUserData,
 
 - (void)setupAudioFormat:(AudioStreamBasicDescription*)format
 {
-    format->mSampleRate       = 16000;
+    format->mSampleRate       = WHISPER_SAMPLE_RATE;
     format->mFormatID         = kAudioFormatLinearPCM;
     format->mFramesPerPacket  = 1;
     format->mChannelsPerFrame = 1;
@@ -77,6 +78,9 @@ void AudioInputCallback(void * inUserData,
         stateInp.audioBufferI16 = malloc(MAX_AUDIO_SEC*SAMPLE_RATE*sizeof(int16_t));
         stateInp.audioBufferF32 = malloc(MAX_AUDIO_SEC*SAMPLE_RATE*sizeof(float));
     }
+
+    stateInp.isTranscribing = false;
+    stateInp.isRealtime = false;
 }
 
 -(IBAction) stopCapturing {
@@ -109,6 +113,7 @@ void AudioInputCallback(void * inUserData,
     NSLog(@"Start capturing");
 
     stateInp.n_samples = 0;
+    stateInp.vc = (__bridge void *)(self);
 
     OSStatus status = AudioQueueNewInput(&stateInp.dataFormat,
                                          AudioInputCallback,
@@ -141,67 +146,105 @@ void AudioInputCallback(void * inUserData,
 - (IBAction)onTranscribePrepare:(id)sender {
     _textviewResult.text = @"Processing - please wait ...";
 
-    if (stateInp.isCapturing) {
-        // stop capturing
-        [self stopCapturing];
-
-        return;
+    if (stateInp.isRealtime) {
+        [self onRealtime:(id)sender];
     }
+
+    if (stateInp.isCapturing) {
+        [self stopCapturing];
+    }
+}
+
+- (IBAction)onRealtime:(id)sender {
+    stateInp.isRealtime = !stateInp.isRealtime;
+
+    if (stateInp.isRealtime) {
+        [_buttonRealtime setBackgroundColor:[UIColor greenColor]];
+    } else {
+        [_buttonRealtime setBackgroundColor:[UIColor grayColor]];
+    }
+
+    NSLog(@"Realtime: %@", stateInp.isRealtime ? @"ON" : @"OFF");
 }
 
 - (IBAction)onTranscribe:(id)sender {
-    NSLog(@"Processing %d samples", stateInp.n_samples);
-
-    // process captured audio
-    // convert I16 to F32
-    for (int i = 0; i < stateInp.n_samples; i++) {
-        stateInp.audioBufferF32[i] = (float)stateInp.audioBufferI16[i] / 32768.0f;
-    }
-
-    // run the model
-    struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-
-    params.print_realtime       = true;
-    params.print_progress       = false;
-    params.print_timestamps     = true;
-    params.print_special_tokens = false;
-    params.translate            = false;
-    params.language             = "en";
-    params.n_threads            = 4;
-    params.offset_ms            = 0;
-
-    CFTimeInterval startTime = CACurrentMediaTime();
-
-    if (whisper_full(stateInp.ctx, params, stateInp.audioBufferF32, stateInp.n_samples) != 0) {
-        NSLog(@"Failed to run the model");
-        _textviewResult.text = @"Failed to run the model";
-
+    if (stateInp.isTranscribing) {
         return;
     }
 
-    CFTimeInterval endTime = CACurrentMediaTime();
+    NSLog(@"Processing %d samples", stateInp.n_samples);
 
-    // clear the text in the textview
-    _textviewResult.text = @"";
+    stateInp.isTranscribing = true;
 
-    int n_segments = whisper_full_n_segments(stateInp.ctx);
-    for (int i = 0; i < n_segments; i++) {
-        const char * text_cur = whisper_full_get_segment_text(stateInp.ctx, i);
+    // dispatch the model to a background thread
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        // process captured audio
+        // convert I16 to F32
+        for (int i = 0; i < self->stateInp.n_samples; i++) {
+            self->stateInp.audioBufferF32[i] = (float)self->stateInp.audioBufferI16[i] / 32768.0f;
+        }
 
-        // append the text to the textview
-        _textviewResult.text = [_textviewResult.text stringByAppendingString:[NSString stringWithUTF8String:text_cur]];
-    }
+        // run the model
+        struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
-    // internal model timing
-    whisper_print_timings(stateInp.ctx);
+        // get maximum number of threads on this device (max 8)
+        const int max_threads = MIN(8, (int)[[NSProcessInfo processInfo] processorCount]);
 
-    NSLog(@"\nProcessing time: %5.3f", endTime - startTime);
+        params.print_realtime   = true;
+        params.print_progress   = false;
+        params.print_timestamps = true;
+        params.print_special    = false;
+        params.translate        = false;
+        params.language         = "en";
+        params.n_threads        = max_threads;
+        params.offset_ms        = 0;
+        params.no_context       = true;
+        params.single_segment   = self->stateInp.isRealtime;
 
-    _textviewResult.text = [_textviewResult.text stringByAppendingString:[NSString stringWithFormat:@"\n\n[processing time: %5.3f s]", endTime - startTime]];
+        CFTimeInterval startTime = CACurrentMediaTime();
+
+        whisper_reset_timings(self->stateInp.ctx);
+
+        if (whisper_full(self->stateInp.ctx, params, self->stateInp.audioBufferF32, self->stateInp.n_samples) != 0) {
+            NSLog(@"Failed to run the model");
+            self->_textviewResult.text = @"Failed to run the model";
+
+            return;
+        }
+
+        whisper_print_timings(self->stateInp.ctx);
+
+        CFTimeInterval endTime = CACurrentMediaTime();
+
+        NSLog(@"\nProcessing time: %5.3f, on %d threads", endTime - startTime, params.n_threads);
+
+        // result text
+        NSString *result = @"";
+
+        int n_segments = whisper_full_n_segments(self->stateInp.ctx);
+        for (int i = 0; i < n_segments; i++) {
+            const char * text_cur = whisper_full_get_segment_text(self->stateInp.ctx, i);
+
+            // append the text to the result
+            result = [result stringByAppendingString:[NSString stringWithUTF8String:text_cur]];
+        }
+
+        const float tRecording = (float)self->stateInp.n_samples / (float)self->stateInp.dataFormat.mSampleRate;
+
+        // append processing time
+        result = [result stringByAppendingString:[NSString stringWithFormat:@"\n\n[recording time:  %5.3f s]", tRecording]];
+        result = [result stringByAppendingString:[NSString stringWithFormat:@"  \n[processing time: %5.3f s]", endTime - startTime]];
+
+        // dispatch the result to the main thread
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self->_textviewResult.text = result;
+            self->stateInp.isTranscribing = false;
+        });
+    });
 }
 
 //
-// Callback implmentation
+// Callback implementation
 //
 
 void AudioInputCallback(void * inUserData,
@@ -224,6 +267,12 @@ void AudioInputCallback(void * inUserData,
 
     if (stateInp->n_samples + n > MAX_AUDIO_SEC*SAMPLE_RATE) {
         NSLog(@"Too much audio data, ignoring");
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            ViewController * vc = (__bridge ViewController *)(stateInp->vc);
+            [vc stopCapturing];
+        });
+
         return;
     }
 
@@ -235,6 +284,14 @@ void AudioInputCallback(void * inUserData,
 
     // put the buffer back in the queue
     AudioQueueEnqueueBuffer(stateInp->queue, inBuffer, 0, NULL);
+
+    if (stateInp->isRealtime) {
+        // dipatch onTranscribe() to the main thread
+        dispatch_async(dispatch_get_main_queue(), ^{
+            ViewController * vc = (__bridge ViewController *)(stateInp->vc);
+            [vc onTranscribe:nil];
+        });
+    }
 }
 
 @end

@@ -113,3 +113,73 @@ jobs:
               run: |
                 make
                 ctest -L gh --output-on-failure
+
+    windows:
+        runs-on: windows-latest
+
+        strategy:
+            matrix:
+                build: [RelWithDebInfo]
+                arch: [Win32, x64]
+                blas: [ON]
+                sdl2: [ON]
+                include:
+                  - arch: Win32
+                    obzip: https://github.com/xianyi/OpenBLAS/releases/download/v0.3.21/OpenBLAS-0.3.21-x86.zip
+                    s2arc: x86
+                  - arch: x64
+                    obzip: https://github.com/xianyi/OpenBLAS/releases/download/v0.3.21/OpenBLAS-0.3.21-x64.zip
+                    s2arc: x64
+                  - sdl2: ON
+                    s2ver: 2.26.0
+
+        steps:
+            - name: Clone
+              uses: actions/checkout@v1
+
+            - name: Add msbuild to PATH
+              uses: microsoft/setup-msbuild@v1
+
+            - name: Fetch OpenBLAS
+              if: matrix.blas == 'ON'
+              run: |
+                C:/msys64/usr/bin/wget.exe -qO blas.zip ${{ matrix.obzip }}
+                7z x blas.zip -oblas -y
+                copy blas/include/cblas.h .
+                copy blas/include/openblas_config.h .
+                echo "blasdir=$env:GITHUB_WORKSPACE/blas" >> $env:GITHUB_ENV
+
+            - name: Fetch SDL2 and set SDL2_DIR
+              if: matrix.sdl2 == 'ON'
+              run: |
+                C:/msys64/usr/bin/wget.exe -qO sdl2.zip https://github.com/libsdl-org/SDL/releases/download/release-${{ matrix.s2ver }}/SDL2-devel-${{ matrix.s2ver }}-VC.zip
+                7z x sdl2.zip
+                echo "SDL2_DIR=$env:GITHUB_WORKSPACE/SDL2-${{ matrix.s2ver }}/cmake" >> $env:GITHUB_ENV
+
+            - name: Configure
+              run: >
+                cmake -S . -B ./build -A ${{ matrix.arch }}
+                -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+                -DWHISPER_SUPPORT_OPENBLAS=${{ matrix.blas }}
+                -DCMAKE_LIBRARY_PATH="$env:blasdir/lib"
+                -DWHISPER_SUPPORT_SDL2=${{ matrix.sdl2 }}
+
+            - name: Build
+              run: |
+                cd ./build
+                msbuild ALL_BUILD.vcxproj -t:build -p:configuration=${{ matrix.build }} -p:platform=${{ matrix.arch }}
+
+            - name: Copy libopenblas.dll
+              if: matrix.blas == 'ON'
+              run: copy "$env:blasdir/bin/libopenblas.dll" build/bin/${{ matrix.build }}
+
+            - name: Copy SDL2.dll
+              if: matrix.sdl2 == 'ON'
+              run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
+
+            - name: Upload binaries
+              if: matrix.blas == 'ON' && matrix.sdl2 == 'ON'
+              uses: actions/upload-artifact@v1
+              with:
+                name: whisper-bin-${{ matrix.arch }}
+                path: build/bin/${{ matrix.build }}

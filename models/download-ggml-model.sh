@@ -3,6 +3,12 @@
 # This script downloads Whisper model files that have already been converted to ggml format.
 # This way you don't have to convert them yourself.
 
+#src="https://ggml.ggerganov.com"
+#pfx="ggml-model-whisper"
+
+src="https://huggingface.co/datasets/ggerganov/whisper.cpp"
+pfx="resolve/main/ggml"
+
 # get the path of this script
 function get_script_path() {
     if [ -x "$(command -v realpath)" ]; then
@@ -46,7 +52,7 @@ fi
 
 # download ggml model
 
-printf "Downloading ggml model $model ...\n"
+printf "Downloading ggml model $model from '$src' ...\n"
 
 cd $models_path
 
@@ -56,9 +62,9 @@ if [ -f "ggml-$model.bin" ]; then
 fi
 
 if [ -x "$(command -v wget)" ]; then
-    wget --quiet --show-progress -O ggml-$model.bin https://ggml.ggerganov.com/ggml-model-whisper-$model.bin
+    wget --quiet --show-progress -O ggml-$model.bin $src/$pfx-$model.bin
 elif [ -x "$(command -v curl)" ]; then
-    curl --output ggml-$model.bin https://ggml.ggerganov.com/ggml-model-whisper-$model.bin
+    curl -L --output ggml-$model.bin $src/$pfx-$model.bin
 else
     printf "Either wget or curl is required to download models.\n"
     exit 1

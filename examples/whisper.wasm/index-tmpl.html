@@ -45,8 +45,14 @@
             <br><br><hr>
 
             <div id="model">
-                Model:
-                <input type="file" id="file" name="file" onchange="loadFile(event, 'ggml.bin')" />
+                Whisper model: <span id="model-whisper-status"></span>
+                <button id="fetch-whisper-tiny-en" onclick="loadWhisper('tiny.en')">tiny.en (75 MB)</button>
+                <button id="fetch-whisper-tiny"    onclick="loadWhisper('tiny')">tiny (75 MB)</button>
+                <button id="fetch-whisper-base-en" onclick="loadWhisper('base.en')">base.en (142 MB)</button>
+                <button id="fetch-whisper-base"    onclick="loadWhisper('base')">base (142 MB)</button>
+                <span id="fetch-whisper-progress"></span>
+
+                <input type="file" id="whisper-file" name="file" onchange="loadFile(event, 'whisper.bin')" />
             </div>
 
             <br>
@@ -180,6 +186,7 @@
             </div>
         </div>
 
+        <script type="text/javascript" src="helpers.js"></script>
         <script type='text/javascript'>
             // TODO: convert audio buffer to WAV
             function setAudio(audio) {
@@ -199,27 +206,14 @@
             function changeInput(input) {
                 if (input == 'file') {
                     document.getElementById('input_file').style.display = 'block';
-                    document.getElementById('input_mic').style.display = 'none';
-                    document.getElementById('progress').style.display = 'none';
+                    document.getElementById('input_mic' ).style.display = 'none';
+                    document.getElementById('progress'  ).style.display = 'none';
                 } else {
                     document.getElementById('input_file').style.display = 'none';
-                    document.getElementById('input_mic').style.display = 'block';
-                    document.getElementById('progress').style.display = 'block';
+                    document.getElementById('input_mic' ).style.display = 'block';
+                    document.getElementById('progress'  ).style.display = 'block';
                 }
             }
-
-            var printTextarea = (function() {
-                    var element = document.getElementById('output');
-                    if (element) element.alue = ''; // clear browser cache
-                    return function(text) {
-                        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-                        console.log(text);
-                        if (element) {
-                            element.value += text + "\n";
-                            element.scrollTop = element.scrollHeight; // focus on bottom
-                        }
-                    };
-                })();
 
             var Module = {
                 print: printTextarea,
@@ -231,12 +225,6 @@
                 }
             };
 
-            const kMaxAudio_s = 120;
-            const kSampleRate = 16000;
-
-            window.AudioContext = window.AudioContext || window.webkitAudioContext;
-            window.OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-
             // web audio context
             var context = null;
 
@@ -245,7 +233,7 @@
 
             // the whisper instance
             var instance = null;
-            var model_fname = '';
+            var model_whisper = '';
 
             // helper function
             function convertTypedArray(src, type) {
@@ -258,40 +246,117 @@
             // load model
             //
 
+            let dbVersion = 1
+            let dbName    = 'whisper.ggerganov.com';
+            let indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB
+
+            function storeFS(fname, buf) {
+                // write to WASM file using FS_createDataFile
+                // if the file exists, delete it
+                try {
+                    Module.FS_unlink(fname);
+                } catch (e) {
+                    // ignore
+                }
+
+                Module.FS_createDataFile("/", fname, buf, true, true);
+
+                model_whisper = fname;
+
+                document.getElementById('model-whisper-status').innerHTML = 'loaded "' + model_whisper + '"!';
+
+                printTextarea('storeFS: stored model: ' + fname + ' size: ' + buf.length);
+            }
+
             function loadFile(event, fname) {
                 var file = event.target.files[0] || null;
                 if (file == null) {
                     return;
                 }
 
-                printTextarea("js: loading model: " + file.name + ", size: " + file.size + " bytes");
-                printTextarea('js: please wait ...');
+                printTextarea("loadFile: loading model: " + file.name + ", size: " + file.size + " bytes");
+                printTextarea('loadFile: please wait ...');
 
                 var reader = new FileReader();
                 reader.onload = function(event) {
                     var buf = new Uint8Array(reader.result);
-
-                    // write to WASM file using whisper.FS_createDataFile
-                    // if the file exists, delete it
-                    try {
-                        Module.FS_unlink(fname);
-                    } catch (e) {
-                    }
-                    Module.FS_createDataFile("/", fname, buf, true, true);
-
-                    model_fname = file.name;
-                    printTextarea('js: loaded model: ' + model_fname + ' size: ' + buf.length);
+                    storeFS(fname, buf);
                 }
                 reader.readAsArrayBuffer(file);
+
+                document.getElementById('fetch-whisper-tiny-en').style.display = 'none';
+                document.getElementById('fetch-whisper-base-en').style.display = 'none';
+                document.getElementById('fetch-whisper-tiny'   ).style.display = 'none';
+                document.getElementById('fetch-whisper-base'   ).style.display = 'none';
+                document.getElementById('whisper-file'         ).style.display = 'none';
+                document.getElementById('model-whisper-status' ).innerHTML = 'loaded model: ' + file.name;
+            }
+
+            function loadWhisper(model) {
+                let urls = {
+                    'tiny.en': 'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en.bin',
+                    'tiny':    'https://whisper.ggerganov.com/ggml-model-whisper-tiny.bin',
+                    'base.en': 'https://whisper.ggerganov.com/ggml-model-whisper-base.en.bin',
+                    'base':    'https://whisper.ggerganov.com/ggml-model-whisper-base.bin',
+                };
+
+                let sizes = {
+                    'tiny.en': 75,
+                    'tiny':    75,
+                    'base.en': 142,
+                    'base':    142,
+                };
+
+                let url     = urls[model];
+                let dst     = 'whisper.bin';
+                let size_mb = sizes[model];
+
+                model_whisper = model;
+
+                document.getElementById('fetch-whisper-tiny-en').style.display = 'none';
+                document.getElementById('fetch-whisper-base-en').style.display = 'none';
+                document.getElementById('fetch-whisper-tiny'   ).style.display = 'none';
+                document.getElementById('fetch-whisper-base'   ).style.display = 'none';
+                document.getElementById('whisper-file'         ).style.display = 'none';
+                document.getElementById('model-whisper-status' ).innerHTML = 'loading model: ' + model;
+
+                cbProgress = function(p) {
+                    let el = document.getElementById('fetch-whisper-progress');
+                    el.innerHTML = Math.round(100*p) + '%';
+                };
+
+                cbCancel = function() {
+                    var el;
+                    el = document.getElementById('fetch-whisper-tiny-en'); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('fetch-whisper-base-en'); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('fetch-whisper-tiny'   ); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('fetch-whisper-base'   ); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('whisper-file'         ); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('model-whisper-status' ); if (el) el.innerHTML = '';
+                };
+
+                loadRemote(url, dst, size_mb, cbProgress, storeFS, cbCancel, printTextarea);
             }
 
             //
             // audio file
             //
 
+            const kMaxAudio_s = 120;
+            const kSampleRate = 16000;
+
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            window.OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+
             function loadAudio(event) {
                 if (!context) {
-                    context = new AudioContext({sampleRate: 16000});
+                    context = new AudioContext({
+                        sampleRate: kSampleRate,
+                        channelCount: 1,
+                        echoCancellation: false,
+                        autoGainControl:  true,
+                        noiseSuppression: true,
+                    });
                 }
 
                 var file = event.target.files[0] || null;
@@ -351,7 +416,13 @@
             // update progress information
             function startRecording() {
                 if (!context) {
-                    context = new AudioContext({sampleRate: 16000});
+                    context = new AudioContext({
+                        sampleRate: kSampleRate,
+                        channelCount: 1,
+                        echoCancellation: false,
+                        autoGainControl:  true,
+                        noiseSuppression: true,
+                    });
                 }
 
                 document.getElementById('start').disabled = true;
@@ -446,11 +517,11 @@
 
             function onProcess(translate) {
                 if (!instance) {
-                    instance = Module.init('ggml.bin');
+                    instance = Module.init('whisper.bin');
 
                     if (instance) {
                         printTextarea("js: whisper initialized, instance: " + instance);
-                        document.getElementById('model').innerHTML = 'Model loaded: ' + model_fname;
+                        document.getElementById('model').innerHTML = 'Model loaded: ' + model_whisper;
                     }
                 }
 
@@ -467,7 +538,6 @@
                 if (instance) {
                     printTextarea('');
                     printTextarea('js: processing - this might take a while ...');
-                    printTextarea('js: the page will be unresponsive until the processing is completed');
                     printTextarea('');
 
                     setTimeout(function() {

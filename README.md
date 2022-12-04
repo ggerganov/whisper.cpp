@@ -20,8 +20,8 @@ Supported platforms:
 - [x] [iOS](examples/whisper.objc)
 - [x] Linux
 - [x] [WebAssembly](examples/whisper.wasm)
-- [x] [Windows (MSVC and MinGW)](https://github.com/ggerganov/whisper.cpp/issues/5)
-- [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/issues/7)
+- [x] Windows ([MSVC](https://github.com/ggerganov/whisper.cpp/blob/master/.github/workflows/build.yml#L117-L144) and [MinGW](https://github.com/ggerganov/whisper.cpp/issues/168)]
+- [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/discussions/166)
 - [x] [Android](https://github.com/ggerganov/whisper.cpp/issues/30)
 
 The entire implementation of the model is contained in 2 source files:
@@ -30,9 +30,15 @@ The entire implementation of the model is contained in 2 source files:
 - Transformer inference: [whisper.h](whisper.h) / [whisper.cpp](whisper.cpp)
 
 Having such a lightweight implementation of the model allows to easily integrate it in different platforms and applications.
-As an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device:
+As an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device: [whisper.objc](examples/whisper.objc)
 
 https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-bf96-1d8c27b98c81.mp4
+
+You can also easily make your own offline voice assistant application: [command](examples/command)
+
+https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
+
+Or you can even run it straight in the browser: [talk.wasm](examples/talk.wasm)
 
 ## Implementation details
 
@@ -94,27 +100,27 @@ c++ -I. -I./examples -O3 -std=c++11 -pthread examples/main/main.cpp whisper.o gg
 usage: ./main [options] file0.wav file1.wav ...
 
 options:
-  -h,       --help           show this help message and exit
-  -s SEED,  --seed SEED      RNG seed (default: -1)
-  -t N,     --threads N      number of threads to use during computation (default: 4)
-  -p N,     --processors N   number of processors to use during computation (default: 1)
-  -ot N,    --offset-t N     time offset in milliseconds (default: 0)
-  -on N,    --offset-n N     segment index offset (default: 0)
-  -mc N,    --max-context N  maximum number of text context tokens to store (default: max)
-  -ml N,    --max-len N      maximum segment length in characters (default: 0)
-  -wt N,    --word-thold N   word timestamp probability threshold (default: 0.010000)
-  -v,       --verbose        verbose output
-            --translate      translate from source language to english
-  -otxt,    --output-txt     output result in a text file
-  -ovtt,    --output-vtt     output result in a vtt file
-  -osrt,    --output-srt     output result in a srt file
-  -owts,    --output-words   output script for generating karaoke video
-  -ps,      --print_special  print special tokens
-  -pc,      --print_colors   print colors
-  -nt,      --no_timestamps  do not print timestamps
-  -l LANG,  --language LANG  spoken language (default: en)
-  -m FNAME, --model FNAME    model path (default: models/ggml-base.en.bin)
-  -f FNAME, --file FNAME     input WAV file path
+  -h,       --help          [default] show this help message and exit
+  -t N,     --threads N     [4      ] number of threads to use during computation
+  -p N,     --processors N  [1      ] number of processors to use during computation
+  -ot N,    --offset-t N    [0      ] time offset in milliseconds
+  -on N,    --offset-n N    [0      ] segment index offset
+  -d  N,    --duration N    [0      ] duration of audio to process in milliseconds
+  -mc N,    --max-context N [-1     ] maximum number of text context tokens to store
+  -ml N,    --max-len N     [0      ] maximum segment length in characters
+  -wt N,    --word-thold N  [0.01   ] word timestamp probability threshold
+  -su,      --speed-up      [false  ] speed up audio by x2 (reduced accuracy)
+  -tr,      --translate     [false  ] translate from source language to english
+  -otxt,    --output-txt    [false  ] output result in a text file
+  -ovtt,    --output-vtt    [false  ] output result in a vtt file
+  -osrt,    --output-srt    [false  ] output result in a srt file
+  -owts,    --output-words  [false  ] output script for generating karaoke video
+  -ps,      --print-special [false  ] print special tokens
+  -pc,      --print-colors  [false  ] print colors
+  -nt,      --no-timestamps [true   ] do not print timestamps
+  -l LANG,  --language LANG [en     ] spoken language
+  -m FNAME, --model FNAME   [models/ggml-base.en.bin] model path
+  -f FNAME, --file FNAME    [       ] input WAV file path
 
 bash ./models/download-ggml-model.sh base.en
 Downloading ggml model base.en ...
@@ -146,13 +152,13 @@ whisper_model_load: n_text_layer  = 6
 whisper_model_load: n_mels        = 80
 whisper_model_load: f16           = 1
 whisper_model_load: type          = 2
-whisper_model_load: mem_required  = 670.00 MB
 whisper_model_load: adding 1607 extra tokens
-whisper_model_load: ggml ctx size = 140.60 MB
-whisper_model_load: memory size =    22.83 MB
-whisper_model_load: model size  =   140.54 MB
+whisper_model_load: mem_required  =  506.00 MB
+whisper_model_load: ggml ctx size =  140.60 MB
+whisper_model_load: memory size   =   22.83 MB
+whisper_model_load: model size    =  140.54 MB
 
-system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 |
+system_info: n_threads = 4 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 |
 
 main: processing 'samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
 
@@ -428,11 +434,14 @@ The original models are converted to a custom binary format. This allows to pack
 - vocabulary
 - weights
 
-You can download the converted models using the [models/download-ggml-model.sh](models/download-ggml-model.sh) script or from here:
+You can download the converted models using the [models/download-ggml-model.sh](models/download-ggml-model.sh) script
+or manually from here:
 
-https://ggml.ggerganov.com
+- https://huggingface.co/datasets/ggerganov/whisper.cpp
+- https://ggml.ggerganov.com
 
-For more details, see the conversion script [models/convert-pt-to-ggml.py](models/convert-pt-to-ggml.py) or the README in [models](models).
+For more details, see the conversion script [models/convert-pt-to-ggml.py](models/convert-pt-to-ggml.py) or the README
+in [models](models).
 
 ## Bindings
 
@@ -443,6 +452,25 @@ For more details, see the conversion script [models/convert-pt-to-ggml.py](model
 
 ## Examples
 
-There are various examples of using the library for different projects in the [examples](examples) folder. Check them out!
+There are various examples of using the library for different projects in the [examples](examples) folder.
+Some of the examples are even ported to run in the browser using WebAssembly. Check them out!
 
-## [Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126)
+| Example | Web | Description |
+| ---     | --- | ---         |
+| [main](examples/main) | [whisper.wasm](examples/whisper.wasm) | Tool for translating and transcribing audio using Whisper |
+| [bench](examples/bench) | | Benchmark the performance of Whisper on your machine |
+| [stream](examples/stream) | [stream.wasm](examples/stream.wasm) | Real-time transcription of raw microphone capture |
+| [command](examples/command) | [command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
+| | [talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot in your browser |
+| [whisper.objc](examples/whisper.objc) | | iOS mobile application using whisper.cpp |
+| [whisper.nvim](examples/whisper.nvim) | | Speech-to-text plugin for Neovim |
+| [generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |
+| [livestream.sh](examples/livestream.sh) | | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |
+| [yt-wsp.sh](examples/yt-wsp.sh) | | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |
+
+## [Discussions](https://github.com/ggerganov/whisper.cpp/discussions)
+
+If you have any kind of feedback about this project feel free to use the Discussions section and open a new topic.
+You can use the [Show and tell](https://github.com/ggerganov/whisper.cpp/discussions/categories/show-and-tell) category
+to share your own projects that use `whisper.cpp`. If you have a question, make sure to check the
+[Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126) discussion.
