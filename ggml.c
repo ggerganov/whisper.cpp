@@ -131,6 +131,16 @@ ggml_fp16_t ggml_fp32_to_fp16(float x) {
 // FP16 <-> FP32
 // ref: https://github.com/Maratyszcza/FP16
 
+#ifdef __F16C__
+float ggml_fp16_to_fp32(ggml_fp16_t h) {
+    return _cvtsh_ss(h);
+}
+ggml_fp16_t ggml_fp32_to_fp16(float f) {
+    return _cvtss_sh(f, 0);
+}
+
+#else
+
 static inline float fp32_from_bits(uint32_t w) {
     union {
         uint32_t as_bits;
@@ -195,6 +205,7 @@ ggml_fp16_t ggml_fp32_to_fp16(float f) {
     const uint32_t nonsign = exp_bits + mantissa_bits;
     return (sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign);
 }
+#endif
 #endif
 
 //
