@@ -7,7 +7,7 @@ popd
 set argc=0
 for %%x in (%*) do set /A argc+=1
 
-set models=tiny.en tiny base.en base small.en small medium.en medium large
+set models=tiny.en tiny base.en base small.en small medium.en medium large-v1 large
 
 if %argc% neq 1 (
   echo.

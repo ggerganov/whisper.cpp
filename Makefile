@@ -189,9 +189,10 @@ samples:
 .PHONY: small
 .PHONY: medium.en
 .PHONY: medium
+.PHONY: large-v1
 .PHONY: large
 
-tiny.en tiny base.en base small.en small medium.en medium large: main
+tiny.en tiny base.en base small.en small medium.en medium large-v1 large: main
 	bash ./models/download-ggml-model.sh $@
 	@echo ""
 	@echo "==============================================="

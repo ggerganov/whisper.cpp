@@ -19,7 +19,7 @@
 cd `dirname $0`
 
 # Whisper models
-models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large" )
+models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large" )
 
 # list available models
 function list_models {
@@ -107,7 +107,7 @@ function run_lang() {
 
         $main -m ../models/ggml-$model.bin -f $fname_dst -l $lang -otxt 2> /dev/null
 
-        git diff --no-index --word-diff=color --word-diff-regex=. $fname_dst.txt $lang-$i-ref.txt
+        git diff --no-index --word-diff=color --word-diff-regex=. $lang-$i-ref.txt $fname_dst.txt
 
         i=$(($i+1))
     done

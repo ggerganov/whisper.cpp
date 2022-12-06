@@ -22,7 +22,7 @@ function get_script_path() {
 models_path=$(get_script_path)
 
 # Whisper models
-models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large" )
+models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large" )
 
 # list available models
 function list_models {
