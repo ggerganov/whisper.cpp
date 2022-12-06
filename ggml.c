@@ -8289,6 +8289,14 @@ int ggml_cpu_has_neon(void) {
 #endif
 }
 
+int ggml_cpu_has_f16c(void) {
+#if defined(__F16C__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 int ggml_cpu_has_fp16_va(void) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     return 1;
