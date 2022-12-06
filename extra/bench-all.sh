@@ -17,8 +17,8 @@ printf "Running benchmark for all models\n"
 printf "This can take a while!\n"
 printf "\n"
 
-printf "| CPU | OS | Config | Model | Threads | Load [ms] | Encode [ms] |\n"
-printf "| --- | -- | ------ | ----- | ------- | --------- | ----------- |\n"
+printf "| CPU | OS | Config | Model | Threads | Load [ms] | Encode [ms] | Commit |\n"
+printf "| --- | -- | ------ | ----- | ------- | --------- | ----------- | ------ |\n"
 
 for model in "${models[@]}"; do
     # run once to heat-up the cache
@@ -48,6 +48,8 @@ for model in "${models[@]}"; do
         config="$config BLAS"
     fi
 
-    printf "| <todo> | <todo> | $config | $model | $n_threads | $load_time | $encode_time |\n"
+    commit=$(git rev-parse --short HEAD)
+
+    printf "| <todo> | <todo> | $config | $model | $n_threads | $load_time | $encode_time | $commit |\n"
 done
 
