@@ -213,7 +213,7 @@ ggml_fp16_t ggml_fp32_to_fp16(float f) {
 }
 
 #define GGML_FP16_TO_FP32(x) ggml_fp16_to_fp32(x)
-#define GGML_FP32_TO_TP16(x) ggml_fp32_to_fp16(x)
+#define GGML_FP32_TO_FP16(x) ggml_fp32_to_fp16(x)
 
 #endif // __F16C__
 
