@@ -2,7 +2,7 @@
 
 # Small shell script to more easily automatically download and transcribe live stream VODs.
 # This uses YT-DLP, ffmpeg and the CPP version of Whisper: https://github.com/ggerganov/whisper.cpp
-# Use `./transcribe-vod help` to print help info.
+# Use `./yt-wsp help` to print help info.
 
 # MIT License
 
@@ -43,7 +43,7 @@ cleanup() {
 }
 
 print_help() {
-    echo "Usage: ./transcribe-vod <video_url>"
+    echo "Usage: ./yt-wsp <video_url>"
     echo "See configurable env variables in the script"
     echo "This will produce an MP4 muxed file called res.mp4 in the working directory"
     echo "Requirements: ffmpeg yt-dlp whisper"
