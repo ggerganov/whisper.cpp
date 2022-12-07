@@ -52,21 +52,6 @@ The tensor operators are optimized heavily for Apple silicon CPUs. Depending on 
 instrisics or CBLAS Accelerate framework routines are used. The latter are especially effective for bigger sizes since
 the Accelerate framework utilizes the special-purpose AMX coprocessor available in modern Apple products.
 
-## Limitations
-
-- Inference only
-- No GPU support
-- Very basic greedy sampling scheme - always pick up the token with highest probability.
-  This should be similar to the [GreedyDecoder](https://github.com/openai/whisper/blob/main/whisper/decoding.py#L249-L274)
-  from the original python implementation, so in order to make a fair comparison between the 2 implementations, make sure
-  to run the python code with the following parameters:
-
-  ```
-  whisper --best_of None --beam_size None ...
-  ```
-
-  In the future, `whisper.cpp` will support more sampling strategies.
-
 ## Quick start
 
 First, download one of the Whisper models converted in [ggml format](models). For example:
@@ -219,6 +204,21 @@ make large
 | small  | 466 MB | ~1.0 GB | `55356645c2b361a969dfd0ef2c5a50d530afd8d5` |
 | medium | 1.5 GB | ~2.6 GB | `fd9727b6e1217c2f614f9b698455c4ffd82463b4` |
 | large  | 2.9 GB | ~4.7 GB | `0f4c8e34f21cf1a914c59d8b3ce882345ad349d6` |
+
+## Limitations
+
+- Inference only
+- No GPU support
+- Very basic greedy sampling scheme - always pick up the token with highest probability.
+  This should be similar to the [GreedyDecoder](https://github.com/openai/whisper/blob/main/whisper/decoding.py#L249-L274)
+  from the original python implementation, so in order to make a fair comparison between the 2 implementations, make sure
+  to run the python code with the following parameters:
+
+  ```
+  whisper --best_of None --beam_size None ...
+  ```
+
+  In the future, `whisper.cpp` will support more sampling strategies.
 
 ## Another example
 
