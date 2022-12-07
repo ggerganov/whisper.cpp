@@ -4,10 +4,6 @@ set -eo pipefail
 # Idea by @semiformal-net
 # ref: https://github.com/ggerganov/whisper.cpp/issues/185
 #
-# TODO:
-# - Currently, there is a gap between sequential chunks, so some of the words are dropped. Need to figure out a
-#   way to produce a continuous stream of audio chunks.
-#
 
 url="http://a.files.bbci.co.uk/media/live/manifesto/audio/simulcast/hls/nonuk/sbr_low/ak/bbc_world_service.m3u8"
 fmt=aac # the audio format extension of the stream (TODO: auto detect)
