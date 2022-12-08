@@ -2,6 +2,7 @@
 
 pushd %~dp0
 set models_path=%CD%
+for %%d in (%~dp0..) do set root_path=%%~fd
 popd
 
 set argc=0
@@ -47,9 +48,9 @@ if %ERRORLEVEL% neq 0 (
   goto :eof
 )
 
-echo Done! Model %model% saved in %models_path%\models\ggml-%model%.bin
+echo Done! Model %model% saved in %root_path%\models\ggml-%model%.bin
 echo You can now use it like this:
-echo main.exe -m %models_path%\models\ggml-%model%.bin -f %models_path%\samples\jfk.wav
+echo main.exe -m %root_path%\models\ggml-%model%.bin -f %root_path%\samples\jfk.wav
 
 goto :eof
 
