@@ -4590,13 +4590,22 @@ void ggml_compute_forward_mul_mat_f16_f32(
                 //    }
                 //}
 
-                // zT = y * xT
                 {
+#if 1
+                    // zT = y * xT
                     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans,
                             ne11, ne01, ne10,
-                            1.0f,    y, ne10,
-                                     x, ne10,
+                            1.0f,    y, ne00,
+                                     x, ne00,
                             0.0f,    d, ne01);
+#else
+                    // zT = (xT * y)T
+                    cblas_sgemm(CblasColMajor, CblasTrans, CblasNoTrans,
+                            ne01, ne11, ne10,
+                            1.0f,    x, ne00,
+                                     y, ne00,
+                            0.0f,    d, ne01);
+#endif
                 }
             }
         }
