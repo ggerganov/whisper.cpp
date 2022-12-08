@@ -45,6 +45,10 @@ ifeq ($(UNAME_S),FreeBSD)
 	CFLAGS   += -pthread
 	CXXFLAGS += -pthread
 endif
+ifeq ($(UNAME_S),Haiku)
+	CFLAGS   += -pthread
+	CXXFLAGS += -pthread
+endif
 
 # Architecture specific
 # TODO: probably these flags need to be tweaked on some architectures
@@ -74,6 +78,23 @@ ifeq ($(UNAME_M),x86_64)
 			CFLAGS += -mfma
 		endif
 		F16C_M := $(shell grep "f16c " /proc/cpuinfo)
+		ifneq (,$(findstring f16c,$(F16C_M)))
+			CFLAGS += -mf16c
+		endif
+	else ifeq ($(UNAME_S),Haiku)
+		AVX1_M := $(shell sysinfo -cpu | grep "AVX ")
+		ifneq (,$(findstring avx,$(AVX1_M)))
+			CFLAGS += -mavx
+		endif
+		AVX2_M := $(shell sysinfo -cpu | grep "AVX2 ")
+		ifneq (,$(findstring avx2,$(AVX2_M)))
+			CFLAGS += -mavx2
+		endif
+		FMA_M := $(shell sysinfo -cpu | grep "FMA ")
+		ifneq (,$(findstring fma,$(FMA_M)))
+			CFLAGS += -mfma
+		endif
+		F16C_M := $(shell sysinfo -cpu | grep "F16C ")
 		ifneq (,$(findstring f16c,$(F16C_M)))
 			CFLAGS += -mf16c
 		endif

@@ -69,6 +69,10 @@ static int sched_yield (void) {
 typedef void* thread_ret_t;
 #endif
 
+#ifdef __HAIKU__
+#define static_assert(cond, msg) _Static_assert(cond, msg)
+#endif
+
 #define GGML_DEBUG 0
 #define GGML_GELU_FP16
 
