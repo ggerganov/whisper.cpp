@@ -1,9 +1,18 @@
 #!/bin/bash
+#
+# Transcribe twitch.tv livestream by feeding audio input to whisper.cpp at regular intervals
+# Thanks to @keyehzy
+# ref: https://github.com/ggerganov/whisper.cpp/issues/209
+#
+# The script currently depends on the third-party tool "streamlink"
+# On Mac OS, you can install it via "brew install streamlink"
+#
+
 set -eo pipefail
 
 step=10
 model=base.en
-threads=1
+threads=4
 
 help()
 {
@@ -17,6 +26,26 @@ help()
     echo "-h       Print this help page."
     echo
 }
+
+check_requirements()
+{
+    if ! command -v ./main &>/dev/null; then
+        echo "whisper.cpp main executable is required (make)"
+        exit 1
+    fi
+
+    if ! command -v streamlink &>/dev/null; then
+        echo "streamlink is required (https://streamlink.github.io)"
+        exit 1
+    fi
+
+    if ! command -v ffmpeg &>/dev/null; then
+        echo "ffmpeg is required (https://ffmpeg.org)"
+        exit 1
+    fi
+}
+
+check_requirements
 
 while getopts ":s:m:t:h" option; do
     case $option in
@@ -58,6 +87,7 @@ set +e
 echo "Starting..."
 
 i=0
+SECONDS=0
 while true
 do
     err=1
@@ -72,7 +102,8 @@ do
 
     ./main -t $threads -m ./models/ggml-$model.bin -f /tmp/whisper-live.wav --no-timestamps -otxt 2> /tmp/whispererr | tail -n 1
 
-    sleep 1
-
+    while [ $SECONDS -lt $((($i+1)*$step)) ]; do
+        sleep 1
+    done
     ((i=i+1))
 done
