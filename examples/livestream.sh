@@ -1,14 +1,32 @@
 #!/bin/bash
-set -eo pipefail
+#
 # Transcribe audio livestream by feeding ffmpeg output to whisper.cpp at regular intervals
 # Idea by @semiformal-net
 # ref: https://github.com/ggerganov/whisper.cpp/issues/185
 #
 
+set -eo pipefail
+
 url="http://a.files.bbci.co.uk/media/live/manifesto/audio/simulcast/hls/nonuk/sbr_low/ak/bbc_world_service.m3u8"
 fmt=aac # the audio format extension of the stream (TODO: auto detect)
 step_s=30
 model="base.en"
+
+check_requirements()
+{
+    if ! command -v ./main &>/dev/null; then
+        echo "whisper.cpp main executable is required (make)"
+        exit 1
+    fi
+
+    if ! command -v ffmpeg &>/dev/null; then
+        echo "ffmpeg is required (https://ffmpeg.org)"
+        exit 1
+    fi
+}
+
+check_requirements
+
 
 if [ -z "$1" ]; then
     echo "Usage: $0 stream_url [step_s] [model]"
