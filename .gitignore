@@ -16,6 +16,7 @@ stream
 command
 bench
 sync.sh
+libwhisper.so
 compile_commands.json
 
 examples/arm_neon.h
