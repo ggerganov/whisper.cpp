@@ -154,7 +154,7 @@ libwhisper.so: ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o whisper.o $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream command bench libwhisper.a libwhisper.so
+	rm -f *.o main stream command talk bench libwhisper.a libwhisper.so
 
 #
 # Examples
@@ -171,6 +171,9 @@ stream: examples/stream/stream.cpp ggml.o whisper.o
 
 command: examples/command/command.cpp ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) examples/command/command.cpp ggml.o whisper.o -o command $(CC_SDL) $(LDFLAGS)
+
+talk: examples/talk/talk.cpp  examples/talk/gpt-2.cpp ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp ggml.o whisper.o -o talk $(CC_SDL) $(LDFLAGS)
 
 bench: examples/bench/bench.cpp ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp ggml.o whisper.o -o bench $(LDFLAGS)
