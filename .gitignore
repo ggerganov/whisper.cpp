@@ -14,6 +14,7 @@ build-sanitize-thread/
 main
 stream
 command
+talk
 bench
 sync.sh
 libwhisper.so
