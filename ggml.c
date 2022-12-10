@@ -4221,7 +4221,7 @@ bool ggml_compute_forward_mul_mat_use_blas(
     const int ne1 = dst->ne[1];
 
     // TODO: find the optimal values for these
-    if (ggml_is_contiguous(src1) && ne0 >= 32 && ne1 >= 32 && ne10 >= 32) {
+    if (ggml_is_contiguous(src0) && ggml_is_contiguous(src1) && ne0 >= 32 && ne1 >= 32 && ne10 >= 32) {
         //printf("BLAS: %d %d %d\n", ne0, ne1, ne10);
         return true;
     }
@@ -4298,7 +4298,6 @@ void ggml_compute_forward_mul_mat_f32(
 
 #if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
     if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
-        GGML_ASSERT(ggml_is_contiguous(src0));
         GGML_ASSERT(nb10 == sizeof(float));
 
         if (params->ith != 0) return;
@@ -4590,13 +4589,22 @@ void ggml_compute_forward_mul_mat_f16_f32(
                 //    }
                 //}
 
-                // zT = y * xT
                 {
+#if 1
+                    // zT = y * xT
                     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans,
                             ne11, ne01, ne10,
-                            1.0f,    y, ne10,
-                                     x, ne10,
+                            1.0f,    y, ne00,
+                                     x, ne00,
                             0.0f,    d, ne01);
+#else
+                    // zT = (xT * y)T
+                    cblas_sgemm(CblasColMajor, CblasTrans, CblasNoTrans,
+                            ne01, ne11, ne10,
+                            1.0f,    x, ne00,
+                                     y, ne00,
+                            0.0f,    d, ne01);
+#endif
                 }
             }
         }

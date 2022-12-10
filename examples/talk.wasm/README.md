@@ -6,6 +6,8 @@ Talk with an Artificial Intelligence in your browser:
 
 Online demo: https://whisper.ggerganov.com/talk/
 
+Terminal version: [examples/talk](/examples/talk)
+
 ## How it works?
 
 This demo leverages 2 modern neural network models to create a high-quality voice chat directly in your browser:
