@@ -24,6 +24,8 @@ make talk
 ./talk -p Santa
 ```
 
+## GPT-2
+
 To run this, you will need a ggml GPT-2 model: [instructions](https://github.com/ggerganov/ggml/tree/master/examples/gpt-2#downloading-and-converting-the-original-models)
 
 Alternatively, you can simply download the smallest ggml GPT-2 117M model (240 MB) like this:
@@ -31,3 +33,9 @@ Alternatively, you can simply download the smallest ggml GPT-2 117M model (240 M
 ```
 wget --quiet --show-progress -O models/ggml-gpt-2-117M.bin https://ggml.ggerganov.com/ggml-model-gpt-2-117M.bin
 ```
+
+## TTS
+
+For best experience, this example needs a TTS tool to convert the generated text responses to voice.
+You can use any TTS engine that you would like - simply edit the [speak.sh](speak.sh) script to your needs.
+By default, it is configured to use `espeak`, but you can use whatever you wish.
