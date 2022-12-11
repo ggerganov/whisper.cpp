@@ -1,4 +1,4 @@
-AC_INIT([renderer],[2.3d],[ttsiodras@gmail.com])
+AC_INIT([whisper],[1.0a],[ggerganov@gmail.com])
 
 AC_CONFIG_HEADERS([config.h])
 
