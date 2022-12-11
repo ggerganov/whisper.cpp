@@ -24,6 +24,8 @@ endif()
 
 set_target_properties(${TARGET} PROPERTIES LINK_FLAGS " \
     --bind \
+    -s MODULARIZE=1 \
+    -s EXPORT_NAME=\"'whisper_factory'\" \
     -s USE_PTHREADS=1 \
     -s PTHREAD_POOL_SIZE=8 \
     -s INITIAL_MEMORY=1610612736 \
