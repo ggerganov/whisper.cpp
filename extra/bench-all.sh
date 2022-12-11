@@ -17,8 +17,8 @@ printf "Running benchmark for all models\n"
 printf "This can take a while!\n"
 printf "\n"
 
-printf "| CPU | OS | Config | Model | Threads | Load [ms] | Encode [ms] | Commit |\n"
-printf "| --- | -- | ------ | ----- | ------- | --------- | ----------- | ------ |\n"
+printf "| CPU | OS | Config | Model | Th | Load | Enc. | Commit |\n"
+printf "| --- | -- | ------ | ----- | -- | ---- | ---- | ------ |\n"
 
 for model in "${models[@]}"; do
     # run once to heat-up the cache
@@ -33,6 +33,10 @@ for model in "${models[@]}"; do
     encode_time=$(echo "$output" | grep "encode time" | awk '{print $5}')
     system_info=$(echo "$output" | grep "system_info")
     n_threads=$(echo "$output" | grep "system_info" | awk '{print $4}')
+
+    # floor to milliseconds
+    load_time=${load_time%.*}
+    encode_time=${encode_time%.*}
 
     config=""
 
