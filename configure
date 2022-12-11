@@ -650,7 +650,6 @@ ac_header_cxx_list=
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
-WHOLEPROGRAM
 CPP
 LIBOBJS
 ALLOCA
@@ -8071,8 +8070,10 @@ case ".$var" in
  ;;
 esac
 
-fi
 
+printf "%s\n" "#define USE_SSE 1" >>confdefs.h
+
+fi
 
 # Drop any asserts
 CFLAGS="$CFLAGS -DNDEBUG"

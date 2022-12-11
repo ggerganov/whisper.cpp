@@ -87,6 +87,7 @@ AC_MSG_RESULT($HAVESSE)
 if test x"${HAVESSE}" = xyes ; then
         AX_CFLAGS_GCC_OPTION(-msse)
         AX_CXXFLAGS_GCC_OPTION(-msse)
+        AC_DEFINE([USE_SSE], 1, [Defined when SSE instructions are available.])
 fi
 
 # Drop any asserts

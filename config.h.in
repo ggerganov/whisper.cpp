@@ -99,6 +99,9 @@
    backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
 
+/* Defined when SSE instructions are available. */
+#undef USE_SSE
+
 /* Version number of package */
 #undef VERSION
 
