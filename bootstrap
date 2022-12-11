@@ -1,0 +1,3 @@
+autoreconf
+automake
+./configure
