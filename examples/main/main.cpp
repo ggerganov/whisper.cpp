@@ -266,7 +266,7 @@ bool output_txt(struct whisper_context * ctx, const char * fname) {
     const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
         const char * text = whisper_full_get_segment_text(ctx, i);
-        fout << text;
+        fout << text << "\n";
     }
 
     return true;
