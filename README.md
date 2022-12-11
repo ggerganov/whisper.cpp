@@ -459,7 +459,7 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | Example | Web | Description |
 | ---     | --- | ---         |
 | [main](examples/main) | [whisper.wasm](examples/whisper.wasm) | Tool for translating and transcribing audio using Whisper |
-| [bench](examples/bench) | | Benchmark the performance of Whisper on your machine |
+| [bench](examples/bench) | [bench.wasm](examples/bench.wasm) | Benchmark the performance of Whisper on your machine |
 | [stream](examples/stream) | [stream.wasm](examples/stream.wasm) | Real-time transcription of raw microphone capture |
 | [command](examples/command) | [command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
 | [talk](examples/talk) | [talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot |
