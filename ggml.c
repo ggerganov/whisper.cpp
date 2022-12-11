@@ -155,7 +155,8 @@ static inline float fp32_from_bits(uint32_t w) {
     union {
         uint32_t as_bits;
         float as_value;
-    } fp32 = { w };
+    } fp32;
+    fp32.as_bits = w;
     return fp32.as_value;
 }
 
@@ -163,7 +164,8 @@ static inline uint32_t fp32_to_bits(float f) {
 	union {
 		float as_value;
 		uint32_t as_bits;
-	} fp32 = { f };
+	} fp32;
+	fp32.as_value = f;
 	return fp32.as_bits;
 }
 
