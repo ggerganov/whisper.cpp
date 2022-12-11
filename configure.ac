@@ -88,7 +88,6 @@ if test x"${HAVESSE}" = xyes ; then
         AX_CFLAGS_GCC_OPTION(-msse)
         AX_CXXFLAGS_GCC_OPTION(-msse)
 fi
-AC_SUBST(WHOLEPROGRAM)
 
 # Drop any asserts
 CFLAGS="$CFLAGS -DNDEBUG"
