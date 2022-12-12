@@ -2,6 +2,7 @@
 
 [![Actions Status](https://github.com/ggerganov/whisper.cpp/workflows/CI/badge.svg)](https://github.com/ggerganov/whisper.cpp/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![npm](https://img.shields.io/npm/v/whisper.cpp.svg)](https://www.npmjs.com/package/whisper.cpp/)
 
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
@@ -448,8 +449,8 @@ in [models](models).
 
 - [X] Rust: [tazz4843/whisper-rs](https://github.com/tazz4843/whisper-rs)
 - [X] Objective-C / Swift: [ggerganov/whisper.spm](https://github.com/ggerganov/whisper.spm)
-- [ ] Python:
-- [ ] Java:
+- [X] Javascript: [bindings/javascript](bindings/javascript)
+- [ ] Python: soon
 
 ## Examples
 
