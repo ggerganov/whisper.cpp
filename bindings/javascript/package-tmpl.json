@@ -1,5 +1,5 @@
 {
-  "name": "whisper.js",
+  "name": "whisper.cpp",
   "version": "@PROJECT_VERSION@",
   "description": "Whisper speech recognition",
   "main": "whisper.js",
