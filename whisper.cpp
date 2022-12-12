@@ -429,6 +429,12 @@ struct whisper_context {
     int32_t exp_n_audio_ctx; // 0 - use default
 };
 
+template<typename T>
+static void read_safe(std::ifstream& fin, T& dest)
+{
+  fin.read((char*)& dest, sizeof(T));
+}
+
 // load the model from a ggml file
 //
 // file format:
@@ -455,7 +461,7 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
     // verify magic
     {
         uint32_t magic;
-        fin.read((char *) &magic, sizeof(magic));
+        read_safe(fin, magic);
         if (magic != 0x67676d6c) {
             fprintf(stderr, "%s: invalid model file '%s' (bad magic)\n", __func__, fname.c_str());
             return false;
@@ -466,17 +472,17 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
     {
         auto & hparams = model.hparams;
 
-        fin.read((char *) &hparams.n_vocab,       sizeof(hparams.n_vocab));
-        fin.read((char *) &hparams.n_audio_ctx,   sizeof(hparams.n_audio_ctx));
-        fin.read((char *) &hparams.n_audio_state, sizeof(hparams.n_audio_state));
-        fin.read((char *) &hparams.n_audio_head,  sizeof(hparams.n_audio_head));
-        fin.read((char *) &hparams.n_audio_layer, sizeof(hparams.n_audio_layer));
-        fin.read((char *) &hparams.n_text_ctx,    sizeof(hparams.n_text_ctx));
-        fin.read((char *) &hparams.n_text_state,  sizeof(hparams.n_text_state));
-        fin.read((char *) &hparams.n_text_head,   sizeof(hparams.n_text_head));
-        fin.read((char *) &hparams.n_text_layer,  sizeof(hparams.n_text_layer));
-        fin.read((char *) &hparams.n_mels,        sizeof(hparams.n_mels));
-        fin.read((char *) &hparams.f16,           sizeof(hparams.f16));
+        read_safe(fin, hparams.n_vocab);
+        read_safe(fin, hparams.n_audio_ctx);
+        read_safe(fin, hparams.n_audio_state);
+        read_safe(fin, hparams.n_audio_head);
+        read_safe(fin, hparams.n_audio_layer);
+        read_safe(fin, hparams.n_text_ctx);
+        read_safe(fin, hparams.n_text_state);
+        read_safe(fin, hparams.n_text_head);
+        read_safe(fin, hparams.n_text_layer);
+        read_safe(fin, hparams.n_mels);
+        read_safe(fin, hparams.f16);
 
         assert(hparams.n_text_state == hparams.n_audio_state);
 
@@ -524,8 +530,8 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
     {
         auto & filters = wctx.model.filters;
 
-        fin.read((char *) &filters.n_mel, sizeof(filters.n_mel));
-        fin.read((char *) &filters.n_fft, sizeof(filters.n_fft));
+        read_safe(fin, filters.n_mel);
+        read_safe(fin, filters.n_fft);
 
         filters.data.resize(filters.n_mel * filters.n_fft);
         fin.read((char *) filters.data.data(), filters.data.size() * sizeof(float));
@@ -534,7 +540,7 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
     // load vocab
     {
         int32_t n_vocab = 0;
-        fin.read((char *) &n_vocab, sizeof(n_vocab));
+        read_safe(fin, n_vocab);
 
         //if (n_vocab != model.hparams.n_vocab) {
         //    fprintf(stderr, "%s: invalid model file '%s' (bad vocab size %d != %d)\n",
@@ -545,10 +551,11 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
         std::string word;
         for (int i = 0; i < n_vocab; i++) {
             uint32_t len;
-            fin.read((char *) &len, sizeof(len));
+            read_safe(fin, len);
 
-            word.resize(len);
-            fin.read((char *) word.data(), len);
+            std::vector<char> tmp(len); // create a buffer
+            fin.read( &tmp[0], tmp.size() ); // read to buffer
+            word.assign(&tmp[0], tmp.size());
 
             vocab.token_to_id[word] = i;
             vocab.id_to_token[i] = word;
@@ -728,10 +735,9 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
 
     // create the ggml context
     {
-        struct ggml_init_params params = {
-            .mem_size   = wctx.buf_model->size(),
-            .mem_buffer = wctx.buf_model->data(),
-        };
+        struct ggml_init_params params;
+        params.mem_size   = wctx.buf_model->size();
+        params.mem_buffer = wctx.buf_model->data();
 
         model.ctx = ggml_init(params);
         if (!model.ctx) {
@@ -938,10 +944,9 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
 
     // create the ggml memory context
     {
-        struct ggml_init_params params = {
-            .mem_size   = wctx.buf_memory.size(),
-            .mem_buffer = wctx.buf_memory.data(),
-        };
+        struct ggml_init_params params;
+        params.mem_size   = wctx.buf_memory.size();
+        params.mem_buffer = wctx.buf_memory.data();
 
         model.ctx_mem = ggml_init(params);
         if (!model.ctx_mem) {
@@ -998,9 +1003,9 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             int32_t length;
             int32_t ftype;
 
-            fin.read(reinterpret_cast<char *>(&n_dims), sizeof(n_dims));
-            fin.read(reinterpret_cast<char *>(&length), sizeof(length));
-            fin.read(reinterpret_cast<char *>(&ftype),  sizeof(ftype));
+            read_safe(fin, n_dims);
+            read_safe(fin, length);
+            read_safe(fin, ftype);
 
             if (fin.eof()) {
                 break;
@@ -1009,12 +1014,14 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             int32_t nelements = 1;
             int32_t ne[3] = { 1, 1, 1 };
             for (int i = 0; i < n_dims; ++i) {
-                fin.read(reinterpret_cast<char *>(&ne[i]), sizeof(ne[i]));
+                read_safe(fin, ne[i]);
                 nelements *= ne[i];
             }
 
-            std::string name(length, 0);
-            fin.read(&name[0], length);
+            std::string name;
+            std::vector<char> tmp(length); // create a buffer
+            fin.read( &tmp[0], tmp.size() ); // read to buffer
+            name.assign(&tmp[0], tmp.size());
 
             if (model.tensors.find(name.data()) == model.tensors.end()) {
                 fprintf(stderr, "%s: unknown tensor '%s' in model file\n", __func__, name.data());
@@ -1088,10 +1095,9 @@ static bool whisper_encode(
     const int n_mels = hparams.n_mels;
     assert(mel_inp.n_mel == n_mels);
 
-    struct ggml_init_params params = {
-        .mem_size   = wctx.buf_compute.size(),
-        .mem_buffer = wctx.buf_compute.data(),
-    };
+    struct ggml_init_params params;
+    params.mem_size   = wctx.buf_compute.size();
+    params.mem_buffer = wctx.buf_compute.data();   
 
     struct ggml_context * ctx0 = ggml_init(params);
 
@@ -1166,10 +1172,9 @@ static bool whisper_encode(
 
         // create separate context for each layer to reduce memory usage
 
-        struct ggml_init_params paramsL = {
-            .mem_size   = wctx.buf_compute_layer.size(),
-            .mem_buffer = wctx.buf_compute_layer.data(),
-        };
+        struct ggml_init_params paramsL;
+        paramsL.mem_size   = wctx.buf_compute_layer.size();
+        paramsL.mem_buffer = wctx.buf_compute_layer.data();
 
         struct ggml_context * ctxL = ggml_init(paramsL);
 
@@ -1503,10 +1508,9 @@ static bool whisper_decode(
     const int N = n_tokens;
     const int M = wctx.exp_n_audio_ctx > 0 ? wctx.exp_n_audio_ctx : hparams.n_audio_ctx;
 
-    struct ggml_init_params params = {
-            .mem_size   = wctx.buf_compute.size(),
-            .mem_buffer = wctx.buf_compute.data(),
-        };
+    struct ggml_init_params params;
+    params.mem_size   = wctx.buf_compute.size();
+    params.mem_buffer = wctx.buf_compute.data();
 
     struct ggml_context * ctx0 = ggml_init(params);
 
@@ -1529,10 +1533,9 @@ static bool whisper_decode(
     for (int il = 0; il < n_layer; ++il) {
         const auto & layer = model.layers_decoder[il];
 
-        struct ggml_init_params paramsL = {
-            .mem_size   = wctx.buf_compute_layer.size(),
-            .mem_buffer = wctx.buf_compute_layer.data(),
-        };
+        struct ggml_init_params paramsL;
+        paramsL.mem_size   = wctx.buf_compute_layer.size();
+        paramsL.mem_buffer = wctx.buf_compute_layer.data();
 
         struct ggml_context * ctxL = ggml_init(paramsL);
         struct ggml_cgraph gf = {};
@@ -2372,6 +2375,7 @@ const char * whisper_print_system_info(void) {
     s += "AVX2 = "      + std::to_string(ggml_cpu_has_avx2())      + " | ";
     s += "AVX512 = "    + std::to_string(ggml_cpu_has_avx512())    + " | ";
     s += "NEON = "      + std::to_string(ggml_cpu_has_neon())      + " | ";
+    s += "F16C = "      + std::to_string(ggml_cpu_has_f16c())      + " | ";
     s += "FP16_VA = "   + std::to_string(ggml_cpu_has_fp16_va())   + " | ";
     s += "WASM_SIMD = " + std::to_string(ggml_cpu_has_wasm_simd()) + " | ";
     s += "BLAS = "      + std::to_string(ggml_cpu_has_blas())      + " | ";
@@ -2686,6 +2690,7 @@ int whisper_full(
         tokens_cur.clear();
 
         bool failed = false;
+        bool has_ts = false; // have we already sampled a non-beg timestamp token for the current segment?
 
         for (int i = 0, n_max = whisper_n_text_ctx(ctx)/2 - 4; i < n_max; ++i) {
             if (whisper_decode(ctx, prompt.data(), prompt.size(), n_past, params.n_threads) != 0) {
@@ -2711,13 +2716,13 @@ int whisper_full(
                     const int seek_delta_new = 2*(token.id - whisper_token_beg(ctx));
 
                     // do not allow to go back in time
-                    if (seek_delta != 100*WHISPER_CHUNK_SIZE &&
-                        seek_delta > seek_delta_new && result_len < i) {
+                    if (has_ts && seek_delta > seek_delta_new && result_len < i) {
                         break;
                     }
 
                     seek_delta = seek_delta_new;
                     result_len = i + 1;
+                    has_ts = true;
                 }
 
                 // add it to the context
@@ -2729,8 +2734,11 @@ int whisper_full(
                 //    printf("%s: %10s %6d %6.3f '%s'\n", __func__, tt.c_str(), token.id, token.pt, ctx->vocab.id_to_token[token.id].c_str());
                 //}
 
-                // end of text token
-                if (token.id == whisper_token_eot(ctx) || (params.max_tokens > 0 && i > params.max_tokens)) {
+                // end of segment
+                if (token.id == whisper_token_eot(ctx) ||               // end of text token
+                    (params.max_tokens > 0 && i > params.max_tokens) || // max tokens per segment reached
+                    (has_ts && seek + seek_delta + 100 >= seek_end)     // end of audio reached
+                    ) {
                     if (result_len == 0) {
                         if (seek + seek_delta + 100 >= seek_end) {
                             result_len = i + 1;
@@ -2901,10 +2909,9 @@ int whisper_full_parallel(
 
         // create the ggml memory context
         {
-            struct ggml_init_params params = {
-                .mem_size   = ctxs[i].buf_memory.size(),
-                .mem_buffer = ctxs[i].buf_memory.data(),
-            };
+            struct ggml_init_params params;
+            params.mem_size   = ctxs[i].buf_memory.size();
+            params.mem_buffer = ctxs[i].buf_memory.data();
 
             model.ctx_mem = ggml_init(params);
             if (!model.ctx_mem) {

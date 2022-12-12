@@ -11,14 +11,19 @@ build-release/
 build-sanitize-addr/
 build-sanitize-thread/
 
-main
-stream
-command
-bench
+/main
+/stream
+/command
+/talk
+/bench
+
 sync.sh
+libwhisper.so
 compile_commands.json
 
 examples/arm_neon.h
 examples/whisper.objc/whisper.objc.xcodeproj/xcshareddata
 examples/whisper.objc/whisper.objc.xcodeproj/xcuserdata/
 examples/whisper.objc/whisper.objc.xcodeproj/project.xcworkspace/xcuserdata
+
+extra/bench-gg.txt

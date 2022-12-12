@@ -52,21 +52,6 @@ The tensor operators are optimized heavily for Apple silicon CPUs. Depending on 
 instrisics or CBLAS Accelerate framework routines are used. The latter are especially effective for bigger sizes since
 the Accelerate framework utilizes the special-purpose AMX coprocessor available in modern Apple products.
 
-## Limitations
-
-- Inference only
-- No GPU support
-- Very basic greedy sampling scheme - always pick up the token with highest probability.
-  This should be similar to the [GreedyDecoder](https://github.com/openai/whisper/blob/main/whisper/decoding.py#L249-L274)
-  from the original python implementation, so in order to make a fair comparison between the 2 implementations, make sure
-  to run the python code with the following parameters:
-
-  ```
-  whisper --best_of None --beam_size None ...
-  ```
-
-  In the future, `whisper.cpp` will support more sampling strategies.
-
 ## Quick start
 
 First, download one of the Whisper models converted in [ggml format](models). For example:
@@ -206,6 +191,7 @@ make small.en
 make small
 make medium.en
 make medium
+make large-v1
 make large
 ```
 
@@ -217,7 +203,22 @@ make large
 | base   | 142 MB | ~500 MB | `465707469ff3a37a2b9b8d8f89f2f99de7299dac` |
 | small  | 466 MB | ~1.0 GB | `55356645c2b361a969dfd0ef2c5a50d530afd8d5` |
 | medium | 1.5 GB | ~2.6 GB | `fd9727b6e1217c2f614f9b698455c4ffd82463b4` |
-| large  | 2.9 GB | ~4.7 GB | `b1caaf735c4cc1429223d5a74f0f4d0b9b59a299` |
+| large  | 2.9 GB | ~4.7 GB | `0f4c8e34f21cf1a914c59d8b3ce882345ad349d6` |
+
+## Limitations
+
+- Inference only
+- No GPU support
+- Very basic greedy sampling scheme - always pick up the token with highest probability.
+  This should be similar to the [GreedyDecoder](https://github.com/openai/whisper/blob/main/whisper/decoding.py#L249-L274)
+  from the original python implementation, so in order to make a fair comparison between the 2 implementations, make sure
+  to run the python code with the following parameters:
+
+  ```
+  whisper --best_of None --beam_size None ...
+  ```
+
+  In the future, `whisper.cpp` will support more sampling strategies.
 
 ## Another example
 
@@ -458,10 +459,10 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | Example | Web | Description |
 | ---     | --- | ---         |
 | [main](examples/main) | [whisper.wasm](examples/whisper.wasm) | Tool for translating and transcribing audio using Whisper |
-| [bench](examples/bench) | | Benchmark the performance of Whisper on your machine |
+| [bench](examples/bench) | [bench.wasm](examples/bench.wasm) | Benchmark the performance of Whisper on your machine |
 | [stream](examples/stream) | [stream.wasm](examples/stream.wasm) | Real-time transcription of raw microphone capture |
 | [command](examples/command) | [command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
-| | [talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot in your browser |
+| [talk](examples/talk) | [talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot |
 | [whisper.objc](examples/whisper.objc) | | iOS mobile application using whisper.cpp |
 | [whisper.nvim](examples/whisper.nvim) | | Speech-to-text plugin for Neovim |
 | [generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |

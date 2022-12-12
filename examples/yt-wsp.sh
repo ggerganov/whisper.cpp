@@ -2,7 +2,15 @@
 
 # Small shell script to more easily automatically download and transcribe live stream VODs.
 # This uses YT-DLP, ffmpeg and the CPP version of Whisper: https://github.com/ggerganov/whisper.cpp
-# Use `./transcribe-vod help` to print help info.
+# Use `./examples/yt-wsp.sh help` to print help info.
+#
+# Sample usage:
+#
+#   git clone https://github.com/ggerganov/whisper.cpp
+#   cd whisper.cpp
+#   make
+#   ./examples/yt-wsp.sh https://www.youtube.com/watch?v=1234567890
+#
 
 # MIT License
 
@@ -43,7 +51,7 @@ cleanup() {
 }
 
 print_help() {
-    echo "Usage: ./transcribe-vod <video_url>"
+    echo "Usage: ./examples/yt-wsp.sh <video_url>"
     echo "See configurable env variables in the script"
     echo "This will produce an MP4 muxed file called res.mp4 in the working directory"
     echo "Requirements: ffmpeg yt-dlp whisper"
@@ -65,7 +73,14 @@ check_requirements() {
     if ! command -v "$WHISPER_EXECUTABLE" &>/dev/null; then
         WHISPER_EXECUTABLE="./main"
         if ! command -v "$WHISPER_EXECUTABLE" &>/dev/null; then
-            echo "Whisper is required (https://github.com/ggerganov/whisper.cpp)."
+            echo "Whisper is required (https://github.com/ggerganov/whisper.cpp):"
+            echo "Sample usage:"
+            echo ""
+            echo "  git clone https://github.com/ggerganov/whisper.cpp"
+            echo "  cd whisper.cpp"
+            echo "  make"
+            echo "  ./examples/yt-wsp.sh https://www.youtube.com/watch?v=1234567890"
+            echo ""
             exit 1
         fi
     fi

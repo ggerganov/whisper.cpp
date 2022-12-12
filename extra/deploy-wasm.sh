@@ -25,6 +25,7 @@ scp bin/whisper.wasm/* root@linode0:/var/www/html/whisper/         && scp bin/li
 scp bin/stream.wasm/*  root@linode0:/var/www/html/whisper/stream/  && scp bin/libstream.worker.js  root@linode0:/var/www/html/whisper/stream/
 scp bin/command.wasm/* root@linode0:/var/www/html/whisper/command/ && scp bin/libcommand.worker.js root@linode0:/var/www/html/whisper/command/
 scp bin/talk.wasm/*    root@linode0:/var/www/html/whisper/talk/    && scp bin/libtalk.worker.js    root@linode0:/var/www/html/whisper/talk/
+scp bin/bench.wasm/*   root@linode0:/var/www/html/whisper/bench/   && scp bin/libbench.worker.js   root@linode0:/var/www/html/whisper/bench/
 
 echo "Done"
 exit

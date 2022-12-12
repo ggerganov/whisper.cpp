@@ -1,12 +1,8 @@
-// Voice assistant example
-//
-// Speak short text commands to the microphone.
-// This program will detect your voice command and convert them to text.
-//
-// ref: https://github.com/ggerganov/whisper.cpp/issues/171
+// Talk with AI
 //
 
 #include "whisper.h"
+#include "gpt-2.h"
 
 #include <SDL.h>
 #include <SDL_audio.h>
@@ -19,12 +15,12 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <regex>
 
 // command-line parameters
 struct whisper_params {
     int32_t n_threads  = std::min(4, (int32_t) std::thread::hardware_concurrency());
-    int32_t prompt_ms  = 5000;
-    int32_t command_ms = 4000;
+    int32_t voice_ms   = 10000;
     int32_t capture_id = -1;
     int32_t max_tokens = 32;
     int32_t audio_ctx  = 0;
@@ -38,8 +34,11 @@ struct whisper_params {
     bool print_energy  = false;
     bool no_timestamps = true;
 
+    std::string person    = "Santa";
     std::string language  = "en";
-    std::string model     = "models/ggml-base.en.bin";
+    std::string model_wsp = "models/ggml-base.en.bin";
+    std::string model_gpt = "models/ggml-gpt-2-117M.bin";
+    std::string speak     = "./examples/talk/speak.sh";
     std::string fname_out = "";
 };
 
@@ -54,8 +53,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             exit(0);
         }
         else if (arg == "-t"   || arg == "--threads")       { params.n_threads     = std::stoi(argv[++i]); }
-        else if (arg == "-pms" || arg == "--prompt-ms")     { params.prompt_ms     = std::stoi(argv[++i]); }
-        else if (arg == "-cms" || arg == "--command-ms")    { params.command_ms    = std::stoi(argv[++i]); }
+        else if (arg == "-vms" || arg == "--voice-ms")      { params.voice_ms      = std::stoi(argv[++i]); }
         else if (arg == "-c"   || arg == "--capture")       { params.capture_id    = std::stoi(argv[++i]); }
         else if (arg == "-mt"  || arg == "--max-tokens")    { params.max_tokens    = std::stoi(argv[++i]); }
         else if (arg == "-ac"  || arg == "--audio-ctx")     { params.audio_ctx     = std::stoi(argv[++i]); }
@@ -65,8 +63,11 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-tr"  || arg == "--translate")     { params.translate     = true; }
         else if (arg == "-ps"  || arg == "--print-special") { params.print_special = true; }
         else if (arg == "-pe"  || arg == "--print-energy")  { params.print_energy  = true; }
+        else if (arg == "-p"   || arg == "--person")        { params.person        = argv[++i]; }
         else if (arg == "-l"   || arg == "--language")      { params.language      = argv[++i]; }
-        else if (arg == "-m"   || arg == "--model")         { params.model         = argv[++i]; }
+        else if (arg == "-mw"  || arg == "--model-whisper") { params.model_wsp     = argv[++i]; }
+        else if (arg == "-mg"  || arg == "--model-gpt")     { params.model_gpt     = argv[++i]; }
+        else if (arg == "-s"   || arg == "--speak")         { params.speak         = argv[++i]; }
         else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
@@ -85,8 +86,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "options:\n");
     fprintf(stderr, "  -h,       --help          [default] show this help message and exit\n");
     fprintf(stderr, "  -t N,     --threads N     [%-7d] number of threads to use during computation\n", params.n_threads);
-    fprintf(stderr, "  -pms N,   --prompt-ms N   [%-7d] prompt duration in milliseconds\n",             params.prompt_ms);
-    fprintf(stderr, "  -cms N,   --command-ms N  [%-7d] command duration in milliseconds\n",            params.command_ms);
+    fprintf(stderr, "  -vms N,   --voice-ms N    [%-7d] voice duration in milliseconds\n",              params.voice_ms);
     fprintf(stderr, "  -c ID,    --capture ID    [%-7d] capture device ID\n",                           params.capture_id);
     fprintf(stderr, "  -mt N,    --max-tokens N  [%-7d] maximum number of tokens per audio chunk\n",    params.max_tokens);
     fprintf(stderr, "  -ac N,    --audio-ctx N   [%-7d] audio context size (0 - all)\n",                params.audio_ctx);
@@ -96,8 +96,11 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "  -tr,      --translate     [%-7s] translate from source language to english\n",   params.translate ? "true" : "false");
     fprintf(stderr, "  -ps,      --print-special [%-7s] print special tokens\n",                        params.print_special ? "true" : "false");
     fprintf(stderr, "  -pe,      --print-energy  [%-7s] print sound energy (for debugging)\n",          params.print_energy ? "true" : "false");
+    fprintf(stderr, "  -p NAME,  --person NAME   [%-7s] person name (for prompt selection)\n",          params.person.c_str());
     fprintf(stderr, "  -l LANG,  --language LANG [%-7s] spoken language\n",                             params.language.c_str());
-    fprintf(stderr, "  -m FNAME, --model FNAME   [%-7s] model path\n",                                  params.model.c_str());
+    fprintf(stderr, "  -mw FILE, --model-whisper [%-7s] whisper model file\n",                          params.model_wsp.c_str());
+    fprintf(stderr, "  -mg FILE, --model-gpt     [%-7s] gpt model file\n",                              params.model_gpt.c_str());
+    fprintf(stderr, "  -s FILE,  --speak TEXT    [%-7s] command for TTS\n",                             params.speak.c_str());
     fprintf(stderr, "  -f FNAME, --file FNAME    [%-7s] text output file name\n",                       params.fname_out.c_str());
     fprintf(stderr, "\n");
 }
@@ -205,6 +208,7 @@ bool audio_async::init(int capture_id, int sample_rate) {
         fprintf(stderr, "%s:     - channels:          %d (required: %d)\n",    __func__, capture_spec_obtained.channels,
                 capture_spec_requested.channels);
         fprintf(stderr, "%s:     - samples per frame: %d\n",                   __func__, capture_spec_obtained.samples);
+        fprintf(stderr, "\n");
     }
 
     m_sample_rate = capture_spec_obtained.freq;
@@ -354,6 +358,16 @@ std::string trim(const std::string & s) {
     return std::regex_replace(s, e, "");
 }
 
+std::string replace(const std::string & s, const std::string & from, const std::string & to) {
+    std::string result = s;
+    size_t pos = 0;
+    while ((pos = result.find(from, pos)) != std::string::npos) {
+        result.replace(pos, from.length(), to);
+        pos += to.length();
+    }
+    return result;
+}
+
 void high_pass_filter(std::vector<float> & data, float cutoff, float sample_rate) {
     const float rc = 1.0f / (2.0f * M_PI * cutoff);
     const float dt = 1.0f / sample_rate;
@@ -484,6 +498,32 @@ float similarity(const std::string & s0, const std::string & s1) {
     return 1.0f - (dist / std::max(s0.size(), s1.size()));
 }
 
+// generated with ChatGPT
+std::map<std::string, std::string> k_prompts = {
+    { "Santa",
+R"(Kid: Hi Santa! Are you real?
+Santa: Of course I am, my dear! Ho ho ho!
+Kid: Can you please bring me a new toy for Christmas?
+Santa: I'll see what I can do, but you have to make sure to be a good boy or girl and listen to your parents.
+Kid: I will, Santa! Thank you!
+Santa: You're welcome, little one. Merry Christmas! Ho ho ho!
+Kid: Can you tell me how you deliver all the presents to all the kids in the world in one night?
+Santa: It's a secret, but I have a lot of help from my elves and my magical sleigh. And I have a special route that I follow to make sure I visit every child.
+Kid: Wow, that's amazing! Can I please have a ride in your sleigh sometime?
+Santa: I'm sorry, but only good boys and girls get to ride in my sleigh.
+)" },
+    { "Kid",
+R"(Kid: Hi Santa! Are you real?
+Santa: Of course I am, my dear! Ho ho ho!
+Kid: Can you please bring me a new toy for Christmas?
+Santa: I'll see what I can do, but you have to make sure to be a good boy or girl and listen to your parents.
+Kid: I will, Santa! Thank you!
+Kid: Can you tell me how you deliver all the presents to all the kids in the world in one night?
+Santa: It's a secret, but I have a lot of help from my elves and my magical sleigh. And I have a special route that I follow to make sure I visit every child.
+Kid: Wow, that's amazing! Can I please have a ride in your sleigh sometime?
+)" },
+};
+
 int main(int argc, char ** argv) {
     whisper_params params;
 
@@ -499,12 +539,16 @@ int main(int argc, char ** argv) {
 
     // whisper init
 
-    struct whisper_context * ctx = whisper_init(params.model.c_str());
+    struct whisper_context * ctx_wsp = whisper_init(params.model_wsp.c_str());
+
+    // gpt init
+
+    struct gpt2_context * ctx_gpt = gpt2_init(params.model_gpt.c_str());
 
     // print some info about the processing
     {
         fprintf(stderr, "\n");
-        if (!whisper_is_multilingual(ctx)) {
+        if (!whisper_is_multilingual(ctx_wsp)) {
             if (params.language != "en" || params.translate) {
                 params.language = "en";
                 params.translate = false;
@@ -532,9 +576,10 @@ int main(int argc, char ** argv) {
 
     audio.resume();
 
+    int n_iter = 0;
+
     bool is_running  = true;
-    bool have_prompt = false;
-    bool ask_prompt  = true;
+    bool force_speak = params.person == "Kid";
 
     float prob0 = 0.0f;
     float prob  = 0.0f;
@@ -542,7 +587,20 @@ int main(int argc, char ** argv) {
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;
 
-    const std::string k_prompt = "Ok Whisper, start listening for commands.";
+    if (k_prompts.find(params.person) == k_prompts.end()) {
+        fprintf(stderr, "%s: unknown person '%s'\n", __func__, params.person.c_str());
+        return 1;
+    }
+
+    gpt2_set_prompt(ctx_gpt, k_prompts.at(params.person).c_str());
+
+    const std::string person_other = params.person == "Santa" ? "Kid" : "Santa";
+    const int voice_id = params.person == "Santa" ? 5 : 2;
+
+    fprintf(stderr, "gpt-2: prompt_base:\n");
+    fprintf(stderr, "========================\n\n");
+    fprintf(stderr, "%s\n", gpt2_get_prompt(ctx_gpt));
+    fprintf(stderr, "========================\n\n");
 
     // main loop
     while (is_running) {
@@ -568,87 +626,108 @@ int main(int argc, char ** argv) {
         // delay
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-        if (ask_prompt) {
-            fprintf(stdout, "\n");
-            fprintf(stdout, "%s: Say the following phrase: '%s%s%s'\n", __func__, "\033[1m", k_prompt.c_str(), "\033[0m");
-            fprintf(stdout, "\n");
-
-            ask_prompt = false;
-        }
-
         int64_t t_ms = 0;
 
         {
             audio.get(2000, pcmf32_cur);
 
-            if (vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
+            if (vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1250, params.vad_thold, params.freq_thold, params.print_energy) || force_speak) {
                 fprintf(stdout, "%s: Speech detected! Processing ...\n", __func__);
 
-                if (!have_prompt) {
-                    audio.get(params.prompt_ms, pcmf32_cur);
+                audio.get(params.voice_ms, pcmf32_cur);
 
-                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob0, t_ms));
+                std::string text_heard = "Hey little one, what do you want for Christmas?";
+                if (!force_speak) {
+                    text_heard = ::trim(::transcribe(ctx_wsp, params, pcmf32_cur, prob0, t_ms));
+                }
 
-                    fprintf(stdout, "%s: Heard '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", txt.c_str(), "\033[0m", (int) t_ms);
+                force_speak = false;
 
-                    const float sim = similarity(txt, k_prompt);
+                // remove text between brackets using regex
+                {
+                    std::regex re("\\[.*?\\]");
+                    text_heard = std::regex_replace(text_heard, re, "");
+                }
 
-                    if (txt.length() < 0.8*k_prompt.length() || txt.length() > 1.2*k_prompt.length() || sim < 0.8f) {
-                        fprintf(stdout, "%s: WARNING: prompt not recognized, try again\n", __func__);
-                        ask_prompt = true;
-                    } else {
-                        fprintf(stdout, "\n");
-                        fprintf(stdout, "%s: The prompt has been recognized!\n", __func__);
-                        fprintf(stdout, "%s: Waiting for voice commands ...\n", __func__);
-                        fprintf(stdout, "\n");
+                // remove text between brackets using regex
+                {
+                    std::regex re("\\(.*?\\)");
+                    text_heard = std::regex_replace(text_heard, re, "");
+                }
 
-                        // save the audio for the prompt
-                        pcmf32_prompt = pcmf32_cur;
-                        have_prompt = true;
-                    }
-                } else {
-                    audio.get(params.command_ms, pcmf32_cur);
+                // remove all characters, except for letters, numbers, punctuation and ':', '\'', '-', ' '
+                text_heard = std::regex_replace(text_heard, std::regex("[^a-zA-Z0-9\\.,\\?!\\s\\:\\'\\-]"), "");
 
-                    // prepend the prompt audio
-                    pcmf32_cur.insert(pcmf32_cur.begin(), pcmf32_prompt.begin(), pcmf32_prompt.end());
+                // take first line
+                text_heard = text_heard.substr(0, text_heard.find_first_of("\n"));
 
-                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob, t_ms));
+                // remove leading and trailing whitespace
+                text_heard = std::regex_replace(text_heard, std::regex("^\\s+"), "");
+                text_heard = std::regex_replace(text_heard, std::regex("\\s+$"), "");
 
-                    prob = 100.0f*(prob - prob0);
+                const std::vector<gpt_vocab::id> tokens = gpt2_tokenize(ctx_gpt, text_heard.c_str());
 
-                    //fprintf(stdout, "%s: heard '%s'\n", __func__, txt.c_str());
+                if (text_heard.empty() || tokens.empty()) {
+                    fprintf(stdout, "%s: Heard nothing, skipping ...\n", __func__);
+                    audio.clear();
 
-                    // find the prompt in the text
-                    float best_sim = 0.0f;
-                    size_t best_len = 0;
-                    for (int n = 0.8*k_prompt.size(); n <= 1.2*k_prompt.size(); ++n) {
-                        const auto prompt = txt.substr(0, n);
+                    continue;
+                }
 
-                        const float sim = similarity(prompt, k_prompt);
+                fprintf(stdout, "%s: Heard '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", text_heard.c_str(), "\033[0m", (int) t_ms);
 
-                        //fprintf(stderr, "%s: prompt = '%s', sim = %f\n", __func__, prompt.c_str(), sim);
+                std::string prompt_base = gpt2_get_prompt(ctx_gpt);
 
-                        if (sim > best_sim) {
-                            best_sim = sim;
-                            best_len = n;
+                std::string text_to_speak;
+
+                {
+                    text_heard = person_other + ": " + text_heard;
+
+                    text_to_speak = gpt2_gen_text(ctx_gpt, (prompt_base + text_heard + "\n").c_str(), params.max_tokens);
+                    text_to_speak = std::regex_replace(text_to_speak, std::regex("[^a-zA-Z0-9\\.,\\?!\\s\\:\\'\\-]"), "");
+                    text_to_speak = text_to_speak.substr(0, text_to_speak.find_first_of("\n"));
+
+                    // remove first 2 lines of base prompt
+                    if (n_iter > 4) {
+                        {
+                            const size_t pos = prompt_base.find_first_of("\n");
+                            if (pos != std::string::npos) {
+                                prompt_base = prompt_base.substr(pos + 1);
+                            }
+                        }
+                        {
+                            const size_t pos = prompt_base.find_first_of("\n");
+                            if (pos != std::string::npos) {
+                                prompt_base = prompt_base.substr(pos + 1);
+                            }
                         }
                     }
 
-                    const std::string command = ::trim(txt.substr(best_len));
-
-                    fprintf(stdout, "%s: Command '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", command.c_str(), "\033[0m", (int) t_ms);
-                    fprintf(stdout, "\n");
+                    prompt_base += text_heard + "\n" + text_to_speak + "\n";
                 }
 
+                printf("%s\n", text_to_speak.c_str());
+
+                //printf("========================\n");
+                //printf("gpt-2: prompt_base:\n'%s'\n", prompt_base.c_str());
+                //printf("========================\n");
+
+                gpt2_set_prompt(ctx_gpt, prompt_base.c_str());
+
+                text_to_speak = ::replace(text_to_speak, params.person + ": ", "");
+                system((params.speak + " " + std::to_string(voice_id) + " \"" + text_to_speak + "\"").c_str());
+
                 audio.clear();
+
+                ++n_iter;
             }
         }
     }
 
     audio.pause();
 
-    whisper_print_timings(ctx);
-    whisper_free(ctx);
+    whisper_print_timings(ctx_wsp);
+    whisper_free(ctx_wsp);
 
     return 0;
 }

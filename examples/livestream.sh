@@ -1,18 +1,32 @@
 #!/bin/bash
-set -eo pipefail
+#
 # Transcribe audio livestream by feeding ffmpeg output to whisper.cpp at regular intervals
 # Idea by @semiformal-net
 # ref: https://github.com/ggerganov/whisper.cpp/issues/185
 #
-# TODO:
-# - Currently, there is a gap between sequential chunks, so some of the words are dropped. Need to figure out a
-#   way to produce a continuous stream of audio chunks.
-#
+
+set -eo pipefail
 
 url="http://a.files.bbci.co.uk/media/live/manifesto/audio/simulcast/hls/nonuk/sbr_low/ak/bbc_world_service.m3u8"
 fmt=aac # the audio format extension of the stream (TODO: auto detect)
 step_s=30
 model="base.en"
+
+check_requirements()
+{
+    if ! command -v ./main &>/dev/null; then
+        echo "whisper.cpp main executable is required (make)"
+        exit 1
+    fi
+
+    if ! command -v ffmpeg &>/dev/null; then
+        echo "ffmpeg is required (https://ffmpeg.org)"
+        exit 1
+    fi
+}
+
+check_requirements
+
 
 if [ -z "$1" ]; then
     echo "Usage: $0 stream_url [step_s] [model]"
@@ -34,7 +48,7 @@ if [ -n "$3" ]; then
 fi
 
 # Whisper models
-models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large" )
+models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large" )
 
 # list available models
 function list_models {

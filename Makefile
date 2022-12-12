@@ -27,8 +27,8 @@ endif
 # Compile flags
 #
 
-CFLAGS   = -I.              -O3 -std=c11  
-CXXFLAGS = -I. -I./examples -O3 -std=c++11
+CFLAGS   = -I.              -O3 -std=c11   -fPIC
+CXXFLAGS = -I. -I./examples -O3 -std=c++11 -fPIC
 LDFLAGS  =
 
 # OS specific
@@ -42,6 +42,10 @@ ifeq ($(UNAME_S),Darwin)
 	CXXFLAGS += -pthread
 endif
 ifeq ($(UNAME_S),FreeBSD)
+	CFLAGS   += -pthread
+	CXXFLAGS += -pthread
+endif
+ifeq ($(UNAME_S),Haiku)
 	CFLAGS   += -pthread
 	CXXFLAGS += -pthread
 endif
@@ -74,6 +78,23 @@ ifeq ($(UNAME_M),x86_64)
 			CFLAGS += -mfma
 		endif
 		F16C_M := $(shell grep "f16c " /proc/cpuinfo)
+		ifneq (,$(findstring f16c,$(F16C_M)))
+			CFLAGS += -mf16c
+		endif
+	else ifeq ($(UNAME_S),Haiku)
+		AVX1_M := $(shell sysinfo -cpu | grep "AVX ")
+		ifneq (,$(findstring avx,$(AVX1_M)))
+			CFLAGS += -mavx
+		endif
+		AVX2_M := $(shell sysinfo -cpu | grep "AVX2 ")
+		ifneq (,$(findstring avx2,$(AVX2_M)))
+			CFLAGS += -mavx2
+		endif
+		FMA_M := $(shell sysinfo -cpu | grep "FMA ")
+		ifneq (,$(findstring fma,$(FMA_M)))
+			CFLAGS += -mfma
+		endif
+		F16C_M := $(shell sysinfo -cpu | grep "F16C ")
 		ifneq (,$(findstring f16c,$(F16C_M)))
 			CFLAGS += -mf16c
 		endif
@@ -133,7 +154,7 @@ libwhisper.so: ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o whisper.o $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream command bench libwhisper.a libwhisper.so
+	rm -f *.o main stream command talk bench libwhisper.a libwhisper.so
 
 #
 # Examples
@@ -150,6 +171,9 @@ stream: examples/stream/stream.cpp ggml.o whisper.o
 
 command: examples/command/command.cpp ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) examples/command/command.cpp ggml.o whisper.o -o command $(CC_SDL) $(LDFLAGS)
+
+talk: examples/talk/talk.cpp  examples/talk/gpt-2.cpp ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp ggml.o whisper.o -o talk $(CC_SDL) $(LDFLAGS)
 
 bench: examples/bench/bench.cpp ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp ggml.o whisper.o -o bench $(LDFLAGS)
@@ -189,9 +213,10 @@ samples:
 .PHONY: small
 .PHONY: medium.en
 .PHONY: medium
+.PHONY: large-v1
 .PHONY: large
 
-tiny.en tiny base.en base small.en small medium.en medium large: main
+tiny.en tiny base.en base small.en small medium.en medium large-v1 large: main
 	bash ./models/download-ggml-model.sh $@
 	@echo ""
 	@echo "==============================================="

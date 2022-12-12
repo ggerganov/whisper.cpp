@@ -512,7 +512,7 @@ bool gpt2_eval(
     const int n_head  = hparams.n_head;
     const int n_vocab = hparams.n_vocab;
 
-    static size_t buf_size = 640u*1024*1024;
+    static size_t buf_size = 5640ull*1024*1024;
     static void * buf = malloc(buf_size);
 
     if (mem_per_token > 0 && mem_per_token*N > buf_size) {
@@ -825,8 +825,8 @@ Me too.
     int32_t n_threads = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
 
     // sampling parameters
-    int32_t top_k = 40;
-    float   top_p = 0.9f;
+    int32_t top_k = 20;
+    float   top_p = 0.98f;
     float   temp  = 1.0f;
 };
 
