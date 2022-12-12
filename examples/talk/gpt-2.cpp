@@ -139,7 +139,7 @@ gpt_vocab::id gpt_sample_top_k_top_p(
     }
 
     //printf("\n");
-    //for (int i = 0; i < (int)logits_id.size(); i++) {
+    //for (int i = 0; i < (int) logits_id.size(); i++) {
     //    printf("%d: '%s' %f\n", i, vocab.id_to_token.at(logits_id[i].second).c_str(), logits_id[i].first);
     //}
     //exit(0);
@@ -825,8 +825,8 @@ Me too.
     int32_t n_threads = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
 
     // sampling parameters
-    int32_t top_k = 20;
-    float   top_p = 0.98f;
+    int32_t top_k = 5;
+    float   top_p = 0.9f;
     float   temp  = 1.0f;
 };
 
@@ -840,7 +840,7 @@ struct gpt2_context * gpt2_init(const char * path_model) {
         const int64_t t_start_us = ggml_time_us();
 
         if (!gpt2_model_load(path_model, ctx->model, ctx->vocab)) {
-            fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, "gpt-2.bin");
+            fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, path_model);
             return nullptr;
         }
 
@@ -913,10 +913,7 @@ std::string gpt2_gen_text(gpt2_context * ctx, const char * text, int max_tokens)
         result += ctx->vocab.id_to_token[embd[0]];
 
         // end of text token
-        if (embd.back() == 50256 ||
-            ctx->vocab.id_to_token[embd.back()] == "." ||
-            ctx->vocab.id_to_token[embd.back()] == "!" ||
-            ctx->vocab.id_to_token[embd.back()] == "?") {
+        if (embd.back() == 50256) {
             break;
         }
     }
