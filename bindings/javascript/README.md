@@ -2,12 +2,4 @@
 
 Whisper speech recognition
 
-## Example Usage
-
-```js
-var factory = require('whisper')
-
-factory().then(function(whisper) {
-    // TODO
-});
-```
+For sample usage check [tests/test-whisper.js](/tests/test-whisper.js)
