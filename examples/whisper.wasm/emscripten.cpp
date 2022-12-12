@@ -1,46 +1,61 @@
-//
-// This is the Javascript API of whisper.cpp
-//
-// Very crude at the moment.
-// Feel free to contribute and make this better!
-//
-// See the tests/test-whisper.js for sample usage
-//
-
 #include "whisper.h"
 
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
-#include <thread>
 #include <vector>
+#include <thread>
 
-struct whisper_context * g_context;
+std::thread g_worker;
+
+std::vector<struct whisper_context *> g_contexts(4, nullptr);
 
 EMSCRIPTEN_BINDINGS(whisper) {
     emscripten::function("init", emscripten::optional_override([](const std::string & path_model) {
-        if (g_context == nullptr) {
-            g_context = whisper_init(path_model.c_str());
-            if (g_context != nullptr) {
-                return true;
-            } else {
-                return false;
+        if (g_worker.joinable()) {
+            g_worker.join();
+        }
+
+        for (size_t i = 0; i < g_contexts.size(); ++i) {
+            if (g_contexts[i] == nullptr) {
+                g_contexts[i] = whisper_init(path_model.c_str());
+                if (g_contexts[i] != nullptr) {
+                    return i + 1;
+                } else {
+                    return (size_t) 0;
+                }
             }
         }
 
-        return false;
+        return (size_t) 0;
     }));
 
-    emscripten::function("free", emscripten::optional_override([]() {
-        if (g_context) {
-            whisper_free(g_context);
-            g_context = nullptr;
+    emscripten::function("free", emscripten::optional_override([](size_t index) {
+        if (g_worker.joinable()) {
+            g_worker.join();
+        }
+
+        --index;
+
+        if (index < g_contexts.size()) {
+            whisper_free(g_contexts[index]);
+            g_contexts[index] = nullptr;
         }
     }));
 
-    emscripten::function("full_default", emscripten::optional_override([](const emscripten::val & audio, const std::string & lang, bool translate) {
-        if (g_context == nullptr) {
+    emscripten::function("full_default", emscripten::optional_override([](size_t index, const emscripten::val & audio, const std::string & lang, bool translate) {
+        if (g_worker.joinable()) {
+            g_worker.join();
+        }
+
+        --index;
+
+        if (index >= g_contexts.size()) {
             return -1;
+        }
+
+        if (g_contexts[index] == nullptr) {
+            return -2;
         }
 
         struct whisper_full_params params = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
@@ -50,7 +65,7 @@ EMSCRIPTEN_BINDINGS(whisper) {
         params.print_timestamps = true;
         params.print_special    = false;
         params.translate        = translate;
-        params.language         = whisper_is_multilingual(g_context) ? lang.c_str() : "en";
+        params.language         = whisper_is_multilingual(g_contexts[index]) ? lang.c_str() : "en";
         params.n_threads        = std::min(8, (int) std::thread::hardware_concurrency());
         params.offset_ms        = 0;
 
@@ -67,11 +82,9 @@ EMSCRIPTEN_BINDINGS(whisper) {
 
         // print system information
         {
-            printf("\n");
             printf("system_info: n_threads = %d / %d | %s\n",
                     params.n_threads, std::thread::hardware_concurrency(), whisper_print_system_info());
 
-            printf("\n");
             printf("%s: processing %d samples, %.1f sec, %d threads, %d processors, lang = %s, task = %s ...\n",
                     __func__, int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE,
                     params.n_threads, 1,
@@ -81,11 +94,13 @@ EMSCRIPTEN_BINDINGS(whisper) {
             printf("\n");
         }
 
-        // run whisper
+        // run the worker
         {
-            whisper_reset_timings(g_context);
-            whisper_full(g_context, params, pcmf32.data(), pcmf32.size());
-            whisper_print_timings(g_context);
+            g_worker = std::thread([index, params, pcmf32 = std::move(pcmf32)]() {
+                whisper_reset_timings(g_contexts[index]);
+                whisper_full(g_contexts[index], params, pcmf32.data(), pcmf32.size());
+                whisper_print_timings(g_contexts[index]);
+            });
         }
 
         return 0;

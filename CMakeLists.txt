@@ -14,6 +14,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     if (EXISTS "${CMAKE_SOURCE_DIR}/bindings/ios/Makefile-tmpl")
         configure_file(${CMAKE_SOURCE_DIR}/bindings/ios/Makefile-tmpl ${CMAKE_SOURCE_DIR}/bindings/ios/Makefile @ONLY)
     endif()
+    configure_file(${CMAKE_SOURCE_DIR}/bindings/javascript/package-tmpl.json ${CMAKE_SOURCE_DIR}/bindings/javascript/package.json @ONLY)
 else()
     set(WHISPER_STANDALONE OFF)
 endif()
@@ -151,8 +152,7 @@ else()
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /arch:AVX2")
     else()
         if (EMSCRIPTEN)
-            # we require support for WASM SIMD 128-bit
-            set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -pthread -msimd128")
+            set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -pthread")
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
         else()
             if(NOT WHISPER_NO_AVX)
@@ -203,6 +203,10 @@ if (BUILD_SHARED_LIBS)
         )
 endif()
 
+if (EMSCRIPTEN)
+    set_target_properties(${TARGET} PROPERTIES COMPILE_FLAGS "-msimd128")
+endif()
+
 target_compile_definitions(${TARGET} PUBLIC
     ${WHISPER_EXTRA_FLAGS}
     )
@@ -222,13 +226,11 @@ add_subdirectory(bindings)
 # programs, examples and tests
 #
 
-if (WHISPER_STANDALONE)
-    if (WHISPER_BUILD_TESTS)
-        enable_testing()
-        add_subdirectory(tests)
-    endif ()
-
-    if (WHISPER_BUILD_EXAMPLES)
-        add_subdirectory(examples)
-    endif()
+if (WHISPER_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
 endif ()
+
+if (WHISPER_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
