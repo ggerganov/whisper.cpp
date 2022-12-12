@@ -8,12 +8,9 @@ Package: https://www.npmjs.com/package/whisper.cpp
 
 The performance is comparable to when running `whisper.cpp` in the browser via WASM.
 
-The API is currently very rudimentary:
+The API is currently very rudimentary: [bindings/javascript/emscripten.cpp](/bindings/javascript/emscripten.cpp)
 
-https://github.com/ggerganov/whisper.cpp/blob/npm/bindings/javascript/emscripten.cpp
-
-I am hoping that there will be interest in contributions and making it better based on what is needed in practice.
-For sample usage check [tests/test-whisper.js](https://github.com/ggerganov/whisper.cpp/blob/npm/tests/test-whisper.js)
+For sample usage check [tests/test-whisper.js](/tests/test-whisper.js)
 
 ## Package building + test
 
