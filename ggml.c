@@ -14,6 +14,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
+// if C99 - static_assert is nop
+#ifndef static_assert
+#define static_assert(cond, msg)
+#endif
+
 #if defined _MSC_VER || defined(__MINGW32__)
 
 #if !defined(__MINGW32__)
