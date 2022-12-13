@@ -140,9 +140,6 @@ ggml_fp16_t ggml_fp32_to_fp16(float x) {
 #include <immintrin.h>
 #endif
 
-// FP16 <-> FP32
-// ref: https://github.com/Maratyszcza/FP16
-
 #ifdef __F16C__
 float ggml_fp16_to_fp32(ggml_fp16_t h) {
     return _cvtsh_ss(h);
@@ -155,6 +152,9 @@ ggml_fp16_t ggml_fp32_to_fp16(float f) {
 #define GGML_FP32_TO_FP16(x) _cvtss_sh(x, 0)
 
 #else
+
+// FP16 <-> FP32
+// ref: https://github.com/Maratyszcza/FP16
 
 static inline float fp32_from_bits(uint32_t w) {
     union {
@@ -439,10 +439,10 @@ inline static void ggml_vec_dot_f32(const int n, float * restrict s, const float
         y2 = _mm256_loadu_ps(y + i + 16);
         y3 = _mm256_loadu_ps(y + i + 24);
 
-	sum0 = _mm256_add_ps(_mm256_mul_ps(x0, y0), sum0);
-	sum1 = _mm256_add_ps(_mm256_mul_ps(x1, y1), sum1);
-	sum2 = _mm256_add_ps(_mm256_mul_ps(x2, y2), sum2);
-	sum3 = _mm256_add_ps(_mm256_mul_ps(x3, y3), sum3);
+        sum0 = _mm256_add_ps(_mm256_mul_ps(x0, y0), sum0);
+        sum1 = _mm256_add_ps(_mm256_mul_ps(x1, y1), sum1);
+        sum2 = _mm256_add_ps(_mm256_mul_ps(x2, y2), sum2);
+        sum3 = _mm256_add_ps(_mm256_mul_ps(x3, y3), sum3);
     }
 
     sum0 = _mm256_add_ps(sum0, sum1);
@@ -680,10 +680,10 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
         y2 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i*)(y + i + 16)));
         y3 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i*)(y + i + 24)));
 
-	sum0 = _mm256_add_ps(_mm256_mul_ps(x0, y0), sum0);
-	sum1 = _mm256_add_ps(_mm256_mul_ps(x1, y1), sum1);
-	sum2 = _mm256_add_ps(_mm256_mul_ps(x2, y2), sum2);
-	sum3 = _mm256_add_ps(_mm256_mul_ps(x3, y3), sum3);
+        sum0 = _mm256_add_ps(_mm256_mul_ps(x0, y0), sum0);
+        sum1 = _mm256_add_ps(_mm256_mul_ps(x1, y1), sum1);
+        sum2 = _mm256_add_ps(_mm256_mul_ps(x2, y2), sum2);
+        sum3 = _mm256_add_ps(_mm256_mul_ps(x3, y3), sum3);
     }
 
     const __m256 sum01 = _mm256_add_ps(sum0, sum1);
@@ -849,10 +849,10 @@ inline static void ggml_vec_mad_f32(const int n, float * restrict y, const float
         y2 = _mm256_loadu_ps(y + i + 16);
         y3 = _mm256_loadu_ps(y + i + 24);
 
-	y0 = _mm256_add_ps(_mm256_mul_ps(x0, v4), y0);
-	y1 = _mm256_add_ps(_mm256_mul_ps(x1, v4), y1);
-	y2 = _mm256_add_ps(_mm256_mul_ps(x2, v4), y2);
-	y3 = _mm256_add_ps(_mm256_mul_ps(x3, v4), y3);
+        y0 = _mm256_add_ps(_mm256_mul_ps(x0, v4), y0);
+        y1 = _mm256_add_ps(_mm256_mul_ps(x1, v4), y1);
+        y2 = _mm256_add_ps(_mm256_mul_ps(x2, v4), y2);
+        y3 = _mm256_add_ps(_mm256_mul_ps(x3, v4), y3);
 
         _mm256_storeu_ps(y + i + 0, y0);
         _mm256_storeu_ps(y + i + 8, y1);
@@ -1046,10 +1046,10 @@ inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_
         x2 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i*)(x + i + 16)));
         x3 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i*)(x + i + 24)));
 
-	y0 = _mm256_add_ps(_mm256_mul_ps(x0, v8), y0);
-	y1 = _mm256_add_ps(_mm256_mul_ps(x1, v8), y1);
-	y2 = _mm256_add_ps(_mm256_mul_ps(x2, v8), y2);
-	y3 = _mm256_add_ps(_mm256_mul_ps(x3, v8), y3);
+        y0 = _mm256_add_ps(_mm256_mul_ps(x0, v8), y0);
+        y1 = _mm256_add_ps(_mm256_mul_ps(x1, v8), y1);
+        y2 = _mm256_add_ps(_mm256_mul_ps(x2, v8), y2);
+        y3 = _mm256_add_ps(_mm256_mul_ps(x3, v8), y3);
 
         _mm_storeu_si128((__m128i*)(y + i + 0 ), _mm256_cvtps_ph(y0, 0));
         _mm_storeu_si128((__m128i*)(y + i + 8 ), _mm256_cvtps_ph(y1, 0));
