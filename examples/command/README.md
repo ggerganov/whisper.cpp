@@ -8,7 +8,13 @@ More info is available in [issue #171](https://github.com/ggerganov/whisper.cpp/
 ./command -m ./models/ggml-small.en.bin -t 8
 
 # On Raspberry Pi, use tiny or base models + "-ac 768" for better performance
-./command -m ./models/ggml-tiny.en.bin -ac 768 -t 4 -c 0
+./command -m ./models/ggml-tiny.en.bin -ac 768 -t 3 -c 0
+
+# Run in guided mode, the list of allowed commands is in commands.txt
+./command -m ./models/ggml-base.en.bin -cmd ./examples/command/commands.txt
+
+# On Raspberry Pi, in guided mode you can use "-ac 128" for extra performance
+./command -m ./models/ggml-tiny.en.bin -cmd ./examples/command/commands.txt -ac 128 -t 3 -c 0
 ```
 
 https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
