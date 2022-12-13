@@ -557,6 +557,10 @@ int main(int argc, char ** argv) {
 
     audio.resume();
 
+    // wait for 1 second to avoid any buffered noise
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    audio.clear();
+
     int max_len = 0;
 
     bool is_running  = true;
