@@ -549,13 +549,20 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
         //}
 
         std::string word;
+        std::vector<char> tmp;
         for (int i = 0; i < n_vocab; i++) {
             uint32_t len;
             read_safe(fin, len);
 
-            std::vector<char> tmp(len); // create a buffer
-            fin.read( &tmp[0], tmp.size() ); // read to buffer
-            word.assign(&tmp[0], tmp.size());
+            if (len > 0) {
+                tmp.resize(len);
+                fin.read(&tmp[0], tmp.size()); // read to buffer
+                word.assign(&tmp[0], tmp.size());
+            } else {
+                // seems like we have an empty-string token in multi-language models (i = 50256)
+                //fprintf(stderr, "%s: warning: empty-string token in vocab, i = %d\n", __func__, i);
+                word = "";
+            }
 
             vocab.token_to_id[word] = i;
             vocab.id_to_token[i] = word;
