@@ -139,6 +139,17 @@ extern "C" {
     WHISPER_API whisper_token_data whisper_sample_best(struct whisper_context * ctx);
     WHISPER_API whisper_token_data whisper_sample_timestamp(struct whisper_context * ctx, bool is_initial);
 
+    // Convert the provided text into tokens.
+    // The tokens pointer must be large enough to hold the resulting tokens.
+    // Returns the number of tokens on success, no more than n_max_tokens
+    // Returns -1 on failure
+    // TODO: not sure if correct
+    WHISPER_API int whisper_tokenize(
+            struct whisper_context * ctx,
+                        const char * text,
+                     whisper_token * tokens,
+                               int   n_max_tokens);
+
     // Return the id of the specified language, returns -1 if not found
     WHISPER_API int whisper_lang_id(const char * lang);
 
