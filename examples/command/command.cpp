@@ -618,7 +618,7 @@ int main(int argc, char ** argv) {
         for (int i = 0; i < (int) allowed_commands.size(); ++i) {
             fprintf(stderr, "  - \033[1m%-*s\033[0m = [", max_len, allowed_commands[i].c_str());
             for (const auto & token : allowed_tokens[i]) {
-                fprintf(stderr, " %d", token);
+                fprintf(stderr, " %5d", token);
             }
             fprintf(stderr, " ]\n");
         }
@@ -835,7 +835,7 @@ int main(int argc, char ** argv) {
                     for (const auto & cmd : probs_id) {
                         fprintf(stdout, "%s: %s%-*s%s = %f | ", __func__, "\033[1m", max_len, allowed_commands[cmd.second].c_str(), "\033[0m", cmd.first);
                         for (int i = 0; i < (int) allowed_tokens[cmd.second].size(); ++i) {
-                            fprintf(stdout, "%f ", probs[allowed_tokens[cmd.second][i]]);
+                            fprintf(stdout, "'%4s' %f ", whisper_token_to_str(ctx, allowed_tokens[cmd.second][i]), probs[allowed_tokens[cmd.second][i]]);
                         }
                         fprintf(stdout, "\n");
                     }
