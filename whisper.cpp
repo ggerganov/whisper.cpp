@@ -2826,13 +2826,13 @@ int whisper_full(
 
                 //{
                 //    const auto tt = token.pt > 0.10 ? ctx->vocab.id_to_token[token.tid] : "[?]";
-                //    printf("%s: %10s %6d %6.3f '%s'\n", __func__, tt.c_str(), token.id, token.pt, ctx->vocab.id_to_token[token.id].c_str());
+                //    printf("%s: %3d %10s %6d %6.3f '%s'\n", __func__, i, tt.c_str(), token.id, token.pt, ctx->vocab.id_to_token[token.id].c_str());
                 //}
 
                 // end of segment
-                if (token.id == whisper_token_eot(ctx) ||               // end of text token
-                    (params.max_tokens > 0 && i > params.max_tokens) || // max tokens per segment reached
-                    (has_ts && seek + seek_delta + 100 >= seek_end)     // end of audio reached
+                if (token.id == whisper_token_eot(ctx) ||                // end of text token
+                    (params.max_tokens > 0 && i >= params.max_tokens) || // max tokens per segment reached
+                    (has_ts && seek + seek_delta + 100 >= seek_end)      // end of audio reached
                     ) {
                     if (result_len == 0) {
                         if (seek + seek_delta + 100 >= seek_end) {
