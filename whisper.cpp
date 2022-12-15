@@ -2780,7 +2780,7 @@ int whisper_full(
         }
 
         if (failed) {
-            fprintf(stderr, "\n%s: failed to generate timestamp token - using fallback strategy\n\n", __func__);
+            fprintf(stderr, "\n%s: failed to generate timestamp token - skipping one second\n\n", __func__);
             seek += 100;
             continue;
         }
