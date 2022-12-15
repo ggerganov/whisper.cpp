@@ -62,6 +62,7 @@ struct whisper_params {
 
     float word_thold = 0.01f;
 
+    bool tokens        = false;
     bool speed_up      = false;
     bool translate     = false;
     bool diarize       = false;
@@ -102,6 +103,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-mc"   || arg == "--max-context")   { params.max_context   = std::stoi(argv[++i]); }
         else if (arg == "-ml"   || arg == "--max-len")       { params.max_len       = std::stoi(argv[++i]); }
         else if (arg == "-wt"   || arg == "--word-thold")    { params.word_thold    = std::stof(argv[++i]); }
+        else if (arg == "-tk"   || arg == "--tokens")        { params.tokens        = true; }
         else if (arg == "-su"   || arg == "--speed-up")      { params.speed_up      = true; }
         else if (arg == "-tr"   || arg == "--translate")     { params.translate     = true; }
         else if (arg == "-di"   || arg == "--diarize")       { params.diarize       = true; }
@@ -139,6 +141,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "  -mc N,    --max-context N [%-7d] maximum number of text context tokens to store\n", params.max_context);
     fprintf(stderr, "  -ml N,    --max-len N     [%-7d] maximum segment length in characters\n",           params.max_len);
     fprintf(stderr, "  -wt N,    --word-thold N  [%-7.2f] word timestamp probability threshold\n",         params.word_thold);
+    fprintf(stderr, "  -tk,      --tokens        [%-7s] outputs token level timestamps\n",                 params.tokens ? "true" : "false");
     fprintf(stderr, "  -su,      --speed-up      [%-7s] speed up audio by x2 (reduced accuracy)\n",        params.speed_up ? "true" : "false");
     fprintf(stderr, "  -tr,      --translate     [%-7s] translate from source language to english\n",      params.translate ? "true" : "false");
     fprintf(stderr, "  -di,      --diarize       [%-7s] stereo audio diarization\n",                       params.diarize ? "true" : "false");
@@ -243,6 +246,21 @@ void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, voi
                     const int col = std::max(0, std::min((int) k_colors.size(), (int) (std::pow(p, 3)*float(k_colors.size()))));
 
                     printf("%s%s%s%s", speaker.c_str(), k_colors[col].c_str(), text, "\033[0m");
+                }
+                printf("\n");
+            } else if (params.tokens) {
+                for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
+                    if (params.print_special == false) {
+                        const whisper_token id = whisper_full_get_token_id(ctx, i, j);
+                        if (id >= whisper_token_eot(ctx)) {
+                            continue;
+                        }
+                    }
+
+                    const char * text = whisper_full_get_token_text(ctx, i, j);
+                    const whisper_token_data token = whisper_full_get_token_data(ctx, i, j);
+
+                    printf("[%s --> %s]  %s%s\n", to_timestamp(token.t0).c_str(), to_timestamp(token.t1).c_str(), speaker.c_str(), text);
                 }
                 printf("\n");
             } else {
@@ -593,7 +611,7 @@ int main(int argc, char ** argv) {
             wparams.offset_ms        = params.offset_t_ms;
             wparams.duration_ms      = params.duration_ms;
 
-            wparams.token_timestamps = params.output_wts || params.max_len > 0;
+            wparams.token_timestamps = params.tokens || params.output_wts || params.max_len > 0;
             wparams.thold_pt         = params.word_thold;
             wparams.max_len          = params.output_wts && params.max_len == 0 ? 60 : params.max_len;
 
