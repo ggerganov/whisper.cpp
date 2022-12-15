@@ -158,6 +158,28 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "\n");
 }
 
+bool utf8_check_is_valid(const char* str) {
+    for (int i = 0; str[i]; i++) {
+        int n = 0;
+        unsigned char c = str[i];
+        if (0x00 <= c && c <= 0x7f) n = 0; // 0bbbbbbb
+        else if ((c & 0xE0) == 0xC0) n = 1; // 110bbbbb
+        else if (c == 0xED) {
+          if (!str[++i]) return false;
+          if (((unsigned char)(str[i]) & 0xA0) == 0xA0) return false; //U+d800 to U+dfff
+        }
+        else if ((c & 0xF0) == 0xE0) n = 2; // 1110bbbb
+        else if ((c & 0xF8) == 0xF0) n = 3; // 11110bbb
+        //else if (($c & 0xFC) == 0xF8) n = 4; // 111110bb //byte 5, unnecessary in 4 byte UTF-8
+        //else if (($c & 0xFE) == 0xFC) n = 5; // 1111110b //byte 6, unnecessary in 4 byte UTF-8
+        else return false;
+        for (int j = 0; j < n; j++) // n bytes matching 10bbbbbb follow ?
+            if ((str[++i] & 0xC0) != 0x80)
+                return false;
+    }
+    return true;
+}
+
 struct whisper_print_user_data {
     const whisper_params * params;
 
@@ -249,6 +271,9 @@ void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, voi
                 }
                 printf("\n");
             } else if (params.tokens) {
+                bool continued = false;
+                int64_t token_t0;
+                std::string utf_text;
                 for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
                     if (params.print_special == false) {
                         const whisper_token id = whisper_full_get_token_id(ctx, i, j);
@@ -259,8 +284,20 @@ void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, voi
 
                     const char * text = whisper_full_get_token_text(ctx, i, j);
                     const whisper_token_data token = whisper_full_get_token_data(ctx, i, j);
+                    if (continued) {
+                      utf_text += text;
+                    } else {
+                      utf_text = text;
+                      token_t0 = token.t0;
+                    }
+                    if (utf8_check_is_valid(utf_text.c_str())) {
+                      continued = false;
+                    } else {
+                      continued = true;
+                      continue;
+                    }
 
-                    printf("[%s --> %s]  %s%s\n", to_timestamp(token.t0).c_str(), to_timestamp(token.t1).c_str(), speaker.c_str(), text);
+                    printf("[%s --> %s]  %s%s\n", to_timestamp(token_t0).c_str(), to_timestamp(token.t1).c_str(), speaker.c_str(), utf_text.c_str());
                 }
                 printf("\n");
             } else {
