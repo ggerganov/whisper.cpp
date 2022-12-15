@@ -14,6 +14,7 @@
 #include <thread>
 #include <vector>
 #include <fstream>
+#include <mutex>
 
 //  500 -> 00:05.000
 // 6000 -> 01:00.000
@@ -633,7 +634,7 @@ int main(int argc, char ** argv) {
                     const int64_t t0 = std::max(0.0, t1 - pcmf32.size()*1000.0/WHISPER_SAMPLE_RATE);
 
                     printf("\n");
-                    printf("### Transcription %d START | t0 = %lld ms | t1 = %lld ms\n", n_iter, t0, t1);
+                    printf("### Transcription %d START | t0 = %d ms | t1 = %d ms\n", n_iter, (int) t0, (int) t1);
                     printf("\n");
                 }
 
