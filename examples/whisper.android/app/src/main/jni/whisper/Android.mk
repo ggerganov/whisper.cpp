@@ -1,5 +1,6 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
+PROJECT_DIR 	:= $(LOCAL_PATH)/../../../../../../../
 WHISPER_LIB_DIR := libwhisper
 LOCAL_LDLIBS    := -llog
 LOCAL_MODULE    := libwhisper
@@ -13,10 +14,10 @@ ifneq ($(APP_OPTIM),debug)
     LOCAL_LDFLAGS += -flto
 endif
 
-LOCAL_CFLAGS    += -DSTDC_HEADERS -std=c11 -I $(WHISPER_LIB_DIR)
+LOCAL_CFLAGS    += -DSTDC_HEADERS -std=c11 -I $(PROJECT_DIR)
 LOCAL_CPPFLAGS  += -std=c++11
-LOCAL_SRC_FILES := $(WHISPER_LIB_DIR)/ggml.c \
-                   $(WHISPER_LIB_DIR)/whisper.cpp \
+LOCAL_SRC_FILES := $(PROJECT_DIR)/ggml.c \
+                   $(PROJECT_DIR)/whisper.cpp \
                    $(LOCAL_PATH)/jni.c
 
 include $(BUILD_SHARED_LIBRARY)

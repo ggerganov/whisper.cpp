@@ -2,7 +2,7 @@
 #include <android/log.h>
 #include <stdlib.h>
 #include <sys/sysinfo.h>
-#include "libwhisper/whisper.h"
+#include "whisper.h"
 
 #define UNUSED(x) (void)(x)
 #define TAG "JNI"
