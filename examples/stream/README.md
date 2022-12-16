@@ -10,7 +10,7 @@ More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/i
 
 https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a80f-28ba83be7d09.mp4
 
-## Slidingwindow mode
+## Sliding window mode with VAD
 
 Setting the `--step` argument to `0` enables the sliding window mode:
 

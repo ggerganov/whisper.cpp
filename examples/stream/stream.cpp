@@ -429,7 +429,7 @@ int main(int argc, char ** argv) {
 
     const int n_new_line = params.length_ms / params.step_ms - 1; // number of steps to print new line
 
-    const bool use_vad = n_samples_step <= 0;
+    const bool use_vad = n_samples_step <= 0; // sliding window mode uses VAD
 
     params.no_timestamps = !use_vad;
     params.no_context    = use_vad;
