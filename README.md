@@ -19,11 +19,11 @@ Supported platforms:
 
 - [x] Mac OS (Intel and Arm)
 - [x] [iOS](examples/whisper.objc)
+- [x] [Android](examples/whisper.android)
 - [x] Linux / [FreeBSD](https://github.com/ggerganov/whisper.cpp/issues/56#issuecomment-1350920264)
 - [x] [WebAssembly](examples/whisper.wasm)
 - [x] Windows ([MSVC](https://github.com/ggerganov/whisper.cpp/blob/master/.github/workflows/build.yml#L117-L144) and [MinGW](https://github.com/ggerganov/whisper.cpp/issues/168)]
 - [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/discussions/166)
-- [x] [Android](https://github.com/ggerganov/whisper.cpp/issues/30)
 
 The entire implementation of the model is contained in 2 source files:
 
@@ -465,6 +465,7 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | [command](examples/command) | [command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
 | [talk](examples/talk) | [talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot |
 | [whisper.objc](examples/whisper.objc) | | iOS mobile application using whisper.cpp |
+| [whisper.android](examples/whisper.android) | | Android mobile application using whisper.cpp |
 | [whisper.nvim](examples/whisper.nvim) | | Speech-to-text plugin for Neovim |
 | [generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |
 | [livestream.sh](examples/livestream.sh) | | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |
