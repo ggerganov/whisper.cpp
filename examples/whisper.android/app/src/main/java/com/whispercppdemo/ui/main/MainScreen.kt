@@ -1,6 +1,8 @@
 package com.whispercppdemo.ui.main
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -58,7 +60,7 @@ private fun MainScreen(
 
 @Composable
 private fun MessageLog(log: String) {
-    Text(text = log)
+    Text(modifier = Modifier.verticalScroll(rememberScrollState()), text = log)
 }
 
 @Composable
