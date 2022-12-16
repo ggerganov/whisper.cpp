@@ -85,11 +85,20 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
     }
 
     private suspend fun readAudioSamples(file: File): FloatArray = withContext(Dispatchers.IO) {
+        stopPlayback()
+        startPlayback(file)
+        return@withContext decodeWaveFile(file)
+    }
+
+    private suspend fun stopPlayback() = withContext(Dispatchers.Main) {
         mediaPlayer?.stop()
         mediaPlayer?.release()
+        mediaPlayer = null
+    }
+
+    private suspend fun startPlayback(file: File) = withContext(Dispatchers.Main) {
         mediaPlayer = MediaPlayer.create(application, file.absolutePath.toUri())
         mediaPlayer?.start()
-        return@withContext decodeWaveFile(file)
     }
 
     private suspend fun transcribeAudio(file: File) {
@@ -120,6 +129,7 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
                 isRecording = false
                 recordedFile?.let { transcribeAudio(it) }
             } else {
+                stopPlayback()
                 val file = getTempFileForRecording()
                 recorder.startRecording(file) { e ->
                     viewModelScope.launch {
@@ -147,11 +157,8 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
         runBlocking {
             whisperContext?.release()
             whisperContext = null
+            stopPlayback()
         }
-
-        mediaPlayer?.stop()
-        mediaPlayer?.release()
-        mediaPlayer = null
     }
 
     companion object {
