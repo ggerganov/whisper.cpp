@@ -681,34 +681,32 @@ struct ggml_opt_params {
     bool print_forward_graph;
     bool print_backward_graph;
 
-    union {
-        // ADAM parameters
-        struct {
-            int n_iter;
+    // ADAM parameters
+    struct {
+        int n_iter;
 
-            float alpha; // learning rate
-            float beta1;
-            float beta2;
-            float eps;   // epsilon for numerical stability
-            float eps_f; // epsilon for convergence test
-            float eps_g; // epsilon for convergence test
-        } adam;
+        float alpha; // learning rate
+        float beta1;
+        float beta2;
+        float eps;   // epsilon for numerical stability
+        float eps_f; // epsilon for convergence test
+        float eps_g; // epsilon for convergence test
+    } adam;
 
-        // LBFGS parameters
-        struct {
-            int m; // number of corrections to approximate the inv. Hessian
-            int n_iter;
-            int max_linesearch;
+    // LBFGS parameters
+    struct {
+        int m; // number of corrections to approximate the inv. Hessian
+        int n_iter;
+        int max_linesearch;
 
-            float eps;      // convergence tolerance
-            float ftol;     // line search tolerance
-            float wolfe;
-            float min_step;
-            float max_step;
+        float eps;      // convergence tolerance
+        float ftol;     // line search tolerance
+        float wolfe;
+        float min_step;
+        float max_step;
 
-            enum ggml_linesearch linesearch;
-        } lbfgs;
-    };
+        enum ggml_linesearch linesearch;
+    } lbfgs;
 };
 
 struct ggml_opt_params ggml_opt_default_params(enum ggml_opt_type type);

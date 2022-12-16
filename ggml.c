@@ -14,9 +14,10 @@
 #include <stdint.h>
 #include <stdio.h>
 
-// if C99 - static_assert is nop
+// if C99 - static_assert is noop
+// ref: https://stackoverflow.com/a/53923785/4039976
 #ifndef static_assert
-#define static_assert(cond, msg)
+#define static_assert(cond, msg) struct global_scope_noop_trick
 #endif
 
 #if defined _MSC_VER || defined(__MINGW32__)
