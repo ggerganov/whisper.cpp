@@ -2650,8 +2650,15 @@ int whisper_full(
             }
         }
 
+        // of only 1 second left, then stop
         if (seek + 100 >= seek_end) {
             break;
+        }
+
+        // if there is a very short audio segment left to process, we remove any past prompt since it tends
+        // to confuse the decoder and often make it repeat or hallucinate stuff
+        if (seek > seek_start && seek + 500 >= seek_end) {
+            prompt_past.clear();
         }
 
         if (params.encoder_begin_callback) {
@@ -2780,8 +2787,14 @@ int whisper_full(
         }
 
         if (failed) {
-            fprintf(stderr, "\n%s: failed to generate timestamp token - using fallback strategy\n\n", __func__);
-            seek += 100;
+            // when we fail to sample timestamp token, retry by clearing the past prompt
+            // if it fails again, then we advance the window by 1 second
+            if (prompt_past.size() > 0) {
+                prompt_past.clear();
+            } else {
+                fprintf(stderr, "\n%s: failed to generate timestamp token - skipping one second\n\n", __func__);
+                seek += 100;
+            }
             continue;
         }
 
