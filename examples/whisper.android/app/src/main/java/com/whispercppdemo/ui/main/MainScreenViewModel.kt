@@ -39,7 +39,6 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
     private var mediaPlayer: MediaPlayer? = null
     private var recordedFile: File? = null
 
-
     init {
         viewModelScope.launch {
             loadData()
@@ -86,6 +85,8 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
     }
 
     private suspend fun readAudioSamples(file: File): FloatArray = withContext(Dispatchers.IO) {
+        mediaPlayer?.stop()
+        mediaPlayer?.release()
         mediaPlayer = MediaPlayer.create(application, file.absolutePath.toUri())
         mediaPlayer?.start()
         return@withContext decodeWaveFile(file)
