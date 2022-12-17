@@ -150,8 +150,29 @@ extern "C" {
                      whisper_token * tokens,
                                int   n_max_tokens);
 
+    // Largest language id (i.e. number of available languages - 1)
+    WHISPER_API int whisper_lang_max_id();
+
     // Return the id of the specified language, returns -1 if not found
+    // Examples:
+    //   "de" -> 2
+    //   "german" -> 2
     WHISPER_API int whisper_lang_id(const char * lang);
+
+    // Return the short string of the specified language id (e.g. 2 -> "de"), returns nullptr if not found
+    WHISPER_API const char * whisper_lang_str(int id);
+
+    // Use mel data at offset_ms to try and auto-detect the spoken language
+    // Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first
+    // Returns the top language id or negative on failure
+    // If not null, fills the lang_probs array with the probabilities of all languages
+    // The array must be whispe_lang_max_id() + 1 in size
+    // ref: https://github.com/openai/whisper/blob/main/whisper/decoding.py#L18-L69
+    WHISPER_API int whisper_lang_auto_detect(
+            struct whisper_context * ctx,
+                               int   offset_ms,
+                               int   n_threads,
+                             float * lang_probs);
 
     WHISPER_API int whisper_n_len          (struct whisper_context * ctx); // mel length
     WHISPER_API int whisper_n_vocab        (struct whisper_context * ctx);
@@ -171,6 +192,7 @@ extern "C" {
     WHISPER_API whisper_token whisper_token_solm(struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_not (struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_beg (struct whisper_context * ctx);
+    WHISPER_API whisper_token whisper_token_lang(struct whisper_context * ctx, int lang_id);
 
     // Task tokens
     WHISPER_API whisper_token whisper_token_translate (void);
@@ -236,6 +258,7 @@ extern "C" {
         const whisper_token * prompt_tokens;
         int prompt_n_tokens;
 
+        // for auto-detection, set to nullptr, "" or "auto"
         const char * language;
 
         struct {
