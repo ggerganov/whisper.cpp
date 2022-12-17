@@ -27,8 +27,8 @@ endif
 # Compile flags
 #
 
-CFLAGS   = -I.              -Ofast -std=c11   -fPIC
-CXXFLAGS = -I. -I./examples -Ofast -std=c++11 -fPIC
+CFLAGS   = -I.              -O3 -std=c11   -fPIC
+CXXFLAGS = -I. -I./examples -O3 -std=c++11 -fPIC
 LDFLAGS  =
 
 # OS specific
