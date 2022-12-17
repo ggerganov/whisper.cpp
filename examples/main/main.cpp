@@ -154,7 +154,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params) 
     fprintf(stderr, "  -pc,      --print-colors   [%-7s] print colors\n",                                   params.print_colors ? "true" : "false");
     fprintf(stderr, "  -pp,      --print-progress [%-7s] print progress\n",                                 params.print_progress ? "true" : "false");
     fprintf(stderr, "  -nt,      --no-timestamps  [%-7s] do not print timestamps\n",                        params.no_timestamps ? "false" : "true");
-    fprintf(stderr, "  -l LANG,  --language LANG  [%-7s] spoken language\n",                                params.language.c_str());
+    fprintf(stderr, "  -l LANG,  --language LANG  [%-7s] spoken language ('auto' for auto-detect)\n",       params.language.c_str());
     fprintf(stderr, "            --prompt PROMPT  [%-7s] initial prompt\n",                                 params.prompt.c_str());
     fprintf(stderr, "  -m FNAME, --model FNAME    [%-7s] model path\n",                                     params.model.c_str());
     fprintf(stderr, "  -f FNAME, --file FNAME     [%-7s] input WAV file path\n",                            "");
@@ -453,7 +453,7 @@ int main(int argc, char ** argv) {
         return 2;
     }
 
-    if (whisper_lang_id(params.language.c_str()) == -1) {
+    if (params.language != "auto" && whisper_lang_id(params.language.c_str()) == -1) {
         fprintf(stderr, "error: unknown language '%s'\n", params.language.c_str());
         whisper_print_usage(argc, argv, params);
         exit(0);
