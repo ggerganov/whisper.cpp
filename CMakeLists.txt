@@ -1,5 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
-project(whisper.cpp VERSION 1.0.3)
+
+project(whisper.cpp VERSION 1.0.4)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS "on")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
