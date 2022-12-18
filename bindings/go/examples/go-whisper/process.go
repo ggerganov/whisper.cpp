@@ -11,7 +11,7 @@ import (
 	wav "github.com/go-audio/wav"
 )
 
-func Process(model whisper.Model, path string) error {
+func Process(model whisper.Model, path string, lang string, speedup, tokens bool) error {
 	var data []float32
 
 	// Create processing context
@@ -39,8 +39,28 @@ func Process(model whisper.Model, path string) error {
 		data = buf.AsFloat32Buffer().Data
 	}
 
+	// Set the parameters
+	var cb whisper.SegmentCallback
+	if lang != "" {
+		if err := context.SetLanguage(lang); err != nil {
+			return err
+		}
+	}
+	if speedup {
+		context.SetSpeedup(true)
+	}
+	if tokens {
+		cb = func(segment whisper.Segment) {
+			fmt.Printf("%02d [%6s->%6s] ", segment.Num, segment.Start.Truncate(time.Millisecond), segment.End.Truncate(time.Millisecond))
+			for _, token := range segment.Tokens {
+				fmt.Printf("%q ", token.Text)
+			}
+			fmt.Println("")
+		}
+	}
+
 	// Process the data
-	if err := context.Process(data); err != nil {
+	if err := context.Process(data, cb); err != nil {
 		return err
 	}
 

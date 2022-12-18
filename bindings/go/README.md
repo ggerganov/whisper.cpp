@@ -4,6 +4,7 @@ This package provides Go bindings for whisper.cpp. They have been tested on:
 
   * Darwin (OS X) 12.6 on x64_64
   * Debian Linux on arm64
+  * Fedora Linux on x86_64
 
 The "low level" bindings are in the `bindings/go` directory and there is a more
 Go-style package in the `bindings/go/pkg/whisper` directory. The most simple usage
@@ -30,7 +31,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := context.Process(samples); err != nil {
+	if err := context.Process(samples, nil); err != nil {
 		return err
 	}
 
@@ -55,7 +56,7 @@ cd whisper.cpp/bindings/go
 make test
 ```
 
-Then build the examples with:
+This will compile a static `libwhisper.a` in a `build` folder, download a model file, then run the tests. To build the examples:
 
 ```bash
 make examples

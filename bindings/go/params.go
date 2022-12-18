@@ -11,7 +11,7 @@ import (
 // CGO
 
 /*
-#include <stdbool.h>
+#include <whisper.h>
 */
 import "C"
 
@@ -48,6 +48,35 @@ func (p *Params) SetPrintTimestamps(v bool) {
 
 func (p *Params) SetSpeedup(v bool) {
 	p.speed_up = toBool(v)
+}
+
+func (p *Params) SetLanguage(lang int) error {
+	str := C.whisper_lang_str(C.int(lang))
+	if str == nil {
+		return ErrInvalidLanguage
+	} else {
+		p.language = str
+	}
+	return nil
+}
+
+func (p *Params) Language() int {
+	if p.language == nil {
+		return -1
+	}
+	return int(C.whisper_lang_id(p.language))
+}
+
+func (p *Params) SetThreads(threads int) {
+	p.n_threads = C.int(threads)
+}
+
+func (p *Params) SetOffset(offset_ms int) {
+	p.offset_ms = C.int(offset_ms)
+}
+
+func (p *Params) SetDuration(duration_ms int) {
+	p.duration_ms = C.int(duration_ms)
 }
 
 ///////////////////////////////////////////////////////////////////////////////

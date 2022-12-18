@@ -14,6 +14,7 @@ whisper: mkdir
 test: model-small whisper
 	@go mod tidy
 	@go test -v .
+	@go test -v ./pkg/whisper/...
 
 examples: $(EXAMPLES_DIR)
 
