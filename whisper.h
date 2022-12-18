@@ -274,12 +274,13 @@ extern "C" {
         // for auto-detection, set to nullptr, "" or "auto"
         const char * language;
 
+        bool suppress_blank;
+
         struct {
-            int n_past;
+            int dummy;
         } greedy;
 
         struct {
-            int n_past;
             int beam_width;
             int n_best;
         } beam_search;
