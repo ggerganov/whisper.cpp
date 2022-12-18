@@ -17,10 +17,10 @@ test: model-small whisper
 
 examples: $(EXAMPLES_DIR)
 
-model-small: examples/go-model-download
+model-small: mkdir examples/go-model-download
 	@${BUILD_DIR}/go-model-download -out models small.en
 
-$(EXAMPLES_DIR): clean mkdir
+$(EXAMPLES_DIR): mkdir whisper 
 	@echo Build example $(notdir $@)
 	@go build ${BUILD_FLAGS} -o ${BUILD_DIR}/$(notdir $@) ./$@
 
