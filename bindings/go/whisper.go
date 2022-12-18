@@ -1,6 +1,9 @@
 package whisper
 
-import "unsafe"
+import (
+	"errors"
+	"unsafe"
+)
 
 ///////////////////////////////////////////////////////////////////////////////
 // CGO
@@ -74,6 +77,13 @@ const (
 	ChunkSize  = C.WHISPER_CHUNK_SIZE
 )
 
+var (
+	ErrTokenizerFailed  = errors.New("whisper_tokenize failed")
+	ErrAutoDetectFailed = errors.New("whisper_lang_auto_detect failed")
+	ErrConversionFailed = errors.New("whisper_convert failed")
+	ErrInvalidLanguage  = errors.New("invalid language")
+)
+
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
@@ -96,34 +106,46 @@ func (ctx *Context) Whisper_free() {
 
 // Convert RAW PCM audio to log mel spectrogram.
 // The resulting spectrogram is stored inside the provided whisper context.
-// Returns 0 on success
-func (ctx *Context) Whisper_pcm_to_mel(data []float32, threads int) int {
-	return int(C.whisper_pcm_to_mel((*C.struct_whisper_context)(ctx), (*C.float)(&data[0]), C.int(len(data)), C.int(threads)))
+func (ctx *Context) Whisper_pcm_to_mel(data []float32, threads int) error {
+	if C.whisper_pcm_to_mel((*C.struct_whisper_context)(ctx), (*C.float)(&data[0]), C.int(len(data)), C.int(threads)) == 0 {
+		return nil
+	} else {
+		return ErrConversionFailed
+	}
 }
 
 // This can be used to set a custom log mel spectrogram inside the provided whisper context.
 // Use this instead of whisper_pcm_to_mel() if you want to provide your own log mel spectrogram.
 // n_mel must be 80
-// Returns 0 on success
-func (ctx *Context) Whisper_set_mel(data []float32, n_mel int) int {
-	return int(C.whisper_set_mel((*C.struct_whisper_context)(ctx), (*C.float)(&data[0]), C.int(len(data)), C.int(n_mel)))
+func (ctx *Context) Whisper_set_mel(data []float32, n_mel int) error {
+	if C.whisper_set_mel((*C.struct_whisper_context)(ctx), (*C.float)(&data[0]), C.int(len(data)), C.int(n_mel)) == 0 {
+		return nil
+	} else {
+		return ErrConversionFailed
+	}
 }
 
 // Run the Whisper encoder on the log mel spectrogram stored inside the provided whisper context.
 // Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first.
 // offset can be used to specify the offset of the first frame in the spectrogram.
-// Returns 0 on success
-func (ctx *Context) Whisper_encode(offset, threads int) int {
-	return int(C.whisper_encode((*C.struct_whisper_context)(ctx), C.int(offset), C.int(threads)))
+func (ctx *Context) Whisper_encode(offset, threads int) error {
+	if C.whisper_encode((*C.struct_whisper_context)(ctx), C.int(offset), C.int(threads)) == 0 {
+		return nil
+	} else {
+		return ErrConversionFailed
+	}
 }
 
 // Run the Whisper decoder to obtain the logits and probabilities for the next token.
 // Make sure to call whisper_encode() first.
 // tokens + n_tokens is the provided context for the decoder.
 // n_past is the number of tokens to use from previous decoder calls.
-// Returns 0 on success
-func (ctx *Context) Whisper_decode(tokens []Token, past, threads int) int {
-	return int(C.whisper_decode((*C.struct_whisper_context)(ctx), (*C.whisper_token)(&tokens[0]), C.int(len(tokens)), C.int(past), C.int(threads)))
+func (ctx *Context) Whisper_decode(tokens []Token, past, threads int) error {
+	if C.whisper_decode((*C.struct_whisper_context)(ctx), (*C.whisper_token)(&tokens[0]), C.int(len(tokens)), C.int(past), C.int(threads)) == 0 {
+		return nil
+	} else {
+		return ErrConversionFailed
+	}
 }
 
 // whisper_sample_best() returns the token with the highest probability
@@ -136,9 +158,45 @@ func (ctx *Context) Whisper_sample_timestamp(is_initial bool) TokenData {
 	return TokenData(C.whisper_sample_timestamp((*C.struct_whisper_context)(ctx), C.bool(is_initial)))
 }
 
+// Convert the provided text into tokens. The tokens pointer must be large enough to hold the resulting tokens.
+// Returns the number of tokens on success
+func (ctx *Context) Whisper_tokenize(text string, tokens []Token) (int, error) {
+	cText := C.CString(text)
+	defer C.free(unsafe.Pointer(cText))
+	if n := C.whisper_tokenize((*C.struct_whisper_context)(ctx), cText, (*C.whisper_token)(&tokens[0]), C.int(len(tokens))); n >= 0 {
+		return int(n), nil
+	} else {
+		return 0, ErrTokenizerFailed
+	}
+}
+
 // Return the id of the specified language, returns -1 if not found
 func (ctx *Context) Whisper_lang_id(lang string) int {
 	return int(C.whisper_lang_id(C.CString(lang)))
+}
+
+// Largest language id (i.e. number of available languages - 1)
+func Whisper_lang_max_id() int {
+	return int(C.whisper_lang_max_id())
+}
+
+// Return the short string of the specified language id (e.g. 2 -> "de"),
+// returns empty string if not found
+func Whisper_lang_str(id int) string {
+	return C.GoString(C.whisper_lang_str(C.int(id)))
+}
+
+// Use mel data at offset_ms to try and auto-detect the spoken language
+// Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first.
+// Returns the probabilities of all languages.
+// ref: https://github.com/openai/whisper/blob/main/whisper/decoding.py#L18-L69
+func (ctx *Context) Whisper_lang_auto_detect(offset_ms, n_threads int) ([]float32, error) {
+	probs := make([]float32, Whisper_lang_max_id()+1)
+	if n := int(C.whisper_lang_auto_detect((*C.struct_whisper_context)(ctx), C.int(offset_ms), C.int(n_threads), (*C.float)(&probs[0]))); n < 0 {
+		return nil, ErrAutoDetectFailed
+	} else {
+		return probs, nil
+	}
 }
 
 func (ctx *Context) Whisper_n_len() int {
@@ -197,6 +255,11 @@ func (ctx *Context) Whisper_token_beg() Token {
 	return Token(C.whisper_token_beg((*C.struct_whisper_context)(ctx)))
 }
 
+// Special tokens
+func (ctx *Context) Whisper_token_lang(lang_id int) Token {
+	return Token(C.whisper_token_lang((*C.struct_whisper_context)(ctx), C.int(lang_id)))
+}
+
 // Task tokens
 func Whisper_token_translate() Token {
 	return Token(C.whisper_token_translate())
@@ -230,25 +293,32 @@ func (ctx *Context) Whisper_full_default_params(strategy SamplingStrategy) Param
 
 // Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text
 // Uses the specified decoding strategy to obtain the text.
-func (ctx *Context) Whisper_full(params Params, samples []float32, encoderBeginCallback func() bool, newSegmentCallback func(int)) int {
+func (ctx *Context) Whisper_full(params Params, samples []float32, encoderBeginCallback func() bool, newSegmentCallback func(int)) error {
 	registerEncoderBeginCallback(ctx, encoderBeginCallback)
 	registerNewSegmentCallback(ctx, newSegmentCallback)
-	result := int(C.whisper_full((*C.struct_whisper_context)(ctx), (C.struct_whisper_full_params)(params), (*C.float)(&samples[0]), C.int(len(samples))))
-	registerEncoderBeginCallback(ctx, nil)
-	registerNewSegmentCallback(ctx, nil)
-	return result
+	defer registerEncoderBeginCallback(ctx, nil)
+	defer registerNewSegmentCallback(ctx, nil)
+	if C.whisper_full((*C.struct_whisper_context)(ctx), (C.struct_whisper_full_params)(params), (*C.float)(&samples[0]), C.int(len(samples))) == 0 {
+		return nil
+	} else {
+		return ErrConversionFailed
+	}
 }
 
 // Split the input audio in chunks and process each chunk separately using whisper_full()
 // It seems this approach can offer some speedup in some cases.
 // However, the transcription accuracy can be worse at the beginning and end of each chunk.
-func (ctx *Context) Whisper_full_parallel(params Params, samples []float32, processors int, encoderBeginCallback func() bool, newSegmentCallback func(int)) int {
+func (ctx *Context) Whisper_full_parallel(params Params, samples []float32, processors int, encoderBeginCallback func() bool, newSegmentCallback func(int)) error {
 	registerEncoderBeginCallback(ctx, encoderBeginCallback)
 	registerNewSegmentCallback(ctx, newSegmentCallback)
-	result := int(C.whisper_full_parallel((*C.struct_whisper_context)(ctx), (C.struct_whisper_full_params)(params), (*C.float)(&samples[0]), C.int(len(samples)), C.int(processors)))
-	registerEncoderBeginCallback(ctx, nil)
-	registerNewSegmentCallback(ctx, nil)
-	return result
+	defer registerEncoderBeginCallback(ctx, nil)
+	defer registerNewSegmentCallback(ctx, nil)
+
+	if C.whisper_full_parallel((*C.struct_whisper_context)(ctx), (C.struct_whisper_full_params)(params), (*C.float)(&samples[0]), C.int(len(samples)), C.int(processors)) == 0 {
+		return nil
+	} else {
+		return ErrConversionFailed
+	}
 }
 
 // Number of generated text segments.

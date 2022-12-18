@@ -3,6 +3,7 @@ package whisper
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	// Bindings
 	whisper "github.com/ggerganov/whisper.cpp/bindings/go"
@@ -63,6 +64,18 @@ func (model *model) String() string {
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
+// Return all recognized languages. Initially it is set to auto-detect
+func (model *model) Languages() []string {
+	result := make([]string, 0, whisper.Whisper_lang_max_id())
+	for i := 0; i < whisper.Whisper_lang_max_id(); i++ {
+		str := whisper.Whisper_lang_str(i)
+		if model.ctx.Whisper_lang_id(str) >= 0 {
+			result = append(result, str)
+		}
+	}
+	return result
+}
+
 func (model *model) NewContext() (Context, error) {
 	if model.ctx == nil {
 		return nil, ErrInternalAppError
@@ -75,7 +88,7 @@ func (model *model) NewContext() (Context, error) {
 	params.SetPrintProgress(false)
 	params.SetPrintRealtime(false)
 	params.SetPrintTimestamps(false)
-	params.SetSpeedup(false)
+	params.SetThreads(runtime.NumCPU())
 
 	// Return new context
 	return NewContext(model, params)

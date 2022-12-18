@@ -1,11 +1,11 @@
 package whisper
 
 import (
-	// Bindings
 	"io"
 	"strings"
 	"time"
 
+	// Bindings
 	whisper "github.com/ggerganov/whisper.cpp/bindings/go"
 )
 
@@ -34,23 +34,66 @@ func NewContext(model *model, params whisper.Params) (Context, error) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// STRINGIFY
-
-func (context *context) String() string {
-	str := "<whisper.context"
-	return str + ">"
-}
-
-///////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
-// Process new sample data and return any errors
-func (context *context) Process(data []float32) error {
-	// Process data
+// Set the language to use for speech recognition.
+func (context *context) SetLanguage(lang string) error {
 	if context.model.ctx == nil {
 		return ErrInternalAppError
-	} else if ret := context.model.ctx.Whisper_full(context.params, data, nil, nil); ret != 0 {
-		return ErrProcessingFailed
+	}
+	if id := context.model.ctx.Whisper_lang_id(lang); id < 0 {
+		return ErrUnsupportedLanguage
+	} else if err := context.params.SetLanguage(id); err != nil {
+		return err
+	}
+	// Return success
+	return nil
+}
+
+// Get language
+func (context *context) Language() string {
+	return whisper.Whisper_lang_str(context.params.Language())
+}
+
+// Set speedup flag
+func (context *context) SetSpeedup(v bool) {
+	context.params.SetSpeedup(v)
+}
+
+// Process new sample data and return any errors
+func (context *context) Process(data []float32, cb SegmentCallback) error {
+	if context.model.ctx == nil {
+		return ErrInternalAppError
+	}
+	// If the callback is defined then we force on single_segment mode
+	if cb != nil {
+		context.params.SetSingleSegment(true)
+	}
+
+	// We don't do parallel processing at the moment
+	processors := 0
+	if processors > 1 {
+		if err := context.model.ctx.Whisper_full_parallel(context.params, data, processors, nil, func(new int) {
+			if cb != nil {
+				num_segments := context.model.ctx.Whisper_full_n_segments()
+				s0 := num_segments - new
+				for i := s0; i < num_segments; i++ {
+					cb(toSegment(context.model.ctx, i))
+				}
+			}
+		}); err != nil {
+			return err
+		}
+	} else if err := context.model.ctx.Whisper_full(context.params, data, nil, func(new int) {
+		if cb != nil {
+			num_segments := context.model.ctx.Whisper_full_n_segments()
+			s0 := num_segments - new
+			for i := s0; i < num_segments; i++ {
+				cb(toSegment(context.model.ctx, i))
+			}
+		}
+	}); err != nil {
+		return err
 	}
 
 	// Return success
@@ -59,22 +102,44 @@ func (context *context) Process(data []float32) error {
 
 // Return the next segment of tokens
 func (context *context) NextSegment() (Segment, error) {
-	result := Segment{}
 	if context.model.ctx == nil {
-		return result, ErrInternalAppError
+		return Segment{}, ErrInternalAppError
 	}
 	if context.n >= context.model.ctx.Whisper_full_n_segments() {
-		return result, io.EOF
+		return Segment{}, io.EOF
 	}
 
 	// Populate result
-	result.Text = strings.TrimSpace(context.model.ctx.Whisper_full_get_segment_text(context.n))
-	result.Start = time.Duration(context.model.ctx.Whisper_full_get_segment_t0(context.n)) * time.Millisecond
-	result.End = time.Duration(context.model.ctx.Whisper_full_get_segment_t1(context.n)) * time.Millisecond
+	result := toSegment(context.model.ctx, context.n)
 
 	// Increment the cursor
 	context.n++
 
 	// Return success
 	return result, nil
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// PRIVATE METHODS
+
+func toSegment(ctx *whisper.Context, n int) Segment {
+	return Segment{
+		Num:    n,
+		Text:   strings.TrimSpace(ctx.Whisper_full_get_segment_text(n)),
+		Start:  time.Duration(ctx.Whisper_full_get_segment_t0(n)) * time.Millisecond * 10,
+		End:    time.Duration(ctx.Whisper_full_get_segment_t1(n)) * time.Millisecond * 10,
+		Tokens: toTokens(ctx, n),
+	}
+}
+
+func toTokens(ctx *whisper.Context, n int) []Token {
+	result := make([]Token, ctx.Whisper_full_n_tokens(n))
+	for i := 0; i < len(result); i++ {
+		result[i] = Token{
+			Id:   int(ctx.Whisper_full_get_token_id(n, i)),
+			Text: strings.TrimSpace(ctx.Whisper_full_get_token_text(n, i)),
+			P:    ctx.Whisper_full_get_token_p(n, i),
+		}
+	}
+	return result
 }

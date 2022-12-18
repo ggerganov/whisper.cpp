@@ -42,10 +42,20 @@ func (flags *Flags) GetLanguage() string {
 	return flags.Lookup("language").Value.String()
 }
 
+func (flags *Flags) IsSpeedup() bool {
+	return flags.Lookup("speedup").Value.String() == "true"
+}
+
+func (flags *Flags) IsTokens() bool {
+	return flags.Lookup("tokens").Value.String() == "true"
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE METHODS
 
 func registerFlags(flag *Flags) {
 	flag.String("model", "", "Path to the model file")
 	flag.String("language", "", "Language")
+	flag.Bool("speedup", false, "Enable speedup")
+	flag.Bool("tokens", false, "Display tokens")
 }

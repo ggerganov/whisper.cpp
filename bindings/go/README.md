@@ -55,9 +55,11 @@ cd whisper.cpp/bindings/go
 make test
 ```
 
-Then build the examples with:
+This will compile a static `libwhisper.a` in a `build` folder, download a model file, then run the tests. To build the examples:
 
 ```bash
+git clone https://github.com/ggerganov/whisper.cpp.git
+cd whisper.cpp/bindings/go
 make examples
 ```
 
