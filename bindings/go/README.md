@@ -11,24 +11,24 @@ is as follows:
 
 ```go
 import (
-    "github.com/ggerganov/whisper.cpp/bindings/go/pkg/whisper"
+	"github.com/ggerganov/whisper.cpp/bindings/go/pkg/whisper"
 )
 
 func main() {
-    var modelpath string // Path to the model
-    var samples []float32 // Samples to process
+	var modelpath string // Path to the model
+	var samples []float32 // Samples to process
 
-    // Load the model
+	// Load the model
 	model, err := whisper.New(modelpath)
 	if err != nil {
-        panic(err)
+		panic(err)
 	}
 	defer model.Close()
 
-    // Process samples
+	// Process samples
 	context, err := model.NewContext()
 	if err != nil {
-        panic(err)
+		panic(err)
 	}
 	if err := context.Process(samples); err != nil {
 		return err
@@ -38,8 +38,8 @@ func main() {
 	for {
 		segment, err := context.NextSegment()
 		if err != nil {
-            break
-        }
+			break
+		}
 		fmt.Printf("[%6s->%6s] %s\n", segment.Start, segment.End, segment.Text)
 	}
 }
@@ -50,6 +50,8 @@ func main() {
 In order to build, you need to have the Go compiler installed. You can get it from [here](https://golang.org/dl/). Run the tests with:
 
 ```bash
+git clone https://github.com/ggerganov/whisper.cpp.git
+cd whisper.cpp/bindings/go
 make test
 ```
 
