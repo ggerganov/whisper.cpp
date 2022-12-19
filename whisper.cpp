@@ -2360,12 +2360,12 @@ struct whisper_token_data whisper_sample_timestamp(struct whisper_context * ctx,
 int whisper_tokenize(struct whisper_context * ctx, const char * text, whisper_token * tokens, int n_max_tokens) {
     const auto res = tokenize(ctx->vocab, text);
 
-    if (res.size() > n_max_tokens) {
+    if (n_max_tokens < (int) res.size()) {
         fprintf(stderr, "%s: too many resulting tokens: %d (max %d)\n", __func__, (int) res.size(), n_max_tokens);
         return -1;
     }
 
-    for (int i = 0; i < res.size(); i++) {
+    for (int i = 0; i < (int) res.size(); i++) {
         tokens[i] = res[i];
     }
 
@@ -2438,7 +2438,7 @@ int whisper_lang_auto_detect(
     }
 
     std::vector<std::pair<float, int>> probs_id;
-    for (const auto kv : g_lang) {
+    for (const auto & kv : g_lang) {
         const auto token_lang = whisper_token_lang(ctx, kv.second.first);
         probs_id.push_back({ ctx->probs[token_lang], kv.second.first });
     }
@@ -2464,7 +2464,7 @@ int whisper_lang_auto_detect(
     }
 
     {
-        for (int i = 0; i < probs_id.size(); i++) {
+        for (int i = 0; i < (int) probs_id.size(); i++) {
             if (lang_probs) {
                 lang_probs[probs_id[i].second] = probs_id[i].first;
             }

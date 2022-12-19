@@ -148,7 +148,7 @@ extern "C" {
             struct whisper_context * ctx,
                         const char * text,
                      whisper_token * tokens,
-                               int   n_max_tokens);
+	                           int   n_max_tokens);
 
     // Largest language id (i.e. number of available languages - 1)
     WHISPER_API int whisper_lang_max_id();
