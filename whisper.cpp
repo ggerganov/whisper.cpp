@@ -2360,7 +2360,7 @@ struct whisper_token_data whisper_sample_timestamp(struct whisper_context * ctx,
 int whisper_tokenize(struct whisper_context * ctx, const char * text, whisper_token * tokens, int n_max_tokens) {
     const auto res = tokenize(ctx->vocab, text);
 
-    if (res.size() > n_max_tokens) {
+    if (n_max_tokens < (int) res.size()) {
         fprintf(stderr, "%s: too many resulting tokens: %d (max %d)\n", __func__, (int) res.size(), n_max_tokens);
         return -1;
     }
