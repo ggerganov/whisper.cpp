@@ -78,7 +78,7 @@ gpt_vocab::id gpt_sample_top_k_top_p(
         const float * logits,
         int    top_k,
         double top_p,
-        double temp,
+        double /*temp*/,
         std::mt19937 & rng) {
     int n_logits = vocab.id_to_token.size();
 
@@ -268,7 +268,7 @@ bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & 
             fin.read((char *) &len, sizeof(len));
 
             word.resize(len);
-            fin.read((char *) word.data(), len);
+            fin.read((char *) &word[0], len);
 
             vocab.token_to_id[word] = i;
             vocab.id_to_token[i] = word;
@@ -884,7 +884,7 @@ std::string gpt2_gen_text(gpt2_context * ctx, const char * text, int max_tokens)
 
     std::string result;
 
-    for (int i = embd.size(); i < embd_inp.size() + n_predict; i++) {
+    for (int i = embd.size(); i < (int) embd_inp.size() + n_predict; i++) {
         // predict
         if (embd.size() > 0) {
             if (!gpt2_eval(ctx->model, ctx->n_threads, n_past, embd, embd_w, mem_per_token)) {

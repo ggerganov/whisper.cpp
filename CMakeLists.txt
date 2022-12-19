@@ -132,6 +132,12 @@ if (WHISPER_ALL_WARNINGS)
             -Wstrict-prototypes             \
             -Wpointer-arith                 \
         ")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+            -Wall                           \
+            -Wextra                         \
+            -Wpedantic                      \
+            -Wcast-qual                     \
+        ")
     else()
         # todo : msvc
     endif()

@@ -79,7 +79,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     return true;
 }
 
-void whisper_print_usage(int argc, char ** argv, const whisper_params & params) {
+void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params) {
     fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options]\n", argv[0]);
     fprintf(stderr, "\n");
@@ -397,7 +397,7 @@ bool vad_simple(std::vector<float> & pcmf32, int sample_rate, int last_ms, float
     float energy_all  = 0.0f;
     float energy_last = 0.0f;
 
-    for (size_t i = 0; i < n_samples; i++) {
+    for (int i = 0; i < n_samples; i++) {
         energy_all += fabsf(pcmf32[i]);
 
         if (i >= n_samples - n_samples_last) {
@@ -541,7 +541,6 @@ int main(int argc, char ** argv) {
     bool force_speak = false;
 
     float prob0 = 0.0f;
-    float prob  = 0.0f;
 
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;

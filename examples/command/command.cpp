@@ -81,7 +81,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     return true;
 }
 
-void whisper_print_usage(int argc, char ** argv, const whisper_params & params) {
+void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params) {
     fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options]\n", argv[0]);
     fprintf(stderr, "\n");
@@ -387,7 +387,7 @@ bool vad_simple(std::vector<float> & pcmf32, int sample_rate, int last_ms, float
     float energy_all  = 0.0f;
     float energy_last = 0.0f;
 
-    for (size_t i = 0; i < n_samples; i++) {
+    for (int i = 0; i < n_samples; i++) {
         energy_all += fabsf(pcmf32[i]);
 
         if (i >= n_samples - n_samples_last) {
@@ -594,7 +594,7 @@ int main(int argc, char ** argv) {
             whisper_token tokens[1024];
             allowed_tokens.emplace_back();
 
-            for (int l = 0; l < cmd.size(); ++l) {
+            for (int l = 0; l < (int) cmd.size(); ++l) {
                 // NOTE: very important to add the whitespace !
                 //       the reason is that the first decoded token starts with a whitespace too!
                 std::string ss = std::string(" ") + cmd.substr(0, l + 1);
@@ -843,14 +843,14 @@ int main(int argc, char ** argv) {
 
                 // best command
                 {
+                    const auto t_end = std::chrono::high_resolution_clock::now();
+
                     fprintf(stdout, "\n");
                     fprintf(stdout, "%s: detected command: %s%s%s | p = %f | t = %d ms\n", __func__,
                             "\033[1m", allowed_commands[probs_id[0].second].c_str(), "\033[0m", probs_id[0].first,
-                            (int) std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - t_start).count());
+                            (int) std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count());
                     fprintf(stdout, "\n");
                 }
-
-                const auto t_end = std::chrono::high_resolution_clock::now();
 
                 audio.clear();
             }

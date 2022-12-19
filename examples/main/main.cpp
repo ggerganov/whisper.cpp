@@ -129,7 +129,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     return true;
 }
 
-void whisper_print_usage(int argc, char ** argv, const whisper_params & params) {
+void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params) {
     fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options] file0.wav file1.wav ...\n", argv[0]);
     fprintf(stderr, "\n");
@@ -328,7 +328,7 @@ bool output_srt(struct whisper_context * ctx, const char * fname, const whisper_
 // karaoke video generation
 // outputs a bash script that uses ffmpeg to generate a video with the subtitles
 // TODO: font parameter adjustments
-bool output_wts(struct whisper_context * ctx, const char * fname, const char * fname_inp, const whisper_params & params, float t_sec) {
+bool output_wts(struct whisper_context * ctx, const char * fname, const char * fname_inp, const whisper_params & /*params*/, float t_sec) {
     std::ofstream fout(fname);
 
     fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
@@ -377,7 +377,6 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
             txt_ul = "\\ \\ ";
 
             {
-                int ncnt = 0;
                 for (int k = 0; k < n; ++k) {
                     const auto & token2 = tokens[k];
 
@@ -401,8 +400,6 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
                             txt_ul += "\\ ";
                         }
                     }
-
-                    ncnt += txt.size();
                 }
 
                 ::replace_all(txt_bg, "'", "\u2019");
@@ -637,7 +634,7 @@ int main(int argc, char ** argv) {
             {
                 static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
 
-                wparams.encoder_begin_callback = [](struct whisper_context * ctx, void * user_data) {
+                wparams.encoder_begin_callback = [](struct whisper_context * /*ctx*/, void * user_data) {
                     bool is_aborted = *(bool*)user_data;
                     return !is_aborted;
                 };
