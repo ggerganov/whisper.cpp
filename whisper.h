@@ -1,7 +1,6 @@
 #ifndef WHISPER_H
 #define WHISPER_H
 
-#include <cstddef>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -149,7 +148,7 @@ extern "C" {
             struct whisper_context * ctx,
                         const char * text,
                      whisper_token * tokens,
-	               std::size_t   n_max_tokens);
+	                           int   n_max_tokens);
 
     // Largest language id (i.e. number of available languages - 1)
     WHISPER_API int whisper_lang_max_id();
