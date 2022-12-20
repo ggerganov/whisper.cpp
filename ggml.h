@@ -725,6 +725,7 @@ int ggml_cpu_has_avx(void);
 int ggml_cpu_has_avx2(void);
 int ggml_cpu_has_avx512(void);
 int ggml_cpu_has_neon(void);
+int ggml_cpu_has_arm_fma(void);
 int ggml_cpu_has_f16c(void);
 int ggml_cpu_has_fp16_va(void);
 int ggml_cpu_has_wasm_simd(void);

@@ -2555,6 +2555,7 @@ const char * whisper_print_system_info(void) {
     s += "AVX2 = "      + std::to_string(ggml_cpu_has_avx2())      + " | ";
     s += "AVX512 = "    + std::to_string(ggml_cpu_has_avx512())    + " | ";
     s += "NEON = "      + std::to_string(ggml_cpu_has_neon())      + " | ";
+    s += "ARM FMA = "   + std::to_string(ggml_cpu_has_arm_fma())   + " | ";
     s += "F16C = "      + std::to_string(ggml_cpu_has_f16c())      + " | ";
     s += "FP16_VA = "   + std::to_string(ggml_cpu_has_fp16_va())   + " | ";
     s += "WASM_SIMD = " + std::to_string(ggml_cpu_has_wasm_simd()) + " | ";
