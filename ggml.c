@@ -333,7 +333,7 @@ inline static void ggml_vec_div_f32 (const int n, float * z, const float * x, co
 
 inline static void ggml_vec_dot_f32(const int n, float * restrict s, const float * restrict x, const float * restrict y) {
     ggml_float sumf = 0.0;
-#ifdef __ARM_NEON
+#if defined(__ARM_NEON) && defined(__ARM_FEATURE_FMA)
     // NEON 128-bit
     const int n16 = (n & ~15);
 
@@ -511,7 +511,7 @@ inline static void ggml_vec_dot_f32(const int n, float * restrict s, const float
 
 inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t * restrict x, ggml_fp16_t * restrict y) {
     ggml_float sumf = 0.0;
-#ifdef __ARM_NEON
+#if defined(__ARM_NEON) && defined(__ARM_FEATURE_FMA)
     const int n32 = (n & ~31);
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
@@ -760,7 +760,7 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
 }
 
 inline static void ggml_vec_mad_f32(const int n, float * restrict y, const float * restrict x, const float v) {
-#ifdef __ARM_NEON
+#if defined(__ARM_NEON) && defined(__ARM_FEATURE_FMA)
     // NEON 128-bit
     const int n16 = (n & ~15);
 
@@ -909,7 +909,7 @@ inline static void ggml_vec_mad_f32(const int n, float * restrict y, const float
 }
 
 inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_fp16_t * restrict x, const float v) {
-#ifdef __ARM_NEON
+#if defined(__ARM_NEON) && defined(__ARM_FEATURE_FMA)
     // NEON 128-bit
     const int n32 = (n & ~31);
 
@@ -8426,6 +8426,14 @@ int ggml_cpu_has_avx512(void) {
 
 int ggml_cpu_has_neon(void) {
 #if defined(__ARM_NEON)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int ggml_cpu_has_arm_fma(void) {
+#if defined(__ARM_FEATURE_FMA)
     return 1;
 #else
     return 0;
