@@ -1380,8 +1380,8 @@ static bool whisper_encode(
         // input for next layer (inpO -> inpL)
         memcpy(inpL->data, inpO->data, ggml_nbytes(inpL));
         inpL->op = GGML_OP_NONE;
-        inpL->src0 = NULL;
-        inpL->src1 = NULL;
+        inpL->src0 = nullptr;
+        inpL->src1 = nullptr;
 
         //printf("%s: - used_mem(%d) = %f MB\n", __func__, il, ggml_used_mem(ctxL)/1024.0/1024.0);
 
@@ -1434,8 +1434,8 @@ static bool whisper_encode(
 
         // TODO: hack to disconnect the encoded features from the previous graph
         cur->op = GGML_OP_NONE;
-        cur->src0 = NULL;
-        cur->src1 = NULL;
+        cur->src0 = nullptr;
+        cur->src1 = nullptr;
 
         for (int il = 0; il < model.hparams.n_text_layer; ++il) {
             auto & layer = model.layers_decoder[il];
@@ -1792,8 +1792,8 @@ static bool whisper_decode(
         // input for next layer (inpO -> inpL)
         memcpy(inpL->data, inpO->data, ggml_nbytes(inpL));
         inpL->op = GGML_OP_NONE;
-        inpL->src0 = NULL;
-        inpL->src1 = NULL;
+        inpL->src0 = nullptr;
+        inpL->src1 = nullptr;
 
         if (N > 1) {
             //printf("%s: - used_mem(%d) = %f MB\n", __func__, il, ggml_used_mem(ctxL)/1024.0/1024.0);
@@ -2235,7 +2235,7 @@ struct whisper_context * whisper_init(const char * path_model) {
 
     if (!whisper_model_load(path_model, *ctx)) {
         fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, path_model);
-        return NULL;
+        return nullptr;
     }
 
     ctx->t_load_us = ggml_time_us() - t_start_us;
@@ -2397,7 +2397,7 @@ const char * whisper_lang_str(int id) {
     }
 
     fprintf(stderr, "%s: unknown language id %d\n", __func__, id);
-    return NULL;
+    return nullptr;
 }
 
 int whisper_lang_auto_detect(
