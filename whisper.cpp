@@ -2251,7 +2251,9 @@ void whisper_free(struct whisper_context * ctx) {
         if (ctx->model.ctx_mem) {
             ggml_free(ctx->model.ctx_mem);
         }
-        delete ctx->buf_model;
+        if (ctx->buf_model) {
+            delete ctx->buf_model;
+        }
         delete ctx;
     }
 }

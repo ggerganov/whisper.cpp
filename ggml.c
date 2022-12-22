@@ -1904,27 +1904,27 @@ int32_t ggml_get_i32_1d(const struct ggml_tensor * tensor, int i) {
             {
                 GGML_ASSERT(tensor->nb[0] == sizeof(int8_t));
                 return ((int8_t *)(tensor->data))[i];
-            }
+            } break;
         case GGML_TYPE_I16:
             {
                 GGML_ASSERT(tensor->nb[0] == sizeof(int16_t));
                 return ((int16_t *)(tensor->data))[i];
-            }
+            } break;
         case GGML_TYPE_I32:
             {
                 GGML_ASSERT(tensor->nb[0] == sizeof(int32_t));
                 return ((int32_t *)(tensor->data))[i];
-            }
+            } break;
         case GGML_TYPE_F16:
             {
                 GGML_ASSERT(tensor->nb[0] == sizeof(ggml_fp16_t));
                 return GGML_FP16_TO_FP32(((ggml_fp16_t *)(tensor->data))[i]);
-            }
+            } break;
         case GGML_TYPE_F32:
             {
                 GGML_ASSERT(tensor->nb[0] == sizeof(float));
                 return ((float *)(tensor->data))[i];
-            }
+            } break;
         case GGML_TYPE_COUNT:
             {
                 GGML_ASSERT(false);
@@ -1974,27 +1974,27 @@ float ggml_get_f32_1d(const struct ggml_tensor * tensor, int i) {
             {
                 GGML_ASSERT(tensor->nb[0] == sizeof(int8_t));
                 return ((int8_t *)(tensor->data))[i];
-            }
+            } break;
         case GGML_TYPE_I16:
             {
                 GGML_ASSERT(tensor->nb[0] == sizeof(int16_t));
                 return ((int16_t *)(tensor->data))[i];
-            }
+            } break;
         case GGML_TYPE_I32:
             {
                 GGML_ASSERT(tensor->nb[0] == sizeof(int32_t));
                 return ((int32_t *)(tensor->data))[i];
-            }
+            } break;
         case GGML_TYPE_F16:
             {
                 GGML_ASSERT(tensor->nb[0] == sizeof(ggml_fp16_t));
                 return GGML_FP16_TO_FP32(((ggml_fp16_t *)(tensor->data))[i]);
-            }
+            } break;
         case GGML_TYPE_F32:
             {
                 GGML_ASSERT(tensor->nb[0] == sizeof(float));
                 return ((float *)(tensor->data))[i];
-            }
+            } break;
         case GGML_TYPE_COUNT:
             {
                 GGML_ASSERT(false);
