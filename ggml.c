@@ -1134,10 +1134,10 @@ inline static void ggml_vec_scale_f32(const int n, float * y, const float   v) {
         y2 = _mm256_loadu_ps(y + i + 16);
         y3 = _mm256_loadu_ps(y + i + 24);
 
-	y0 = _mm256_mul_ps(y0, v4);
-	y1 = _mm256_mul_ps(y1, v4);
-	y2 = _mm256_mul_ps(y2, v4);
-	y3 = _mm256_mul_ps(y3, v4);
+        y0 = _mm256_mul_ps(y0, v4);
+        y1 = _mm256_mul_ps(y1, v4);
+        y2 = _mm256_mul_ps(y2, v4);
+        y3 = _mm256_mul_ps(y3, v4);
 
         _mm256_storeu_ps(y + i + 0, y0);
         _mm256_storeu_ps(y + i + 8, y1);
@@ -1475,7 +1475,7 @@ bool ggml_is_padded_1d(const struct ggml_tensor * tensor) {
     return
         tensor->nb[0] == GGML_TYPE_SIZE[tensor->type] &&
         tensor->nb[2] == tensor->nb[1]*tensor->ne[1] &&
-        tensor->nb[3] == tensor->nb[2]*tensor->ne[2];;
+        tensor->nb[3] == tensor->nb[2]*tensor->ne[2];
 }
 
 bool ggml_are_same_shape(const struct ggml_tensor * t0, const struct ggml_tensor * t1) {
@@ -6624,7 +6624,7 @@ void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tenso
             {
                 GGML_ASSERT(false);
             } break;
-    };
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6870,7 +6870,7 @@ void ggml_compute_backward(struct ggml_context * ctx, struct ggml_tensor * tenso
             {
                 GGML_ASSERT(false);
             } break;
-    };
+    }
 }
 
 void ggml_visit_parents(struct ggml_cgraph * cgraph, struct ggml_tensor * node) {
@@ -7339,7 +7339,7 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
                     {
                         assert(false);
                     } break;
-            };
+            }
         }
 
         if (cgraph->work != NULL && work_size > cgraph->work_size) {

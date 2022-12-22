@@ -1024,7 +1024,7 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             fin.read( &tmp[0], tmp.size() ); // read to buffer
             name.assign(&tmp[0], tmp.size());
 
-            if (model.tensors.find(name.data()) == model.tensors.end()) {
+            if (model.tensors.find(name) == model.tensors.end()) {
                 fprintf(stderr, "%s: unknown tensor '%s' in model file\n", __func__, name.data());
                 return false;
             }
@@ -2187,7 +2187,7 @@ static std::vector<whisper_vocab::id> tokenize(const whisper_vocab & vocab, cons
     // find the longest tokens that form the words:
     std::vector<whisper_vocab::id> tokens;
     for (const auto & word : words) {
-        if (word.size() == 0) continue;
+        if (word.empty()) continue;
 
         int i = 0;
         int n = word.size();
@@ -2868,7 +2868,7 @@ int whisper_full(
         prompt.clear();
 
         // if we have already generated some text, use it as a prompt to condition the next generation
-        if (prompt_past.size() > 0) {
+        if (!prompt_past.empty()) {
             int n_take = std::min(std::min(params.n_max_text_ctx, whisper_n_text_ctx(ctx)/2), int(prompt_past.size()));
 
             prompt = { whisper_token_prev(ctx) };
@@ -2979,7 +2979,7 @@ int whisper_full(
         if (failed) {
             // when we fail to sample timestamp token, retry by clearing the past prompt
             // if it fails again, then we advance the window by 1 second
-            if (prompt_past.size() > 0) {
+            if (!prompt_past.empty()) {
                 prompt_past.clear();
             } else {
                 fprintf(stderr, "\n%s: failed to generate timestamp token - skipping one second\n\n", __func__);
@@ -2996,11 +2996,11 @@ int whisper_full(
         }
 
         // store the text from this iteration
-        if (tokens_cur.size() > 0) {
+        if (!tokens_cur.empty()) {
             int  i0 = 0;
             auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
 
-            std::string text = "";
+            std::string text;
 
             for (int i = 0; i < (int) tokens_cur.size(); i++) {
                 //printf("%s: %18s %6.3f %18s %6.3f\n", __func__,
@@ -3207,7 +3207,7 @@ int whisper_full_parallel(
             results_i[j].t1 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
 
             // make sure that segments are not overlapping
-            if (ctx->result_all.size() > 0) {
+            if (!ctx->result_all.empty()) {
                 results_i[j].t0 = std::max(results_i[j].t0, ctx->result_all.back().t1);
             }
 
