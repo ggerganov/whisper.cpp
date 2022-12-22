@@ -307,7 +307,7 @@ int64_t ggml_cycles_per_ms(void) {
 #define CACHE_LINE_SIZE 64
 #endif
 
-const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
+static const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
 
 //
 // fundamental operations
@@ -1165,8 +1165,8 @@ inline static void ggml_vec_sgn_f32  (const int n, float * y, const float * x) {
 inline static void ggml_vec_step_f32 (const int n, float * y, const float * x) { for (int i = 0; i < n; ++i) y[i] = (x[i] > 0.f) ? 1.f : 0.f; }
 inline static void ggml_vec_relu_f32 (const int n, float * y, const float * x) { for (int i = 0; i < n; ++i) y[i] = (x[i] > 0.f) ? x[i] : 0.f; }
 
-const ggml_float GELU_COEF_A    = 0.044715;
-const ggml_float SQRT_2_OVER_PI = 0.79788456080286535587989211986876;
+static const ggml_float GELU_COEF_A    = 0.044715;
+static const ggml_float SQRT_2_OVER_PI = 0.79788456080286535587989211986876;
 
 inline static float ggml_gelu_f32(float x) {
     return 0.5*x*(1.0 + tanh(SQRT_2_OVER_PI*x*(1.0 + GELU_COEF_A*x*x)));
@@ -1227,7 +1227,7 @@ inline static void ggml_vec_norm_inv_f32(const int n, float * s, const float * x
 // data types
 //
 
-const size_t GGML_TYPE_SIZE[GGML_TYPE_COUNT] = {
+static const size_t GGML_TYPE_SIZE[GGML_TYPE_COUNT] = {
     sizeof(int8_t ),
     sizeof(int16_t),
     sizeof(int32_t),
@@ -1235,7 +1235,7 @@ const size_t GGML_TYPE_SIZE[GGML_TYPE_COUNT] = {
     sizeof(float  ),
 };
 
-const char * GGML_OP_LABEL[GGML_OP_COUNT] = {
+static const char * GGML_OP_LABEL[GGML_OP_COUNT] = {
     "NONE",
 
     "DUP",
@@ -1275,7 +1275,7 @@ const char * GGML_OP_LABEL[GGML_OP_COUNT] = {
     "FLASH_FF",
 };
 
-const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
+static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
 
     "x",
@@ -1328,7 +1328,7 @@ struct ggml_object {
     char padding[8];
 };
 
-const size_t GGML_OBJECT_SIZE = sizeof(struct ggml_object);
+static const size_t GGML_OBJECT_SIZE = sizeof(struct ggml_object);
 
 static_assert(sizeof(struct ggml_object)%GGML_MEM_ALIGN == 0, "ggml_object size must be a multiple of GGML_MEM_ALIGN");
 static_assert(sizeof(struct ggml_tensor)%GGML_MEM_ALIGN == 0, "ggml_tensor size must be a multiple of GGML_MEM_ALIGN");
@@ -1383,8 +1383,8 @@ struct ggml_state {
 };
 
 // global state
-struct ggml_state g_state;
-atomic_int g_state_barrier = 0;
+static struct ggml_state g_state;
+static atomic_int g_state_barrier = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 
