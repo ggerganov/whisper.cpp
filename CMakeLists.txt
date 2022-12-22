@@ -184,7 +184,9 @@ endif()
 set(TARGET whisper)
 
 add_library(${TARGET}
+    ggml.h
     ggml.c
+    whisper.h
     whisper.cpp
     )
 
