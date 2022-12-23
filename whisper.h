@@ -274,7 +274,10 @@ extern "C" {
         // for auto-detection, set to nullptr, "" or "auto"
         const char * language;
 
+        // common decoding parameters:
         bool suppress_blank;
+
+        float max_initial_timestamp;
 
         struct {
             int dummy;

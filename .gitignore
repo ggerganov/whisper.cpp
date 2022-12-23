@@ -8,6 +8,7 @@ build/
 build-em/
 build-debug/
 build-release/
+build-static/
 build-sanitize-addr/
 build-sanitize-thread/
 
@@ -18,6 +19,7 @@ build-sanitize-thread/
 /bench
 
 sync.sh
+libwhisper.a
 libwhisper.so
 compile_commands.json
 
