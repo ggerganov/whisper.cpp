@@ -138,7 +138,13 @@ ggml_fp16_t ggml_fp32_to_fp16(float x) {
 #ifdef __wasm_simd128__
 #include <wasm_simd128.h>
 #else
+#ifdef __POWER9_VECTOR__
+#include <altivec.h>
+#undef bool
+#define bool _Bool
+#else
 #include <immintrin.h>
+#endif
 #endif
 
 #ifdef __F16C__
@@ -702,6 +708,57 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
         //GGML_ASSERT(false);
         sumf += GGML_FP16_TO_FP32(x[i])*GGML_FP16_TO_FP32(y[i]);
     }
+#elif defined(__POWER9_VECTOR__)
+    const int n32 = (n & ~31);
+
+    vector float sum0 = vec_splats (0.0f);
+
+    for (int i = 0; i < n32; i += 32) {
+        // Use vec_xl, not vec_ld, because x is sometimes unaligned.
+        vector unsigned short x0 = vec_xl(i * 2 +  0, x);
+        vector unsigned short x1 = vec_xl(i * 2 + 16, x);
+        vector unsigned short x2 = vec_xl(i * 2 + 32, x);
+        vector unsigned short x3 = vec_xl(i * 2 + 48, x);
+
+        vector unsigned short y0 = vec_xl(i * 2 +  0, y);
+        vector unsigned short y1 = vec_xl(i * 2 + 16, y);
+        vector unsigned short y2 = vec_xl(i * 2 + 32, y);
+        vector unsigned short y3 = vec_xl(i * 2 + 48, y);
+
+        vector float fx0l = vec_extract_fp32_from_shortl(x0);
+        vector float fx0h = vec_extract_fp32_from_shorth(x0);
+        vector float fx1l = vec_extract_fp32_from_shortl(x1);
+        vector float fx1h = vec_extract_fp32_from_shorth(x1);
+        vector float fx2l = vec_extract_fp32_from_shortl(x2);
+        vector float fx2h = vec_extract_fp32_from_shorth(x2);
+        vector float fx3l = vec_extract_fp32_from_shortl(x3);
+        vector float fx3h = vec_extract_fp32_from_shorth(x3);
+
+        vector float fy0l = vec_extract_fp32_from_shortl(y0);
+        vector float fy0h = vec_extract_fp32_from_shorth(y0);
+        vector float fy1l = vec_extract_fp32_from_shortl(y1);
+        vector float fy1h = vec_extract_fp32_from_shorth(y1);
+        vector float fy2l = vec_extract_fp32_from_shortl(y2);
+        vector float fy2h = vec_extract_fp32_from_shorth(y2);
+        vector float fy3l = vec_extract_fp32_from_shortl(y3);
+        vector float fy3h = vec_extract_fp32_from_shorth(y3);
+
+        sum0 = vec_add(sum0, vec_mul(fx0l, fy0l));
+        sum0 = vec_add(sum0, vec_mul(fx0h, fy0h));
+        sum0 = vec_add(sum0, vec_mul(fx1l, fy1l));
+        sum0 = vec_add(sum0, vec_mul(fx1h, fy1h));
+        sum0 = vec_add(sum0, vec_mul(fx2l, fy2l));
+        sum0 = vec_add(sum0, vec_mul(fx2h, fy2h));
+        sum0 = vec_add(sum0, vec_mul(fx3l, fy3l));
+        sum0 = vec_add(sum0, vec_mul(fx3h, fy3h));
+    }
+
+    sumf = vec_extract(sum0, 0) + vec_extract(sum0, 1)
+         + vec_extract(sum0, 2) + vec_extract(sum0, 3);
+
+    for (int i = n32; i < n; ++i) {
+        sumf += GGML_FP16_TO_FP32(x[i])*GGML_FP16_TO_FP32(y[i]);
+    }
 #elif defined(__wasm_simd128__)
     // WASM 128-bit
     const int n16 = (n & ~15);
@@ -1063,6 +1120,63 @@ inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_
         GGML_ASSERT(false);
         y[i] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(y[i]) + GGML_FP16_TO_FP32(x[i])*v);
     }
+#elif defined(__POWER9_VECTOR__)
+  const int n32 = (n & ~31);
+  for (int i = 0; i < n32; i += 32) {
+      // Use vec_xl, not vec_ld, because x is sometimes unaligned!
+      vector unsigned short x0 = vec_xl(i * 2 +  0, x);
+      vector unsigned short x1 = vec_xl(i * 2 + 16, x);
+      vector unsigned short x2 = vec_xl(i * 2 + 32, x);
+      vector unsigned short x3 = vec_xl(i * 2 + 48, x);
+
+      vector unsigned short y0 = vec_xl(i * 2 +  0, y);
+      vector unsigned short y1 = vec_xl(i * 2 + 16, y);
+      vector unsigned short y2 = vec_xl(i * 2 + 32, y);
+      vector unsigned short y3 = vec_xl(i * 2 + 48, y);
+
+      vector float v4 = vec_splats(v);
+
+      vector float fx0l = vec_extract_fp32_from_shortl(x0);
+      vector float fx0h = vec_extract_fp32_from_shorth(x0);
+      vector float fx1l = vec_extract_fp32_from_shortl(x1);
+      vector float fx1h = vec_extract_fp32_from_shorth(x1);
+      vector float fx2l = vec_extract_fp32_from_shortl(x2);
+      vector float fx2h = vec_extract_fp32_from_shorth(x2);
+      vector float fx3l = vec_extract_fp32_from_shortl(x3);
+      vector float fx3h = vec_extract_fp32_from_shorth(x3);
+
+      vector float fy0l = vec_extract_fp32_from_shortl(y0);
+      vector float fy0h = vec_extract_fp32_from_shorth(y0);
+      vector float fy1l = vec_extract_fp32_from_shortl(y1);
+      vector float fy1h = vec_extract_fp32_from_shorth(y1);
+      vector float fy2l = vec_extract_fp32_from_shortl(y2);
+      vector float fy2h = vec_extract_fp32_from_shorth(y2);
+      vector float fy3l = vec_extract_fp32_from_shortl(y3);
+      vector float fy3h = vec_extract_fp32_from_shorth(y3);
+
+      fy0l = vec_madd(fx0l, v4, fy0l);
+      fy0h = vec_madd(fx0h, v4, fy0h);
+      fy1l = vec_madd(fx1l, v4, fy1l);
+      fy1h = vec_madd(fx1h, v4, fy1h);
+      fy2l = vec_madd(fx2l, v4, fy2l);
+      fy2h = vec_madd(fx2h, v4, fy2h);
+      fy3l = vec_madd(fx3l, v4, fy3l);
+      fy3h = vec_madd(fx3h, v4, fy3h);
+
+      y0 = vec_pack_to_short_fp32(fy0h, fy0l);
+      y1 = vec_pack_to_short_fp32(fy1h, fy1l);
+      y2 = vec_pack_to_short_fp32(fy2h, fy2l);
+      y3 = vec_pack_to_short_fp32(fy3h, fy3l);
+
+      vec_xst(y0, i * 2 +  0, y);
+      vec_xst(y1, i * 2 + 16, y);
+      vec_xst(y2, i * 2 + 32, y);
+      vec_xst(y3, i * 2 + 48, y);
+  }
+
+  for (int i = n32; i < n; ++i) {
+      y[i] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(y[i]) + GGML_FP16_TO_FP32(x[i])*v);
+  }
 #elif defined(__wasm_simd128__)
     // WASM SIMD 128-bit
     const int n16 = (n & ~15);
