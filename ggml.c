@@ -373,8 +373,7 @@ inline static void ggml_vec_dot_f32(const int n, float * restrict s, const float
     sum2 = vaddq_f32(sum2, sum3);
     sum0 = vaddq_f32(sum0, sum2);
 
-    float32x2_t sumf32 = vadd_f32(vget_low_f32(sum0), vget_high_f32(sum0));
-    sumf = vget_lane_f32(sumf32, 0) + vget_lane_f32(sumf32, 1);
+    sumf = vaddvq_f32(sum0);
 
     // leftovers
     for (int i = n16; i < n; ++i) {
@@ -557,9 +556,7 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
 
     // reduce sum0f32 and sum1f32 to sumf
     sum0f32 = vaddq_f32(sum0f32, sum1f32);
-
-    float32x2_t sumf32 = vadd_f32(vget_low_f32(sum0f32), vget_high_f32(sum0f32));
-    sumf = vget_lane_f32(sumf32, 0) + vget_lane_f32(sumf32, 1);
+    sumf = vaddvq_f32(sum0f32);
 #else
     float32x4_t sum0 = vdupq_n_f32(0);
     float32x4_t sum1 = vdupq_n_f32(0);
@@ -611,9 +608,7 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
     sum4 = vaddq_f32(sum4, sum6);
     sum0 = vaddq_f32(sum0, sum4);
 
-    // reduce sum0 to sumf
-    float32x2_t sumf32 = vadd_f32(vget_low_f32(sum0), vget_high_f32(sum0));
-    sumf = vget_lane_f32(sumf32, 0) + vget_lane_f32(sumf32, 1);
+    sumf = vaddvq_f32(sum0);
 #endif
 
     // leftovers
