@@ -468,6 +468,7 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | [command](examples/command) | [command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
 | [talk](examples/talk) | [talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot |
 | [whisper.objc](examples/whisper.objc) | | iOS mobile application using whisper.cpp |
+| [whisper.swiftui](examples/whisper.swiftui) | | SwiftUI iOS / macOS application using whisper.cpp |
 | [whisper.android](examples/whisper.android) | | Android mobile application using whisper.cpp |
 | [whisper.nvim](examples/whisper.nvim) | | Speech-to-text plugin for Neovim |
 | [generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |
