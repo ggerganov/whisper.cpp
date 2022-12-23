@@ -1863,7 +1863,7 @@ static whisper_token_data whisper_sample_best(
     probs_id.reserve(n_logits);
 
     for (int i = 0; i < n_logits; i++) {
-        probs_id.push_back(std::make_pair(probs[i], i));
+        probs_id.emplace_back(probs[i], i);
     }
 
     {
@@ -2434,7 +2434,7 @@ int whisper_lang_auto_detect(
     std::vector<std::pair<float, int>> probs_id;
     for (const auto & kv : g_lang) {
         const auto token_lang = whisper_token_lang(ctx, kv.second.first);
-        probs_id.push_back({ ctx->probs[token_lang], kv.second.first });
+        probs_id.emplace_back( ctx->probs[token_lang], kv.second.first );
     }
 
     // sort descending
