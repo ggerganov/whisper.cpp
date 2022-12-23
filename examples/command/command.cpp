@@ -41,8 +41,8 @@ struct whisper_params {
 
     std::string language  = "en";
     std::string model     = "models/ggml-base.en.bin";
-    std::string fname_out = "";
-    std::string commands  = "";
+    std::string fname_out;
+    std::string commands;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -576,10 +576,10 @@ int main(int argc, char ** argv) {
     std::vector<std::string> allowed_commands;
     std::vector<std::vector<whisper_token>> allowed_tokens;
 
-    std::string k_prompt = "";
+    std::string k_prompt;
     std::vector<whisper_token> k_tokens;
 
-    if (params.commands != "") {
+    if (!params.commands.empty()) {
         fprintf(stderr, "\n");
         fprintf(stderr, "%s: guided mode\n", __func__);
 
@@ -808,7 +808,7 @@ int main(int argc, char ** argv) {
 
                 double psum = 0.0;
                 for (int i = 0; i < (int) allowed_commands.size(); ++i) {
-                    probs_id.push_back(std::make_pair(probs[allowed_tokens[i][0]], i));
+                    probs_id.emplace_back(probs[allowed_tokens[i][0]], i);
                     for (int j = 1; j < (int) allowed_tokens[i].size(); ++j) {
                         probs_id.back().first += probs[allowed_tokens[i][j]];
                     }
