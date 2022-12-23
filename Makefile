@@ -105,6 +105,12 @@ endif
 ifeq ($(UNAME_M),amd64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
 endif
+ifeq ($(UNAME_M),ppc64le)
+	POWER9_M := $(shell grep "POWER9" /proc/cpuinfo)
+	ifneq (,$(findstring POWER9,$(POWER9_M)))
+		CFLAGS += -mpower9-vector
+	endif
+endif
 ifndef WHISPER_NO_ACCELERATE
 	# Mac M1 - include Accelerate framework
 	ifeq ($(UNAME_S),Darwin)
