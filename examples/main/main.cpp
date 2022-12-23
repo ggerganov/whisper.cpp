@@ -75,7 +75,7 @@ struct whisper_params {
     bool no_timestamps  = false;
 
     std::string language = "en";
-    std::string prompt   = "";
+    std::string prompt;
     std::string model    = "models/ggml-base.en.bin";
 
     std::vector<std::string> fname_inp = {};
@@ -118,7 +118,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-l"    || arg == "--language")       { params.language       = argv[++i]; }
         else if (                  arg == "--prompt")         { params.prompt         = argv[++i]; }
         else if (arg == "-m"    || arg == "--model")          { params.model          = argv[++i]; }
-        else if (arg == "-f"    || arg == "--file")           { params.fname_inp.push_back(argv[++i]); }
+        else if (arg == "-f"    || arg == "--file")           { params.fname_inp.emplace_back(argv[++i]); }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -206,7 +206,7 @@ void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, voi
             const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
             const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
-            std::string speaker = "";
+            std::string speaker;
 
             if (params.diarize && pcmf32s.size() == 2) {
                 const int64_t n_samples = pcmf32s[0].size();
@@ -468,7 +468,7 @@ int main(int argc, char ** argv) {
     // initial prompt
     std::vector<whisper_token> prompt_tokens;
 
-    if (params.prompt.size() > 0) {
+    if (!params.prompt.empty()) {
         prompt_tokens.resize(1024);
         prompt_tokens.resize(whisper_tokenize(ctx, params.prompt.c_str(), prompt_tokens.data(), prompt_tokens.size()));
 
@@ -505,14 +505,14 @@ int main(int argc, char ** argv) {
                     }
                 }
 
-                if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), NULL) == false) {
+                if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), nullptr) == false) {
                     fprintf(stderr, "error: failed to open WAV file from stdin\n");
                     return 4;
                 }
 
                 fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
             }
-            else if (drwav_init_file(&wav, fname_inp.c_str(), NULL) == false) {
+            else if (drwav_init_file(&wav, fname_inp.c_str(), nullptr) == false) {
                 fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname_inp.c_str());
                 return 5;
             }
@@ -617,8 +617,8 @@ int main(int argc, char ** argv) {
 
             wparams.speed_up         = params.speed_up;
 
-            wparams.prompt_tokens    = prompt_tokens.size() == 0 ? nullptr : prompt_tokens.data();
-            wparams.prompt_n_tokens  = prompt_tokens.size() == 0 ? 0       : prompt_tokens.size();
+            wparams.prompt_tokens    = prompt_tokens.empty() ? nullptr : prompt_tokens.data();
+            wparams.prompt_n_tokens  = prompt_tokens.empty() ? 0       : prompt_tokens.size();
 
             whisper_print_user_data user_data = { &params, &pcmf32s };
 

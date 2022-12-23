@@ -39,7 +39,7 @@ struct whisper_params {
     std::string model_wsp = "models/ggml-base.en.bin";
     std::string model_gpt = "models/ggml-gpt-2-117M.bin";
     std::string speak     = "./examples/talk/speak.sh";
-    std::string fname_out = "";
+    std::string fname_out;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -588,7 +588,7 @@ int main(int argc, char ** argv) {
 
                 audio.get(params.voice_ms, pcmf32_cur);
 
-                std::string text_heard = "";
+                std::string text_heard;
 
                 if (!force_speak) {
                     text_heard = ::trim(::transcribe(ctx_wsp, params, pcmf32_cur, prob0, t_ms));
@@ -610,7 +610,7 @@ int main(int argc, char ** argv) {
                 text_heard = std::regex_replace(text_heard, std::regex("[^a-zA-Z0-9\\.,\\?!\\s\\:\\'\\-]"), "");
 
                 // take first line
-                text_heard = text_heard.substr(0, text_heard.find_first_of("\n"));
+                text_heard = text_heard.substr(0, text_heard.find_first_of('\n'));
 
                 // remove leading and trailing whitespace
                 text_heard = std::regex_replace(text_heard, std::regex("^\\s+"), "");
@@ -640,18 +640,18 @@ int main(int argc, char ** argv) {
 
                     text_to_speak = gpt2_gen_text(ctx_gpt, prompt.c_str(), params.max_tokens);
                     text_to_speak = std::regex_replace(text_to_speak, std::regex("[^a-zA-Z0-9\\.,\\?!\\s\\:\\'\\-]"), "");
-                    text_to_speak = text_to_speak.substr(0, text_to_speak.find_first_of("\n"));
+                    text_to_speak = text_to_speak.substr(0, text_to_speak.find_first_of('\n'));
 
                     // remove first 2 lines of base prompt
                     if (n_iter > 4) {
                         {
-                            const size_t pos = prompt_base.find_first_of("\n");
+                            const size_t pos = prompt_base.find_first_of('\n');
                             if (pos != std::string::npos) {
                                 prompt_base = prompt_base.substr(pos + 1);
                             }
                         }
                         {
-                            const size_t pos = prompt_base.find_first_of("\n");
+                            const size_t pos = prompt_base.find_first_of('\n');
                             if (pos != std::string::npos) {
                                 prompt_base = prompt_base.substr(pos + 1);
                             }

@@ -51,7 +51,7 @@ struct whisper_params {
 
     std::string language  = "en";
     std::string model     = "models/ggml-base.en.bin";
-    std::string fname_out = "";
+    std::string fname_out;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);

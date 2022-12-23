@@ -40,7 +40,7 @@ std::vector<gpt_vocab::id> gpt_tokenize(const gpt_vocab & vocab, const std::stri
     // find the longest tokens that form the words:
     std::vector<gpt_vocab::id> tokens;
     for (const auto & word : words) {
-        if (word.size() == 0) continue;
+        if (word.empty()) continue;
 
         int i = 0;
         int n = word.size();
@@ -86,7 +86,7 @@ gpt_vocab::id gpt_sample_top_k_top_p(
     logits_id.reserve(n_logits);
 
     for (int i = 0; i < n_logits; i++) {
-        logits_id.push_back(std::make_pair(logits[i], i));
+        logits_id.emplace_back(logits[i], i);
     }
 
     // find the top K tokens
@@ -327,7 +327,7 @@ bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & 
     {
         struct ggml_init_params params;
         params.mem_size   = ctx_size;
-        params.mem_buffer = NULL;
+        params.mem_buffer = nullptr;
 
         model.ctx = ggml_init(params);
         if (!model.ctx) {
@@ -448,7 +448,7 @@ bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & 
             std::string name(length, 0);
             fin.read(&name[0], length);
 
-            if (model.tensors.find(name.data()) == model.tensors.end()) {
+            if (model.tensors.find(name) == model.tensors.end()) {
                 fprintf(stderr, "%s: unknown tensor '%s' in model file\n", __func__, name.data());
                 return false;
             }
@@ -833,7 +833,7 @@ Me too.
 struct gpt2_context * gpt2_init(const char * path_model) {
     gpt2_context * ctx = new gpt2_context;
 
-    ctx->rng = std::mt19937(time(NULL));
+    ctx->rng = std::mt19937(time(nullptr));
 
     // load the model
     {
@@ -886,7 +886,7 @@ std::string gpt2_gen_text(gpt2_context * ctx, const char * text, int max_tokens)
 
     for (int i = embd.size(); i < (int) embd_inp.size() + n_predict; i++) {
         // predict
-        if (embd.size() > 0) {
+        if (!embd.empty()) {
             if (!gpt2_eval(ctx->model, ctx->n_threads, n_past, embd, embd_w, mem_per_token)) {
                 printf("gpt-2: failed to generate text\n");
                 return "";
