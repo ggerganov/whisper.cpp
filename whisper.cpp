@@ -2235,6 +2235,7 @@ struct whisper_context * whisper_init(const char * path_model) {
 
     if (!whisper_model_load(path_model, *ctx)) {
         fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, path_model);
+        delete ctx;
         return nullptr;
     }
 
