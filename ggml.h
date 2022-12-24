@@ -724,6 +724,7 @@ enum ggml_opt_result ggml_opt(
 int ggml_cpu_has_avx(void);
 int ggml_cpu_has_avx2(void);
 int ggml_cpu_has_avx512(void);
+int ggml_cpu_has_fma(void);
 int ggml_cpu_has_neon(void);
 int ggml_cpu_has_arm_fma(void);
 int ggml_cpu_has_f16c(void);
