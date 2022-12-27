@@ -30,8 +30,9 @@ if (WHISPER_WASM_SINGLE_FILE)
 endif()
 
 set_target_properties(${TARGET} PROPERTIES LINK_FLAGS " \
-    --bind \
+    -lembind \
     -s MODULARIZE=1 \
+    -s EXPORT_ES6=1 \
     -s EXPORT_NAME=\"'whisper_factory'\" \
     -s FORCE_FILESYSTEM=1 \
     -s USE_PTHREADS=1 \
