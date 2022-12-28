@@ -1217,6 +1217,24 @@ struct ggml_state {
 static struct ggml_state g_state;
 static atomic_int g_state_barrier = 0;
 
+// barrier via spin lock
+inline static void ggml_critical_section_start() {
+    int processing = atomic_fetch_add(&g_state_barrier, 1);
+
+    while (processing > 0) {
+        // wait for other threads to finish
+        atomic_fetch_sub(&g_state_barrier, 1);
+        sched_yield(); // TODO: reconsider this
+        processing = atomic_fetch_add(&g_state_barrier, 1);
+    }
+}
+
+// TODO: make this somehow automatically executed
+//       some sort of "sentry" mechanism
+inline static void ggml_critical_section_end() {
+    atomic_fetch_sub(&g_state_barrier, 1);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void ggml_print_object(const struct ggml_object * obj) {
@@ -1346,46 +1364,51 @@ int ggml_up64(int n) {
 
 struct ggml_context * ggml_init(struct ggml_init_params params) {
     // make this function thread safe
-    {
-        int processing = atomic_fetch_add(&g_state_barrier, 1);
-        while (processing > 0) {
-            // wait for other threads to finish
-            atomic_fetch_sub(&g_state_barrier, 1);
-            sched_yield();
-            processing = atomic_fetch_add(&g_state_barrier, 1);
-        }
-    }
+    ggml_critical_section_start();
 
     static bool is_first_call = true;
-    if (is_first_call) {
-        const uint64_t t_start = ggml_time_us(); UNUSED(t_start);
 
-        ggml_fp16_t ii;
-        for (int i = 0; i < (1 << 16); ++i) {
-            uint16_t ui = i;
-            memcpy(&ii, &ui, sizeof(ii));
-            const float f = GGML_FP16_TO_FP32(ii);
-            table_gelu_f16[i] = GGML_FP32_TO_FP16(ggml_gelu_f32(f));
-            table_exp_f16[i]  = GGML_FP32_TO_FP16(exp(f));
+    if (is_first_call) {
+        // initialize GELU and EXP tables
+        {
+            const uint64_t t_start = ggml_time_us(); UNUSED(t_start);
+
+            ggml_fp16_t ii;
+            for (int i = 0; i < (1 << 16); ++i) {
+                uint16_t ui = i;
+                memcpy(&ii, &ui, sizeof(ii));
+                const float f = GGML_FP16_TO_FP32(ii);
+                table_gelu_f16[i] = GGML_FP32_TO_FP16(ggml_gelu_f32(f));
+                table_exp_f16[i]  = GGML_FP32_TO_FP16(exp(f));
+            }
+
+            const uint64_t t_end = ggml_time_us(); UNUSED(t_end);
+
+            GGML_PRINT_DEBUG("%s: GELU and EXP tables initialized in %f ms\n", __func__, (t_end - t_start)/1000.0f);
         }
 
-        const uint64_t t_end = ggml_time_us(); UNUSED(t_end);
+        // initialize g_state
+        {
+            const uint64_t t_start = ggml_time_us(); UNUSED(t_start);
 
-        GGML_PRINT_DEBUG("%s: GELU and EXP tables initialized in %f ms\n", __func__, (t_end - t_start)/1000.0f);
+            g_state = (struct ggml_state) {
+                /*.contexts =*/ { 0 },
+            };
+
+            for (int i = 0; i < GGML_MAX_CONTEXTS; ++i) {
+                g_state.contexts[i].used = false;
+            }
+
+            const uint64_t t_end = ggml_time_us(); UNUSED(t_end);
+
+            GGML_PRINT_DEBUG("%s: g_state initialized in %f ms\n", __func__, (t_end - t_start)/1000.0f);
+        }
 
         is_first_call = false;
     }
 
     // find non-used context in g_state
     struct ggml_context * ctx = NULL;
-
-    static bool first_time = true;
-    if (first_time) {
-        for (int i = 0; i < GGML_MAX_CONTEXTS; i++) {
-            g_state.contexts[i].used = false;
-        }
-        first_time = false;
-    }
 
     for (int i = 0; i < GGML_MAX_CONTEXTS; i++) {
         if (!g_state.contexts[i].used) {
@@ -1400,7 +1423,7 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
     if (ctx == NULL) {
         GGML_PRINT_DEBUG("%s: no unused context found\n", __func__);
 
-        atomic_fetch_sub(&g_state_barrier, 1);
+        ggml_critical_section_end();
 
         return NULL;
     }
@@ -1418,22 +1441,16 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
 
     GGML_PRINT_DEBUG("%s: context initialized\n", __func__);
 
-    atomic_fetch_sub(&g_state_barrier, 1);
+    ggml_critical_section_end();
 
     return ctx;
 }
 
 void ggml_free(struct ggml_context * ctx) {
     // make this function thread safe
-    {
-        int processing = atomic_fetch_add(&g_state_barrier, 1);
-        while (processing > 0) {
-            // wait for other threads to finish
-            atomic_fetch_sub(&g_state_barrier, 1);
-            sched_yield();
-            processing = atomic_fetch_add(&g_state_barrier, 1);
-        }
-    }
+    ggml_critical_section_start();
+
+    bool found = false;
 
     for (int i = 0; i < GGML_MAX_CONTEXTS; i++) {
         if (&g_state.contexts[i].context == ctx) {
@@ -1446,15 +1463,16 @@ void ggml_free(struct ggml_context * ctx) {
                 free(ctx->mem_buffer);
             }
 
-            atomic_fetch_sub(&g_state_barrier, 1);
-
-            return;
+            found = true;
+            break;
         }
     }
 
-    GGML_PRINT_DEBUG("%s: context not found\n", __func__);
+    if (!found) {
+        GGML_PRINT_DEBUG("%s: context not found\n", __func__);
+    }
 
-    atomic_fetch_sub(&g_state_barrier, 1);
+    ggml_critical_section_end();
 }
 
 size_t ggml_used_mem(const struct ggml_context * ctx) {
@@ -3035,7 +3053,7 @@ void ggml_set_param(
 
 // ggml_compute_forward_dup
 
-void ggml_compute_forward_dup_f16(
+static void ggml_compute_forward_dup_f16(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3139,7 +3157,7 @@ void ggml_compute_forward_dup_f16(
     }
 }
 
-void ggml_compute_forward_dup_f32(
+static void ggml_compute_forward_dup_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3243,7 +3261,7 @@ void ggml_compute_forward_dup_f32(
     }
 }
 
-void ggml_compute_forward_dup(
+static void ggml_compute_forward_dup(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3268,7 +3286,7 @@ void ggml_compute_forward_dup(
 
 // ggml_compute_forward_add
 
-void ggml_compute_forward_add_f32(
+static void ggml_compute_forward_add_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -3321,7 +3339,7 @@ void ggml_compute_forward_add_f32(
     }
 }
 
-void ggml_compute_forward_add(
+static void ggml_compute_forward_add(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -3344,7 +3362,7 @@ void ggml_compute_forward_add(
 
 // ggml_compute_forward_sub
 
-void ggml_compute_forward_sub_f32(
+static void ggml_compute_forward_sub_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -3371,7 +3389,7 @@ void ggml_compute_forward_sub_f32(
     }
 }
 
-void ggml_compute_forward_sub(
+static void ggml_compute_forward_sub(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -3394,7 +3412,7 @@ void ggml_compute_forward_sub(
 
 // ggml_compute_forward_mul
 
-void ggml_compute_forward_mul_f32(
+static void ggml_compute_forward_mul_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -3421,7 +3439,7 @@ void ggml_compute_forward_mul_f32(
     }
 }
 
-void ggml_compute_forward_mul(
+static void ggml_compute_forward_mul(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -3444,7 +3462,7 @@ void ggml_compute_forward_mul(
 
 // ggml_compute_forward_div
 
-void ggml_compute_forward_div_f32(
+static void ggml_compute_forward_div_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -3471,7 +3489,7 @@ void ggml_compute_forward_div_f32(
     }
 }
 
-void ggml_compute_forward_div(
+static void ggml_compute_forward_div(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -3494,7 +3512,7 @@ void ggml_compute_forward_div(
 
 // ggml_compute_forward_sqr
 
-void ggml_compute_forward_sqr_f32(
+static void ggml_compute_forward_sqr_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3518,7 +3536,7 @@ void ggml_compute_forward_sqr_f32(
     }
 }
 
-void ggml_compute_forward_sqr(
+static void ggml_compute_forward_sqr(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3540,7 +3558,7 @@ void ggml_compute_forward_sqr(
 
 // ggml_compute_forward_sqrt
 
-void ggml_compute_forward_sqrt_f32(
+static void ggml_compute_forward_sqrt_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3564,7 +3582,7 @@ void ggml_compute_forward_sqrt_f32(
     }
 }
 
-void ggml_compute_forward_sqrt(
+static void ggml_compute_forward_sqrt(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3586,7 +3604,7 @@ void ggml_compute_forward_sqrt(
 
 // ggml_compute_forward_sum
 
-void ggml_compute_forward_sum_f32(
+static void ggml_compute_forward_sum_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3622,7 +3640,7 @@ void ggml_compute_forward_sum_f32(
     }
 }
 
-void ggml_compute_forward_sum(
+static void ggml_compute_forward_sum(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3644,7 +3662,7 @@ void ggml_compute_forward_sum(
 
 // ggml_compute_forward_mean
 
-void ggml_compute_forward_mean_f32(
+static void ggml_compute_forward_mean_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3699,7 +3717,7 @@ void ggml_compute_forward_mean_f32(
     }
 }
 
-void ggml_compute_forward_mean(
+static void ggml_compute_forward_mean(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3721,7 +3739,7 @@ void ggml_compute_forward_mean(
 
 // ggml_compute_forward_repeat
 
-void ggml_compute_forward_repeat_f32(
+static void ggml_compute_forward_repeat_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3761,7 +3779,7 @@ void ggml_compute_forward_repeat_f32(
     }
 }
 
-void ggml_compute_forward_repeat(
+static void ggml_compute_forward_repeat(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3783,7 +3801,7 @@ void ggml_compute_forward_repeat(
 
 // ggml_compute_forward_abs
 
-void ggml_compute_forward_abs_f32(
+static void ggml_compute_forward_abs_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3807,7 +3825,7 @@ void ggml_compute_forward_abs_f32(
     }
 }
 
-void ggml_compute_forward_abs(
+static void ggml_compute_forward_abs(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3829,7 +3847,7 @@ void ggml_compute_forward_abs(
 
 // ggml_compute_forward_sgn
 
-void ggml_compute_forward_sgn_f32(
+static void ggml_compute_forward_sgn_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3853,7 +3871,7 @@ void ggml_compute_forward_sgn_f32(
     }
 }
 
-void ggml_compute_forward_sgn(
+static void ggml_compute_forward_sgn(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3875,7 +3893,7 @@ void ggml_compute_forward_sgn(
 
 // ggml_compute_forward_neg
 
-void ggml_compute_forward_neg_f32(
+static void ggml_compute_forward_neg_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3899,7 +3917,7 @@ void ggml_compute_forward_neg_f32(
     }
 }
 
-void ggml_compute_forward_neg(
+static void ggml_compute_forward_neg(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3921,7 +3939,7 @@ void ggml_compute_forward_neg(
 
 // ggml_compute_forward_step
 
-void ggml_compute_forward_step_f32(
+static void ggml_compute_forward_step_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3945,7 +3963,7 @@ void ggml_compute_forward_step_f32(
     }
 }
 
-void ggml_compute_forward_step(
+static void ggml_compute_forward_step(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3967,7 +3985,7 @@ void ggml_compute_forward_step(
 
 // ggml_compute_forward_relu
 
-void ggml_compute_forward_relu_f32(
+static void ggml_compute_forward_relu_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -3991,7 +4009,7 @@ void ggml_compute_forward_relu_f32(
     }
 }
 
-void ggml_compute_forward_relu(
+static void ggml_compute_forward_relu(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -4013,7 +4031,7 @@ void ggml_compute_forward_relu(
 
 // ggml_compute_forward_gelu
 
-void ggml_compute_forward_gelu_f32(
+static void ggml_compute_forward_gelu_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -4054,7 +4072,7 @@ void ggml_compute_forward_gelu_f32(
     }
 }
 
-void ggml_compute_forward_gelu(
+static void ggml_compute_forward_gelu(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -4076,7 +4094,7 @@ void ggml_compute_forward_gelu(
 
 // ggml_compute_forward_norm
 
-void ggml_compute_forward_norm_f32(
+static void ggml_compute_forward_norm_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -4136,7 +4154,7 @@ void ggml_compute_forward_norm_f32(
     }
 }
 
-void ggml_compute_forward_norm(
+static void ggml_compute_forward_norm(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -4158,9 +4176,10 @@ void ggml_compute_forward_norm(
 
 // ggml_compute_forward_mul_mat
 
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
 // helper function to determine if it is better to use BLAS or not
 // for large matrices, BLAS is faster
-bool ggml_compute_forward_mul_mat_use_blas(
+static bool ggml_compute_forward_mul_mat_use_blas(
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
               struct ggml_tensor * dst) {
@@ -4179,8 +4198,9 @@ bool ggml_compute_forward_mul_mat_use_blas(
 
     return false;
 }
+#endif
 
-void ggml_compute_forward_mul_mat_f32(
+static void ggml_compute_forward_mul_mat_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -4423,7 +4443,7 @@ void ggml_compute_forward_mul_mat_f32(
     //}
 }
 
-void ggml_compute_forward_mul_mat_f16_f32(
+static void ggml_compute_forward_mul_mat_f16_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -4727,7 +4747,7 @@ void ggml_compute_forward_mul_mat_f16_f32(
     //}
 }
 
-void ggml_compute_forward_mul_mat(
+static void ggml_compute_forward_mul_mat(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -4753,7 +4773,7 @@ void ggml_compute_forward_mul_mat(
 
 // ggml_compute_forward_scale
 
-void ggml_compute_forward_scale_f32(
+static void ggml_compute_forward_scale_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -4788,7 +4808,7 @@ void ggml_compute_forward_scale_f32(
     }
 }
 
-void ggml_compute_forward_scale(
+static void ggml_compute_forward_scale(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -4811,7 +4831,7 @@ void ggml_compute_forward_scale(
 
 // ggml_compute_forward_cpy
 
-void ggml_compute_forward_cpy(
+static void ggml_compute_forward_cpy(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -4820,7 +4840,7 @@ void ggml_compute_forward_cpy(
 
 // ggml_compute_forward_reshape
 
-void ggml_compute_forward_reshape(
+static void ggml_compute_forward_reshape(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -4832,7 +4852,7 @@ void ggml_compute_forward_reshape(
 
 // ggml_compute_forward_view
 
-void ggml_compute_forward_view(
+static void ggml_compute_forward_view(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0) {
     // NOP
@@ -4842,7 +4862,7 @@ void ggml_compute_forward_view(
 
 // ggml_compute_forward_permute
 
-void ggml_compute_forward_permute(
+static void ggml_compute_forward_permute(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0) {
     // NOP
@@ -4852,7 +4872,7 @@ void ggml_compute_forward_permute(
 
 // ggml_compute_forward_transpose
 
-void ggml_compute_forward_transpose(
+static void ggml_compute_forward_transpose(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0) {
     // NOP
@@ -4862,7 +4882,7 @@ void ggml_compute_forward_transpose(
 
 // ggml_compute_forward_get_rows
 
-void ggml_compute_forward_get_rows_f16(
+static void ggml_compute_forward_get_rows_f16(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -4890,7 +4910,7 @@ void ggml_compute_forward_get_rows_f16(
     }
 }
 
-void ggml_compute_forward_get_rows_f32(
+static void ggml_compute_forward_get_rows_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -4917,7 +4937,7 @@ void ggml_compute_forward_get_rows_f32(
     }
 }
 
-void ggml_compute_forward_get_rows(
+static void ggml_compute_forward_get_rows(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -4943,7 +4963,7 @@ void ggml_compute_forward_get_rows(
 
 // ggml_compute_forward_diag_mask_inf
 
-void ggml_compute_forward_diag_mask_inf_f32(
+static void ggml_compute_forward_diag_mask_inf_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -4979,7 +4999,7 @@ void ggml_compute_forward_diag_mask_inf_f32(
     }
 }
 
-void ggml_compute_forward_diag_mask_inf(
+static void ggml_compute_forward_diag_mask_inf(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -5002,7 +5022,7 @@ void ggml_compute_forward_diag_mask_inf(
 
 // ggml_compute_forward_soft_max
 
-void ggml_compute_forward_soft_max_f32(
+static void ggml_compute_forward_soft_max_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -5073,7 +5093,7 @@ void ggml_compute_forward_soft_max_f32(
     }
 }
 
-void ggml_compute_forward_soft_max(
+static void ggml_compute_forward_soft_max(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         struct ggml_tensor * dst) {
@@ -5095,7 +5115,7 @@ void ggml_compute_forward_soft_max(
 
 // ggml_compute_forward_rope
 
-void ggml_compute_forward_rope_f32(
+static void ggml_compute_forward_rope_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -5152,7 +5172,7 @@ void ggml_compute_forward_rope_f32(
     }
 }
 
-void ggml_compute_forward_rope(
+static void ggml_compute_forward_rope(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -5175,7 +5195,7 @@ void ggml_compute_forward_rope(
 
 // ggml_compute_forward_conv_1d_1s
 
-void ggml_compute_forward_conv_1d_1s_f16_f32(
+static void ggml_compute_forward_conv_1d_1s_f16_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -5295,7 +5315,7 @@ void ggml_compute_forward_conv_1d_1s_f16_f32(
     }
 }
 
-void ggml_compute_forward_conv_1d_1s_f32(
+static void ggml_compute_forward_conv_1d_1s_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -5415,7 +5435,7 @@ void ggml_compute_forward_conv_1d_1s_f32(
     }
 }
 
-void ggml_compute_forward_conv_1d_1s(
+static void ggml_compute_forward_conv_1d_1s(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -5441,7 +5461,7 @@ void ggml_compute_forward_conv_1d_1s(
 
 // ggml_compute_forward_conv_1d_2s
 
-void ggml_compute_forward_conv_1d_2s_f16_f32(
+static void ggml_compute_forward_conv_1d_2s_f16_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -5561,7 +5581,7 @@ void ggml_compute_forward_conv_1d_2s_f16_f32(
     }
 }
 
-void ggml_compute_forward_conv_1d_2s_f32(
+static void ggml_compute_forward_conv_1d_2s_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -5681,7 +5701,7 @@ void ggml_compute_forward_conv_1d_2s_f32(
     }
 }
 
-void ggml_compute_forward_conv_1d_2s(
+static void ggml_compute_forward_conv_1d_2s(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
@@ -5707,7 +5727,7 @@ void ggml_compute_forward_conv_1d_2s(
 
 // ggml_compute_forward_flash_attn
 
-void ggml_compute_forward_flash_attn_f32(
+static void ggml_compute_forward_flash_attn_f32(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * q,
         const struct ggml_tensor * k,
@@ -5888,7 +5908,7 @@ void ggml_compute_forward_flash_attn_f32(
     }
 }
 
-void ggml_compute_forward_flash_attn_f16(
+static void ggml_compute_forward_flash_attn_f16(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * q,
         const struct ggml_tensor * k,
@@ -6075,7 +6095,7 @@ void ggml_compute_forward_flash_attn_f16(
     }
 }
 
-void ggml_compute_forward_flash_attn(
+static void ggml_compute_forward_flash_attn(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * q,
         const struct ggml_tensor * k,
@@ -6103,7 +6123,7 @@ void ggml_compute_forward_flash_attn(
 
 // ggml_compute_forward_flash_ff
 
-void ggml_compute_forward_flash_ff_f16(
+static void ggml_compute_forward_flash_ff_f16(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * a,  // F16
         const struct ggml_tensor * b0, // F16 fc_w
@@ -6283,7 +6303,7 @@ void ggml_compute_forward_flash_ff_f16(
     }
 }
 
-void ggml_compute_forward_flash_ff(
+static void ggml_compute_forward_flash_ff(
         const struct ggml_compute_params * params,
         const struct ggml_tensor * a,
         const struct ggml_tensor * b0,
@@ -6312,7 +6332,7 @@ void ggml_compute_forward_flash_ff(
 
 /////////////////////////////////
 
-void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
+static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
     assert(params);
 
     switch (tensor->op) {
@@ -6460,7 +6480,7 @@ void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tenso
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void ggml_compute_backward(struct ggml_context * ctx, struct ggml_tensor * tensor, bool inplace) {
+static void ggml_compute_backward(struct ggml_context * ctx, struct ggml_tensor * tensor, bool inplace) {
     struct ggml_tensor * src0 = tensor->src0;
     struct ggml_tensor * src1 = tensor->src1;
 
@@ -6704,7 +6724,7 @@ void ggml_compute_backward(struct ggml_context * ctx, struct ggml_tensor * tenso
     }
 }
 
-void ggml_visit_parents(struct ggml_cgraph * cgraph, struct ggml_tensor * node) {
+static void ggml_visit_parents(struct ggml_cgraph * cgraph, struct ggml_tensor * node) {
     if (node->grad == NULL) {
         // this usually happens when we generate intermediate nodes from constants in the backward pass
         // it can also happen during forward pass, if the user performs computations with constants
@@ -6755,7 +6775,7 @@ void ggml_visit_parents(struct ggml_cgraph * cgraph, struct ggml_tensor * node) 
     }
 }
 
-void ggml_build_forward_impl(struct ggml_cgraph * cgraph, struct ggml_tensor * tensor, bool expand) {
+static void ggml_build_forward_impl(struct ggml_cgraph * cgraph, struct ggml_tensor * tensor, bool expand) {
     if (!expand) {
         cgraph->n_nodes = 0;
         cgraph->n_leafs = 0;
@@ -6866,6 +6886,11 @@ typedef int ggml_lock_t;
 
 #define GGML_LOCK_INITIALIZER 0
 
+typedef pthread_t ggml_thread_t;
+
+#define ggml_thread_create pthread_create
+#define ggml_thread_join   pthread_join
+
 #else
 
 //typedef pthread_spinlock_t ggml_lock_t;
@@ -6884,6 +6909,11 @@ typedef int ggml_lock_t;
 
 #define GGML_LOCK_INITIALIZER 0
 
+typedef pthread_t ggml_thread_t;
+
+#define ggml_thread_create pthread_create
+#define ggml_thread_join   pthread_join
+
 #endif
 
 struct ggml_compute_state_shared {
@@ -6898,7 +6928,7 @@ struct ggml_compute_state_shared {
 };
 
 struct ggml_compute_state {
-    pthread_t thrd;
+    ggml_thread_t thrd;
 
     struct ggml_compute_params params;
     struct ggml_tensor * node;
@@ -6906,16 +6936,7 @@ struct ggml_compute_state {
     struct ggml_compute_state_shared * shared;
 };
 
-// function used by each compute thread
-void * ggml_graph_compute_one(void * data) {
-    struct ggml_compute_state * state = (struct ggml_compute_state *) data;
-
-    ggml_compute_forward(&state->params, state->node);
-
-    return NULL;
-}
-
-thread_ret_t ggml_graph_compute_thread(void * data) {
+static thread_ret_t ggml_graph_compute_thread(void * data) {
     struct ggml_compute_state * state = (struct ggml_compute_state *) data;
 
     const int n_threads = state->shared->n_threads;
@@ -6995,7 +7016,7 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
                 .node   = NULL,
                 .shared = &state_shared,
             };
-            int rc = pthread_create(&workers[j].thrd, NULL, ggml_graph_compute_thread, &workers[j]);
+            int rc = ggml_thread_create(&workers[j].thrd, NULL, ggml_graph_compute_thread, &workers[j]);
             assert(rc == 0);
             UNUSED(rc);
         }
@@ -7339,7 +7360,7 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
         atomic_store(&state_shared.has_work, true);
 
         for (int j = 0; j < n_threads - 1; j++) {
-            int rc = pthread_join(workers[j].thrd, NULL);
+            int rc = ggml_thread_join(workers[j].thrd, NULL);
             assert(rc == 0);
             UNUSED(rc);
         }
@@ -7417,7 +7438,7 @@ void ggml_graph_print(const struct ggml_cgraph * cgraph) {
 }
 
 // check if node is part of the graph
-bool ggml_graph_find(const struct ggml_cgraph * cgraph, const struct ggml_tensor * node) {
+static bool ggml_graph_find(const struct ggml_cgraph * cgraph, const struct ggml_tensor * node) {
     if (cgraph == NULL) {
         return true;
     }
@@ -7431,7 +7452,7 @@ bool ggml_graph_find(const struct ggml_cgraph * cgraph, const struct ggml_tensor
     return false;
 }
 
-struct ggml_tensor * ggml_graph_get_parent(const struct ggml_cgraph * cgraph, const struct ggml_tensor * node) {
+static struct ggml_tensor * ggml_graph_get_parent(const struct ggml_cgraph * cgraph, const struct ggml_tensor * node) {
     for (int i = 0; i < cgraph->n_nodes; i++) {
         struct ggml_tensor * parent = cgraph->nodes[i];
 
@@ -7560,7 +7581,7 @@ label=\"<x>CONST %d [%d, %d]\"; ]\n",
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void ggml_opt_set_params(int np, struct ggml_tensor * const ps[], const float * x) {
+static void ggml_opt_set_params(int np, struct ggml_tensor * const ps[], const float * x) {
     int i = 0;
     for (int p = 0; p < np; ++p) {
         const int ne = ggml_nelements(ps[p]) ;
@@ -7571,7 +7592,7 @@ void ggml_opt_set_params(int np, struct ggml_tensor * const ps[], const float * 
     }
 }
 
-void ggml_opt_get_params(int np, struct ggml_tensor * const ps[], float * x) {
+static void ggml_opt_get_params(int np, struct ggml_tensor * const ps[], float * x) {
     int i = 0;
     for (int p = 0; p < np; ++p) {
         const int ne = ggml_nelements(ps[p]) ;
@@ -7582,7 +7603,7 @@ void ggml_opt_get_params(int np, struct ggml_tensor * const ps[], float * x) {
     }
 }
 
-void ggml_opt_get_grad(int np, struct ggml_tensor * const ps[], float * g) {
+static void ggml_opt_get_grad(int np, struct ggml_tensor * const ps[], float * g) {
     int i = 0;
     for (int p = 0; p < np; ++p) {
         const int ne = ggml_nelements(ps[p]) ;
@@ -7599,7 +7620,7 @@ void ggml_opt_get_grad(int np, struct ggml_tensor * const ps[], float * g) {
 //   ref: https://arxiv.org/pdf/1412.6980.pdf
 //
 
-enum ggml_opt_result ggml_opt_adam(
+static enum ggml_opt_result ggml_opt_adam(
         struct ggml_context * ctx,
         struct ggml_opt_params params,
         struct ggml_tensor * f,
@@ -7892,7 +7913,7 @@ static enum ggml_opt_result linesearch_backtracking(
     return GGML_LINESEARCH_FAIL;
 }
 
-enum ggml_opt_result ggml_opt_lbfgs(
+static enum ggml_opt_result ggml_opt_lbfgs(
         struct ggml_context * ctx,
         struct ggml_opt_params params,
         struct ggml_tensor * f,
