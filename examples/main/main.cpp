@@ -69,6 +69,7 @@ struct whisper_params {
     bool output_vtt     = false;
     bool output_srt     = false;
     bool output_wts     = false;
+    bool output_csv     = false;
     bool print_special  = false;
     bool print_colors   = false;
     bool print_progress = false;
@@ -111,6 +112,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-ovtt" || arg == "--output-vtt")     { params.output_vtt     = true; }
         else if (arg == "-osrt" || arg == "--output-srt")     { params.output_srt     = true; }
         else if (arg == "-owts" || arg == "--output-words")   { params.output_wts     = true; }
+        else if (arg == "-ocsv" || arg == "--output-csv")     { params.output_csv     = true; }
         else if (arg == "-ps"   || arg == "--print-special")  { params.print_special  = true; }
         else if (arg == "-pc"   || arg == "--print-colors")   { params.print_colors   = true; }
         else if (arg == "-pp"   || arg == "--print-progress") { params.print_progress = true; }
@@ -150,6 +152,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -ovtt,    --output-vtt     [%-7s] output result in a vtt file\n",                    params.output_vtt ? "true" : "false");
     fprintf(stderr, "  -osrt,    --output-srt     [%-7s] output result in a srt file\n",                    params.output_srt ? "true" : "false");
     fprintf(stderr, "  -owts,    --output-words   [%-7s] output script for generating karaoke video\n",     params.output_wts ? "true" : "false");
+    fprintf(stderr, "  -ocsv,    --output-csv     [%-7s] output result in a CSV file\n",                    params.output_csv ? "true" : "false");
     fprintf(stderr, "  -ps,      --print-special  [%-7s] print special tokens\n",                           params.print_special ? "true" : "false");
     fprintf(stderr, "  -pc,      --print-colors   [%-7s] print colors\n",                                   params.print_colors ? "true" : "false");
     fprintf(stderr, "  -pp,      --print-progress [%-7s] print progress\n",                                 params.print_progress ? "true" : "false");
@@ -324,6 +327,32 @@ bool output_srt(struct whisper_context * ctx, const char * fname, const whisper_
 
     return true;
 }
+
+bool output_csv(struct whisper_context * ctx, const char * fname) {
+    std::ofstream fout(fname);
+    if (!fout.is_open()) {
+        fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
+        return false;
+    }
+
+    fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
+
+    const int n_segments = whisper_full_n_segments(ctx);
+    for (int i = 0; i < n_segments; ++i) {
+        const char * text = whisper_full_get_segment_text(ctx, i);
+	if (text[0] == ' ')
+	  text = text + sizeof(char); //whisper_full_get_segment_text() returns a string with leading space, point to the next character.
+        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+	//need to multiply times returned from whisper_full_get_segment_t{0,1}() by 10 to get milliseconds.
+        fout << 10 * t0 << ", " 
+	     << 10 * t1 << ", \"" 
+	     << text    << "\"\n";
+    }
+
+    return true;
+}
+
 
 // karaoke video generation
 // outputs a bash script that uses ffmpeg to generate a video with the subtitles
@@ -674,6 +703,13 @@ int main(int argc, char ** argv) {
                 const auto fname_wts = fname_inp + ".wts";
                 output_wts(ctx, fname_wts.c_str(), fname_inp.c_str(), params, float(pcmf32.size() + 1000)/WHISPER_SAMPLE_RATE);
             }
+
+	    // output to CSV file
+            if (params.output_csv) {
+                const auto fname_csv = fname_inp + ".csv";
+                output_csv(ctx, fname_csv.c_str());
+            }
+
         }
     }
 
