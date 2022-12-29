@@ -53,7 +53,7 @@ endif
 # Architecture specific
 # TODO: probably these flags need to be tweaked on some architectures
 #       feel free to update the Makefile for your architecture and send a pull request or issue
-ifeq ($(UNAME_M),x86_64)
+ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
 	ifeq ($(UNAME_S),Darwin)
 		CFLAGS += -mfma -mf16c
 		AVX1_M := $(shell sysctl machdep.cpu.features)
