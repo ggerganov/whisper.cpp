@@ -40,7 +40,7 @@ std::vector<gpt_vocab::id> gpt_tokenize(const gpt_vocab & vocab, const std::stri
     // find the longest tokens that form the words:
     std::vector<gpt_vocab::id> tokens;
     for (const auto & word : words) {
-        if (word.size() == 0) continue;
+        if (word.empty()) continue;
 
         int i = 0;
         int n = word.size();
@@ -78,7 +78,7 @@ gpt_vocab::id gpt_sample_top_k_top_p(
         const float * logits,
         int    top_k,
         double top_p,
-        double temp,
+        double /*temp*/,
         std::mt19937 & rng) {
     int n_logits = vocab.id_to_token.size();
 
@@ -86,7 +86,7 @@ gpt_vocab::id gpt_sample_top_k_top_p(
     logits_id.reserve(n_logits);
 
     for (int i = 0; i < n_logits; i++) {
-        logits_id.push_back(std::make_pair(logits[i], i));
+        logits_id.emplace_back(logits[i], i);
     }
 
     // find the top K tokens
@@ -139,7 +139,7 @@ gpt_vocab::id gpt_sample_top_k_top_p(
     }
 
     //printf("\n");
-    //for (int i = 0; i < (int)logits_id.size(); i++) {
+    //for (int i = 0; i < (int) logits_id.size(); i++) {
     //    printf("%d: '%s' %f\n", i, vocab.id_to_token.at(logits_id[i].second).c_str(), logits_id[i].first);
     //}
     //exit(0);
@@ -268,7 +268,7 @@ bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & 
             fin.read((char *) &len, sizeof(len));
 
             word.resize(len);
-            fin.read((char *) word.data(), len);
+            fin.read((char *) &word[0], len);
 
             vocab.token_to_id[word] = i;
             vocab.id_to_token[i] = word;
@@ -327,7 +327,7 @@ bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & 
     {
         struct ggml_init_params params;
         params.mem_size   = ctx_size;
-        params.mem_buffer = NULL;
+        params.mem_buffer = nullptr;
 
         model.ctx = ggml_init(params);
         if (!model.ctx) {
@@ -448,7 +448,7 @@ bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & 
             std::string name(length, 0);
             fin.read(&name[0], length);
 
-            if (model.tensors.find(name.data()) == model.tensors.end()) {
+            if (model.tensors.find(name) == model.tensors.end()) {
                 fprintf(stderr, "%s: unknown tensor '%s' in model file\n", __func__, name.data());
                 return false;
             }
@@ -825,22 +825,23 @@ Me too.
     int32_t n_threads = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
 
     // sampling parameters
-    int32_t top_k = 20;
-    float   top_p = 0.98f;
+    int32_t top_k = 5;
+    float   top_p = 0.9f;
     float   temp  = 1.0f;
 };
 
 struct gpt2_context * gpt2_init(const char * path_model) {
     gpt2_context * ctx = new gpt2_context;
 
-    ctx->rng = std::mt19937(time(NULL));
+    ctx->rng = std::mt19937(time(nullptr));
 
     // load the model
     {
         const int64_t t_start_us = ggml_time_us();
 
         if (!gpt2_model_load(path_model, ctx->model, ctx->vocab)) {
-            fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, "gpt-2.bin");
+            fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, path_model);
+            delete ctx;
             return nullptr;
         }
 
@@ -884,9 +885,9 @@ std::string gpt2_gen_text(gpt2_context * ctx, const char * text, int max_tokens)
 
     std::string result;
 
-    for (int i = embd.size(); i < embd_inp.size() + n_predict; i++) {
+    for (int i = embd.size(); i < (int) embd_inp.size() + n_predict; i++) {
         // predict
-        if (embd.size() > 0) {
+        if (!embd.empty()) {
             if (!gpt2_eval(ctx->model, ctx->n_threads, n_past, embd, embd_w, mem_per_token)) {
                 printf("gpt-2: failed to generate text\n");
                 return "";
@@ -913,10 +914,7 @@ std::string gpt2_gen_text(gpt2_context * ctx, const char * text, int max_tokens)
         result += ctx->vocab.id_to_token[embd[0]];
 
         // end of text token
-        if (embd.back() == 50256 ||
-            ctx->vocab.id_to_token[embd.back()] == "." ||
-            ctx->vocab.id_to_token[embd.back()] == "!" ||
-            ctx->vocab.id_to_token[embd.back()] == "?") {
+        if (embd.back() == 50256) {
             break;
         }
     }

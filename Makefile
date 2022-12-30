@@ -53,7 +53,7 @@ endif
 # Architecture specific
 # TODO: probably these flags need to be tweaked on some architectures
 #       feel free to update the Makefile for your architecture and send a pull request or issue
-ifeq ($(UNAME_M),x86_64)
+ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
 	ifeq ($(UNAME_S),Darwin)
 		CFLAGS += -mfma -mf16c
 		AVX1_M := $(shell sysctl machdep.cpu.features)
@@ -104,6 +104,12 @@ ifeq ($(UNAME_M),x86_64)
 endif
 ifeq ($(UNAME_M),amd64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
+endif
+ifeq ($(UNAME_M),ppc64le)
+	POWER9_M := $(shell grep "POWER9" /proc/cpuinfo)
+	ifneq (,$(findstring POWER9,$(POWER9_M)))
+		CFLAGS += -mpower9-vector
+	endif
 endif
 ifndef WHISPER_NO_ACCELERATE
 	# Mac M1 - include Accelerate framework
