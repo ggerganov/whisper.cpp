@@ -781,18 +781,25 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
     const int n32 = (n & ~31);
 
     vector float sum0 = vec_splats (0.0f);
+    vector float sum1 = vec_splats (0.0f);
+    vector float sum2 = vec_splats (0.0f);
+    vector float sum3 = vec_splats (0.0f);
+    vector float sum4 = vec_splats (0.0f);
+    vector float sum5 = vec_splats (0.0f);
+    vector float sum6 = vec_splats (0.0f);
+    vector float sum7 = vec_splats (0.0f);
 
-    for (int i = 0; i < n32; i += 32) {
+    for (int i = 0, j = 0; i < n32; i += 32, j += 64) {
         // Use vec_xl, not vec_ld, because x is sometimes unaligned.
-        vector unsigned short x0 = vec_xl(i * 2 +  0, x);
-        vector unsigned short x1 = vec_xl(i * 2 + 16, x);
-        vector unsigned short x2 = vec_xl(i * 2 + 32, x);
-        vector unsigned short x3 = vec_xl(i * 2 + 48, x);
+        vector unsigned short x0 = vec_xl(j +  0, x);
+        vector unsigned short x1 = vec_xl(j + 16, x);
+        vector unsigned short x2 = vec_xl(j + 32, x);
+        vector unsigned short x3 = vec_xl(j + 48, x);
 
-        vector unsigned short y0 = vec_xl(i * 2 +  0, y);
-        vector unsigned short y1 = vec_xl(i * 2 + 16, y);
-        vector unsigned short y2 = vec_xl(i * 2 + 32, y);
-        vector unsigned short y3 = vec_xl(i * 2 + 48, y);
+        vector unsigned short y0 = vec_ld(j +  0, y);
+        vector unsigned short y1 = vec_ld(j + 16, y);
+        vector unsigned short y2 = vec_ld(j + 32, y);
+        vector unsigned short y3 = vec_ld(j + 48, y);
 
         vector float fx0l = vec_extract_fp32_from_shortl(x0);
         vector float fx0h = vec_extract_fp32_from_shorth(x0);
@@ -812,15 +819,25 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
         vector float fy3l = vec_extract_fp32_from_shortl(y3);
         vector float fy3h = vec_extract_fp32_from_shorth(y3);
 
-        sum0 = vec_add(sum0, vec_mul(fx0l, fy0l));
-        sum0 = vec_add(sum0, vec_mul(fx0h, fy0h));
-        sum0 = vec_add(sum0, vec_mul(fx1l, fy1l));
-        sum0 = vec_add(sum0, vec_mul(fx1h, fy1h));
-        sum0 = vec_add(sum0, vec_mul(fx2l, fy2l));
-        sum0 = vec_add(sum0, vec_mul(fx2h, fy2h));
-        sum0 = vec_add(sum0, vec_mul(fx3l, fy3l));
-        sum0 = vec_add(sum0, vec_mul(fx3h, fy3h));
+        sum0 = vec_madd(fx0l, fy0l, sum0);
+        sum1 = vec_madd(fx0h, fy0h, sum1);
+        sum2 = vec_madd(fx1l, fy1l, sum2);
+        sum3 = vec_madd(fx1h, fy1h, sum3);
+        sum4 = vec_madd(fx2l, fy2l, sum4);
+        sum5 = vec_madd(fx2h, fy2h, sum5);
+        sum6 = vec_madd(fx3l, fy3l, sum6);
+        sum7 = vec_madd(fx3h, fy3h, sum7);
     }
+
+    sum0 = vec_add(sum0, sum1);
+    sum2 = vec_add(sum2, sum3);
+    sum4 = vec_add(sum4, sum5);
+    sum6 = vec_add(sum6, sum7);
+
+    sum0 = vec_add(sum0, sum2);
+    sum4 = vec_add(sum4, sum6);
+
+    sum0 = vec_add(sum0, sum4);
 
     sumf = vec_extract(sum0, 0) + vec_extract(sum0, 1)
          + vec_extract(sum0, 2) + vec_extract(sum0, 3);
@@ -896,17 +913,17 @@ inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_
     // TODO: this is temporary because I cannot fit it in the GGML_SIMD pattern like all other architectures without
     //       being able to test it. hoping someone with access to a POWER9 machine can help out here.
     const int n32 = (n & ~31);
-    for (int i = 0; i < n32; i += 32) {
+    for (int i = 0, j = 0; i < n32; i += 32, j += 64) {
         // Use vec_xl, not vec_ld, because x is sometimes unaligned!
-        vector unsigned short x0 = vec_xl(i * 2 +  0, x);
-        vector unsigned short x1 = vec_xl(i * 2 + 16, x);
-        vector unsigned short x2 = vec_xl(i * 2 + 32, x);
-        vector unsigned short x3 = vec_xl(i * 2 + 48, x);
+        vector unsigned short x0 = vec_xl(j +  0, x);
+        vector unsigned short x1 = vec_xl(j + 16, x);
+        vector unsigned short x2 = vec_xl(j + 32, x);
+        vector unsigned short x3 = vec_xl(j + 48, x);
 
-        vector unsigned short y0 = vec_xl(i * 2 +  0, y);
-        vector unsigned short y1 = vec_xl(i * 2 + 16, y);
-        vector unsigned short y2 = vec_xl(i * 2 + 32, y);
-        vector unsigned short y3 = vec_xl(i * 2 + 48, y);
+        vector unsigned short y0 = vec_xl(j +  0, y);
+        vector unsigned short y1 = vec_xl(j + 16, y);
+        vector unsigned short y2 = vec_xl(j + 32, y);
+        vector unsigned short y3 = vec_xl(j + 48, y);
 
         vector float v4 = vec_splats(v);
 
@@ -942,10 +959,10 @@ inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_
         y2 = vec_pack_to_short_fp32(fy2h, fy2l);
         y3 = vec_pack_to_short_fp32(fy3h, fy3l);
 
-        vec_xst(y0, i * 2 +  0, y);
-        vec_xst(y1, i * 2 + 16, y);
-        vec_xst(y2, i * 2 + 32, y);
-        vec_xst(y3, i * 2 + 48, y);
+        vec_xst(y0, j +  0, y);
+        vec_xst(y1, j + 16, y);
+        vec_xst(y2, j + 32, y);
+        vec_xst(y3, j + 48, y);
     }
 
     for (int i = n32; i < n; ++i) {
