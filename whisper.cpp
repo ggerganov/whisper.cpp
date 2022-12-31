@@ -2472,12 +2472,12 @@ int whisper_lang_auto_detect(
     }
 
     {
-        for (int i = 0; i < (int) probs_id.size(); i++) {
+        for (const auto & prob : probs_id) {
             if (lang_probs) {
-                lang_probs[probs_id[i].second] = probs_id[i].first;
+                lang_probs[prob.second] = prob.first;
             }
 
-            //printf("%s: lang %2d (%3s): %f\n", __func__, probs_id[i].second, whisper_lang_str(probs_id[i].second), probs_id[i].first);
+            //printf("%s: lang %2d (%3s): %f\n", __func__, prob.second, whisper_lang_str(prob.second), prob.first);
         }
     }
 
@@ -3225,17 +3225,17 @@ int whisper_full_parallel(
     for (int i = 0; i < n_processors - 1; ++i) {
         auto & results_i = ctxs[i].result_all;
 
-        for (int j = 0; j < (int) results_i.size(); ++j) {
+        for (auto & result : results_i) {
             // correct the segment timestamp taking into account the offset
-            results_i[j].t0 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
-            results_i[j].t1 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
+            result.t0 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
+            result.t1 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
 
             // make sure that segments are not overlapping
             if (!ctx->result_all.empty()) {
-                results_i[j].t0 = std::max(results_i[j].t0, ctx->result_all.back().t1);
+                result.t0 = std::max(result.t0, ctx->result_all.back().t1);
             }
 
-            ctx->result_all.push_back(std::move(results_i[j]));
+            ctx->result_all.push_back(std::move(result));
 
             // call the new_segment_callback for each segment
             if (params.new_segment_callback) {
@@ -3330,18 +3330,18 @@ static int64_t sample_to_timestamp(int i_sample) {
 static float voice_length(const std::string & text) {
     float res = 0.0f;
 
-    for (size_t i = 0; i < text.size(); ++i) {
-        if (text[i] == ' ') {
+    for (char c : text) {
+        if (c == ' ') {
             res += 0.01f;
-        } else if (text[i] == ',') {
+        } else if (c == ',') {
             res += 2.00f;
-        } else if (text[i] == '.') {
+        } else if (c == '.') {
             res += 3.00f;
-        } else if (text[i] == '!') {
+        } else if (c == '!') {
             res += 3.00f;
-        } else if (text[i] == '?') {
+        } else if (c == '?') {
             res += 3.00f;
-        } else if (text[i] >= '0' && text[i] <= '9') {
+        } else if (c >= '0' && c <= '9') {
             res += 3.00f;
         } else {
             res += 1.00f;
