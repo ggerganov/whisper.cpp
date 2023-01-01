@@ -2232,7 +2232,7 @@ static std::vector<whisper_vocab::id> tokenize(const whisper_vocab & vocab, cons
 // interface implementation
 //
 
-struct whisper_context * whisper_init(const char * path_model) {
+struct whisper_context * whisper_init_from_file(const char * path_model) {
     whisper_model_loader loader;
 
     fprintf(stderr, "%s: loading model from '%s'\n", __func__, path_model);
@@ -2260,10 +2260,10 @@ struct whisper_context * whisper_init(const char * path_model) {
         fin->close();
     };
 
-    return whisper_init_loader(&loader);
+    return whisper_init(&loader);
 }
 
-struct whisper_context * whisper_init_loader(struct whisper_model_loader * loader) {
+struct whisper_context * whisper_init(struct whisper_model_loader * loader) {
     ggml_time_init();
 
     whisper_context * ctx = new whisper_context;

@@ -40,7 +40,7 @@ extern "C" {
     //
     //     ...
     //
-    //     struct whisper_context * ctx = whisper_init("/path/to/ggml-base.en.bin");
+    //     struct whisper_context * ctx = whisper_init_from_file("/path/to/ggml-base.en.bin");
     //
     //     if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
     //         fprintf(stderr, "failed to process audio\n");
@@ -94,8 +94,8 @@ extern "C" {
 
     // Allocates all memory needed for the model and loads the model from the given file.
     // Returns NULL on failure.
-    WHISPER_API struct whisper_context * whisper_init(const char * path_model);
-    WHISPER_API struct whisper_context * whisper_init_loader(struct whisper_model_loader * loader);
+    WHISPER_API struct whisper_context * whisper_init_from_file(const char * path_model);
+    WHISPER_API struct whisper_context * whisper_init(struct whisper_model_loader * loader);
 
     // Frees all memory allocated by the model.
     WHISPER_API void whisper_free(struct whisper_context * ctx);

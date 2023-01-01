@@ -91,7 +91,7 @@ var (
 func Whisper_init(path string) *Context {
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
-	if ctx := C.whisper_init(cPath); ctx != nil {
+	if ctx := C.whisper_init_from_file(cPath); ctx != nil {
 		return (*Context)(ctx)
 	} else {
 		return nil
