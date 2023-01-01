@@ -4,6 +4,7 @@ import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.*
 import java.io.File
+import java.io.InputStream
 import java.util.concurrent.Executors
 
 private const val LOG_TAG = "LibWhisper"
@@ -39,10 +40,19 @@ class WhisperContext private constructor(private var ptr: Long) {
     }
 
     companion object {
-        fun createContext(filePath: String): WhisperContext {
+        fun createContextFromFile(filePath: String): WhisperContext {
             val ptr = WhisperLib.initContext(filePath)
             if (ptr == 0L) {
                 throw java.lang.RuntimeException("Couldn't create context with path $filePath")
+            }
+            return WhisperContext(ptr)
+        }
+
+        fun createContextFromInputStream(stream: InputStream): WhisperContext {
+            val ptr = WhisperLib.initContextFromInputStream(stream)
+
+            if (ptr == 0L) {
+                throw java.lang.RuntimeException("Couldn't create context from input stream")
             }
             return WhisperContext(ptr)
         }
@@ -76,6 +86,7 @@ private class WhisperLib {
         }
 
         // JNI methods
+        external fun initContextFromInputStream(inputStream: InputStream): Long
         external fun initContext(modelPath: String): Long
         external fun freeContext(contextPtr: Long)
         external fun fullTranscribe(contextPtr: Long, audioData: FloatArray)
