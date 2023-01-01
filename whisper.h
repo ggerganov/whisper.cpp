@@ -95,6 +95,7 @@ extern "C" {
     // Allocates all memory needed for the model and loads the model from the given file.
     // Returns NULL on failure.
     WHISPER_API struct whisper_context * whisper_init_from_file(const char * path_model);
+    WHISPER_API struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size);
     WHISPER_API struct whisper_context * whisper_init(struct whisper_model_loader * loader);
 
     // Frees all memory allocated by the model.

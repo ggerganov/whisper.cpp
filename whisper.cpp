@@ -2233,7 +2233,7 @@ static std::vector<whisper_vocab::id> tokenize(const whisper_vocab & vocab, cons
 //
 
 struct whisper_context * whisper_init_from_file(const char * path_model) {
-    whisper_model_loader loader;
+    whisper_model_loader loader = {};
 
     fprintf(stderr, "%s: loading model from '%s'\n", __func__, path_model);
     
@@ -2259,6 +2259,41 @@ struct whisper_context * whisper_init_from_file(const char * path_model) {
         std::ifstream * fin = (std::ifstream*)ctx;
         fin->close();
     };
+
+    return whisper_init(&loader);
+}
+
+struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size) {
+    struct buf_context {
+        uint8_t* buffer;
+        size_t size;
+        size_t current_offset;
+    };
+
+    buf_context ctx = { reinterpret_cast<uint8_t*>(buffer), buffer_size, 0 };
+    whisper_model_loader loader = {};
+
+    fprintf(stderr, "%s: loading model from buffer\n", __func__);
+
+    loader.context = &ctx;
+    loader.read = [](void * ctx, void * output, size_t read_size) {
+        buf_context * buf = reinterpret_cast<buf_context *>(ctx);
+
+        size_t size_to_copy = buf->current_offset + read_size < buf->size ? read_size : buf->size - buf->current_offset;
+
+        memcpy(output, buf->buffer + buf->current_offset, size_to_copy);
+        buf->current_offset += size_to_copy;
+
+        return size_to_copy;
+    };
+
+    loader.eof = [](void * ctx) {
+        buf_context * buf = reinterpret_cast<buf_context *>(ctx);
+
+        return buf->current_offset >= buf->size;
+    };
+
+    loader.close = [](void * ctx) { };
 
     return whisper_init(&loader);
 }
