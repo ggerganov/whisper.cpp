@@ -84,9 +84,18 @@ extern "C" {
         float vlen;        // voice length of the token
     } whisper_token_data;
 
+    typedef struct whisper_model_loader {
+        void* context;
+
+        size_t (*read)(void * ctx, void * output, size_t read_size);
+        bool (*eof)(void * ctx);
+        void (*close)(void * ctx);
+    } whisper_model_loader;
+
     // Allocates all memory needed for the model and loads the model from the given file.
     // Returns NULL on failure.
     WHISPER_API struct whisper_context * whisper_init(const char * path_model);
+    WHISPER_API struct whisper_context * whisper_init_loader(struct whisper_model_loader * loader);
 
     // Frees all memory allocated by the model.
     WHISPER_API void whisper_free(struct whisper_context * ctx);
