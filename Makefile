@@ -10,6 +10,9 @@ ifndef UNAME_M
 UNAME_M := $(shell uname -m)
 endif
 
+CCV := $(shell $(CC) --version | head -n 1)
+CXXV := $(shell $(CXX) --version | head -n 1)
+
 # Mac OS + Arm can report x86_64
 # ref: https://github.com/ggerganov/whisper.cpp/issues/66#issuecomment-1282546789
 ifeq ($(UNAME_S),Darwin)
@@ -140,6 +143,21 @@ ifneq ($(filter armv8%,$(UNAME_M)),)
 	# Raspberry Pi 4
 	CFLAGS += -mfp16-format=ieee -mno-unaligned-access
 endif
+
+#
+# Print build information
+#
+
+$(info I whisper.cpp build info: )
+$(info I UNAME_S:  $(UNAME_S))
+$(info I UNAME_P:  $(UNAME_P))
+$(info I UNAME_M:  $(UNAME_M))
+$(info I CFLAGS:   $(CFLAGS))
+$(info I CXXFLAGS: $(CXXFLAGS))
+$(info I LDFLAGS:  $(LDFLAGS))
+$(info I CC:       $(CC) $(CCV))
+$(info I CXX:      $(CXX) $(CXXV))
+$(info )
 
 default: main
 
