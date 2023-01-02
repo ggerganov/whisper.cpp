@@ -8,6 +8,7 @@
 #include <SDL.h>
 #include <SDL_audio.h>
 
+#include <atomic>
 #include <cassert>
 #include <cstdio>
 #include <string>
@@ -144,8 +145,8 @@ private:
     int m_len_ms = 0;
     int m_sample_rate = 0;
 
-    bool       m_running = false;
-    std::mutex m_mutex;
+    std::atomic_bool m_running;
+    std::mutex       m_mutex;
 
     std::vector<float> m_audio;
     std::vector<float> m_audio_new;
@@ -155,6 +156,8 @@ private:
 
 audio_async::audio_async(int len_ms) {
     m_len_ms = len_ms;
+
+    m_running = false;
 }
 
 audio_async::~audio_async() {
@@ -427,9 +430,9 @@ int main(int argc, char ** argv) {
     const int n_samples_keep = (params.keep_ms  *1e-3)*WHISPER_SAMPLE_RATE;
     const int n_samples_30s  = (30000           *1e-3)*WHISPER_SAMPLE_RATE;
 
-    const int n_new_line = params.length_ms / params.step_ms - 1; // number of steps to print new line
-
     const bool use_vad = n_samples_step <= 0; // sliding window mode uses VAD
+
+    const int n_new_line = !use_vad ? params.length_ms / params.step_ms - 1 : 1; // number of steps to print new line
 
     params.no_timestamps = !use_vad;
     params.no_context    = use_vad;
