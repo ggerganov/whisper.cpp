@@ -259,7 +259,6 @@ void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, voi
 
                 printf("[%s --> %s]  %s%s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), speaker.c_str(), text);
             }
-            fflush(stdout);
         }
     }
 }

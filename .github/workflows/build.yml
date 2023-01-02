@@ -20,6 +20,11 @@ jobs:
                 make
                 make stream
 
+            - name: Test
+              run: |
+                bash whisper.cpp/models/download-ggml-model.sh tiny
+                ./main samples/jfk.wav -m models/ggml-tiny.bin
+
     macOS-latest:
         runs-on: macOS-latest
 
