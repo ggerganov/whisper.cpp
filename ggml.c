@@ -162,8 +162,16 @@ ggml_fp16_t ggml_fp32_to_fp16(float f) {
 
 #include <Imath/half.h>
 
-#define GGML_FP16_TO_FP32(x) imath_half_to_float(x)
-#define GGML_FP32_TO_FP16(x) imath_float_to_half(x)
+float ggml_fp16_to_fp32(ggml_fp16_t h) {
+    return imath_half_to_float(h);
+}
+
+ggml_fp16_t ggml_fp32_to_fp16(float f) {
+    return imath_float_to_half(f);
+}
+
+#define GGML_FP16_TO_FP32(x) ggml_fp16_to_fp32(x)
+#define GGML_FP32_TO_FP16(x) ggml_fp32_to_fp16(x)
 
 #else
 
