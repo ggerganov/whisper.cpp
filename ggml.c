@@ -173,12 +173,12 @@ static inline float fp32_from_bits(uint32_t w) {
 }
 
 static inline uint32_t fp32_to_bits(float f) {
-	union {
-		float as_value;
-		uint32_t as_bits;
-	} fp32;
-	fp32.as_value = f;
-	return fp32.as_bits;
+   union {
+      float as_value;
+      uint32_t as_bits;
+   } fp32;
+   fp32.as_value = f;
+   return fp32.as_bits;
 }
 
 float ggml_fp16_to_fp32(ggml_fp16_t h) {
