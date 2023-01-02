@@ -8442,4 +8442,12 @@ int ggml_cpu_has_sse3(void) {
 #endif
 }
 
+int ggml_cpu_has_imath(void) {
+#if defined(GGML_USE_IMATH)
+    return 1;
+#else
+    return 0;
+#endif 
+}
+
 ////////////////////////////////////////////////////////////////////////////////
