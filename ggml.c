@@ -8427,4 +8427,12 @@ int ggml_cpu_has_blas(void) {
 #endif
 }
 
+int ggml_cpu_has_sse3(void) {
+#if defined(__SSE3__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 ////////////////////////////////////////////////////////////////////////////////

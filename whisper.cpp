@@ -2577,6 +2577,7 @@ const char * whisper_print_system_info(void) {
     s += "FP16_VA = "   + std::to_string(ggml_cpu_has_fp16_va())   + " | ";
     s += "WASM_SIMD = " + std::to_string(ggml_cpu_has_wasm_simd()) + " | ";
     s += "BLAS = "      + std::to_string(ggml_cpu_has_blas())      + " | ";
+    s += "SSE3 = "      + std::to_string(ggml_cpu_has_sse3())      + " | ";
 
     return s.c_str();
 }
