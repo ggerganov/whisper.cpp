@@ -177,6 +177,7 @@ extern "C" {
     WHISPER_API int whisper_n_len          (struct whisper_context * ctx); // mel length
     WHISPER_API int whisper_n_vocab        (struct whisper_context * ctx);
     WHISPER_API int whisper_n_text_ctx     (struct whisper_context * ctx);
+    WHISPER_API int whisper_n_audio_ctx    (struct whisper_context * ctx);
     WHISPER_API int whisper_is_multilingual(struct whisper_context * ctx);
 
     // The probabilities for the next token

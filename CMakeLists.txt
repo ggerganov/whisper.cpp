@@ -223,6 +223,7 @@ target_compile_definitions(${TARGET} PUBLIC
 install(TARGETS ${TARGET}
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib/static
+    RUNTIME DESTINATION bin
     )
 
 #
