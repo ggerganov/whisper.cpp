@@ -158,6 +158,13 @@ ggml_fp16_t ggml_fp32_to_fp16(float f) {
 #define GGML_FP16_TO_FP32(x) _cvtsh_ss(x)
 #define GGML_FP32_TO_FP16(x) _cvtss_sh(x, 0)
 
+#elif GGML_USE_IMATH
+
+#include <Imath/half.h>
+
+#define GGML_FP16_TO_FP32(x) imath_half_to_float(x)
+#define GGML_FP32_TO_FP16(x) imath_float_to_half(x)
+
 #else
 
 // FP16 <-> FP32

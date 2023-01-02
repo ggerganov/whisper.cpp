@@ -130,6 +130,10 @@ ifdef WHISPER_GPROF
 	CFLAGS  += -pg
 	CXXFLAGS  += -pg
 endif
+ifdef WHISPER_IMATH
+	CFLAGS += -DGGML_USE_IMATH
+	LDFLAGS += -lImath
+endif
 ifneq ($(filter aarch64%,$(UNAME_M)),)
 endif
 ifneq ($(filter armv6%,$(UNAME_M)),)
