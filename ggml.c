@@ -526,39 +526,31 @@ static const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
 
 #elif defined(__POWER9_VECTOR__)
 
-// TODO: uncomment this when it works
-//#define GGML_SIMD
+#define GGML_SIMD
 
 // F32 POWER9
 
 #define GGML_F32_STEP 32
-#define GGML_F32_EPR  8
+#define GGML_F32_EPR  4
 
-// TODO: not tested !!
-#define GGML_F32x4         __vector float
-#define GGML_F32x4_ZERO    (__vector float){0.0f, 0.0f, 0.0f, 0.0f}
-#define GGML_F32x4_SET1(x) (__vector float){x, x, x, x}
-#define GGML_F32x4_LOAD    vec_vsx_ld
-#define GGML_F32x4_STORE   vec_vsx_st
+#define GGML_F32x4              vector float
+#define GGML_F32x4_ZERO         0.0f
+#define GGML_F32x4_SET1         vec_splats
+#define GGML_F32x4_LOAD(p)      vec_xl(0, p)
+#define GGML_F32x4_STORE(p, r)  vec_xst(r, 0, p)
 #define GGML_F32x4_FMA(a, b, c) vec_madd(b, c, a)
-#define GGML_F32x4_ADD     vec_add
-#define GGML_F32x4_MUL     vec_mul
-#define GGML_F32x4_REDUCE(res, x)              \
-{                                              \
-    for (int i = 0; i < GGML_F32_ARR/2; ++i) { \
-        x[2*i] = vec_add(x[2*i], x[2*i+1]);    \
-    }                                          \
-    for (int i = 0; i < GGML_F32_ARR/4; ++i) { \
-        x[4*i] = vec_add(x[4*i], x[4*i+2]);    \
-    }                                          \
-    for (int i = 0; i < GGML_F32_ARR/8; ++i) { \
-        x[8*i] = vec_add(x[8*i], x[8*i+4]);    \
-    }                                          \
-    res = vec_extract(x[0], 0) +               \
-          vec_extract(x[0], 1) +               \
-          vec_extract(x[0], 2) +               \
-          vec_extract(x[0], 3);                \
-}
+#define GGML_F32x4_ADD          vec_add
+#define GGML_F32x4_MUL          vec_mul
+#define GGML_F32x4_REDUCE(sumf, sum)                            \
+  sum[0] = vec_add(sum[0], sum[1]);                             \
+  sum[2] = vec_add(sum[2], sum[3]);                             \
+  sum[4] = vec_add(sum[4], sum[5]);                             \
+  sum[6] = vec_add(sum[6], sum[7]);                             \
+  sum[0] = vec_add(sum[0], sum[2]);                             \
+  sum[4] = vec_add(sum[4], sum[6]);                             \
+  sum[0] = vec_add(sum[0], sum[4]);                             \
+  sumf = vec_extract(sum[0], 0) + vec_extract(sum[0], 1)        \
+    + vec_extract(sum[0], 2) + vec_extract(sum[0], 3);
 
 #define GGML_F32_VEC        GGML_F32x4
 #define GGML_F32_VEC_ZERO   GGML_F32x4_ZERO
@@ -571,12 +563,13 @@ static const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
 #define GGML_F32_VEC_REDUCE GGML_F32x4_REDUCE
 
 // F16 POWER9
-#define GGML_F16_STEP     32
-#define GGML_F16_EPR      4
-#define GGML_F16_VEC      vector float
-#define GGML_F16_ARR      (GGML_F16_STEP/GGML_F16_EPR)
-#define GGML_F16_VEC_ZERO 0.0f
-#define GGML_F16_VEC_SET1 vec_splats
+#define GGML_F16_STEP     GGML_F32_STEP
+#define GGML_F16_EPR      GGML_F32_EPR
+#define GGML_F16_VEC      GGML_F32x4
+#define GGML_F16_VEC_ZERO GGML_F32x4_ZERO
+#define GGML_F16_VEC_SET1 GGML_F32x4_SET1
+#define GGML_F16_VEC_FMA    GGML_F32x4_FMA
+#define GGML_F16_VEC_REDUCE GGML_F32x4_REDUCE
 // 1. Use vec_xl, not vec_ld, in case the load address is not aligned.
 // 2. The load index is doubled because we're loading eight two-byte
 //    ggml_fp16_ts then converting them to four four-byte fp32s.
@@ -587,17 +580,6 @@ static const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
   if (i & 0x1)                                          \
     vec_xst(vec_pack_to_short_fp32(r[i], r[i & ~0x1]),  \
             (i & ~0x1) * GGML_F16_EPR * 2, p)
-#define GGML_F16_VEC_FMA(s, a, b) vec_madd(a, b, s)
-#define GGML_F16_VEC_REDUCE(sumf, sum)                          \
-    sum[0] = vec_add(sum[0], sum[1]);                           \
-    sum[2] = vec_add(sum[2], sum[3]);                           \
-    sum[4] = vec_add(sum[4], sum[5]);                           \
-    sum[6] = vec_add(sum[6], sum[7]);                           \
-    sum[0] = vec_add(sum[0], sum[2]);                           \
-    sum[4] = vec_add(sum[4], sum[6]);                           \
-    sum[0] = vec_add(sum[0], sum[4]);                           \
-    sumf = vec_extract(sum[0], 0) + vec_extract(sum[0], 1)      \
-      + vec_extract(sum[0], 2) + vec_extract(sum[0], 3);
 
 #elif defined(__wasm_simd128__)
 
@@ -776,7 +758,7 @@ inline static void ggml_vec_dot_f32(const int n, float * restrict s, const float
 inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t * restrict x, ggml_fp16_t * restrict y) {
     ggml_float sumf = 0.0;
 
-#if defined(GGML_SIMD) || defined(__POWER9_VECTOR__)
+#if defined(GGML_SIMD)
     const int np = (n & ~(GGML_F16_STEP - 1));
 
     GGML_F16_VEC sum[GGML_F16_ARR] = { GGML_F16_VEC_ZERO };
@@ -841,7 +823,7 @@ inline static void ggml_vec_mad_f32(const int n, float * restrict y, const float
 }
 
 inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_fp16_t * restrict x, const float v) {
-#if defined(GGML_SIMD) || defined(__POWER9_VECTOR__)
+#if defined(GGML_SIMD)
     const int np = (n & ~(GGML_F16_STEP - 1));
 
     GGML_F16_VEC vx = GGML_F16_VEC_SET1(v);
