@@ -571,8 +571,33 @@ static const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
 #define GGML_F32_VEC_REDUCE GGML_F32x4_REDUCE
 
 // F16 POWER9
-// TODO: implement here
-// ...
+#define GGML_F16_STEP     32
+#define GGML_F16_EPR      4
+#define GGML_F16_VEC      vector float
+#define GGML_F16_ARR      (GGML_F16_STEP/GGML_F16_EPR)
+#define GGML_F16_VEC_ZERO 0.0f
+#define GGML_F16_VEC_SET1 vec_splats
+// 1. Use vec_xl, not vec_ld, in case the load address is not aligned.
+// 2. The load index is doubled because we're loading eight two-byte
+//    ggml_fp16_ts then converting them to four four-byte fp32s.
+#define GGML_F16_VEC_LOAD(p, i) (i & 0x1) ?                                \
+  vec_extract_fp32_from_shorth(vec_xl((i & ~0x1) * GGML_F16_EPR * 2, p)) : \
+  vec_extract_fp32_from_shortl(vec_xl((i & ~0x1) * GGML_F16_EPR * 2, p)) /*1,2*/
+#define GGML_F16_VEC_STORE(p, i, r)                     \
+  if (i & 0x1)                                          \
+    vec_xst(vec_pack_to_short_fp32(r[i], r[i & ~0x1]),  \
+            (i & ~0x1) * GGML_F16_EPR * 2, p)
+#define GGML_F16_VEC_FMA(s, a, b) vec_madd(a, b, s)
+#define GGML_F16_VEC_REDUCE(sumf, sum)                          \
+    sum[0] = vec_add(sum[0], sum[1]);                           \
+    sum[2] = vec_add(sum[2], sum[3]);                           \
+    sum[4] = vec_add(sum[4], sum[5]);                           \
+    sum[6] = vec_add(sum[6], sum[7]);                           \
+    sum[0] = vec_add(sum[0], sum[2]);                           \
+    sum[4] = vec_add(sum[4], sum[6]);                           \
+    sum[0] = vec_add(sum[0], sum[4]);                           \
+    sumf = vec_extract(sum[0], 0) + vec_extract(sum[0], 1)      \
+      + vec_extract(sum[0], 2) + vec_extract(sum[0], 3);
 
 #elif defined(__wasm_simd128__)
 
@@ -751,7 +776,7 @@ inline static void ggml_vec_dot_f32(const int n, float * restrict s, const float
 inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t * restrict x, ggml_fp16_t * restrict y) {
     ggml_float sumf = 0.0;
 
-#if defined(GGML_SIMD)
+#if defined(GGML_SIMD) || defined(__POWER9_VECTOR__)
     const int np = (n & ~(GGML_F16_STEP - 1));
 
     GGML_F16_VEC sum[GGML_F16_ARR] = { GGML_F16_VEC_ZERO };
@@ -773,76 +798,6 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
 
     // leftovers
     for (int i = np; i < n; ++i) {
-        sumf += GGML_FP16_TO_FP32(x[i])*GGML_FP16_TO_FP32(y[i]);
-    }
-#elif defined(__POWER9_VECTOR__)
-    // TODO: this is temporary because I cannot fit it in the GGML_SIMD pattern like all other architectures without
-    //       being able to test it. hoping someone with access to a POWER9 machine can help out here.
-    const int n32 = (n & ~31);
-
-    vector float sum0 = vec_splats (0.0f);
-    vector float sum1 = vec_splats (0.0f);
-    vector float sum2 = vec_splats (0.0f);
-    vector float sum3 = vec_splats (0.0f);
-    vector float sum4 = vec_splats (0.0f);
-    vector float sum5 = vec_splats (0.0f);
-    vector float sum6 = vec_splats (0.0f);
-    vector float sum7 = vec_splats (0.0f);
-
-    for (int i = 0, j = 0; i < n32; i += 32, j += 64) {
-        // Use vec_xl, not vec_ld, because x is sometimes unaligned.
-        vector unsigned short x0 = vec_xl(j +  0, x);
-        vector unsigned short x1 = vec_xl(j + 16, x);
-        vector unsigned short x2 = vec_xl(j + 32, x);
-        vector unsigned short x3 = vec_xl(j + 48, x);
-
-        vector unsigned short y0 = vec_ld(j +  0, y);
-        vector unsigned short y1 = vec_ld(j + 16, y);
-        vector unsigned short y2 = vec_ld(j + 32, y);
-        vector unsigned short y3 = vec_ld(j + 48, y);
-
-        vector float fx0l = vec_extract_fp32_from_shortl(x0);
-        vector float fx0h = vec_extract_fp32_from_shorth(x0);
-        vector float fx1l = vec_extract_fp32_from_shortl(x1);
-        vector float fx1h = vec_extract_fp32_from_shorth(x1);
-        vector float fx2l = vec_extract_fp32_from_shortl(x2);
-        vector float fx2h = vec_extract_fp32_from_shorth(x2);
-        vector float fx3l = vec_extract_fp32_from_shortl(x3);
-        vector float fx3h = vec_extract_fp32_from_shorth(x3);
-
-        vector float fy0l = vec_extract_fp32_from_shortl(y0);
-        vector float fy0h = vec_extract_fp32_from_shorth(y0);
-        vector float fy1l = vec_extract_fp32_from_shortl(y1);
-        vector float fy1h = vec_extract_fp32_from_shorth(y1);
-        vector float fy2l = vec_extract_fp32_from_shortl(y2);
-        vector float fy2h = vec_extract_fp32_from_shorth(y2);
-        vector float fy3l = vec_extract_fp32_from_shortl(y3);
-        vector float fy3h = vec_extract_fp32_from_shorth(y3);
-
-        sum0 = vec_madd(fx0l, fy0l, sum0);
-        sum1 = vec_madd(fx0h, fy0h, sum1);
-        sum2 = vec_madd(fx1l, fy1l, sum2);
-        sum3 = vec_madd(fx1h, fy1h, sum3);
-        sum4 = vec_madd(fx2l, fy2l, sum4);
-        sum5 = vec_madd(fx2h, fy2h, sum5);
-        sum6 = vec_madd(fx3l, fy3l, sum6);
-        sum7 = vec_madd(fx3h, fy3h, sum7);
-    }
-
-    sum0 = vec_add(sum0, sum1);
-    sum2 = vec_add(sum2, sum3);
-    sum4 = vec_add(sum4, sum5);
-    sum6 = vec_add(sum6, sum7);
-
-    sum0 = vec_add(sum0, sum2);
-    sum4 = vec_add(sum4, sum6);
-
-    sum0 = vec_add(sum0, sum4);
-
-    sumf = vec_extract(sum0, 0) + vec_extract(sum0, 1)
-         + vec_extract(sum0, 2) + vec_extract(sum0, 3);
-
-    for (int i = n32; i < n; ++i) {
         sumf += GGML_FP16_TO_FP32(x[i])*GGML_FP16_TO_FP32(y[i]);
     }
 #else
@@ -886,7 +841,7 @@ inline static void ggml_vec_mad_f32(const int n, float * restrict y, const float
 }
 
 inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_fp16_t * restrict x, const float v) {
-#if defined(GGML_SIMD)
+#if defined(GGML_SIMD) || defined(__POWER9_VECTOR__)
     const int np = (n & ~(GGML_F16_STEP - 1));
 
     GGML_F16_VEC vx = GGML_F16_VEC_SET1(v);
@@ -907,65 +862,6 @@ inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_
     // leftovers
     for (int i = np; i < n; ++i) {
         GGML_ASSERT(false);
-        y[i] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(y[i]) + GGML_FP16_TO_FP32(x[i])*v);
-    }
-#elif defined(__POWER9_VECTOR__)
-    // TODO: this is temporary because I cannot fit it in the GGML_SIMD pattern like all other architectures without
-    //       being able to test it. hoping someone with access to a POWER9 machine can help out here.
-    const int n32 = (n & ~31);
-    for (int i = 0, j = 0; i < n32; i += 32, j += 64) {
-        // Use vec_xl, not vec_ld, because x is sometimes unaligned!
-        vector unsigned short x0 = vec_xl(j +  0, x);
-        vector unsigned short x1 = vec_xl(j + 16, x);
-        vector unsigned short x2 = vec_xl(j + 32, x);
-        vector unsigned short x3 = vec_xl(j + 48, x);
-
-        vector unsigned short y0 = vec_xl(j +  0, y);
-        vector unsigned short y1 = vec_xl(j + 16, y);
-        vector unsigned short y2 = vec_xl(j + 32, y);
-        vector unsigned short y3 = vec_xl(j + 48, y);
-
-        vector float v4 = vec_splats(v);
-
-        vector float fx0l = vec_extract_fp32_from_shortl(x0);
-        vector float fx0h = vec_extract_fp32_from_shorth(x0);
-        vector float fx1l = vec_extract_fp32_from_shortl(x1);
-        vector float fx1h = vec_extract_fp32_from_shorth(x1);
-        vector float fx2l = vec_extract_fp32_from_shortl(x2);
-        vector float fx2h = vec_extract_fp32_from_shorth(x2);
-        vector float fx3l = vec_extract_fp32_from_shortl(x3);
-        vector float fx3h = vec_extract_fp32_from_shorth(x3);
-
-        vector float fy0l = vec_extract_fp32_from_shortl(y0);
-        vector float fy0h = vec_extract_fp32_from_shorth(y0);
-        vector float fy1l = vec_extract_fp32_from_shortl(y1);
-        vector float fy1h = vec_extract_fp32_from_shorth(y1);
-        vector float fy2l = vec_extract_fp32_from_shortl(y2);
-        vector float fy2h = vec_extract_fp32_from_shorth(y2);
-        vector float fy3l = vec_extract_fp32_from_shortl(y3);
-        vector float fy3h = vec_extract_fp32_from_shorth(y3);
-
-        fy0l = vec_madd(fx0l, v4, fy0l);
-        fy0h = vec_madd(fx0h, v4, fy0h);
-        fy1l = vec_madd(fx1l, v4, fy1l);
-        fy1h = vec_madd(fx1h, v4, fy1h);
-        fy2l = vec_madd(fx2l, v4, fy2l);
-        fy2h = vec_madd(fx2h, v4, fy2h);
-        fy3l = vec_madd(fx3l, v4, fy3l);
-        fy3h = vec_madd(fx3h, v4, fy3h);
-
-        y0 = vec_pack_to_short_fp32(fy0h, fy0l);
-        y1 = vec_pack_to_short_fp32(fy1h, fy1l);
-        y2 = vec_pack_to_short_fp32(fy2h, fy2l);
-        y3 = vec_pack_to_short_fp32(fy3h, fy3l);
-
-        vec_xst(y0, j +  0, y);
-        vec_xst(y1, j + 16, y);
-        vec_xst(y2, j + 32, y);
-        vec_xst(y3, j + 48, y);
-    }
-
-    for (int i = n32; i < n; ++i) {
         y[i] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(y[i]) + GGML_FP16_TO_FP32(x[i])*v);
     }
 #else
