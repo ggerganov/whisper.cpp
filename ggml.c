@@ -386,14 +386,14 @@ static const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
     #define GGML_F16_STEP 32
     #define GGML_F16_EPR  8
 
-    #define GGML_F16x8              float16x8_t
-    #define GGML_F16x8_ZERO         vdupq_n_f16(0.0f)
-    #define GGML_F16x8_SET1(x)      vdupq_n_f16(x)
-    #define GGML_F16x8_LOAD         vld1q_f16
-    #define GGML_F16x8_STORE        vst1q_f16
-    #define GGML_F16x8_FMA(a, b, c) vfmaq_f16(a, b, c)
-    #define GGML_F16x8_ADD          vaddq_f16
-    #define GGML_F16x8_MUL          vmulq_f16
+    #define GGML_F16x8                float16x8_t
+    #define GGML_F16x8_ZERO           vdupq_n_f16(0.0f)
+    #define GGML_F16x8_SET1(x)        vdupq_n_f16(x)
+    #define GGML_F16x8_LOAD(p, i)     vld1q_f16(p + i * GGML_F16_EPR)
+    #define GGML_F16x8_STORE(p, i, r) vst1q_f16(p + i * GGML_F16_EPR, r[i])
+    #define GGML_F16x8_FMA(a, b, c)   vfmaq_f16(a, b, c)
+    #define GGML_F16x8_ADD            vaddq_f16
+    #define GGML_F16x8_MUL            vmulq_f16
     #define GGML_F16x8_REDUCE(res, x)                             \
     {                                                             \
         for (int i = 0; i < GGML_F16_ARR/2; ++i) {                \
@@ -426,15 +426,15 @@ static const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
     #define GGML_F16_STEP 16
     #define GGML_F16_EPR  4
 
-    #define GGML_F32Cx4              float32x4_t
-    #define GGML_F32Cx4_ZERO         vdupq_n_f32(0.0f)
-    #define GGML_F32Cx4_SET1(x)      vdupq_n_f32(x)
-    #define GGML_F32Cx4_LOAD(x)      vcvt_f32_f16(vld1_f16(x))
-    #define GGML_F32Cx4_STORE(x, y)  vst1_f16(x, vcvt_f16_f32(y))
-    #define GGML_F32Cx4_FMA(a, b, c) vfmaq_f32(a, b, c)
-    #define GGML_F32Cx4_ADD          vaddq_f32
-    #define GGML_F32Cx4_MUL          vmulq_f32
-    #define GGML_F32Cx4_REDUCE       GGML_F32x4_REDUCE
+    #define GGML_F32Cx4                float32x4_t
+    #define GGML_F32Cx4_ZERO           vdupq_n_f32(0.0f)
+    #define GGML_F32Cx4_SET1(x)        vdupq_n_f32(x)
+    #define GGML_F32Cx4_LOAD(p, i)     vcvt_f32_f16(vld1_f16(p + i * GGML_F16_EPR))
+    #define GGML_F32Cx4_STORE(p, i, r) vst1_f16(p + i * GGML_F16_EPR, vcvt_f16_f32(r[i]))
+    #define GGML_F32Cx4_FMA(a, b, c)   vfmaq_f32(a, b, c)
+    #define GGML_F32Cx4_ADD            vaddq_f32
+    #define GGML_F32Cx4_MUL            vmulq_f32
+    #define GGML_F32Cx4_REDUCE         GGML_F32x4_REDUCE
 
     #define GGML_F16_VEC        GGML_F32Cx4
     #define GGML_F16_VEC_ZERO   GGML_F32Cx4_ZERO
@@ -504,15 +504,15 @@ static const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
 // F16 arithmetic is not supported by AVX, so we use F32 instead
 // we take advantage of the _mm256_cvt intrinsics to convert F16 <-> F32
 
-#define GGML_F32Cx8             __m256
-#define GGML_F32Cx8_ZERO        _mm256_setzero_ps()
-#define GGML_F32Cx8_SET1(x)     _mm256_set1_ps(x)
-#define GGML_F32Cx8_LOAD(x)     _mm256_cvtph_ps(_mm_loadu_si128((__m128i *)(x)))
-#define GGML_F32Cx8_STORE(x, y) _mm_storeu_si128((__m128i *)(x), _mm256_cvtps_ph(y, 0))
-#define GGML_F32Cx8_FMA         GGML_F32x8_FMA
-#define GGML_F32Cx8_ADD         _mm256_add_ps
-#define GGML_F32Cx8_MUL         _mm256_mul_ps
-#define GGML_F32Cx8_REDUCE      GGML_F32x8_REDUCE
+#define GGML_F32Cx8                __m256
+#define GGML_F32Cx8_ZERO           _mm256_setzero_ps()
+#define GGML_F32Cx8_SET1(x)        _mm256_set1_ps(x)
+#define GGML_F32Cx8_LOAD(p, i)     _mm256_cvtph_ps(_mm_loadu_si128((__m128i *)(p + i * GGML_F16_EPR)))
+#define GGML_F32Cx8_STORE(p, i, r) _mm_storeu_si128((__m128i *)(p + i * GGML_F16_EPR), _mm256_cvtps_ph(r[i], 0))
+#define GGML_F32Cx8_FMA            GGML_F32x8_FMA
+#define GGML_F32Cx8_ADD            _mm256_add_ps
+#define GGML_F32Cx8_MUL            _mm256_mul_ps
+#define GGML_F32Cx8_REDUCE         GGML_F32x8_REDUCE
 
 #define GGML_F16_VEC        GGML_F32Cx8
 #define GGML_F16_VEC_ZERO   GGML_F32Cx8_ZERO
@@ -645,14 +645,14 @@ inline static void __wasm_f16x4_store(ggml_fp16_t * p, v128_t x) {
     p[3] = GGML_FP32_TO_FP16(tmp[3]);
 }
 
-#define GGML_F16x4             v128_t
-#define GGML_F16x4_ZERO        wasm_f32x4_splat(0.0f)
-#define GGML_F16x4_SET1(x)     wasm_f32x4_splat(x)
-#define GGML_F16x4_LOAD(x)     __wasm_f16x4_load(x)
-#define GGML_F16x4_STORE(x, y) __wasm_f16x4_store(x, y)
-#define GGML_F16x4_FMA         GGML_F32x4_FMA
-#define GGML_F16x4_ADD         wasm_f32x4_add
-#define GGML_F16x4_MUL         wasm_f32x4_mul
+#define GGML_F16x4                v128_t
+#define GGML_F16x4_ZERO           wasm_f32x4_splat(0.0f)
+#define GGML_F16x4_SET1(x)        wasm_f32x4_splat(x)
+#define GGML_F16x4_LOAD(p, i)     __wasm_f16x4_load(p + i * GGML_F16_EPR)
+#define GGML_F16x4_STORE(p, i, r) __wasm_f16x4_store(p + i * GGML_F16_EPR, r[i])
+#define GGML_F16x4_FMA            GGML_F32x4_FMA
+#define GGML_F16x4_ADD            wasm_f32x4_add
+#define GGML_F16x4_MUL            wasm_f32x4_mul
 #define GGML_F16x4_REDUCE(res, x)                  \
 {                                                  \
     for (int i = 0; i < GGML_F16_ARR/2; ++i) {     \
@@ -761,8 +761,8 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
 
     for (int i = 0; i < np; i += GGML_F16_STEP) {
         for (int j = 0; j < GGML_F16_ARR; j++) {
-            ax[j] = GGML_F16_VEC_LOAD(x + i + j*GGML_F16_EPR);
-            ay[j] = GGML_F16_VEC_LOAD(y + i + j*GGML_F16_EPR);
+            ax[j] = GGML_F16_VEC_LOAD(x + i, j);
+            ay[j] = GGML_F16_VEC_LOAD(y + i, j);
 
             sum[j] = GGML_F16_VEC_FMA(sum[j], ax[j], ay[j]);
         }
@@ -896,11 +896,11 @@ inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, ggml_
 
     for (int i = 0; i < np; i += GGML_F16_STEP) {
         for (int j = 0; j < GGML_F16_ARR; j++) {
-            ax[j] = GGML_F16_VEC_LOAD(x + i + j*GGML_F16_EPR);
-            ay[j] = GGML_F16_VEC_LOAD(y + i + j*GGML_F16_EPR);
+            ax[j] = GGML_F16_VEC_LOAD(x + i, j);
+            ay[j] = GGML_F16_VEC_LOAD(y + i, j);
             ay[j] = GGML_F16_VEC_FMA(ay[j], ax[j], vx);
 
-            GGML_F16_VEC_STORE(y + i + j*GGML_F16_EPR, ay[j]);
+            GGML_F16_VEC_STORE(y + i, j, ay);
         }
     }
 
