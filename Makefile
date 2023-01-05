@@ -155,8 +155,8 @@ $(info I UNAME_M:  $(UNAME_M))
 $(info I CFLAGS:   $(CFLAGS))
 $(info I CXXFLAGS: $(CXXFLAGS))
 $(info I LDFLAGS:  $(LDFLAGS))
-$(info I CC:       $(CC) $(CCV))
-$(info I CXX:      $(CXX) $(CXXV))
+$(info I CC:       $(CCV))
+$(info I CXX:      $(CXXV))
 $(info )
 
 default: main
