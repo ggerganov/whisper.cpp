@@ -122,14 +122,6 @@ typedef double ggml_float;
 //
 #include <arm_neon.h>
 
-float ggml_fp16_to_fp32(ggml_fp16_t x) {
-    return x;
-}
-
-ggml_fp16_t ggml_fp32_to_fp16(float x) {
-    return x;
-}
-
 #define GGML_FP16_TO_FP32(x) (x)
 #define GGML_FP32_TO_FP16(x) (x)
 
@@ -148,30 +140,9 @@ ggml_fp16_t ggml_fp32_to_fp16(float x) {
 #endif
 
 #ifdef __F16C__
-float ggml_fp16_to_fp32(ggml_fp16_t h) {
-    return _cvtsh_ss(h);
-}
-ggml_fp16_t ggml_fp32_to_fp16(float f) {
-    return _cvtss_sh(f, 0);
-}
 
-#define GGML_FP16_TO_FP32(x) _cvtsh_ss(x)
-#define GGML_FP32_TO_FP16(x) _cvtss_sh(x, 0)
-
-#elif GGML_USE_IMATH
-
-#include <Imath/half.h>
-
-float ggml_fp16_to_fp32(ggml_fp16_t h) {
-    return imath_half_to_float(h);
-}
-
-ggml_fp16_t ggml_fp32_to_fp16(float f) {
-    return imath_float_to_half(f);
-}
-
-#define GGML_FP16_TO_FP32(x) ggml_fp16_to_fp32(x)
-#define GGML_FP32_TO_FP16(x) ggml_fp32_to_fp16(x)
+#define GGML_COMPUTE_FP16_TO_FP32(x) _cvtsh_ss(x)
+#define GGML_COMPUTE_FP32_TO_FP16(x) _cvtss_sh(x, 0)
 
 #else
 
@@ -196,7 +167,7 @@ static inline uint32_t fp32_to_bits(float f) {
 	return fp32.as_bits;
 }
 
-float ggml_fp16_to_fp32(ggml_fp16_t h) {
+float ggml_compute_fp16_to_fp32(ggml_fp16_t h) {
     const uint32_t w = (uint32_t) h << 16;
     const uint32_t sign = w & UINT32_C(0x80000000);
     const uint32_t two_w = w + w;
@@ -219,7 +190,7 @@ float ggml_fp16_to_fp32(ggml_fp16_t h) {
     return fp32_from_bits(result);
 }
 
-ggml_fp16_t ggml_fp32_to_fp16(float f) {
+ggml_fp16_t ggml_compute_fp32_to_fp16(float f) {
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) || defined(__GNUC__) && !defined(__STRICT_ANSI__)
     const float scale_to_inf = 0x1.0p+112f;
     const float scale_to_zero = 0x1.0p-110f;
@@ -245,8 +216,8 @@ ggml_fp16_t ggml_fp32_to_fp16(float f) {
     return (sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign);
 }
 
-#define GGML_FP16_TO_FP32(x) ggml_fp16_to_fp32(x)
-#define GGML_FP32_TO_FP16(x) ggml_fp32_to_fp16(x)
+#define GGML_COMPUTE_FP16_TO_FP32(x) ggml_compute_fp16_to_fp32(x)
+#define GGML_COMPUTE_FP32_TO_FP16(x) ggml_compute_fp32_to_fp16(x)
 
 #endif // __F16C__
 
@@ -261,6 +232,24 @@ static ggml_fp16_t table_gelu_f16[1 << 16];
 
 // precomputed exp table for f16 (128 KB)
 static ggml_fp16_t table_exp_f16[1 << 16];
+
+// precomputed f32 table for f16 (256 KB)
+static float table_f32_f16[1 << 16];
+
+// On ARM NEON, it's quicker to directly convert x -> x instead of calling into ggml_lookup_fp16_to_fp32,
+// so we define GGML_FP16_TO_FP32 and GGML_FP32_TO_FP16 elsewhere for NEON.
+#if !defined(GGML_FP16_TO_FP32) || !defined(GGML_FP32_TO_FP16)
+
+float ggml_lookup_fp16_to_fp32(ggml_fp16_t f) {
+    uint16_t s;
+    memcpy(&s, &f, sizeof(uint16_t));
+    return table_f32_f16[s];
+}
+
+#define GGML_FP16_TO_FP32(x) ggml_lookup_fp16_to_fp32(x)
+#define GGML_FP32_TO_FP16(x) GGML_COMPUTE_FP32_TO_FP16(x)
+
+#endif
 
 //
 // timing
@@ -1496,7 +1485,7 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
     static bool is_first_call = true;
 
     if (is_first_call) {
-        // initialize GELU and EXP tables
+        // initialize GELU, EXP and F32 tables
         {
             const uint64_t t_start = ggml_time_us(); UNUSED(t_start);
 
@@ -1504,7 +1493,7 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
             for (int i = 0; i < (1 << 16); ++i) {
                 uint16_t ui = i;
                 memcpy(&ii, &ui, sizeof(ii));
-                const float f = GGML_FP16_TO_FP32(ii);
+                const float f = table_f32_f16[i] = GGML_COMPUTE_FP16_TO_FP32(ii);
                 table_gelu_f16[i] = GGML_FP32_TO_FP16(ggml_gelu_f32(f));
                 table_exp_f16[i]  = GGML_FP32_TO_FP16(exp(f));
             }
@@ -8465,14 +8454,6 @@ int ggml_cpu_has_sse3(void) {
 #else
     return 0;
 #endif
-}
-
-int ggml_cpu_has_imath(void) {
-#if defined(GGML_USE_IMATH)
-    return 1;
-#else
-    return 0;
-#endif 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
