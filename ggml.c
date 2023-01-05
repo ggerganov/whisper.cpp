@@ -1237,7 +1237,7 @@ static struct ggml_state g_state;
 static atomic_int g_state_barrier = 0;
 
 // barrier via spin lock
-inline static void ggml_critical_section_start() {
+inline static void ggml_critical_section_start(void) {
     int processing = atomic_fetch_add(&g_state_barrier, 1);
 
     while (processing > 0) {
@@ -1250,7 +1250,7 @@ inline static void ggml_critical_section_start() {
 
 // TODO: make this somehow automatically executed
 //       some sort of "sentry" mechanism
-inline static void ggml_critical_section_end() {
+inline static void ggml_critical_section_end(void) {
     atomic_fetch_sub(&g_state_barrier, 1);
 }
 
