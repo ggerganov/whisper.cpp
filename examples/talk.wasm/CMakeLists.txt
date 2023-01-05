@@ -9,6 +9,8 @@ add_executable(${TARGET}
     gpt-2.cpp
     )
 
+include(DefaultTargetOptions)
+
 target_link_libraries(${TARGET} PRIVATE
     whisper
     )

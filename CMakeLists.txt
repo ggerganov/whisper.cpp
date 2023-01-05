@@ -1,15 +1,14 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.19)
 
 project(whisper.cpp VERSION 1.0.4)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS "on")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+# Add path to modules
+list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/" )
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(WHISPER_STANDALONE ON)
-    include(cmake/GitVars.cmake)
-    include(cmake/BuildTypes.cmake)
+    include(GitVars)
+    include(BuildTypes)
 
     # configure project version
     if (EXISTS "${CMAKE_SOURCE_DIR}/bindings/ios/Makefile-tmpl")
@@ -81,9 +80,6 @@ endif()
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
 
 # dependencies
-
-set(CMAKE_C_STANDARD   11)
-set(CMAKE_CXX_STANDARD 11)
 
 find_package(Threads REQUIRED)
 
@@ -189,6 +185,8 @@ add_library(${TARGET}
     whisper.h
     whisper.cpp
     )
+
+include(DefaultTargetOptions)
 
 target_include_directories(${TARGET} PUBLIC
     .
