@@ -88,9 +88,6 @@ typedef void* thread_ret_t;
     #define GGML_MEM_ALIGN 16
 #endif
 
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-
 #define UNUSED(x) (void)(x)
 #define SWAP(x, y, T) do { T SWAP = x; x = y; y = SWAP; } while (0)
 
@@ -107,6 +104,11 @@ typedef void* thread_ret_t;
 #elif GGML_USE_OPENBLAS
 #include <cblas.h>
 #endif
+
+#undef MIN
+#undef MAX
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 // floating point type used to accumulate sums
 typedef double ggml_float;

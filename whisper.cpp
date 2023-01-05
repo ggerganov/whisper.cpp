@@ -435,9 +435,8 @@ struct whisper_context {
 };
 
 template<typename T>
-static void read_safe(std::ifstream& fin, T& dest)
-{
-  fin.read((char*)& dest, sizeof(T));
+static void read_safe(std::ifstream& fin, T& dest) {
+    fin.read((char*)& dest, sizeof(T));
 }
 
 // load the model from a ggml file
