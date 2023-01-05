@@ -8232,4 +8232,12 @@ int ggml_cpu_has_blas(void) {
 #endif
 }
 
+int ggml_cpu_has_vsx(void) {
+#if defined(__POWER9_VECTOR__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 ////////////////////////////////////////////////////////////////////////////////
