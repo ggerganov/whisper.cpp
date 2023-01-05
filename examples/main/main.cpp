@@ -199,7 +199,6 @@ void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, voi
         }
 
         if (params.diarize && pcmf32s.size() == 2) {
-
             const int64_t n_samples = pcmf32s[0].size();
 
             const int64_t is0 = timestamp_to_sample(t0, n_samples);
