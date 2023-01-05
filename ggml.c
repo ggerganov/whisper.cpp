@@ -689,7 +689,7 @@ inline static void __wasm_f16x4_store(ggml_fp16_t * p, v128_t x) {
 #define GGML_SIMD
 
 // F32 SSE
-// TODO: 32?
+
 #define GGML_F32_STEP 32
 #define GGML_F32_EPR  4
 
@@ -733,7 +733,7 @@ inline static void __wasm_f16x4_store(ggml_fp16_t * p, v128_t x) {
 #define GGML_F32_VEC_REDUCE GGML_F32x4_REDUCE
 
 // F16 SSE
-// TODO: 32?
+
 #define GGML_F16_STEP 32
 #define GGML_F16_EPR  4
 
