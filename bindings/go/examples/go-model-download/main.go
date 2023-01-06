@@ -17,15 +17,14 @@ import (
 // CONSTANTS
 
 const (
-	srcUrl        = "https://huggingface.co/"                           // The location of the models
-	srcPathPrefix = "/datasets/ggerganov/whisper.cpp/resolve/main/ggml" // Filename prefix
-	srcExt        = ".bin"                                              // Filename extension
-	bufSize       = 1024 * 64                                           // Size of the buffer used for downloading the model
+	srcUrl  = "https://huggingface.co/datasets/ggerganov/whisper.cpp/resolve/main" // The location of the models
+	srcExt  = ".bin"                                                               // Filename extension
+	bufSize = 1024 * 64                                                            // Size of the buffer used for downloading the model
 )
 
 var (
 	// The models which will be downloaded, if no model is specified as an argument
-	modelNames = []string{"tiny.en", "tiny", "base.en", "base", "small.en", "small", "medium.en", "medium", "large-v1", "large"}
+	modelNames = []string{"ggml-tiny.en", "ggml-tiny", "ggml-base.en", "ggml-base", "ggml-small.en", "ggml-small", "ggml-medium.en", "ggml-medium", "ggml-large-v1", "ggml-large"}
 )
 
 var (
@@ -123,11 +122,14 @@ func GetModels() []string {
 
 // URLForModel returns the URL for the given model on huggingface.co
 func URLForModel(model string) (string, error) {
+	if filepath.Ext(model) != srcExt {
+		model += srcExt
+	}
 	url, err := url.Parse(srcUrl)
 	if err != nil {
 		return "", err
 	} else {
-		url.Path = srcPathPrefix + "-" + model + srcExt
+		url.Path = filepath.Join(url.Path, model)
 	}
 	return url.String(), nil
 }

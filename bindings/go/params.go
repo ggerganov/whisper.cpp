@@ -1,8 +1,5 @@
 package whisper
 
-// This file defines the whisper_token, whisper_token_data and whisper_full_params
-// structures, which are used by the whisper_full() function.
-
 import (
 	"fmt"
 )

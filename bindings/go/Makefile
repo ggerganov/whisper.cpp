@@ -1,8 +1,9 @@
 CMAKE := $(shell which cmake)
-BUILD_DIR := "build"
-MODELS_DIR := "models"
+BUILD_DIR := build
+MODELS_DIR := models
 EXAMPLES_DIR := $(wildcard examples/*)
-C_INCLUDE_PATH := "../.."
+INCLUDE_PATH := $(abspath ../..)
+LIBRARY_PATH := $(abspath ${BUILD_DIR})
 
 all: clean whisper examples
 
@@ -12,17 +13,17 @@ whisper: mkdir
 	@${CMAKE} --build ${BUILD_DIR} --target whisper
 
 test: model-small whisper modtidy
-	@go test -v .
-	@go test -v ./pkg/whisper/...
+	@C_INCLUDE_PATH=${INCLUDE_PATH} LIBRARY_PATH=${LIBRARY_PATH} go test -v .
+	@C_INCLUDE_PATH=${INCLUDE_PATH} LIBRARY_PATH=${LIBRARY_PATH} go test -v ./pkg/whisper/...
 
 examples: $(EXAMPLES_DIR)
 
 model-small: mkdir examples/go-model-download
-	@${BUILD_DIR}/go-model-download -out models small.en
+	@${BUILD_DIR}/go-model-download -out models ggml-small.en.bin
 
 $(EXAMPLES_DIR): mkdir whisper modtidy
 	@echo Build example $(notdir $@)
-	@go build ${BUILD_FLAGS} -o ${BUILD_DIR}/$(notdir $@) ./$@
+	@C_INCLUDE_PATH=${INCLUDE_PATH} LIBRARY_PATH=${LIBRARY_PATH} go build ${BUILD_FLAGS} -o ${BUILD_DIR}/$(notdir $@) ./$@
 
 mkdir:
 	@echo Mkdir ${BUILD_DIR}

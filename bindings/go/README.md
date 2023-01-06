@@ -74,4 +74,27 @@ And you can then test a model against samples with the following command:
 ./build/go-whisper -model models/ggml-tiny.en.bin samples/jfk.wav 
 ```
 
+## Using the bindings
+
+To use the bindings in your own software,
+
+  1. Import `github.com/ggerganov/whisper.cpp/bindings/go/pkg/whisper` (or `github.com/ggerganov/whisper.cpp/bindings/go` into your package;
+  2. Compile `libwhisper.a` (you can use `make whisper` in the `bindings/go` directory);
+  3. Link your go binary against whisper by setting the environment variables `C_INCLUDE_PATH` and `LIBRARY_PATH`
+     to point to the `whisper.h` file directory and `libwhisper.a` file directory respectively.
+
+Look at the `Makefile` in the `bindings/go` directory for an example.
+
+The API Documentation:
+
+  * https://pkg.go.dev/github.com/ggerganov/whisper.cpp/bindings/go
+  * https://pkg.go.dev/github.com/ggerganov/whisper.cpp/bindings/go/pkg/whisper
+
+Getting help:
+
+  * Follow the discussion for the go bindings [here](https://github.com/ggerganov/whisper.cpp/discussions/312)
+
+## License
+
+The license for the Go bindings is the same as the license for the rest of the whisper.cpp project, which is the MIT License. See the `LICENSE` file for more details.
 

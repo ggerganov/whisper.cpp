@@ -50,7 +50,10 @@ func Test_Whisper_001(t *testing.T) {
 	ctx := whisper.Whisper_init(ModelPath)
 	assert.NotNil(ctx)
 	defer ctx.Whisper_free()
-	assert.NoError(ctx.Whisper_full(ctx.Whisper_full_default_params(whisper.SAMPLING_GREEDY), buf.AsFloat32Buffer().Data, nil, nil))
+	params := ctx.Whisper_full_default_params(whisper.SAMPLING_GREEDY)
+	data := buf.AsFloat32Buffer().Data
+	err = ctx.Whisper_full(params, data, nil, nil)
+	assert.NoError(err)
 
 	// Print out tokens
 	num_segments := ctx.Whisper_full_n_segments()
