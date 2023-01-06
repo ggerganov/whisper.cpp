@@ -84,6 +84,10 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
 		ifneq (,$(findstring f16c,$(F16C_M)))
 			CFLAGS += -mf16c
 		endif
+		SSE3_M := $(shell grep "sse3 " /proc/cpuinfo)
+		ifneq (,$(findstring sse3,$(SSE3_M)))
+			CFLAGS += -msse3
+		endif
 	else ifeq ($(UNAME_S),Haiku)
 		AVX1_M := $(shell sysinfo -cpu | grep "AVX ")
 		ifneq (,$(findstring avx,$(AVX1_M)))
