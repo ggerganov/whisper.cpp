@@ -737,8 +737,8 @@ inline static void __wasm_f16x4_store(ggml_fp16_t * p, v128_t x) {
 #define GGML_F32_VEC        GGML_F32x4
 #define GGML_F32_VEC_ZERO   GGML_F32x4_ZERO
 #define GGML_F32_VEC_SET1   GGML_F32x4_SET1
-#define GGML_F32_VEC_LOAD(p, i)   GGML_F32x4_LOAD(p)
-#define GGML_F32_VEC_STORE(p, r, i)  GGML_F32x4_STORE(p, r[i])
+#define GGML_F32_VEC_LOAD   GGML_F32x4_LOAD
+#define GGML_F32_VEC_STORE  GGML_F32x4_STORE
 #define GGML_F32_VEC_FMA    GGML_F32x4_FMA
 #define GGML_F32_VEC_ADD    GGML_F32x4_ADD
 #define GGML_F32_VEC_MUL    GGML_F32x4_MUL
@@ -781,15 +781,15 @@ inline void __sse_f16x4_store(ggml_fp16_t *x, __m128 y) {
 #define GGML_F32Cx4_MUL         _mm_mul_ps
 #define GGML_F32Cx4_REDUCE      GGML_F32x4_REDUCE
 
-#define GGML_F16_VEC        GGML_F32Cx4
-#define GGML_F16_VEC_ZERO   GGML_F32Cx4_ZERO
-#define GGML_F16_VEC_SET1   GGML_F32Cx4_SET1
-#define GGML_F16_VEC_LOAD(p, i)   GGML_F32Cx4_LOAD(p)
+#define GGML_F16_VEC                 GGML_F32Cx4
+#define GGML_F16_VEC_ZERO            GGML_F32Cx4_ZERO
+#define GGML_F16_VEC_SET1            GGML_F32Cx4_SET1
+#define GGML_F16_VEC_LOAD(p, i)      GGML_F32Cx4_LOAD(p)
 #define GGML_F16_VEC_STORE(p, r, i)  GGML_F32Cx4_STORE(p, r[i])
-#define GGML_F16_VEC_FMA    GGML_F32Cx4_FMA
-#define GGML_F16_VEC_ADD    GGML_F32Cx4_ADD
-#define GGML_F16_VEC_MUL    GGML_F32Cx4_MUL
-#define GGML_F16_VEC_REDUCE GGML_F32Cx4_REDUCE
+#define GGML_F16_VEC_FMA             GGML_F32Cx4_FMA
+#define GGML_F16_VEC_ADD             GGML_F32Cx4_ADD
+#define GGML_F16_VEC_MUL             GGML_F32Cx4_MUL
+#define GGML_F16_VEC_REDUCE          GGML_F32Cx4_REDUCE
 
 #endif
 
