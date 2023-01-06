@@ -412,6 +412,8 @@ struct whisper_context {
     std::vector<uint8_t>   buf_compute;
     std::vector<uint8_t>   buf_compute_layer;
 
+    ggml_type wtype; // weight type (FP32 or FP16)
+
     whisper_model model;
     whisper_vocab vocab;
 
@@ -435,9 +437,8 @@ struct whisper_context {
 };
 
 template<typename T>
-static void read_safe(std::ifstream& fin, T& dest)
-{
-  fin.read((char*)& dest, sizeof(T));
+static void read_safe(std::ifstream& fin, T& dest) {
+    fin.read((char*)& dest, sizeof(T));
 }
 
 // load the model from a ggml file
@@ -630,7 +631,9 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
 
     // for the big tensors, we have the option to store the data in 16-bit floats
     // in order to save memory and also to speed up the computation
-    const ggml_type wtype = model.hparams.f16 ? GGML_TYPE_F16 : GGML_TYPE_F32;
+    wctx.wtype = model.hparams.f16 ? GGML_TYPE_F16 : GGML_TYPE_F32;
+
+    const ggml_type wtype = wctx.wtype;
 
     size_t ctx_size = 0;
 
@@ -651,7 +654,6 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
 
         // encoder
         {
-            // TODO: F16 .. maybe not?
             ctx_size += n_audio_ctx*n_audio_state*ggml_type_size(GGML_TYPE_F32); // e_pe;
 
             ctx_size += 3*n_mels*n_audio_state*ggml_type_size(wtype);         // e_conv_1_w
@@ -666,7 +668,6 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
 
         // decoder
         {
-            // TODO: F16 .. maybe not?
             ctx_size += n_text_ctx*n_text_state*ggml_type_size(GGML_TYPE_F32); // d_pe;
 
             ctx_size += n_vocab*n_text_state*ggml_type_size(wtype); // d_te;
@@ -983,8 +984,8 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             const int n_mem      = n_text_layer*n_text_ctx;
             const int n_elements = n_text_state*n_mem;
 
-            model.memory_k = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
-            model.memory_v = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
+            model.memory_k = ggml_new_tensor_1d(ctx, wtype, n_elements);
+            model.memory_v = ggml_new_tensor_1d(ctx, wtype, n_elements);
         }
 
         // key/value memory for the cross-attention layer
@@ -994,8 +995,8 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             const int n_mem      = n_text_layer*n_audio_ctx;
             const int n_elements = n_text_state*n_mem;
 
-            model.memory_cross_k = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
-            model.memory_cross_v = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
+            model.memory_cross_k = ggml_new_tensor_1d(ctx, wtype, n_elements);
+            model.memory_cross_v = ggml_new_tensor_1d(ctx, wtype, n_elements);
         }
 
         const size_t memory_size =
@@ -1241,14 +1242,14 @@ static bool whisper_encode(
                 ggml_permute(ctxL,
                         ggml_cpy(ctxL,
                             Qcur,
-                            ggml_new_tensor_3d(ctxL, GGML_TYPE_F16, n_state/n_head, n_head, n_ctx)),
+                            ggml_new_tensor_3d(ctxL, wctx.wtype, n_state/n_head, n_head, n_ctx)),
                         0, 2, 1, 3);
 
             struct ggml_tensor * K =
                 ggml_permute(ctxL,
                         ggml_cpy(ctxL,
                             Kcur,
-                            ggml_new_tensor_3d(ctxL, GGML_TYPE_F16, n_state/n_head, n_head, n_ctx)),
+                            ggml_new_tensor_3d(ctxL, wctx.wtype, n_state/n_head, n_head, n_ctx)),
                         0, 2, 1, 3);
 
             struct ggml_tensor * V =
@@ -1258,7 +1259,7 @@ static bool whisper_encode(
                                 Vcur,
                                 n_state/n_head, n_head, n_ctx),
                             1, 2, 0, 3),
-                        ggml_new_tensor_3d(ctxL, GGML_TYPE_F16, n_ctx, n_state/n_head, n_head)
+                        ggml_new_tensor_3d(ctxL, wctx.wtype, n_ctx, n_state/n_head, n_head)
                         );
 
             struct ggml_tensor * KQV = ggml_flash_attn(ctxL, Q, K, V, false);
@@ -1274,7 +1275,7 @@ static bool whisper_encode(
                 ggml_permute(ctxL,
                         ggml_cpy(ctxL,
                             Kcur,
-                            ggml_new_tensor_3d(ctxL, GGML_TYPE_F16, n_state/n_head, n_head, n_ctx)),
+                            ggml_new_tensor_3d(ctxL, wctx.wtype, n_state/n_head, n_head, n_ctx)),
                         0, 2, 1, 3);
 
             // K * Q
@@ -1292,7 +1293,7 @@ static bool whisper_encode(
             //    ggml_permute(ctxL,
             //            ggml_cpy(ctxL,
             //                Vcur,
-            //                ggml_new_tensor_3d(ctxL, GGML_TYPE_F16, n_state/n_head, n_head, n_ctx)),
+            //                ggml_new_tensor_3d(ctxL, wctx.wtype, n_state/n_head, n_head, n_ctx)),
             //            1, 2, 0, 3);
 
             //struct ggml_tensor * KQV = ggml_mul_mat(ctxL, V_trans, KQ_soft_max);
@@ -1304,7 +1305,7 @@ static bool whisper_encode(
                                 Vcur,
                                 n_state/n_head, n_head, n_ctx),
                             0, 2, 1, 3),
-                        ggml_new_tensor_3d(ctxL, GGML_TYPE_F16, n_state/n_head, n_ctx, n_head)
+                        ggml_new_tensor_3d(ctxL, wctx.wtype, n_state/n_head, n_ctx, n_head)
                         );
 
             struct ggml_tensor * KQV = ggml_mul_mat(ctxL, ggml_transpose(ctxL, V), KQ_soft_max);
@@ -1349,7 +1350,7 @@ static bool whisper_encode(
 
 #ifdef USE_FLASH_FF
             cur = ggml_flash_ff(ctxL,
-                    ggml_cpy(ctxL, cur, ggml_new_tensor_2d(ctxL, GGML_TYPE_F16, n_state, N)),
+                    ggml_cpy(ctxL, cur, ggml_new_tensor_2d(ctxL, wctx.wtype, n_state, N)),
                     layer.mlp_0_w, layer.mlp_0_b, layer.mlp_1_w, layer.mlp_1_b);
 #else
             // fully connected
@@ -2473,12 +2474,12 @@ int whisper_lang_auto_detect(
     }
 
     {
-        for (int i = 0; i < (int) probs_id.size(); i++) {
+        for (const auto & prob : probs_id) {
             if (lang_probs) {
-                lang_probs[probs_id[i].second] = probs_id[i].first;
+                lang_probs[prob.second] = prob.first;
             }
 
-            //printf("%s: lang %2d (%3s): %f\n", __func__, probs_id[i].second, whisper_lang_str(probs_id[i].second), probs_id[i].first);
+            //printf("%s: lang %2d (%3s): %f\n", __func__, prob.second, whisper_lang_str(prob.second), prob.first);
         }
     }
 
@@ -2582,6 +2583,7 @@ const char * whisper_print_system_info(void) {
     s += "WASM_SIMD = " + std::to_string(ggml_cpu_has_wasm_simd()) + " | ";
     s += "BLAS = "      + std::to_string(ggml_cpu_has_blas())      + " | ";
     s += "SSE3 = "      + std::to_string(ggml_cpu_has_sse3())      + " | ";
+    s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
 
     return s.c_str();
 }
@@ -3158,7 +3160,7 @@ int whisper_full_parallel(
 
         // separate key + value memory for each processor
         {
-            auto & ctx = model.ctx_mem;
+            auto & mctx = model.ctx_mem;
 
             const auto & hparams = model.hparams;
 
@@ -3171,8 +3173,8 @@ int whisper_full_parallel(
                 const int n_mem      = n_text_layer*n_text_ctx;
                 const int n_elements = n_text_state*n_mem;
 
-                model.memory_k = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
-                model.memory_v = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
+                model.memory_k = ggml_new_tensor_1d(mctx, ctx->wtype, n_elements);
+                model.memory_v = ggml_new_tensor_1d(mctx, ctx->wtype, n_elements);
             }
 
             // key/value memory for the cross-attention layer
@@ -3182,8 +3184,8 @@ int whisper_full_parallel(
                 const int n_mem      = n_text_layer*n_audio_ctx;
                 const int n_elements = n_text_state*n_mem;
 
-                model.memory_cross_k = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
-                model.memory_cross_v = ggml_new_tensor_1d(ctx, GGML_TYPE_F16, n_elements);
+                model.memory_cross_k = ggml_new_tensor_1d(mctx, ctx->wtype, n_elements);
+                model.memory_cross_v = ggml_new_tensor_1d(mctx, ctx->wtype, n_elements);
             }
         }
     }
@@ -3227,17 +3229,17 @@ int whisper_full_parallel(
     for (int i = 0; i < n_processors - 1; ++i) {
         auto & results_i = ctxs[i].result_all;
 
-        for (int j = 0; j < (int) results_i.size(); ++j) {
+        for (auto & result : results_i) {
             // correct the segment timestamp taking into account the offset
-            results_i[j].t0 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
-            results_i[j].t1 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
+            result.t0 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
+            result.t1 += 100*((i + 1)*n_samples_per_processor)/WHISPER_SAMPLE_RATE + offset_t;
 
             // make sure that segments are not overlapping
             if (!ctx->result_all.empty()) {
-                results_i[j].t0 = std::max(results_i[j].t0, ctx->result_all.back().t1);
+                result.t0 = std::max(result.t0, ctx->result_all.back().t1);
             }
 
-            ctx->result_all.push_back(std::move(results_i[j]));
+            ctx->result_all.push_back(std::move(result));
 
             // call the new_segment_callback for each segment
             if (params.new_segment_callback) {
@@ -3332,18 +3334,18 @@ static int64_t sample_to_timestamp(int i_sample) {
 static float voice_length(const std::string & text) {
     float res = 0.0f;
 
-    for (size_t i = 0; i < text.size(); ++i) {
-        if (text[i] == ' ') {
+    for (char c : text) {
+        if (c == ' ') {
             res += 0.01f;
-        } else if (text[i] == ',') {
+        } else if (c == ',') {
             res += 2.00f;
-        } else if (text[i] == '.') {
+        } else if (c == '.') {
             res += 3.00f;
-        } else if (text[i] == '!') {
+        } else if (c == '!') {
             res += 3.00f;
-        } else if (text[i] == '?') {
+        } else if (c == '?') {
             res += 3.00f;
-        } else if (text[i] >= '0' && text[i] <= '9') {
+        } else if (c >= '0' && c <= '9') {
             res += 3.00f;
         } else {
             res += 1.00f;

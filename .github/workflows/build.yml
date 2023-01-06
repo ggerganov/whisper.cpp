@@ -235,3 +235,33 @@ jobs:
               with:
                 name: whisper-blas-bin-${{ matrix.arch }}
                 path: build/bin/${{ matrix.build }}
+
+    emscripten:
+        runs-on: ubuntu-latest
+
+        strategy:
+            matrix:
+                build: [Release]
+
+        steps:
+            - name: Clone
+              uses: actions/checkout@v1
+
+            - name: Dependencies
+              run: |
+                wget -q https://github.com/emscripten-core/emsdk/archive/master.tar.gz
+                tar -xvf master.tar.gz
+                emsdk-master/emsdk update
+                emsdk-master/emsdk install latest
+                emsdk-master/emsdk activate latest
+
+            - name: Configure
+              run: echo "tmp"
+
+            - name: Build
+              run: |
+                pushd emsdk-master
+                source ./emsdk_env.sh
+                popd
+                emcmake cmake . -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+                make

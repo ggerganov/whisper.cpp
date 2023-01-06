@@ -11,6 +11,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Plain C/C++ implementation without dependencies
 - Apple silicon first-class citizen - optimized via Arm Neon and Accelerate framework
 - AVX intrinsics support for x86 architectures
+- VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
 - Low memory usage (Flash Attention + Flash Forward)
 - Zero memory allocations at runtime
