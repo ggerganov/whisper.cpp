@@ -1,16 +1,14 @@
-CMAKE := $(shell which cmake)
 BUILD_DIR := build
 MODELS_DIR := models
 EXAMPLES_DIR := $(wildcard examples/*)
 INCLUDE_PATH := $(abspath ../..)
-LIBRARY_PATH := $(abspath ${BUILD_DIR})
+LIBRARY_PATH := $(abspath ../..)
 
 all: clean whisper examples
 
 whisper: mkdir
 	@echo Build whisper
-	@${CMAKE} -S ../.. -B ${BUILD_DIR} -D BUILD_SHARED_LIBS=off -D WHISPER_NO_AVX2=on
-	@${CMAKE} --build ${BUILD_DIR} --target whisper
+	@${MAKE} -C ../.. libwhisper.a
 
 test: model-small whisper modtidy
 	@C_INCLUDE_PATH=${INCLUDE_PATH} LIBRARY_PATH=${LIBRARY_PATH} go test -v .

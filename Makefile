@@ -58,8 +58,11 @@ endif
 #       feel free to update the Makefile for your architecture and send a pull request or issue
 ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
 	ifeq ($(UNAME_S),Darwin)
-		CFLAGS += -mfma -mf16c
+		CFLAGS += -mf16c
 		AVX1_M := $(shell sysctl machdep.cpu.features)
+		ifneq (,$(findstring FMA,$(AVX1_M)))
+			CFLAGS += -mfma
+		endif
 		ifneq (,$(findstring AVX1.0,$(AVX1_M)))
 			CFLAGS += -mavx
 		endif
