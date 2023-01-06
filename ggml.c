@@ -242,7 +242,7 @@ static float table_f32_f16[1 << 16];
 // so we define GGML_FP16_TO_FP32 and GGML_FP32_TO_FP16 elsewhere for NEON.
 #if !defined(GGML_FP16_TO_FP32) || !defined(GGML_FP32_TO_FP16)
 
-float ggml_lookup_fp16_to_fp32(ggml_fp16_t f) {
+inline static float ggml_lookup_fp16_to_fp32(ggml_fp16_t f) {
     uint16_t s;
     memcpy(&s, &f, sizeof(uint16_t));
     return table_f32_f16[s];
@@ -749,7 +749,7 @@ inline static void __wasm_f16x4_store(ggml_fp16_t * p, v128_t x) {
 #define GGML_F16_STEP 32
 #define GGML_F16_EPR  4
 
-inline __m128 __sse_f16x4_load(ggml_fp16_t *x) {
+static inline __m128 __sse_f16x4_load(ggml_fp16_t *x) {
     float tmp[4];
 
     tmp[0] = GGML_FP16_TO_FP32(x[0]);
@@ -760,7 +760,7 @@ inline __m128 __sse_f16x4_load(ggml_fp16_t *x) {
     return _mm_loadu_ps(tmp);
 }
 
-inline void __sse_f16x4_store(ggml_fp16_t *x, __m128 y) {
+static inline void __sse_f16x4_store(ggml_fp16_t *x, __m128 y) {
     float arr[4];
 
     _mm_storeu_ps(arr, y);
