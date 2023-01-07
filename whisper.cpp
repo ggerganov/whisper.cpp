@@ -131,7 +131,7 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
     { "su",  { 98,  "sundanese",      } },
 };
 
-static const size_t MB = 1024*1024;
+static const size_t MB = 3*1024*1024;
 
 static const std::map<e_model, size_t> MEM_REQ_MODEL = {
     { MODEL_TINY,     74ull*MB },
