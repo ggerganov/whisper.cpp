@@ -130,6 +130,7 @@ if (WHISPER_ALL_WARNINGS)
             -Wcast-qual                     \
             -Wstrict-prototypes             \
             -Wpointer-arith                 \
+            -Wno-unused-function            \
         ")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
             -Wall                           \
@@ -156,6 +157,7 @@ else()
     if (MSVC)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /arch:AVX2")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:AVX2")
     else()
         if (EMSCRIPTEN)
             set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -pthread")

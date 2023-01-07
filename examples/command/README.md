@@ -9,7 +9,19 @@ More info is available in [issue #171](https://github.com/ggerganov/whisper.cpp/
 
 # On Raspberry Pi, use tiny or base models + "-ac 768" for better performance
 ./command -m ./models/ggml-tiny.en.bin -ac 768 -t 3 -c 0
+```
 
+https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
+
+Web version: [examples/command.wasm](/examples/command.wasm)
+
+## Guided mode
+
+"Guided mode" allows you to specify a list of commands (i.e. strings) and the transcription will be guided to classify your command into one from the list. This can be useful in situations where a device is listening only for a small subset of commands.
+
+Initial tests show that this approach might be extremely efficient in terms of performance, since it integrates very well with the "partial Encoder" idea from #137.
+
+```bash
 # Run in guided mode, the list of allowed commands is in commands.txt
 ./command -m ./models/ggml-base.en.bin -cmd ./examples/command/commands.txt
 
@@ -17,9 +29,8 @@ More info is available in [issue #171](https://github.com/ggerganov/whisper.cpp/
 ./command -m ./models/ggml-tiny.en.bin -cmd ./examples/command/commands.txt -ac 128 -t 3 -c 0
 ```
 
-https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
+https://user-images.githubusercontent.com/1991296/207435352-8fc4ed3f-bde5-4555-9b8b-aeeb76bee969.mp4
 
-Web version: [examples/command.wasm](/examples/command.wasm)
 
 ## Building
 
