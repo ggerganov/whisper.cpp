@@ -24,7 +24,7 @@ var _ Context = (*context)(nil)
 ///////////////////////////////////////////////////////////////////////////////
 // LIFECYCLE
 
-func NewContext(model *model, params whisper.Params) (Context, error) {
+func newContext(model *model, params whisper.Params) (Context, error) {
 	context := new(context)
 	context.model = model
 	context.params = params

@@ -91,5 +91,5 @@ func (model *model) NewContext() (Context, error) {
 	params.SetThreads(runtime.NumCPU())
 
 	// Return new context
-	return NewContext(model, params)
+	return newContext(model, params)
 }
