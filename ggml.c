@@ -311,7 +311,6 @@ int64_t ggml_cycles_per_ms(void) {
     return CLOCKS_PER_SEC/1000;
 }
 
-//#define GGML_PERF
 #ifdef GGML_PERF
 #define ggml_perf_time_ms()       ggml_time_ms()
 #define ggml_perf_time_us()       ggml_time_us()
