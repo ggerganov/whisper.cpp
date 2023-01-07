@@ -130,6 +130,7 @@ if (WHISPER_ALL_WARNINGS)
             -Wcast-qual                     \
             -Wstrict-prototypes             \
             -Wpointer-arith                 \
+            -Wno-unused-function            \
         ")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
             -Wall                           \
