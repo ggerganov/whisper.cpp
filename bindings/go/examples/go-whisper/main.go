@@ -35,8 +35,7 @@ func main() {
 
 	// Process files
 	for _, filename := range flags.Args() {
-		fmt.Println("Processing", filename)
-		if err := Process(model, filename, flags.GetLanguage(), flags.IsSpeedup(), flags.IsTokens()); err != nil {
+		if err := Process(model, filename, flags); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
