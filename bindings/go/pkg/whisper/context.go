@@ -24,7 +24,7 @@ var _ Context = (*context)(nil)
 ///////////////////////////////////////////////////////////////////////////////
 // LIFECYCLE
 
-func NewContext(model *model, params whisper.Params) (Context, error) {
+func newContext(model *model, params whisper.Params) (Context, error) {
 	context := new(context)
 	context.model = model
 	context.params = params
@@ -41,6 +41,9 @@ func (context *context) SetLanguage(lang string) error {
 	if context.model.ctx == nil {
 		return ErrInternalAppError
 	}
+	if !context.model.IsMultilingual() {
+		return ErrModelNotMultilingual
+	}
 	if id := context.model.ctx.Whisper_lang_id(lang); id < 0 {
 		return ErrUnsupportedLanguage
 	} else if err := context.params.SetLanguage(id); err != nil {
@@ -50,14 +53,58 @@ func (context *context) SetLanguage(lang string) error {
 	return nil
 }
 
+func (context *context) IsMultilingual() bool {
+	return context.model.IsMultilingual()
+}
+
 // Get language
 func (context *context) Language() string {
 	return whisper.Whisper_lang_str(context.params.Language())
 }
 
+// Set translate flag
+func (context *context) SetTranslate(v bool) {
+	context.params.SetTranslate(v)
+}
+
 // Set speedup flag
 func (context *context) SetSpeedup(v bool) {
 	context.params.SetSpeedup(v)
+}
+
+// Set number of threads to use
+func (context *context) SetThreads(v uint) {
+	context.params.SetThreads(int(v))
+}
+
+// Set time offset
+func (context *context) SetOffset(v time.Duration) {
+	context.params.SetOffset(int(v.Milliseconds()))
+}
+
+// Set duration of audio to process
+func (context *context) SetDuration(v time.Duration) {
+	context.params.SetOffset(int(v.Milliseconds()))
+}
+
+// Set timestamp token probability threshold (~0.01)
+func (context *context) SetTokenThreshold(t float32) {
+	context.params.SetTokenThreshold(t)
+}
+
+// Set timestamp token sum probability threshold (~0.01)
+func (context *context) SetTokenSumThreshold(t float32) {
+	context.params.SetTokenSumThreshold(t)
+}
+
+// Set max segment length in characters
+func (context *context) SetMaxSegmentLength(n uint) {
+	context.params.SetMaxSegmentLength(int(n))
+}
+
+// Set max tokens per segment (0 = no limit)
+func (context *context) SetMaxTokensPerSegment(n uint) {
+	context.params.SetMaxTokensPerSegment(int(n))
 }
 
 // Process new sample data and return any errors
@@ -117,6 +164,65 @@ func (context *context) NextSegment() (Segment, error) {
 
 	// Return success
 	return result, nil
+}
+
+// Test for text tokens
+func (context *context) IsText(t Token) bool {
+	switch {
+	case context.IsBEG(t):
+		return false
+	case context.IsSOT(t):
+		return false
+	case whisper.Token(t.Id) >= context.model.ctx.Whisper_token_eot():
+		return false
+	case context.IsPREV(t):
+		return false
+	case context.IsSOLM(t):
+		return false
+	case context.IsNOT(t):
+		return false
+	default:
+		return true
+	}
+}
+
+// Test for "begin" token
+func (context *context) IsBEG(t Token) bool {
+	return whisper.Token(t.Id) == context.model.ctx.Whisper_token_beg()
+}
+
+// Test for "start of transcription" token
+func (context *context) IsSOT(t Token) bool {
+	return whisper.Token(t.Id) == context.model.ctx.Whisper_token_sot()
+}
+
+// Test for "end of transcription" token
+func (context *context) IsEOT(t Token) bool {
+	return whisper.Token(t.Id) == context.model.ctx.Whisper_token_eot()
+}
+
+// Test for "start of prev" token
+func (context *context) IsPREV(t Token) bool {
+	return whisper.Token(t.Id) == context.model.ctx.Whisper_token_prev()
+}
+
+// Test for "start of lm" token
+func (context *context) IsSOLM(t Token) bool {
+	return whisper.Token(t.Id) == context.model.ctx.Whisper_token_solm()
+}
+
+// Test for "No timestamps" token
+func (context *context) IsNOT(t Token) bool {
+	return whisper.Token(t.Id) == context.model.ctx.Whisper_token_not()
+}
+
+// Test for token associated with a specific language
+func (context *context) IsLANG(t Token, lang string) bool {
+	if id := context.model.ctx.Whisper_lang_id(lang); id >= 0 {
+		return whisper.Token(t.Id) == context.model.ctx.Whisper_token_lang(id)
+	} else {
+		return false
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////

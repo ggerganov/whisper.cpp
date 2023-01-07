@@ -23,7 +23,7 @@ var _ Model = (*model)(nil)
 ///////////////////////////////////////////////////////////////////////////////
 // LIFECYCLE
 
-func New(path string) (*model, error) {
+func New(path string) (Model, error) {
 	model := new(model)
 	if _, err := os.Stat(path); err != nil {
 		return nil, err
@@ -64,6 +64,11 @@ func (model *model) String() string {
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC METHODS
 
+// Return true if model is multilingual (language and translation options are supported)
+func (model *model) IsMultilingual() bool {
+	return model.ctx.Whisper_is_multilingual() != 0
+}
+
 // Return all recognized languages. Initially it is set to auto-detect
 func (model *model) Languages() []string {
 	result := make([]string, 0, whisper.Whisper_lang_max_id())
@@ -91,5 +96,5 @@ func (model *model) NewContext() (Context, error) {
 	params.SetThreads(runtime.NumCPU())
 
 	// Return new context
-	return NewContext(model, params)
+	return newContext(model, params)
 }
