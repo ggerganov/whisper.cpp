@@ -837,7 +837,7 @@ struct gpt2_context * gpt2_init(const char * path_model) {
 
     // load the model
     {
-        const int64_t t_start_us = ggml_time_us();
+        const int64_t t_start_us = ggml_real_time_us();
 
         if (!gpt2_model_load(path_model, ctx->model, ctx->vocab)) {
             fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, path_model);
@@ -845,7 +845,7 @@ struct gpt2_context * gpt2_init(const char * path_model) {
             return nullptr;
         }
 
-        const int64_t t_load_us = ggml_time_us() - t_start_us;
+        const int64_t t_load_us = ggml_real_time_us() - t_start_us;
 
         printf("gpt-2: model loaded in %d ms\n", (int) (t_load_us/1000));
     }
