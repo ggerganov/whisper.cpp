@@ -3388,7 +3388,7 @@ static int timestamp_to_sample(int64_t t, int n_samples) {
 }
 
 static int64_t sample_to_timestamp(int i_sample) {
-    return (100*i_sample)/WHISPER_SAMPLE_RATE;
+    return (100ll*i_sample)/WHISPER_SAMPLE_RATE;
 }
 
 // a cost-function / heuristic that is high for text that takes longer to pronounce
