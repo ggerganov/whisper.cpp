@@ -20,7 +20,7 @@ struct whisper_context * g_context;
 EMSCRIPTEN_BINDINGS(whisper) {
     emscripten::function("init", emscripten::optional_override([](const std::string & path_model) {
         if (g_context == nullptr) {
-            g_context = whisper_init(path_model.c_str());
+            g_context = whisper_init_from_file(path_model.c_str());
             if (g_context != nullptr) {
                 return true;
             } else {

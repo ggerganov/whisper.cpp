@@ -478,7 +478,7 @@ int main(int argc, char ** argv) {
 
     // whisper init
 
-    struct whisper_context * ctx = whisper_init(params.model.c_str());
+    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
 
     if (ctx == nullptr) {
         fprintf(stderr, "error: failed to initialize whisper context\n");

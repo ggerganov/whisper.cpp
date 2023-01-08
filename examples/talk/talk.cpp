@@ -498,7 +498,7 @@ int main(int argc, char ** argv) {
 
     // whisper init
 
-    struct whisper_context * ctx_wsp = whisper_init(params.model_wsp.c_str());
+    struct whisper_context * ctx_wsp = whisper_init_from_file(params.model_wsp.c_str());
 
     // gpt init
 

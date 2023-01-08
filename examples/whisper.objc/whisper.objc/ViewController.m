@@ -61,7 +61,7 @@ void AudioInputCallback(void * inUserData,
         NSLog(@"Loading model from %@", modelPath);
 
         // create ggml context
-        stateInp.ctx = whisper_init([modelPath UTF8String]);
+        stateInp.ctx = whisper_init_from_file([modelPath UTF8String]);
 
         // check if the model was loaded successfully
         if (stateInp.ctx == NULL) {

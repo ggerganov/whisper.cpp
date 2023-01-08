@@ -55,7 +55,7 @@ actor WhisperContext {
     }
     
     static func createContext(path: String) throws -> WhisperContext {
-        let context = whisper_init(path)
+        let context = whisper_init_from_file(path)
         if let context {
             return WhisperContext(context: context)
         } else {

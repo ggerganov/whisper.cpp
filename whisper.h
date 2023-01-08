@@ -1,6 +1,7 @@
 #ifndef WHISPER_H
 #define WHISPER_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -40,7 +41,7 @@ extern "C" {
     //
     //     ...
     //
-    //     struct whisper_context * ctx = whisper_init("/path/to/ggml-base.en.bin");
+    //     struct whisper_context * ctx = whisper_init_from_file("/path/to/ggml-base.en.bin");
     //
     //     if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
     //         fprintf(stderr, "failed to process audio\n");
@@ -84,9 +85,20 @@ extern "C" {
         float vlen;        // voice length of the token
     } whisper_token_data;
 
-    // Allocates all memory needed for the model and loads the model from the given file.
-    // Returns NULL on failure.
-    WHISPER_API struct whisper_context * whisper_init(const char * path_model);
+    typedef struct whisper_model_loader {
+        void * context;
+
+        size_t (*read)(void * ctx, void * output, size_t read_size);
+        bool    (*eof)(void * ctx);
+        void  (*close)(void * ctx);
+    } whisper_model_loader;
+
+    // Various function to load a ggml whisper model.
+    // Allocates (almost) all memory needed for the model.
+    // Return NULL on failure
+    WHISPER_API struct whisper_context * whisper_init_from_file(const char * path_model);
+    WHISPER_API struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size);
+    WHISPER_API struct whisper_context * whisper_init(struct whisper_model_loader * loader);
 
     // Frees all memory allocated by the model.
     WHISPER_API void whisper_free(struct whisper_context * ctx);
