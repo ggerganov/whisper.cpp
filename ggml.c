@@ -1109,8 +1109,8 @@ inline static void ggml_vec_sum_f32(const int n, float * s, const float * x) {
     ggml_float sum = 0.0;
     for (int i = 0; i < n; ++i) {
         sum += x[i];
-        *s += sum;
     }
+    *s = sum;
 #else
     vDSP_sve(x, 1, s, n);
 #endif
