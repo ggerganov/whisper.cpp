@@ -93,8 +93,8 @@ extern "C" {
         void  (*close)(void * ctx);
     } whisper_model_loader;
 
-    // Various function to load a ggml whisper model.
-    // Allocates (almost) all memory needed for the model.
+    // Various functions for loading a ggml whisper model.
+    // Allocate (almost) all memory needed for the model.
     // Return NULL on failure
     WHISPER_API struct whisper_context * whisper_init_from_file(const char * path_model);
     WHISPER_API struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size);

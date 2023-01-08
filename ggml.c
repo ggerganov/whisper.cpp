@@ -3724,8 +3724,6 @@ static void ggml_compute_forward_sum_f32(
     assert(ggml_is_scalar(dst));
     assert(src0->nb[0] == sizeof(float));
 
-    *(float *) (dst->data) = 0.0f;
-
     const int ne00 = src0->ne[0];
     const int ne01 = src0->ne[1];
     const int ne02 = src0->ne[2];
@@ -3811,8 +3809,6 @@ static void ggml_compute_forward_mean_f32(
     for (int i03 = 0; i03 < ne03; i03++) {
         for (int i02 = 0; i02 < ne02; i02++) {
             for (int i01 = 0; i01 < ne01; i01++) {
-                *(float *) ((char *) dst->data + i01*nb1 + i02*nb2 + i03*nb3) = 0.0f;
-
                 ggml_vec_sum_f32(ne00,
                         (float *) ((char *)  dst->data + i01*nb1  + i02*nb2  + i03*nb3),
                         (float *) ((char *) src0->data + i01*nb01 + i02*nb02 + i03*nb03));
@@ -4791,7 +4787,7 @@ static void ggml_compute_forward_mul_mat_f16_f32(
             }
         }
     } else {
-        // parallelize by src1 columns using ggml_vec_mad_f32
+        // parallelize by src1 columns using ggml_vec_mad_f16
         // each thread has its own work data
         // during FINALIZE we accumulate all work data into dst
 

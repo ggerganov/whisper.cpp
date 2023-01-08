@@ -1471,6 +1471,7 @@ static bool whisper_encode(
         }
 
         ggml_graph_compute(ctx0, &gf);
+        //ggml_graph_print(&gf);
     }
 
     ////////////////////////////////////////////////////////////////////////////
