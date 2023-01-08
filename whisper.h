@@ -145,7 +145,7 @@ extern "C" {
 
     // Token sampling methods.
     // These are provided for convenience and can be used after each call to whisper_decode().
-    // You can also implement your own sampling method using the whisper_get_probs() function.
+    // You can also implement your own sampling method using the whiper_get_logits() or whisper_get_probs() functions.
     // whisper_sample_best() returns the token with the highest probability
     // whisper_sample_timestamp() returns the most probable timestamp token
     WHISPER_API whisper_token_data whisper_sample_best(struct whisper_context * ctx);
@@ -192,7 +192,16 @@ extern "C" {
     WHISPER_API int whisper_n_audio_ctx    (struct whisper_context * ctx);
     WHISPER_API int whisper_is_multilingual(struct whisper_context * ctx);
 
-    // The probabilities for the next token
+    // Token logits obtained from the last call to whisper_decode()
+    // The logits for the last token are stored in the last row
+    // Rows: n_tokens
+    // Cols: n_vocab
+    WHISPER_API float * whisper_get_logits(struct whisper_context * ctx);
+
+    // Token probabilities (i.e. softmax(logits)) obtained from the last call to whisper_decode()
+    // The probabilities for the last token are stored in the last row
+    // Rows: n_tokens
+    // Cols: n_vocab
     WHISPER_API float * whisper_get_probs(struct whisper_context * ctx);
 
     // Token Id -> String. Uses the vocabulary in the provided context
