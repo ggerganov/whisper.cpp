@@ -275,8 +275,8 @@ struct ggml_tensor {
 
     // performance
     int     perf_runs;
-    int64_t perf_cycles;
-    int64_t perf_time_us;
+    int64_t perf_process_time_us;
+    int64_t perf_real_time_us;
 
     void * data;
     char padding[8];
@@ -297,8 +297,8 @@ struct ggml_cgraph {
 
     // performance
     int     perf_runs;
-    int64_t perf_cycles;
-    int64_t perf_time_us;
+    int64_t perf_process_time_us;
+    int64_t perf_real_time_us;
 };
 
 struct ggml_init_params {
@@ -308,10 +308,10 @@ struct ggml_init_params {
 };
 
 void    ggml_time_init(void); // call this once at the beginning of the program
-int64_t ggml_time_ms(void);
-int64_t ggml_time_us(void);
-int64_t ggml_cycles(void);
-int64_t ggml_cycles_per_ms(void);
+int64_t ggml_real_time_ms(void);
+int64_t ggml_real_time_us(void);
+int64_t ggml_process_time_ms(void);
+int64_t ggml_process_time_us(void);
 
 void ggml_print_object (const struct ggml_object * obj);
 void ggml_print_objects(const struct ggml_context * ctx);
