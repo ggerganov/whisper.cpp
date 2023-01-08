@@ -287,15 +287,25 @@ void ggml_time_init(void) {
     QueryPerformanceFrequency(&frequency);
     timer_freq = frequency.QuadPart;
 }
+
 int64_t ggml_real_time_ms(void) {
     LARGE_INTEGER t;
     QueryPerformanceCounter(&t);
     return (t.QuadPart * 1000) / timer_freq;
 }
+
 int64_t ggml_real_time_us(void) {
     LARGE_INTEGER t;
     QueryPerformanceCounter(&t);
     return (t.QuadPart * 1000000) / timer_freq;
+}
+
+int64_t ggml_process_time_ms(void) {
+    return (clock() * 1000) / CLOCKS_PER_SEC;
+}
+
+int64_t ggml_process_time_us(void) {
+    return (clock() * 1000000) / CLOCKS_PER_SEC;
 }
 #else
 void ggml_time_init(void) {}
