@@ -33,8 +33,8 @@ How to interpret these results:
 
 EOF
 
-printf "|   CPU   |   OS   | Config |  Model  | Threads | Total Load | Real Load | Total Encode | Real Encode |  Commit  |\n"
-printf "| ------- | ------ | ------ | ------- | ------- | ---------- | --------- | ------------ | ----------- | -------- |\n"
+printf "|   CPU   |   OS   |      Config      |  Model  | Threads | Total Load | Real Load | Total Encode | Real Encode |  Commit  |\n"
+printf "| ------- | ------ | ---------------- | ------- | ------- | ---------- | --------- | ------------ | ----------- | -------- |\n"
 
 for model in "${models[@]}"; do
     # run once to heat-up the cache
@@ -58,23 +58,11 @@ for model in "${models[@]}"; do
     total_encode_time=${total_encode_time%.*}
     real_encode_time=${real_encode_time%.*}
 
-    config=""
-
-    if [[ $system_info == *"AVX2 = 1"* ]]; then
-        config="$config AVX2"
-    fi
-
-    if [[ $system_info == *"NEON = 1"* ]]; then
-        config="$config NEON"
-    fi
-
-    if [[ $system_info == *"BLAS = 1"* ]]; then
-        config="$config BLAS"
-    fi
+    config=$(echo "$system_info" | sed 's/ | /\n/g' | tail -n +2 | awk '/ = 1/{print $1}' | tr '\n' ' ')
 
     commit=$(git rev-parse --short HEAD)
 
-    printf "| <todo>  | <todo> | %-6s | %-7s | %-7s | %-10s | %-9s | %-12s | %-11s | %-8s |\n" \
+    printf "| <todo>  | <todo> | %-16s | %-7s | %-7s | %-10s | %-9s | %-12s | %-11s | %-8s |\n" \
         "$config" \
         "$model" \
         "$n_threads" \
