@@ -334,6 +334,14 @@ int64_t ggml_process_time_us(void) {
 }
 #endif
 
+#ifdef GGML_PERF
+#define ggml_perf_real_time_us()    ggml_real_time_us()
+#define ggml_perf_process_time_us() ggml_process_time_us()
+#else
+#define ggml_perf_real_time_us()    0
+#define ggml_perf_process_time_us() 0
+#endif
+
 //
 // cache line
 //
@@ -1479,7 +1487,7 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
     if (is_first_call) {
         // initialize GELU, EXP and F32 tables
         {
-            const uint64_t t_start = ggml_real_time_us(); UNUSED(t_start);
+            const uint64_t t_start = ggml_perf_real_time_us(); UNUSED(t_start);
 
             ggml_fp16_t ii;
             for (int i = 0; i < (1 << 16); ++i) {
@@ -1490,14 +1498,14 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
                 table_exp_f16[i]  = GGML_FP32_TO_FP16(exp(f));
             }
 
-            const uint64_t t_end = ggml_real_time_us(); UNUSED(t_end);
+            const uint64_t t_end = ggml_perf_real_time_us(); UNUSED(t_end);
 
             GGML_PRINT_DEBUG("%s: GELU and EXP tables initialized in %f ms\n", __func__, (t_end - t_start)/1000.0f);
         }
 
         // initialize g_state
         {
-            const uint64_t t_start = ggml_real_time_us(); UNUSED(t_start);
+            const uint64_t t_start = ggml_perf_real_time_us(); UNUSED(t_start);
 
             g_state = (struct ggml_state) {
                 /*.contexts =*/ { { 0 } },
@@ -1507,7 +1515,7 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
                 g_state.contexts[i].used = false;
             }
 
-            const uint64_t t_end = ggml_real_time_us(); UNUSED(t_end);
+            const uint64_t t_end = ggml_perf_real_time_us(); UNUSED(t_end);
 
             GGML_PRINT_DEBUG("%s: g_state initialized in %f ms\n", __func__, (t_end - t_start)/1000.0f);
         }
@@ -4309,7 +4317,7 @@ static void ggml_compute_forward_mul_mat_f32(
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
               struct ggml_tensor * dst) {
-    int64_t t0 = ggml_process_time_us();
+    int64_t t0 = ggml_perf_process_time_us();
     UNUSED(t0);
 
     const int ne00 = src0->ne[0];
@@ -4403,7 +4411,7 @@ static void ggml_compute_forward_mul_mat_f32(
             }
         }
 
-        //printf("CBLAS F32 = %f ms, %d x %d x %d x %d\n", (ggml_process_time_us() - t0)/1000.0, ne0, ne1, ne2, ne3);
+        //printf("CBLAS F32 = %f ms, %d x %d x %d x %d\n", (ggml_perf_process_time_us() - t0)/1000.0, ne0, ne1, ne2, ne3);
 
         return;
     }
@@ -4533,7 +4541,7 @@ static void ggml_compute_forward_mul_mat_f32(
         }
     }
 
-    //int64_t t1 = ggml_process_time_us();
+    //int64_t t1 = ggml_perf_process_time_us();
     //static int64_t acc = 0;
     //acc += t1 - t0;
     //if (t1 - t0 > 10) {
@@ -4552,7 +4560,7 @@ static void ggml_compute_forward_mul_mat_f16_f32(
         const struct ggml_tensor * src0,
         const struct ggml_tensor * src1,
               struct ggml_tensor * dst) {
-    int64_t t0 = ggml_process_time_us();
+    int64_t t0 = ggml_perf_process_time_us();
     UNUSED(t0);
 
     const int ne00 = src0->ne[0];
@@ -4684,7 +4692,7 @@ static void ggml_compute_forward_mul_mat_f16_f32(
             }
         }
 
-        //printf("CBLAS = %f ms, %d x %d x %d x %d\n", (ggml_process_time_us() - t0)/1000.0, ne0, ne1, ne2, ne3);
+        //printf("CBLAS = %f ms, %d x %d x %d x %d\n", (ggml_perf_process_time_us() - t0)/1000.0, ne0, ne1, ne2, ne3);
 
         return;
     }
@@ -4838,7 +4846,7 @@ static void ggml_compute_forward_mul_mat_f16_f32(
         }
     }
 
-    //int64_t t1 = ggml_real_time_us();
+    //int64_t t1 = ggml_perf_real_time_us();
     //static int64_t acc = 0;
     //acc += t1 - t0;
     //if (t1 - t0 > 10) {
@@ -5306,7 +5314,7 @@ static void ggml_compute_forward_conv_1d_1s_f16_f32(
     GGML_ASSERT(src1->type == GGML_TYPE_F32);
     GGML_ASSERT( dst->type == GGML_TYPE_F32);
 
-    int64_t t0 = ggml_process_time_us();
+    int64_t t0 = ggml_perf_process_time_us();
     UNUSED(t0);
 
     const int ne00 = src0->ne[0];
@@ -5426,7 +5434,7 @@ static void ggml_compute_forward_conv_1d_1s_f32(
     GGML_ASSERT(src1->type == GGML_TYPE_F32);
     GGML_ASSERT( dst->type == GGML_TYPE_F32);
 
-    int64_t t0 = ggml_process_time_us();
+    int64_t t0 = ggml_perf_process_time_us();
     UNUSED(t0);
 
     const int ne00 = src0->ne[0];
@@ -5572,7 +5580,7 @@ static void ggml_compute_forward_conv_1d_2s_f16_f32(
     GGML_ASSERT(src1->type == GGML_TYPE_F32);
     GGML_ASSERT( dst->type == GGML_TYPE_F32);
 
-    int64_t t0 = ggml_process_time_us();
+    int64_t t0 = ggml_perf_process_time_us();
     UNUSED(t0);
 
     const int ne00 = src0->ne[0];
@@ -5692,7 +5700,7 @@ static void ggml_compute_forward_conv_1d_2s_f32(
     GGML_ASSERT(src1->type == GGML_TYPE_F32);
     GGML_ASSERT( dst->type == GGML_TYPE_F32);
 
-    int64_t t0 = ggml_process_time_us();
+    int64_t t0 = ggml_perf_process_time_us();
     UNUSED(t0);
 
     const int ne00 = src0->ne[0];
@@ -5836,7 +5844,7 @@ static void ggml_compute_forward_flash_attn_f32(
         const struct ggml_tensor * v,
         const bool masked,
              struct ggml_tensor * dst) {
-    int64_t t0 = ggml_process_time_us();
+    int64_t t0 = ggml_perf_process_time_us();
     UNUSED(t0);
 
     const int neq0 = q->ne[0];
@@ -6045,7 +6053,7 @@ static void ggml_compute_forward_flash_attn_f16(
         const struct ggml_tensor * v,
         const bool masked,
              struct ggml_tensor * dst) {
-    int64_t t0 = ggml_process_time_us();
+    int64_t t0 = ggml_perf_process_time_us();
     UNUSED(t0);
 
     const int neq0 = q->ne[0];
@@ -6320,7 +6328,7 @@ static void ggml_compute_forward_flash_ff_f16(
         const struct ggml_tensor * c0, // F16 proj_w
         const struct ggml_tensor * c1, // F32 proj_b
         struct ggml_tensor * dst) {
-    int64_t t0 = ggml_process_time_us();
+    int64_t t0 = ggml_perf_process_time_us();
     UNUSED(t0);
 
     const int nea0 = a->ne[0];
@@ -7406,8 +7414,8 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
         }
     }
 
-    const int64_t perf_process_time_start_us  = ggml_process_time_us();
-    const int64_t perf_real_time_start_us = ggml_real_time_us();
+    const int64_t perf_process_time_start_us  = ggml_perf_process_time_us();
+    const int64_t perf_real_time_start_us = ggml_perf_real_time_us();
 
     for (int i = 0; i < cgraph->n_nodes; i++) {
         GGML_PRINT_DEBUG_5("%s: %d/%d\n", __func__, i, cgraph->n_nodes);
@@ -7419,8 +7427,8 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
         //    continue;
         //}
 
-        const int64_t perf_node_process_time_start_us  = ggml_process_time_us();
-        const int64_t perf_node_real_time_start_us = ggml_real_time_us();
+        const int64_t perf_node_process_time_start_us  = ggml_perf_process_time_us();
+        const int64_t perf_node_real_time_start_us = ggml_perf_real_time_us();
 
         // INIT
         struct ggml_compute_params params = {
@@ -7545,8 +7553,8 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
 
         // performance stats (node)
         {
-            int64_t perf_cur_process_time_us  = ggml_process_time_us()  - perf_node_process_time_start_us;
-            int64_t perf_cur_real_time_us = ggml_real_time_us() - perf_node_real_time_start_us;
+            int64_t perf_cur_process_time_us  = ggml_perf_process_time_us()  - perf_node_process_time_start_us;
+            int64_t perf_cur_real_time_us = ggml_perf_real_time_us() - perf_node_real_time_start_us;
 
             node->perf_runs++;
             node->perf_process_time_us  += perf_cur_process_time_us;
@@ -7570,8 +7578,8 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
 
     // performance stats (graph)
     {
-        int64_t perf_cur_process_time_us  = ggml_process_time_us()  - perf_process_time_start_us;
-        int64_t perf_cur_real_time_us = ggml_real_time_us() - perf_real_time_start_us;
+        int64_t perf_cur_process_time_us  = ggml_perf_process_time_us()  - perf_process_time_start_us;
+        int64_t perf_cur_real_time_us = ggml_perf_real_time_us() - perf_real_time_start_us;
 
         cgraph->perf_runs++;
         cgraph->perf_process_time_us  += perf_cur_process_time_us;
@@ -7896,8 +7904,8 @@ static enum ggml_opt_result ggml_opt_adam(
                     ggml_get_f32_1d(ps[i], 0), ggml_get_f32_1d(ps[i]->grad, 0));
         }
 
-        const int64_t t_real_start_us = ggml_real_time_us();
-        const int64_t t_process_start_us = ggml_process_time_us();
+        const int64_t t_real_start_us = ggml_perf_real_time_us();
+        const int64_t t_process_start_us = ggml_perf_process_time_us();
         UNUSED(t_real_start_us);
         UNUSED(t_process_start_us);
 
@@ -7979,11 +7987,11 @@ static enum ggml_opt_result ggml_opt_adam(
         fx_prev = fx;
 
         {
-            const int64_t t_process_end_us = ggml_process_time_us();
+            const int64_t t_process_end_us = ggml_perf_process_time_us();
             GGML_PRINT_DEBUG("time iter:      %5.3f s\n", (t_process_end_us - t_process_start_us)/1e6);
             UNUSED(t_process_end_us);
 
-            const int64_t t_real_end_us = ggml_real_time_us();
+            const int64_t t_real_end_us = ggml_perf_real_time_us();
             GGML_PRINT_DEBUG("wall time iter: %5.3f s\n", (t_real_end_us - t_real_start_us)/1e6);
             UNUSED(t_real_end_us);
         }
