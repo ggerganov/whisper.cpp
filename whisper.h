@@ -1,6 +1,7 @@
 #ifndef WHISPER_H
 #define WHISPER_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -85,15 +86,16 @@ extern "C" {
     } whisper_token_data;
 
     typedef struct whisper_model_loader {
-        void* context;
+        void * context;
 
         size_t (*read)(void * ctx, void * output, size_t read_size);
-        bool (*eof)(void * ctx);
-        void (*close)(void * ctx);
+        bool    (*eof)(void * ctx);
+        void  (*close)(void * ctx);
     } whisper_model_loader;
 
-    // Allocates all memory needed for the model and loads the model from the given file.
-    // Returns NULL on failure.
+    // Various function to load a ggml whisper model.
+    // Allocates (almost) all memory needed for the model.
+    // Return NULL on failure
     WHISPER_API struct whisper_context * whisper_init_from_file(const char * path_model);
     WHISPER_API struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size);
     WHISPER_API struct whisper_context * whisper_init(struct whisper_model_loader * loader);

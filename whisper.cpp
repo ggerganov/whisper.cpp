@@ -463,7 +463,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         uint32_t magic;
         read_safe(loader, magic);
         if (magic != 0x67676d6c) {
-            fprintf(stderr, "%s: invalid model file (bad magic)\n", __func__);
+            fprintf(stderr, "%s: invalid model data (bad magic)\n", __func__);
             return false;
         }
     }
@@ -2236,7 +2236,7 @@ struct whisper_context * whisper_init_from_file(const char * path_model) {
     whisper_model_loader loader = {};
 
     fprintf(stderr, "%s: loading model from '%s'\n", __func__, path_model);
-    
+
     auto fin = std::ifstream(path_model, std::ios::binary);
     if (!fin) {
         fprintf(stderr, "%s: failed to open '%s'\n", __func__, path_model);
@@ -2276,6 +2276,7 @@ struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_s
     fprintf(stderr, "%s: loading model from buffer\n", __func__);
 
     loader.context = &ctx;
+
     loader.read = [](void * ctx, void * output, size_t read_size) {
         buf_context * buf = reinterpret_cast<buf_context *>(ctx);
 
@@ -2293,7 +2294,7 @@ struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_s
         return buf->current_offset >= buf->size;
     };
 
-    loader.close = [](void * ctx) { };
+    loader.close = [](void * /*ctx*/) { };
 
     return whisper_init(&loader);
 }
@@ -2315,6 +2316,7 @@ struct whisper_context * whisper_init(struct whisper_model_loader * loader) {
     }
 
     ctx->t_load_us = ggml_time_us() - t_start_us;
+
     loader->close(loader->context);
 
     return ctx;
