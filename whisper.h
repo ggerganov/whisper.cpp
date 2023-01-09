@@ -143,14 +143,6 @@ extern "C" {
                                int   n_past,
                                int   n_threads);
 
-    // Token sampling methods.
-    // These are provided for convenience and can be used after each call to whisper_decode().
-    // You can also implement your own sampling method using the whiper_get_logits() or whisper_get_probs() functions.
-    // whisper_sample_best() returns the token with the highest probability
-    // whisper_sample_timestamp() returns the most probable timestamp token
-    WHISPER_API whisper_token_data whisper_sample_best(struct whisper_context * ctx);
-    WHISPER_API whisper_token_data whisper_sample_timestamp(struct whisper_context * ctx, bool is_initial);
-
     // Convert the provided text into tokens.
     // The tokens pointer must be large enough to hold the resulting tokens.
     // Returns the number of tokens on success, no more than n_max_tokens
