@@ -143,14 +143,6 @@ extern "C" {
                                int   n_past,
                                int   n_threads);
 
-    // Token sampling methods.
-    // These are provided for convenience and can be used after each call to whisper_decode().
-    // You can also implement your own sampling method using the whisper_get_probs() function.
-    // whisper_sample_best() returns the token with the highest probability
-    // whisper_sample_timestamp() returns the most probable timestamp token
-    WHISPER_API whisper_token_data whisper_sample_best(struct whisper_context * ctx);
-    WHISPER_API whisper_token_data whisper_sample_timestamp(struct whisper_context * ctx, bool is_initial);
-
     // Convert the provided text into tokens.
     // The tokens pointer must be large enough to hold the resulting tokens.
     // Returns the number of tokens on success, no more than n_max_tokens
@@ -192,7 +184,16 @@ extern "C" {
     WHISPER_API int whisper_n_audio_ctx    (struct whisper_context * ctx);
     WHISPER_API int whisper_is_multilingual(struct whisper_context * ctx);
 
-    // The probabilities for the next token
+    // Token logits obtained from the last call to whisper_decode()
+    // The logits for the last token are stored in the last row
+    // Rows: n_tokens
+    // Cols: n_vocab
+    WHISPER_API float * whisper_get_logits(struct whisper_context * ctx);
+
+    // Token probabilities (i.e. softmax(logits)) obtained from the last call to whisper_decode()
+    // The probabilities for the last token are stored in the last row
+    // Rows: n_tokens
+    // Cols: n_vocab
     WHISPER_API float * whisper_get_probs(struct whisper_context * ctx);
 
     // Token Id -> String. Uses the vocabulary in the provided context
@@ -274,14 +275,27 @@ extern "C" {
         // for auto-detection, set to nullptr, "" or "auto"
         const char * language;
 
+        // common decoding parameters:
+        bool suppress_blank;
+
+        float temperature;
+        float max_initial_timestamp;
+
+        // fallback parameters
+        float temperature_increment;
+        float compression_ratio_threshold;
+        float logprob_threshold;
+        float no_speech_threshold;
+
         struct {
-            int n_past;
+            int best_of;
         } greedy;
 
         struct {
-            int n_past;
-            int beam_width;
-            int n_best;
+            int beam_size;
+
+            float patience;
+            float length_penalty;
         } beam_search;
 
         whisper_new_segment_callback new_segment_callback;
