@@ -908,6 +908,12 @@ inline static void ggml_vec_dot_f16(const int n, float * restrict s, ggml_fp16_t
     }
 #endif
 
+    static int k = 0;
+    // all same on be and le, up to 32592000 which is -0.089370
+    // then failure on 32592001: 0.123347 on le, -nan on be.
+    if (k++ >= (32592000 - 3) && k <= (32592000 + 3)) {
+        fprintf(stderr, "%d, %f\n", k, sumf);
+    }
     *s = sumf;
 }
 
