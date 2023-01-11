@@ -278,15 +278,24 @@ extern "C" {
         // common decoding parameters:
         bool suppress_blank;
 
+        float temperature;
         float max_initial_timestamp;
 
+        // fallback parameters
+        float temperature_increment;
+        float compression_ratio_threshold;
+        float logprob_threshold;
+        float no_speech_threshold;
+
         struct {
-            int dummy;
+            int best_of;
         } greedy;
 
         struct {
-            int beam_width;
-            int n_best;
+            int beam_size;
+
+            float patience;
+            float length_penalty;
         } beam_search;
 
         whisper_new_segment_callback new_segment_callback;
