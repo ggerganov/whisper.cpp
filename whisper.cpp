@@ -15,6 +15,9 @@
 #include <thread>
 #include <vector>
 #include <regex>
+#if defined(GGML_BIG_ENDIAN) // remove guard when default becomes -std=c++23
+#include <bit>
+#endif
 
 #define USE_FLASH_ATTN
 //#define USE_FLASH_FF
@@ -439,6 +442,11 @@ struct whisper_context {
 template<typename T>
 static void read_safe(std::ifstream& fin, T& dest) {
     fin.read((char*)& dest, sizeof(T));
+#if defined(GGML_BIG_ENDIAN)
+    if constexpr (std::endian::native == std::endian::big) {
+        dest = std::byteswap(dest);
+    }
+#endif
 }
 
 // load the model from a ggml file
@@ -541,6 +549,12 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
 
         filters.data.resize(filters.n_mel * filters.n_fft);
         fin.read((char *) filters.data.data(), filters.data.size() * sizeof(float));
+#if defined(GGML_BIG_ENDIAN)
+        unsigned int * toswap = reinterpret_cast<unsigned int *>(filters.data.data());
+        for (int k = 0; k < filters.data.size(); k++) {
+            toswap[k] = std::byteswap(toswap[k]);
+        }
+#endif
     }
 
     // load vocab
@@ -1063,6 +1077,30 @@ static bool whisper_model_load(const std::string & fname, whisper_context & wctx
             }
 
             fin.read(reinterpret_cast<char *>(tensor->data), ggml_nbytes(tensor));
+#if defined(GGML_BIG_ENDIAN)
+            if constexpr (std::endian::native == std::endian::big) {
+                switch (tensor->type) {
+                    case GGML_TYPE_I16:
+                    case GGML_TYPE_F16: {
+                        unsigned short * toswap = reinterpret_cast<unsigned short *>(tensor->data);
+                        for (int k = 0; k < (ggml_nbytes(tensor) / sizeof(unsigned short)); k++) {
+                            toswap[k] = std::byteswap(toswap[k]);
+                        }
+                        break;
+                    }
+                    case GGML_TYPE_I32:
+                    case GGML_TYPE_F32: {
+                        unsigned int * toswap = reinterpret_cast<unsigned int *>(tensor->data);
+                        for (int k = 0; k < (ggml_nbytes(tensor) / sizeof(unsigned int)); k++) {
+                            toswap[k] = std::byteswap(toswap[k]);
+                        }
+                        break;
+                    }
+                    default: // GGML_TYPE_I8, GGML_TYPE_COUNT
+                      break;
+                }
+            }
+#endif
 
             //printf("%48s - [%5d, %5d, %5d], type = %6s, %6.2f MB\n", name.data(), ne[0], ne[1], ne[2], ftype == 0 ? "float" : "f16", ggml_nbytes(tensor)/1024.0/1024.0);
             total_size += ggml_nbytes(tensor);
@@ -1129,6 +1167,12 @@ static bool whisper_encode(
                 dst[j*2*n_ctx + (i - i0)] = mel_inp.data[j*mel_inp.n_len + i];
             }
         }
+#if defined(GGML_BIG_ENDIAN)
+        unsigned int * toswap = (unsigned int *) mel->data;
+        for (int k = 0; k < (ggml_nbytes(mel) / sizeof(unsigned int)); k++) {
+            toswap[k] = std::byteswap(toswap[k]);
+        }
+#endif
     }
 
     struct ggml_tensor * cur;

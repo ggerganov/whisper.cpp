@@ -13,6 +13,9 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#if defined(GGML_BIG_ENDIAN)
+#include <byteswap.h>
+#endif
 
 // if C99 - static_assert is noop
 // ref: https://stackoverflow.com/a/53923785/4039976
@@ -6771,6 +6774,31 @@ static void ggml_visit_parents(struct ggml_cgraph * cgraph, struct ggml_tensor *
             ggml_visit_parents(cgraph, node->opt[i]);
         }
     }
+
+#if defined(GGML_BIG_ENDIAN)
+    if (node->src1) {
+        switch (node->src1->type) {
+            case GGML_TYPE_I16:
+            case GGML_TYPE_F16: {
+                unsigned short * toswap = (unsigned short *)(node->src1->data);
+                for (int k = 0; k < (ggml_nbytes(node->src1) / sizeof(unsigned short)); k++) {
+                    toswap[k] = bswap_16(toswap[k]);
+                }
+                break;
+            }
+            case GGML_TYPE_I32:
+            case GGML_TYPE_F32: {
+                unsigned int * toswap = (unsigned int *)(node->src1->data);
+                for (int k = 0; k < (ggml_nbytes(node->src1) / sizeof(unsigned int)); k++) {
+                    toswap[k] = bswap_32(toswap[k]);
+                }
+                break;
+            }
+        default:  // GGML_TYPE_I8, GGML_TYPE_COUNT
+          break;
+        }
+    }
+#endif
 
     if (node->op == GGML_OP_NONE && node->grad == NULL) {
         // reached a leaf node, not part of the gradient graph (e.g. a constant)
