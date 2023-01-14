@@ -74,6 +74,7 @@ extern "C" {
         whisper_token tid; // forced timestamp token id
 
         float p;           // probability of the token
+        float plog;        // log probability of the token
         float pt;          // probability of the timestamp token
         float ptsum;       // sum of probabilities of all timestamp tokens
 
@@ -280,6 +281,7 @@ extern "C" {
 
         float temperature;
         float max_initial_timestamp;
+        float length_penalty;
 
         // fallback parameters
         float temperature_increment;
@@ -295,7 +297,6 @@ extern "C" {
             int beam_size;
 
             float patience;
-            float length_penalty;
         } beam_search;
 
         whisper_new_segment_callback new_segment_callback;
