@@ -290,7 +290,7 @@ extern "C" {
         struct {
             int beam_size;
 
-            float patience;
+            float patience; // TODO: not implemented
         } beam_search;
 
         whisper_new_segment_callback new_segment_callback;
