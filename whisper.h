@@ -279,7 +279,7 @@ extern "C" {
 
         // fallback parameters
         float temperature_increment;
-        float compression_ratio_threshold;
+        float entropy_threshold;     // analog tho OpenAI's compression_ratio_threshold
         float logprob_threshold;
         float no_speech_threshold;
 
