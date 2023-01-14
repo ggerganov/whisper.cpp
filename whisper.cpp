@@ -3094,7 +3094,9 @@ static whisper_token_data whisper_sample_token(
 static void whisper_sequence_score(
         const struct whisper_full_params & params,
                         whisper_sequence & sequence) {
-    WHISPER_ASSERT(sequence.result_len > 0);
+    if (sequence.result_len == 0) {
+        return;
+    }
 
     double result = 0.0f;
 
