@@ -281,7 +281,7 @@ extern "C" {
         float temperature_increment;
         float entropy_threshold;     // analog tho OpenAI's compression_ratio_threshold
         float logprob_threshold;
-        float no_speech_threshold;
+        float no_speech_threshold;   // TODO: not implemented
 
         struct {
             int best_of;
