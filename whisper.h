@@ -191,12 +191,6 @@ extern "C" {
     // Cols: n_vocab
     WHISPER_API float * whisper_get_logits(struct whisper_context * ctx);
 
-    // Token probabilities (i.e. softmax(logits)) obtained from the last call to whisper_decode()
-    // The probabilities for the last token are stored in the last row
-    // Rows: n_tokens
-    // Cols: n_vocab
-    WHISPER_API float * whisper_get_probs(struct whisper_context * ctx);
-
     // Token Id -> String. Uses the vocabulary in the provided context
     WHISPER_API const char * whisper_token_to_str(struct whisper_context * ctx, whisper_token token);
 
