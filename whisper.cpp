@@ -3180,9 +3180,9 @@ int whisper_full(
 
             ctx->decoders[i].sequence.tokens.reserve(ctx->decoders[0].sequence.tokens.capacity());
 
-            ctx->decoders[i].probs.reserve   (ctx->vocab.n_vocab);
-            ctx->decoders[i].logits.reserve  (ctx->vocab.n_vocab);
-            ctx->decoders[i].logprobs.reserve(ctx->vocab.n_vocab);
+            ctx->decoders[i].probs.resize   (ctx->vocab.n_vocab);
+            ctx->decoders[i].logits.resize  (ctx->vocab.n_vocab);
+            ctx->decoders[i].logprobs.resize(ctx->vocab.n_vocab);
         }
     }
 
@@ -3557,7 +3557,7 @@ int whisper_full(
 
             // update prompt_past
             prompt_past.clear();
-            prompt_past.insert(prompt_past.end(), prompt.begin() + 1, prompt.end());
+            prompt_past.insert(prompt_past.end(), prompt.begin() + 1, prompt.end() - prompt_init.size());
 
             for (int i = 0; i < result_len; ++i) {
                 prompt_past.push_back(tokens_cur[i].id);
