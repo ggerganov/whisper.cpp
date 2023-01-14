@@ -459,7 +459,7 @@ int main(int argc, char ** argv) {
     struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
 
     std::vector<float> pcmf32    (n_samples_30s, 0.0f);
-    std::vector<float> pcmf32_old(n_samples_30s, 0.0f);
+    std::vector<float> pcmf32_old;
     std::vector<float> pcmf32_new(n_samples_30s, 0.0f);
 
     std::vector<whisper_token> prompt_tokens;
