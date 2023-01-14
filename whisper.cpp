@@ -3798,9 +3798,13 @@ int whisper_full(
 
             const auto & tokens_cur = best_decoder.sequence.tokens;
 
+            //WHISPER_PRINT_DEBUG("prompt_init.size() = %d, prompt.size() = %d, result_len = %d, seek_delta = %d\n", prompt_init.size(), prompt.size(), result_len, seek_delta);
+
             // update prompt_past
             prompt_past.clear();
-            prompt_past.insert(prompt_past.end(), prompt.begin() + 1, prompt.end() - prompt_init.size());
+            if (prompt.front() == whisper_token_prev(ctx)) {
+                prompt_past.insert(prompt_past.end(), prompt.begin() + 1, prompt.end() - prompt_init.size());
+            }
 
             for (int i = 0; i < result_len; ++i) {
                 prompt_past.push_back(tokens_cur[i].id);
