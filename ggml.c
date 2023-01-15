@@ -282,10 +282,13 @@ ggml_fp16_t ggml_fp32_to_fp16(float x) {
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 static int64_t timer_freq;
+static HANDLE current_process_handle;
 void ggml_time_init(void) {
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
     timer_freq = frequency.QuadPart;
+
+    current_process_handle = GetCurrentProcess();
 }
 
 int64_t ggml_time_real_ms(void) {
@@ -300,12 +303,28 @@ int64_t ggml_time_real_us(void) {
     return (t.QuadPart * 1000000) / timer_freq;
 }
 
+// Query only user time for process times as CLOCK_PROCESS_CPUTIME_ID does not include kernel time on Unix systems.
+
 int64_t ggml_time_proc_ms(void) {
-    return (clock() * 1000) / CLOCKS_PER_SEC;
+    FILETIME user_time;
+    GetProcessTimes(current_process_handle, NULL, NULL, NULL, &user_time);
+
+    ULARGE_INTEGER t;
+    t.u.LowPart = user_time.dwLowDateTime;
+    t.u.HighPart = user_time.dwHighDateTime;
+
+    return t.QuadPart / 10000;
 }
 
 int64_t ggml_time_proc_us(void) {
-    return (clock() * 1000000) / CLOCKS_PER_SEC;
+    FILETIME user_time;
+    GetProcessTimes(current_process_handle, NULL, NULL, NULL, &user_time);
+
+    ULARGE_INTEGER t;
+    t.u.LowPart = user_time.dwLowDateTime;
+    t.u.HighPart = user_time.dwHighDateTime;
+
+    return t.QuadPart / 10;
 }
 #else
 void ggml_time_init(void) {}
