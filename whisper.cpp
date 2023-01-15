@@ -467,18 +467,18 @@ struct whisper_decoder {
 };
 
 struct whisper_context {
-    int64_t t_real_load_us      = 0;
-    int64_t t_process_load_us   = 0;
-    int64_t t_real_mel_us       = 0;
-    int64_t t_process_mel_us    = 0;
-    int64_t t_real_sample_us    = 0;
-    int64_t t_process_sample_us = 0;
-    int64_t t_real_encode_us    = 0;
-    int64_t t_process_encode_us = 0;
-    int64_t t_real_decode_us    = 0;
-    int64_t t_process_decode_us = 0;
-    int64_t t_real_start_us     = 0;
-    int64_t t_process_start_us  = 0;
+    int64_t t_load_real_us   = 0;
+    int64_t t_load_proc_us   = 0;
+    int64_t t_mel_real_us    = 0;
+    int64_t t_mel_proc_us    = 0;
+    int64_t t_sample_real_us = 0;
+    int64_t t_sample_proc_us = 0;
+    int64_t t_encode_real_us = 0;
+    int64_t t_encode_proc_us = 0;
+    int64_t t_decode_real_us = 0;
+    int64_t t_decode_proc_us = 0;
+    int64_t t_start_real_us  = 0;
+    int64_t t_start_proc_us  = 0;
 
     ggml_type wtype; // weight type (FP32 or FP16)
 
@@ -603,11 +603,11 @@ static void kv_cache_free(struct whisper_kv_cache & cache) {
 static bool whisper_model_load(struct whisper_model_loader * loader, whisper_context & wctx) {
     fprintf(stderr, "%s: loading model\n", __func__);
 
-    const int64_t t_real_start_us = ggml_real_time_us();
-    const int64_t t_process_start_us = ggml_process_time_us();
+    const int64_t t_start_real_us = ggml_time_real_us();
+    const int64_t t_start_proc_us = ggml_time_proc_us();
 
-    wctx.t_real_start_us = t_real_start_us;
-    wctx.t_process_start_us = t_process_start_us;
+    wctx.t_start_real_us = t_start_real_us;
+    wctx.t_start_proc_us = t_start_proc_us;
 
     auto & model = wctx.model;
     auto & vocab = wctx.vocab;
@@ -1216,8 +1216,8 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
     wctx.rng = std::mt19937(0);
 
-    wctx.t_real_load_us = ggml_real_time_us() - t_real_start_us;
-    wctx.t_process_load_us = ggml_process_time_us() - t_process_start_us;
+    wctx.t_load_real_us = ggml_time_real_us() - t_start_real_us;
+    wctx.t_load_proc_us = ggml_time_proc_us() - t_start_proc_us;
 
     return true;
 }
@@ -1235,8 +1235,8 @@ static bool whisper_encode(
         whisper_context & wctx,
               const int   mel_offset,
               const int   n_threads) {
-    const int64_t t_real_start_us = ggml_real_time_us();
-    const int64_t t_process_start_us = ggml_process_time_us();
+    const int64_t t_start_real_us = ggml_time_real_us();
+    const int64_t t_start_proc_us = ggml_time_proc_us();
 
     const auto & model   = wctx.model;
     const auto & mel_inp = wctx.mel;
@@ -1629,8 +1629,8 @@ static bool whisper_encode(
 
     ggml_free(ctx0);
 
-    wctx.t_real_encode_us += ggml_real_time_us() - t_real_start_us;
-    wctx.t_process_encode_us += ggml_process_time_us() - t_process_start_us;
+    wctx.t_encode_real_us += ggml_time_real_us() - t_start_real_us;
+    wctx.t_encode_proc_us += ggml_time_proc_us() - t_start_proc_us;
 
     return true;
 }
@@ -1652,8 +1652,8 @@ static bool whisper_decode(
               const int   n_tokens,
               const int   n_past,
               const int   n_threads) {
-    const int64_t t_real_start_us = ggml_real_time_us();
-    const int64_t t_process_start_us = ggml_process_time_us();
+    const int64_t t_start_real_us = ggml_time_real_us();
+    const int64_t t_start_proc_us = ggml_time_proc_us();
 
     const auto & model   = wctx.model;
     const auto & hparams = model.hparams;
@@ -2004,8 +2004,8 @@ static bool whisper_decode(
 
     ggml_free(ctx0);
 
-    wctx.t_real_decode_us += ggml_real_time_us() - t_real_start_us;
-    wctx.t_process_decode_us += ggml_process_time_us() - t_process_start_us;
+    wctx.t_decode_real_us += ggml_time_real_us() - t_start_real_us;
+    wctx.t_decode_proc_us += ggml_time_proc_us() - t_start_proc_us;
 
     return true;
 }
@@ -2120,8 +2120,8 @@ static bool log_mel_spectrogram(
   const whisper_filters & filters,
              const bool   speed_up,
             whisper_mel & mel) {
-    const int64_t t_real_start_us = ggml_real_time_us();
-    const int64_t t_process_start_us = ggml_process_time_us();
+    const int64_t t_start_real_us = ggml_time_real_us();
+    const int64_t t_start_proc_us = ggml_time_proc_us();
 
     // Hanning window
     std::vector<float> hann;
@@ -2230,8 +2230,8 @@ static bool log_mel_spectrogram(
         mel.data[i] = (mel.data[i] + 4.0)/4.0;
     }
 
-    wctx.t_real_mel_us = ggml_real_time_us() - t_real_start_us;
-    wctx.t_process_mel_us = ggml_process_time_us() - t_process_start_us;
+    wctx.t_mel_real_us = ggml_time_real_us() - t_start_real_us;
+    wctx.t_mel_proc_us = ggml_time_proc_us() - t_start_proc_us;
 
     return true;
 }
@@ -2657,29 +2657,25 @@ whisper_token whisper_token_transcribe(void) {
 }
 
 void whisper_print_timings(struct whisper_context * ctx) {
-    const int64_t t_real_end_us = ggml_real_time_us();
-    const int64_t t_process_end_us = ggml_process_time_us();
+    const int64_t t_real_end_us = ggml_time_real_us();
+    const int64_t t_proc_end_us = ggml_time_proc_us();
 
     fprintf(stderr, "\n");
-    fprintf(stderr, "%s:     load time = %8.2f ms (real %8.2f ms)\n", __func__, ctx->t_process_load_us/1000.0f, ctx->t_real_load_us/1000.0f);
-    fprintf(stderr, "%s:      mel time = %8.2f ms (real %8.2f ms)\n", __func__, ctx->t_process_mel_us/1000.0f, ctx->t_real_mel_us/1000.0f);
-    fprintf(stderr, "%s:   sample time = %8.2f ms (real %8.2f ms)\n", __func__, ctx->t_process_sample_us/1000.0f, ctx->t_real_sample_us/1000.0f);
-    fprintf(stderr, "%s:   encode time = %8.2f ms / %.2f ms per layer (real %8.2f ms / %.2f ms per layer)\n", __func__,
-        ctx->t_process_encode_us/1000.0f, ctx->t_process_encode_us/1000.0f/ctx->model.hparams.n_audio_layer,
-        ctx->t_real_encode_us/1000.0f, ctx->t_real_encode_us/1000.0f/ctx->model.hparams.n_audio_layer);
-    fprintf(stderr, "%s:   decode time = %8.2f ms / %.2f ms per layer (real %8.2f ms / %.2f ms per layer)\n", __func__,
-        ctx->t_process_decode_us/1000.0f, ctx->t_process_decode_us/1000.0f/ctx->model.hparams.n_text_layer,
-        ctx->t_real_decode_us/1000.0f, ctx->t_real_decode_us/1000.0f/ctx->model.hparams.n_text_layer);
-    fprintf(stderr, "%s:    total time = %8.2f ms (real %8.2f ms)\n", __func__, (t_process_end_us - ctx->t_process_start_us)/1000.f, (t_real_end_us - ctx->t_real_start_us)/1000.0f);
+    fprintf(stderr, "%s:     load time = %8.2f ms (proc %8.2f ms)\n", __func__, ctx->t_load_real_us/1000.0f,   ctx->t_load_proc_us/1000.0f);
+    fprintf(stderr, "%s:      mel time = %8.2f ms (proc %8.2f ms)\n", __func__, ctx->t_mel_real_us/1000.0f,    ctx->t_mel_proc_us/1000.0f);
+    fprintf(stderr, "%s:   sample time = %8.2f ms (proc %8.2f ms)\n", __func__, ctx->t_sample_real_us/1000.0f, ctx->t_sample_proc_us/1000.0f);
+    fprintf(stderr, "%s:   encode time = %8.2f ms (proc %8.2f ms)\n", __func__, ctx->t_encode_real_us/1000.0f, ctx->t_encode_proc_us/1000.0f);
+    fprintf(stderr, "%s:   decode time = %8.2f ms (proc %8.2f ms)\n", __func__, ctx->t_decode_real_us/1000.0f, ctx->t_decode_proc_us/1000.0f);
+    fprintf(stderr, "%s:    total time = %8.2f ms (proc %8.2f ms)\n", __func__, (t_real_end_us - ctx->t_start_real_us)/1000.f, (t_proc_end_us - ctx->t_start_proc_us)/1000.0f);
 }
 
 void whisper_reset_timings(struct whisper_context * ctx) {
-    ctx->t_real_sample_us = 0;
-    ctx->t_process_sample_us = 0;
-    ctx->t_real_encode_us = 0;
-    ctx->t_process_encode_us = 0;
-    ctx->t_real_decode_us = 0;
-    ctx->t_process_decode_us = 0;
+    ctx->t_sample_real_us = 0;
+    ctx->t_sample_proc_us = 0;
+    ctx->t_encode_real_us = 0;
+    ctx->t_encode_proc_us = 0;
+    ctx->t_decode_real_us = 0;
+    ctx->t_decode_proc_us = 0;
 }
 
 const char * whisper_print_system_info(void) {
@@ -3478,8 +3474,8 @@ int whisper_full(
                 }
 
                 {
-                    const int64_t t_real_start_sample_us = ggml_real_time_us();
-                    const int64_t t_process_start_sample_us = ggml_process_time_us();
+                    const int64_t t_start_real_us = ggml_time_real_us();
+                    const int64_t t_start_proc_us = ggml_time_proc_us();
 
                     whisper_process_logits(*ctx, params, ctx->decoders[0], t_cur);
 
@@ -3498,14 +3494,14 @@ int whisper_full(
                         memcpy(decoder.logprobs.data(), ctx->decoders[0].logprobs.data(), decoder.logprobs.size()*sizeof(decoder.logprobs[0]));
                     }
 
-                    ctx->t_real_sample_us += ggml_real_time_us() - t_real_start_sample_us;
-                    ctx->t_process_sample_us += ggml_process_time_us() - t_process_start_sample_us;
+                    ctx->t_sample_real_us += ggml_time_real_us() - t_start_real_us;
+                    ctx->t_sample_proc_us += ggml_time_proc_us() - t_start_proc_us;
                 }
             }
 
             for (int i = 0, n_max = whisper_n_text_ctx(ctx)/2 - 4; i < n_max; ++i) {
-                const int64_t t_real_start_sample_us = ggml_real_time_us();
-                const int64_t t_process_start_sample_us = ggml_process_time_us();
+                const int64_t t_start_real_us = ggml_time_real_us();
+                const int64_t t_start_proc_us = ggml_time_proc_us();
 
                 // store the KV caches of all decoders when doing beam-search
                 if (params.strategy == whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH) {
@@ -3698,8 +3694,8 @@ int whisper_full(
                     }
                 }
 
-                ctx->t_real_sample_us += ggml_real_time_us() - t_real_start_sample_us;
-                ctx->t_process_sample_us += ggml_process_time_us() - t_process_start_sample_us;
+                ctx->t_sample_real_us += ggml_time_real_us() - t_start_real_us;
+                ctx->t_sample_proc_us += ggml_time_proc_us() - t_start_proc_us;
 
                 // obtain logits for the next token
                 for (int j = 0; j < n_decoders_cur; ++j) {
@@ -3720,15 +3716,15 @@ int whisper_full(
                     }
 
                     {
-                        const int64_t t_real_start_sample_us = ggml_real_time_us();
-                        const int64_t t_process_start_sample_us = ggml_process_time_us();
+                        const int64_t t_start_real_us = ggml_time_real_us();
+                        const int64_t t_start_proc_us = ggml_time_proc_us();
 
                         whisper_process_logits(*ctx, params, decoder, t_cur);
 
                         ++decoder.kv_self.n;
 
-                        ctx->t_real_sample_us += ggml_real_time_us() - t_real_start_sample_us;
-                        ctx->t_process_sample_us += ggml_process_time_us() - t_process_start_sample_us;
+                        ctx->t_sample_real_us += ggml_time_real_us() - t_start_real_us;
+                        ctx->t_sample_proc_us += ggml_time_proc_us() - t_start_proc_us;
                     }
                 }
             }
@@ -4021,14 +4017,14 @@ int whisper_full_parallel(
             }
         }
 
-        ctx->t_real_mel_us       += ctxs[i].t_real_mel_us;
-        ctx->t_process_mel_us    += ctxs[i].t_process_mel_us;
-        ctx->t_real_sample_us    += ctxs[i].t_real_sample_us;
-        ctx->t_process_sample_us += ctxs[i].t_process_sample_us;
-        ctx->t_real_encode_us    += ctxs[i].t_real_encode_us;
-        ctx->t_process_encode_us += ctxs[i].t_process_encode_us;
-        ctx->t_real_decode_us    += ctxs[i].t_real_decode_us;
-        ctx->t_process_decode_us += ctxs[i].t_process_decode_us;
+        ctx->t_mel_real_us    += ctxs[i].t_mel_real_us;
+        ctx->t_mel_proc_us    += ctxs[i].t_mel_proc_us;
+        ctx->t_sample_real_us += ctxs[i].t_sample_real_us;
+        ctx->t_sample_proc_us += ctxs[i].t_sample_proc_us;
+        ctx->t_encode_real_us += ctxs[i].t_encode_real_us;
+        ctx->t_encode_proc_us += ctxs[i].t_encode_proc_us;
+        ctx->t_decode_real_us += ctxs[i].t_decode_real_us;
+        ctx->t_decode_proc_us += ctxs[i].t_decode_proc_us;
 
         kv_cache_free(ctx->kv_cross);
 
@@ -4038,14 +4034,14 @@ int whisper_full_parallel(
     }
 
     // average the timings
-    ctx->t_real_mel_us       /= n_processors;
-    ctx->t_process_mel_us    /= n_processors;
-    ctx->t_real_sample_us    /= n_processors;
-    ctx->t_process_sample_us /= n_processors;
-    ctx->t_real_encode_us    /= n_processors;
-    ctx->t_process_encode_us /= n_processors;
-    ctx->t_real_decode_us    /= n_processors;
-    ctx->t_process_decode_us /= n_processors;
+    ctx->t_mel_real_us    /= n_processors;
+    ctx->t_mel_proc_us    /= n_processors;
+    ctx->t_sample_real_us /= n_processors;
+    ctx->t_sample_proc_us /= n_processors;
+    ctx->t_encode_real_us /= n_processors;
+    ctx->t_encode_proc_us /= n_processors;
+    ctx->t_decode_real_us /= n_processors;
+    ctx->t_decode_proc_us /= n_processors;
 
     // print information about the audio boundaries
     fprintf(stderr, "\n");
