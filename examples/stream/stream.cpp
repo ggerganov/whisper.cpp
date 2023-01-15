@@ -615,6 +615,9 @@ int main(int argc, char ** argv) {
             wparams.audio_ctx        = params.audio_ctx;
             wparams.speed_up         = params.speed_up;
 
+            // disable temperature fallback
+            wparams.temperature_inc  = -1.0f;
+
             wparams.prompt_tokens    = params.no_context ? nullptr : prompt_tokens.data();
             wparams.prompt_n_tokens  = params.no_context ? 0       : prompt_tokens.size();
 

@@ -212,17 +212,7 @@ make large
 ## Limitations
 
 - Inference only
-- No GPU support
-- Very basic greedy sampling scheme - always pick up the token with highest probability.
-  This should be similar to the [GreedyDecoder](https://github.com/openai/whisper/blob/main/whisper/decoding.py#L249-L274)
-  from the original python implementation, so in order to make a fair comparison between the 2 implementations, make sure
-  to run the python code with the following parameters:
-
-  ```
-  whisper --best_of None --beam_size None ...
-  ```
-
-  In the future, `whisper.cpp` will support more sampling strategies.
+- No GPU support (yet)
 
 ## Another example
 
