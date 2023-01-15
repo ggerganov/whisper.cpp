@@ -28,6 +28,11 @@ void bench_main(size_t index) {
         return;
     }
 
+    {
+        fprintf(stderr, "\n");
+        fprintf(stderr, "system_info: n_threads = %d / %d | %s\n", n_threads, std::thread::hardware_concurrency(), whisper_print_system_info());
+    }
+
     if (int ret = whisper_encode(ctx, 0, n_threads) != 0) {
         fprintf(stderr, "error: failed to encode model: %d\n", ret);
         return;
