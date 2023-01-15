@@ -34,8 +34,8 @@ How to interpret these results:
 
 EOF
 
-printf "|   CPU   |   OS   |      Config      |  Model  | Threads | Load  | Encode        |  Commit  |\n"
-printf "| ------- | ------ | ---------------- | ------- | ------- | ----- | ------------- | -------- |\n"
+printf "|   CPU   |   OS   |      Config      |  Model  | Th | Load  | Encode        |  Commit  |\n"
+printf "| ------- | ------ | ---------------- | ------- | -- | ----- | ------------- | -------- |\n"
 
 for model in "${models[@]}"; do
     # run once to heat-up the cache
@@ -66,7 +66,7 @@ for model in "${models[@]}"; do
 
     commit=$(git rev-parse --short HEAD)
 
-    printf "| <todo>  | <todo> | %-16s | %-7s | %-7s | %-5s | %-13s | %-8s |\n" \
+    printf "| <todo>  | <todo> | %-16s | %-7s | %-2s | %-5s | %-13s | %-8s |\n" \
         "$config" \
         "$model" \
         "$n_threads" \
