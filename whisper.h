@@ -137,6 +137,7 @@ extern "C" {
     // tokens + n_tokens is the provided context for the decoder.
     // n_past is the number of tokens to use from previous decoder calls.
     // Returns 0 on success
+    // TODO: add support for multiple decoders
     WHISPER_API int whisper_decode(
             struct whisper_context * ctx,
                const whisper_token * tokens,
@@ -218,8 +219,8 @@ extern "C" {
 
     // Available sampling strategies
     enum whisper_sampling_strategy {
-        WHISPER_SAMPLING_GREEDY,      // Always select the most probable token
-        WHISPER_SAMPLING_BEAM_SEARCH, // TODO: not implemented yet!
+        WHISPER_SAMPLING_GREEDY,      // similar to OpenAI's GreefyDecoder
+        WHISPER_SAMPLING_BEAM_SEARCH, // similar to OpenAI's BeamSearchDecoder
     };
 
     // Text segment callback
@@ -239,17 +240,17 @@ extern "C" {
         enum whisper_sampling_strategy strategy;
 
         int n_threads;
-        int n_max_text_ctx;
+        int n_max_text_ctx;     // max tokens to use from past text as prompt for the decoder
         int offset_ms;          // start offset in ms
         int duration_ms;        // audio duration to process in ms
 
         bool translate;
-        bool no_context;
+        bool no_context;        // do not use initial prompt for the decoder (if any)
         bool single_segment;    // force single segment output (useful for streaming)
-        bool print_special;
-        bool print_progress;
-        bool print_realtime;
-        bool print_timestamps;
+        bool print_special;     // print special tokens (e.g. <SOT>, <EOT>, <BEG>, etc.)
+        bool print_progress;    // print progress information
+        bool print_realtime;    // print results from within whisper.cpp (avoid it, use callback instead)
+        bool print_timestamps;  // print timestamps for each text segment when printing realtime
 
         // [EXPERIMENTAL] token-level timestamps
         bool  token_timestamps; // enable token-level timestamps
@@ -259,10 +260,11 @@ extern "C" {
         int   max_tokens;       // max tokens per segment (0 = no limit)
 
         // [EXPERIMENTAL] speed-up techniques
+        // note: these can significantly reduce the quality of the output
         bool speed_up;          // speed-up the audio by 2x using Phase Vocoder
         int  audio_ctx;         // overwrite the audio context size (0 = use default)
 
-        // tokens to provide the whisper model as initial prompt
+        // tokens to provide to the whisper decoder as initial prompt
         // these are prepended to any existing text context from a previous call
         const whisper_token * prompt_tokens;
         int prompt_n_tokens;
@@ -271,31 +273,34 @@ extern "C" {
         const char * language;
 
         // common decoding parameters:
-        bool suppress_blank;
+        bool suppress_blank;    // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/decoding.py#L89
 
-        float temperature;
-        float max_initial_timestamp;
-        float length_penalty;
+        float temperature;      // initial decoding temperature, ref: https://ai.stackexchange.com/a/32478
+        float max_initial_ts;   // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/decoding.py#L97
+        float length_penalty;   // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/transcribe.py#L267
 
         // fallback parameters
-        float temperature_increment;
-        float entropy_threshold;     // analog tho OpenAI's compression_ratio_threshold
-        float logprob_threshold;
-        float no_speech_threshold;   // TODO: not implemented
+        // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/transcribe.py#L274-L278
+        float temperature_inc;
+        float entropy_thold;    // similar to OpenAI's "compression_ratio_threshold"
+        float logprob_thold;
+        float no_speech_thold;  // TODO: not implemented
 
         struct {
-            int best_of;
+            int best_of;    // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/transcribe.py#L264
         } greedy;
 
         struct {
-            int beam_size;
+            int beam_size;  // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/transcribe.py#L265
 
-            float patience; // TODO: not implemented
+            float patience; // TODO: not implemented, ref: https://arxiv.org/pdf/2204.05424.pdf
         } beam_search;
 
+        // called for every newly generated text segment
         whisper_new_segment_callback new_segment_callback;
         void * new_segment_callback_user_data;
 
+        // called each time before the encoder starts
         whisper_encoder_begin_callback encoder_begin_callback;
         void * encoder_begin_callback_user_data;
     };

@@ -633,24 +633,24 @@ int main(int argc, char ** argv) {
 
             wparams.strategy = params.beam_size > 1 ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY;
 
-            wparams.print_realtime    = false;
-            wparams.print_progress    = params.print_progress;
-            wparams.print_timestamps  = !params.no_timestamps;
-            wparams.print_special     = params.print_special;
-            wparams.translate         = params.translate;
-            wparams.language          = params.language.c_str();
-            wparams.n_threads         = params.n_threads;
-            wparams.n_max_text_ctx    = params.max_context >= 0 ? params.max_context : wparams.n_max_text_ctx;
-            wparams.offset_ms         = params.offset_t_ms;
-            wparams.duration_ms       = params.duration_ms;
+            wparams.print_realtime   = false;
+            wparams.print_progress   = params.print_progress;
+            wparams.print_timestamps = !params.no_timestamps;
+            wparams.print_special    = params.print_special;
+            wparams.translate        = params.translate;
+            wparams.language         = params.language.c_str();
+            wparams.n_threads        = params.n_threads;
+            wparams.n_max_text_ctx   = params.max_context >= 0 ? params.max_context : wparams.n_max_text_ctx;
+            wparams.offset_ms        = params.offset_t_ms;
+            wparams.duration_ms      = params.duration_ms;
 
-            wparams.token_timestamps  = params.output_wts || params.max_len > 0;
-            wparams.thold_pt          = params.word_thold;
-            wparams.entropy_threshold = params.entropy_thold;
-            wparams.logprob_threshold = params.logprob_thold;
-            wparams.max_len           = params.output_wts && params.max_len == 0 ? 60 : params.max_len;
+            wparams.token_timestamps = params.output_wts || params.max_len > 0;
+            wparams.thold_pt         = params.word_thold;
+            wparams.entropy_thold    = params.entropy_thold;
+            wparams.logprob_thold    = params.logprob_thold;
+            wparams.max_len          = params.output_wts && params.max_len == 0 ? 60 : params.max_len;
 
-            wparams.speed_up          = params.speed_up;
+            wparams.speed_up         = params.speed_up;
 
             wparams.greedy.best_of        = params.best_of;
             wparams.beam_search.beam_size = params.beam_size;
