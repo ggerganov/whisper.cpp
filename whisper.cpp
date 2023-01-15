@@ -3230,7 +3230,7 @@ int whisper_full(
     // if length of spectrogram is less than 1s (100 samples), then return
     // basically don't process anything that is less than 1s
     // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
-    if (seek_end < 100 + seek_start) {
+    if (seek_end < seek_start + (params.speed_up ? 50 : 100)) {
         return 0;
     }
 
