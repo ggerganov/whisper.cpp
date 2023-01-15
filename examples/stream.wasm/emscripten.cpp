@@ -49,6 +49,9 @@ void stream_main(size_t index) {
     wparams.max_tokens       = 32;
     wparams.audio_ctx        = 768; // partial encoder context for better performance
 
+    // disable temperature fallback
+    wparams.temperature_inc  = -1.0f;
+
     wparams.language         = "en";
 
     printf("stream: using %d threads\n", wparams.n_threads);
