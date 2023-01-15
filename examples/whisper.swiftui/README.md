@@ -10,3 +10,5 @@ To use:
 5. Select the "release" build configuration under "Run", then deploy and run to your device.
 
 [^1]: I recommend the tiny, base or small models for running on an iOS device.
+
+![image](https://user-images.githubusercontent.com/1991296/212539216-0aef65e4-f882-480a-8358-0f816838fd52.png)
