@@ -1,5 +1,5 @@
 WHISPER_LIB_DIR := $(LOCAL_PATH)/../../../../../../../
-LOCAL_LDLIBS    := -llog
+LOCAL_LDLIBS    := -landroid -llog
 
 # Make the final output library smaller by only keeping the symbols referenced from the app.
 ifneq ($(APP_OPTIM),debug)
