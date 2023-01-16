@@ -73,8 +73,7 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
         printMessage("Loading model...\n")
         val models = application.assets.list("models/")
         if (models != null) {
-            val inputstream = application.assets.open("models/" + models[0])
-            whisperContext = WhisperContext.createContextFromInputStream(inputstream)
+            whisperContext = WhisperContext.createContextFromAsset(application.assets, "models/" + models[0])
             printMessage("Loaded model ${models[0]}.\n")
         }
 

@@ -1,5 +1,6 @@
 package com.whispercppdemo.whisper
 
+import android.content.res.AssetManager
 import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.*
@@ -56,6 +57,15 @@ class WhisperContext private constructor(private var ptr: Long) {
             }
             return WhisperContext(ptr)
         }
+
+        fun createContextFromAsset(assetManager: AssetManager, assetPath: String): WhisperContext {
+            val ptr = WhisperLib.initContextFromAsset(assetManager, assetPath)
+
+            if (ptr == 0L) {
+                throw java.lang.RuntimeException("Couldn't create context from asset $assetPath")
+            }
+            return WhisperContext(ptr)
+        }
     }
 }
 
@@ -87,6 +97,7 @@ private class WhisperLib {
 
         // JNI methods
         external fun initContextFromInputStream(inputStream: InputStream): Long
+        external fun initContextFromAsset(assetManager: AssetManager, assetPath: String): Long
         external fun initContext(modelPath: String): Long
         external fun freeContext(contextPtr: Long)
         external fun fullTranscribe(contextPtr: Long, audioData: FloatArray)
