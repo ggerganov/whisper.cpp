@@ -3091,10 +3091,10 @@ static std::vector<whisper_token_data> whisper_sample_token_topk(
     std::vector<whisper_token_data> result;
     result.reserve(k);
 
-    whisper_token tid;
+    whisper_token tid = vocab.token_beg;
 
-    float pt;
-    float ptsum;
+    float pt    = 0.0;
+    float ptsum = 0.0;
 
     {
         double sum_ts = 0.0;
