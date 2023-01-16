@@ -434,9 +434,9 @@ int main(int argc, char ** argv) {
 
     const int n_new_line = !use_vad ? params.length_ms / params.step_ms - 1 : 1; // number of steps to print new line
 
-    params.no_timestamps = !use_vad;
-    params.no_context    = use_vad;
-    params.max_tokens    = 0;
+    params.no_timestamps  = !use_vad;
+    params.no_context    |= use_vad;
+    params.max_tokens     = 0;
 
     // init audio
 
@@ -486,7 +486,7 @@ int main(int argc, char ** argv) {
                 params.no_timestamps ? 0 : 1);
 
         if (!use_vad) {
-            fprintf(stderr, "%s: n_new_line = %d\n", __func__, n_new_line);
+            fprintf(stderr, "%s: n_new_line = %d, no_context = %d\n", __func__, n_new_line, params.no_context);
         } else {
             fprintf(stderr, "%s: using VAD, will transcribe on speech activity\n", __func__);
         }
