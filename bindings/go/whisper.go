@@ -147,16 +147,6 @@ func (ctx *Context) Whisper_decode(tokens []Token, past, threads int) error {
 	}
 }
 
-// whisper_sample_best() returns the token with the highest probability
-func (ctx *Context) Whisper_sample_best() TokenData {
-	return TokenData(C.whisper_sample_best((*C.struct_whisper_context)(ctx)))
-}
-
-// whisper_sample_timestamp() returns the most probable timestamp token
-func (ctx *Context) Whisper_sample_timestamp(is_initial bool) TokenData {
-	return TokenData(C.whisper_sample_timestamp((*C.struct_whisper_context)(ctx), C.bool(is_initial)))
-}
-
 // Convert the provided text into tokens. The tokens pointer must be large enough to hold the resulting tokens.
 // Returns the number of tokens on success
 func (ctx *Context) Whisper_tokenize(text string, tokens []Token) (int, error) {
