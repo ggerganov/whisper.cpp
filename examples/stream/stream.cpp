@@ -423,7 +423,8 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    params.keep_ms = std::min(params.keep_ms, params.step_ms); // cannot be more than step_ms
+    params.keep_ms   = std::min(params.keep_ms,   params.step_ms);
+    params.length_ms = std::max(params.length_ms, params.step_ms);
 
     const int n_samples_step = (params.step_ms  *1e-3)*WHISPER_SAMPLE_RATE;
     const int n_samples_len  = (params.length_ms*1e-3)*WHISPER_SAMPLE_RATE;
@@ -432,7 +433,7 @@ int main(int argc, char ** argv) {
 
     const bool use_vad = n_samples_step <= 0; // sliding window mode uses VAD
 
-    const int n_new_line = !use_vad ? params.length_ms / params.step_ms - 1 : 1; // number of steps to print new line
+    const int n_new_line = !use_vad ? std::max(1, params.length_ms / params.step_ms - 1) : 1; // number of steps to print new line
 
     params.no_timestamps  = !use_vad;
     params.no_context    |= use_vad;
