@@ -19,7 +19,7 @@ printf "\n"
 ./bench -w 1 -t 1 2>&1
 
 printf "\n"
-printf "Running ggml_mul_mat benchmark with " $n_threads " threads\n"
+printf "Running ggml_mul_mat benchmark with $n_threads threads\n"
 printf "\n"
 
 ./bench -w 2 -t $n_threads 2>&1

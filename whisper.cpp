@@ -4103,7 +4103,7 @@ WHISPER_API int whisper_bench_memcpy(int n_threads) {
 
         for (size_t i = 0; i < size; i++) sum += dst[i];
 
-        fprintf(stderr, "sum:    %s\n", sum == -536870910.00 ? "ok" : "error");
+        fprintf(stderr, "sum:    %s %f\n", sum == -536870910.00 ? "ok" : "error", sum);
     }
 
     free(src);
