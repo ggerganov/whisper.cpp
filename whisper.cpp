@@ -3721,7 +3721,7 @@ int whisper_full(
                     WHISPER_PRINT_DEBUG("%s: decoder %2d: score = %8.5f, result_len = %3d, avg_logprobs = %8.5f, entropy = %8.5f\n",
                             __func__, j, decoder.sequence.score, decoder.sequence.result_len, decoder.sequence.avg_logprobs, decoder.sequence.entropy);
 
-                    if (decoder.sequence.result_len > 8 && decoder.sequence.entropy < params.entropy_thold) {
+                    if (decoder.sequence.result_len > 32 && decoder.sequence.entropy < params.entropy_thold) {
                         WHISPER_PRINT_DEBUG("%s: decoder %2d: failed due to entropy %8.5f < %8.5f\n",
                                 __func__, j, decoder.sequence.entropy, params.entropy_thold);
 
