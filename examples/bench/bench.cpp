@@ -1,11 +1,8 @@
-#include "ggml.h"
 #include "whisper.h"
 
 #include <cstdio>
-#include <cstring>
 #include <string>
 #include <thread>
-#include <vector>
 
 // command-line parameters
 struct whisper_params {
@@ -53,7 +50,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "\n");
 }
 
-int bench_whisper_encoder(const whisper_params & params) {
+int whisper_bench_encoder(const whisper_params & params) {
     // whisper init
 
     struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
@@ -96,132 +93,6 @@ int bench_whisper_encoder(const whisper_params & params) {
     return 0;
 }
 
-int bench_memcpy(const whisper_params & params) {
-    size_t n    = 50;
-    size_t arr  = params.what > 0 ? 1024 : params.what; // trick to avoid compiler optimizations
-
-    // 1 GB array
-    const size_t size = arr*1024llu*1024llu;
-
-    char * src = (char *) malloc(size);
-    char * dst = (char *) malloc(size);
-
-    for (size_t i = 0; i < size; i++) src[i] = i;
-
-    memcpy(dst, src, size); // heat-up
-
-    double tsum = 0.0;
-
-    for (size_t i = 0; i < n; i++) {
-        const int64_t t0 = ggml_time_us();
-
-        memcpy(dst, src, size);
-
-        const int64_t t1 = ggml_time_us();
-
-        tsum += (t1 - t0)*1e-6;
-
-        src[0] = rand();
-    }
-
-    fprintf(stderr, "memcpy: %.2f GB/s\n", (double) (n*size)/(tsum*1024llu*1024llu*1024llu));
-
-    // needed to prevent the compile from optimizing the memcpy away
-    {
-        double sum = 0.0;
-
-        for (size_t i = 0; i < size; i++) sum += dst[i];
-
-        fprintf(stderr, "sum:    %s\n", sum == -536870910.00 ? "ok" : "error");
-    }
-
-    free(src);
-    free(dst);
-
-    return 0;
-}
-
-int bench_ggml_mul_mat(const whisper_params & params) {
-    const int n_max = 128;
-
-    const std::vector<size_t> sizes = {
-        64, 128, 256, 512, 1024, 2048, 4096,
-    };
-
-    const size_t N_max = sizes.back();
-
-    // a: N*N*sizeof(float)
-    // b: N*N*sizeof(float)
-    // c: N*N*sizeof(float)
-    // when F16 is used, there is an extra work buffer of size N*N*sizeof(float)
-    std::vector<char> buf(4llu*N_max*N_max*sizeof(float) + 4*256);
-
-    for (size_t i = 0; i < buf.size(); i++) buf[i] = i;
-
-    for (int j = 0; j < (int) sizes.size(); j++) {
-        int n_fp16 = 0;
-        int n_fp32 = 0;
-
-        // GFLOPS/s
-        double s_fp16 = 0.0;
-        double s_fp32 = 0.0;
-
-        const size_t N = sizes[j];
-
-        for (int k = 0; k < 2; ++k) {
-            const ggml_type wtype = k == 0 ? GGML_TYPE_F16 : GGML_TYPE_F32;
-
-            double & s = k == 0 ? s_fp16 : s_fp32;
-            int    & n = k == 0 ? n_fp16   : n_fp32;
-
-            struct ggml_init_params gparams = {
-                /*.mem_size   =*/ buf.size(),
-                /*.mem_buffer =*/ buf.data(),
-            };
-
-            struct ggml_context * ctx0 = ggml_init(gparams);
-
-            struct ggml_tensor * a = ggml_new_tensor_2d(ctx0, wtype,         N, N);
-            struct ggml_tensor * b = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, N, N);
-
-            struct ggml_tensor * c = ggml_mul_mat(ctx0, a, b);
-
-            struct ggml_cgraph gf = ggml_build_forward(c);
-
-            gf.n_threads = params.n_threads;
-
-            double tsum = 0.0;
-
-            // heat-up
-            ggml_graph_compute(ctx0, &gf);
-
-            for (int i = 0; i < n_max; ++i) {
-                const int64_t t0 = ggml_time_us();
-
-                ggml_graph_compute(ctx0, &gf);
-
-                const int64_t t1 = ggml_time_us();
-
-                tsum += (t1 - t0)*1e-6;
-                n++;
-
-                if (tsum > 1.0 && n >= 3) {
-                    break;
-                }
-            }
-
-            ggml_free(ctx0);
-
-            s = ((2.0*N*N*N*n)/tsum)*1e-9;
-        }
-
-        fprintf(stderr, "ggml_mul_mat: %5zu x %5zu: F16 %8.1f GFLOPS (%3d runs) / F32 %8.1f GFLOPS (%3d runs)\n",
-            N, N, s_fp16, n_fp16, s_fp32, n_fp32);
-    }
-
-    return 0;
-}
-
 int main(int argc, char ** argv) {
     whisper_params params;
 
@@ -229,14 +100,12 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    ggml_time_init();
-
     int ret = -1;
 
     switch (params.what) {
-        case 0: ret = bench_whisper_encoder(params); break;
-        case 1: ret = bench_memcpy(params);          break;
-        case 2: ret = bench_ggml_mul_mat(params);    break;
+        case 0: ret = whisper_bench_encoder(params);                break;
+        case 1: ret = whisper_bench_memcpy(params.n_threads);       break;
+        case 2: ret = whisper_bench_ggml_mul_mat(params.n_threads); break;
         default: fprintf(stderr, "error: unknown benchmark: %d\n", params.what); break;
     }
 

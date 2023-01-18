@@ -350,6 +350,13 @@ extern "C" {
     // Get the probability of the specified token in the specified segment.
     WHISPER_API float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token);
 
+    ////////////////////////////////////////////////////////////////////////////
+
+    // Temporary helpers needed for exposing ggml interface
+
+    WHISPER_API int whisper_bench_memcpy(int n_threads);
+    WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads);
+
 #ifdef __cplusplus
 }
 #endif
