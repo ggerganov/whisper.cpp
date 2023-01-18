@@ -658,7 +658,6 @@ int main(int argc, char ** argv) {
 
             wparams.greedy.best_of        = params.best_of;
             wparams.beam_search.beam_size = params.beam_size;
-            wparams.temperature_inc = -1;
 
             wparams.prompt_tokens     = prompt_tokens.empty() ? nullptr : prompt_tokens.data();
             wparams.prompt_n_tokens   = prompt_tokens.empty() ? 0       : prompt_tokens.size();
