@@ -4373,7 +4373,9 @@ static void ggml_compute_forward_mul_mat_f32(
     if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
         GGML_ASSERT(nb10 == sizeof(float));
 
-        if (params->ith != 0) return;
+        if (params->ith != 0) {
+            return;
+        }
 
         if (params->type == GGML_TASK_INIT) {
             return;
@@ -4616,7 +4618,9 @@ static void ggml_compute_forward_mul_mat_f16_f32(
     if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
         GGML_ASSERT(nb10 == sizeof(float));
 
-        if (params->ith != 0) return;
+        if (params->ith != 0) {
+            return;
+        }
 
         if (params->type == GGML_TASK_INIT) {
             return;
@@ -7054,7 +7058,7 @@ struct ggml_cgraph ggml_build_backward(struct ggml_context * ctx, struct ggml_cg
 #ifdef __APPLE__
 
 //#include <os/lock.h>
-
+//
 //typedef os_unfair_lock ggml_lock_t;
 //
 //#define ggml_lock_init(x)    UNUSED(x)
@@ -7161,6 +7165,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
             if (state->params.ith < state->params.nth) {
                 ggml_compute_forward(&state->params, state->node);
             }
+
             state->node = NULL;
         } else {
             break;
@@ -7205,6 +7210,7 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
                 .node   = NULL,
                 .shared = &state_shared,
             };
+
             int rc = ggml_thread_create(&workers[j].thrd, NULL, ggml_graph_compute_thread, &workers[j]);
             assert(rc == 0);
             UNUSED(rc);
@@ -7273,7 +7279,8 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
                                 node->src1->type == GGML_TYPE_F32) {
 #if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
                                 if (ggml_compute_forward_mul_mat_use_blas(node->src0, node->src1, node)) {
-                                    node->n_tasks = 1;
+                                    node->n_tasks = 1; // TODO: this actually is doing nothing
+                                                       //       the threads are still spinning
                                     cur = sizeof(float)*(node->src0->ne[0]*node->src0->ne[1]);
                                 } else {
                                     cur = sizeof(ggml_fp16_t)*ggml_nelements(node->src1);

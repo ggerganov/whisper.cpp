@@ -133,8 +133,8 @@ ifdef WHISPER_OPENBLAS
 	LDFLAGS += -lopenblas
 endif
 ifdef WHISPER_GPROF
-	CFLAGS  += -pg
-	CXXFLAGS  += -pg
+	CFLAGS   += -pg
+	CXXFLAGS += -pg
 endif
 ifneq ($(filter aarch64%,$(UNAME_M)),)
 endif

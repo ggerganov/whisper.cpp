@@ -13,6 +13,18 @@ fi
 models=( "tiny" "base" "small" "medium" "large" )
 
 printf "\n"
+printf "Running memcpy benchmark with 1 thread\n"
+printf "\n"
+
+./bench -w 1 -t 1 2>&1
+
+printf "\n"
+printf "Running ggml_mul_mat benchmark with " $n_threads " threads\n"
+printf "\n"
+
+./bench -w 2 -t $n_threads 2>&1
+
+printf "\n"
 printf "Running benchmark for all models\n"
 printf "This can take a while!\n"
 printf "\n"
@@ -56,4 +68,3 @@ for model in "${models[@]}"; do
 
     printf "| <todo> | <todo> | $config | $model | $n_threads | $load_time | $encode_time | $commit |\n"
 done
-
