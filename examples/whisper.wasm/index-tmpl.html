@@ -46,10 +46,12 @@
 
             <div id="model">
                 Whisper model: <span id="model-whisper-status"></span>
-                <button id="fetch-whisper-tiny-en" onclick="loadWhisper('tiny.en')">tiny.en (75 MB)</button>
-                <button id="fetch-whisper-tiny"    onclick="loadWhisper('tiny')">tiny (75 MB)</button>
-                <button id="fetch-whisper-base-en" onclick="loadWhisper('base.en')">base.en (142 MB)</button>
-                <button id="fetch-whisper-base"    onclick="loadWhisper('base')">base (142 MB)</button>
+                <button id="fetch-whisper-tiny-en"  onclick="loadWhisper('tiny.en')">tiny.en (75 MB)</button>
+                <button id="fetch-whisper-tiny"     onclick="loadWhisper('tiny')">tiny (75 MB)</button>
+                <button id="fetch-whisper-base-en"  onclick="loadWhisper('base.en')">base.en (142 MB)</button>
+                <button id="fetch-whisper-base"     onclick="loadWhisper('base')">base (142 MB)</button>
+                <button id="fetch-whisper-small-en" onclick="loadWhisper('small.en')">small.en (466 MB)</button>
+                <button id="fetch-whisper-small"    onclick="loadWhisper('small')">small (466 MB)</button>
                 <span id="fetch-whisper-progress"></span>
 
                 <input type="file" id="whisper-file" name="file" onchange="loadFile(event, 'whisper.bin')" />
@@ -284,27 +286,33 @@
                 }
                 reader.readAsArrayBuffer(file);
 
-                document.getElementById('fetch-whisper-tiny-en').style.display = 'none';
-                document.getElementById('fetch-whisper-base-en').style.display = 'none';
-                document.getElementById('fetch-whisper-tiny'   ).style.display = 'none';
-                document.getElementById('fetch-whisper-base'   ).style.display = 'none';
-                document.getElementById('whisper-file'         ).style.display = 'none';
-                document.getElementById('model-whisper-status' ).innerHTML = 'loaded model: ' + file.name;
+                document.getElementById('fetch-whisper-tiny-en' ).style.display = 'none';
+                document.getElementById('fetch-whisper-base-en' ).style.display = 'none';
+                document.getElementById('fetch-whisper-small-en').style.display = 'none';
+                document.getElementById('fetch-whisper-tiny'    ).style.display = 'none';
+                document.getElementById('fetch-whisper-base'    ).style.display = 'none';
+                document.getElementById('fetch-whisper-small'   ).style.display = 'none';
+                document.getElementById('whisper-file'          ).style.display = 'none';
+                document.getElementById('model-whisper-status'  ).innerHTML = 'loaded model: ' + file.name;
             }
 
             function loadWhisper(model) {
                 let urls = {
-                    'tiny.en': 'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en.bin',
-                    'tiny':    'https://whisper.ggerganov.com/ggml-model-whisper-tiny.bin',
-                    'base.en': 'https://whisper.ggerganov.com/ggml-model-whisper-base.en.bin',
-                    'base':    'https://whisper.ggerganov.com/ggml-model-whisper-base.bin',
+                    'tiny.en':  'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en.bin',
+                    'tiny':     'https://whisper.ggerganov.com/ggml-model-whisper-tiny.bin',
+                    'base.en':  'https://whisper.ggerganov.com/ggml-model-whisper-base.en.bin',
+                    'base':     'https://whisper.ggerganov.com/ggml-model-whisper-base.bin',
+                    'small.en': 'https://whisper.ggerganov.com/ggml-model-whisper-small.en.bin',
+                    'small':    'https://whisper.ggerganov.com/ggml-model-whisper-small.bin',
                 };
 
                 let sizes = {
-                    'tiny.en': 75,
-                    'tiny':    75,
-                    'base.en': 142,
-                    'base':    142,
+                    'tiny.en':  75,
+                    'tiny':     75,
+                    'base.en':  142,
+                    'base':     142,
+                    'small.en': 466,
+                    'small':    466,
                 };
 
                 let url     = urls[model];
@@ -313,12 +321,14 @@
 
                 model_whisper = model;
 
-                document.getElementById('fetch-whisper-tiny-en').style.display = 'none';
-                document.getElementById('fetch-whisper-base-en').style.display = 'none';
-                document.getElementById('fetch-whisper-tiny'   ).style.display = 'none';
-                document.getElementById('fetch-whisper-base'   ).style.display = 'none';
-                document.getElementById('whisper-file'         ).style.display = 'none';
-                document.getElementById('model-whisper-status' ).innerHTML = 'loading model: ' + model;
+                document.getElementById('fetch-whisper-tiny-en' ).style.display = 'none';
+                document.getElementById('fetch-whisper-base-en' ).style.display = 'none';
+                document.getElementById('fetch-whisper-small-en').style.display = 'none';
+                document.getElementById('fetch-whisper-tiny'    ).style.display = 'none';
+                document.getElementById('fetch-whisper-base'    ).style.display = 'none';
+                document.getElementById('fetch-whisper-small'   ).style.display = 'none';
+                document.getElementById('whisper-file'          ).style.display = 'none';
+                document.getElementById('model-whisper-status'  ).innerHTML = 'loading model: ' + model;
 
                 cbProgress = function(p) {
                     let el = document.getElementById('fetch-whisper-progress');
@@ -327,12 +337,14 @@
 
                 cbCancel = function() {
                     var el;
-                    el = document.getElementById('fetch-whisper-tiny-en'); if (el) el.style.display = 'inline-block';
-                    el = document.getElementById('fetch-whisper-base-en'); if (el) el.style.display = 'inline-block';
-                    el = document.getElementById('fetch-whisper-tiny'   ); if (el) el.style.display = 'inline-block';
-                    el = document.getElementById('fetch-whisper-base'   ); if (el) el.style.display = 'inline-block';
-                    el = document.getElementById('whisper-file'         ); if (el) el.style.display = 'inline-block';
-                    el = document.getElementById('model-whisper-status' ); if (el) el.innerHTML = '';
+                    el = document.getElementById('fetch-whisper-tiny-en' ); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('fetch-whisper-base-en' ); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('fetch-whisper-small-en'); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('fetch-whisper-tiny'    ); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('fetch-whisper-base'    ); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('fetch-whisper-small'   ); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('whisper-file'          ); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('model-whisper-status'  ); if (el) el.innerHTML = '';
                 };
 
                 loadRemote(url, dst, size_mb, cbProgress, storeFS, cbCancel, printTextarea);
