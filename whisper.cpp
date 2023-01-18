@@ -3801,6 +3801,7 @@ int whisper_full(
 
                     if (tokens_cur[i].id > whisper_token_beg(ctx) && !params.single_segment) {
                         const auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
+
                         if (!text.empty()) {
                             const auto tt0 = params.speed_up ? 2*t0 : t0;
                             const auto tt1 = params.speed_up ? 2*t1 : t1;
@@ -4056,6 +4057,145 @@ struct whisper_token_data whisper_full_get_token_data(struct whisper_context * c
 float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token) {
     return ctx->result_all[i_segment].tokens[i_token].p;
 }
+
+// =================================================================================================
+
+//
+// Temporary interface needed for exposing ggml interface
+// Will be removed in the future when ggml becomes a separate library
+//
+
+WHISPER_API int whisper_bench_memcpy(int n_threads) {
+    ggml_time_init();
+
+    size_t n    = 50;
+    size_t arr  = n_threads > 0 ? 1024 : n_threads; // trick to avoid compiler optimizations
+
+    // 1 GB array
+    const size_t size = arr*1024llu*1024llu;
+
+    char * src = (char *) malloc(size);
+    char * dst = (char *) malloc(size);
+
+    for (size_t i = 0; i < size; i++) src[i] = i;
+
+    memcpy(dst, src, size); // heat-up
+
+    double tsum = 0.0;
+
+    for (size_t i = 0; i < n; i++) {
+        const int64_t t0 = ggml_time_us();
+
+        memcpy(dst, src, size);
+
+        const int64_t t1 = ggml_time_us();
+
+        tsum += (t1 - t0)*1e-6;
+
+        src[0] = rand();
+    }
+
+    fprintf(stderr, "memcpy: %.2f GB/s\n", (double) (n*size)/(tsum*1024llu*1024llu*1024llu));
+
+    // needed to prevent the compile from optimizing the memcpy away
+    {
+        double sum = 0.0;
+
+        for (size_t i = 0; i < size; i++) sum += dst[i];
+
+        fprintf(stderr, "sum:    %s\n", sum == -536870910.00 ? "ok" : "error");
+    }
+
+    free(src);
+    free(dst);
+
+    return 0;
+}
+
+WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads) {
+    ggml_time_init();
+
+    const int n_max = 128;
+
+    const std::vector<size_t> sizes = {
+        64, 128, 256, 512, 1024, 2048, 4096,
+    };
+
+    const size_t N_max = sizes.back();
+
+    // a: N*N*sizeof(float)
+    // b: N*N*sizeof(float)
+    // c: N*N*sizeof(float)
+    // when F16 is used, there is an extra work buffer of size N*N*sizeof(float)
+    std::vector<char> buf(4llu*N_max*N_max*sizeof(float) + 4*256);
+
+    for (size_t i = 0; i < buf.size(); i++) buf[i] = i;
+
+    for (int j = 0; j < (int) sizes.size(); j++) {
+        int n_fp16 = 0;
+        int n_fp32 = 0;
+
+        // GFLOPS/s
+        double s_fp16 = 0.0;
+        double s_fp32 = 0.0;
+
+        const size_t N = sizes[j];
+
+        for (int k = 0; k < 2; ++k) {
+            const ggml_type wtype = k == 0 ? GGML_TYPE_F16 : GGML_TYPE_F32;
+
+            double & s = k == 0 ? s_fp16 : s_fp32;
+            int    & n = k == 0 ? n_fp16   : n_fp32;
+
+            struct ggml_init_params gparams = {
+                /*.mem_size   =*/ buf.size(),
+                /*.mem_buffer =*/ buf.data(),
+            };
+
+            struct ggml_context * ctx0 = ggml_init(gparams);
+
+            struct ggml_tensor * a = ggml_new_tensor_2d(ctx0, wtype,         N, N);
+            struct ggml_tensor * b = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, N, N);
+
+            struct ggml_tensor * c = ggml_mul_mat(ctx0, a, b);
+
+            struct ggml_cgraph gf = ggml_build_forward(c);
+
+            gf.n_threads = n_threads;
+
+            double tsum = 0.0;
+
+            // heat-up
+            ggml_graph_compute(ctx0, &gf);
+
+            for (int i = 0; i < n_max; ++i) {
+                const int64_t t0 = ggml_time_us();
+
+                ggml_graph_compute(ctx0, &gf);
+
+                const int64_t t1 = ggml_time_us();
+
+                tsum += (t1 - t0)*1e-6;
+                n++;
+
+                if (tsum > 1.0 && n >= 3) {
+                    break;
+                }
+            }
+
+            ggml_free(ctx0);
+
+            s = ((2.0*N*N*N*n)/tsum)*1e-9;
+        }
+
+        fprintf(stderr, "ggml_mul_mat: %5zu x %5zu: F16 %8.1f GFLOPS (%3d runs) / F32 %8.1f GFLOPS (%3d runs)\n",
+            N, N, s_fp16, n_fp16, s_fp32, n_fp32);
+    }
+
+    return 0;
+}
+
+// =================================================================================================
 
 // =================================================================================================
 
