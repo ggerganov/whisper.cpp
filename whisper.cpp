@@ -217,6 +217,14 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
 
 static const size_t MB = 1024*1024;
 
+static const std::map<e_model, size_t> MEM_REQ_SCRATCH = {
+    { MODEL_TINY,     32ull*MB },
+    { MODEL_BASE,     44ull*MB },
+    { MODEL_SMALL,    64ull*MB },
+    { MODEL_MEDIUM,   84ull*MB },
+    { MODEL_LARGE,   110ull*MB },
+};
+
 static const std::map<e_model, size_t> MEM_REQ_MODEL = {
     { MODEL_TINY,     74ull*MB },
     { MODEL_BASE,    142ull*MB },
@@ -556,6 +564,7 @@ struct whisper_context {
     whisper_decoder decoders[WHISPER_MAX_DECODERS] = {};
 
     // memory buffers used by encode / decode contexts
+    std::vector<uint8_t> buf_scratch;
     std::vector<uint8_t> buf_compute;
     std::vector<uint8_t> buf_compute_layer;
 
@@ -744,8 +753,9 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         {
             // this is the total memory required to run the inference
             const size_t mem_required =
-                scale*MEM_REQ_MODEL.at       (model.type) +
-                scale*MEM_REQ_KV_CROSS.at    (model.type) +
+                      MEM_REQ_SCRATCH.at (model.type) +
+                scale*MEM_REQ_MODEL.at   (model.type) +
+                scale*MEM_REQ_KV_CROSS.at(model.type) +
                 scale*std::max(MEM_REQ_ENCODE.at(model.type),       MEM_REQ_DECODE.at(model.type)) +
                 scale*std::max(MEM_REQ_ENCODE_LAYER.at(model.type), MEM_REQ_DECODE_LAYER.at(model.type));
 
@@ -783,6 +793,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             fprintf(stderr, "%s: kv cross size = %7.2f MB\n", __func__, memory_size/1024.0/1024.0);
         }
 
+        wctx.buf_scratch.resize      (MEM_REQ_SCRATCH.at(model.type));
         wctx.buf_compute.resize      (scale*std::max(MEM_REQ_ENCODE.at(model.type),       MEM_REQ_DECODE.at(model.type)));
         wctx.buf_compute_layer.resize(scale*std::max(MEM_REQ_ENCODE_LAYER.at(model.type), MEM_REQ_DECODE_LAYER.at(model.type)));
     }
@@ -1335,6 +1346,8 @@ static bool whisper_encode(
 
     struct ggml_tensor * cur;
 
+    ggml_set_scratch(ctx0, { 0, wctx.buf_scratch.size()/2, wctx.buf_scratch.data(), wctx.buf_scratch.size()/2, wctx.buf_scratch.data() + wctx.buf_scratch.size()/2 });
+
     // convolution + gelu
     {
         cur = ggml_conv_1d_1s(ctx0, model.e_conv_1_w, mel);
@@ -1343,6 +1356,7 @@ static bool whisper_encode(
                     model.e_conv_1_b,
                     cur),
                 cur);
+
 
         cur = ggml_gelu(ctx0, cur);
 
@@ -1355,6 +1369,8 @@ static bool whisper_encode(
 
         cur = ggml_gelu(ctx0, cur);
     }
+
+    ggml_set_scratch(ctx0, { 0, 0, nullptr, 0, nullptr });
 
     // ===================================================================
     // NOTE: experimenting with partial evaluation of the encoder (ignore)
@@ -1376,6 +1392,7 @@ static bool whisper_encode(
     struct ggml_tensor * e_pe = ggml_view_2d(ctx0, model.e_pe, model.e_pe->ne[0], n_ctx, e_pe_stride, e_pe_offset);
 
     cur = ggml_add(ctx0, e_pe, ggml_transpose(ctx0, cur));
+
     // ===================================================================
 
     // original:

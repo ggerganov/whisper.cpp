@@ -1284,6 +1284,8 @@ struct ggml_context {
 
     struct ggml_object * objects_begin;
     struct ggml_object * objects_end;
+
+    struct ggml_scratch scratch;
 };
 
 struct ggml_context_container {
@@ -1542,12 +1544,13 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
     }
 
     *ctx = (struct ggml_context) {
-        .mem_size         = params.mem_size,
-        .mem_buffer       = params.mem_buffer ? params.mem_buffer : malloc(params.mem_size),
-        .mem_buffer_owned = params.mem_buffer ? false : true,
-        .n_objects        = 0,
-        .objects_begin    = NULL,
-        .objects_end      = NULL,
+        /*.mem_size         =*/ params.mem_size,
+        /*.mem_buffer       =*/ params.mem_buffer ? params.mem_buffer : malloc(params.mem_size),
+        /*.mem_buffer_owned =*/ params.mem_buffer ? false : true,
+        /*.n_objects        =*/ 0,
+        /*.objects_begin    =*/ NULL,
+        /*.objects_end      =*/ NULL,
+        /*.scratch          =*/ { 0, 0, NULL, 0, NULL },
     };
 
     ggml_assert_aligned(ctx->mem_buffer);
@@ -1592,6 +1595,10 @@ size_t ggml_used_mem(const struct ggml_context * ctx) {
     return ctx->objects_end->offset + ctx->objects_end->size;
 }
 
+void ggml_set_scratch(struct ggml_context * ctx, struct ggml_scratch scratch) {
+    ctx->scratch = scratch;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct ggml_tensor * ggml_new_tensor_impl(
@@ -1620,21 +1627,42 @@ struct ggml_tensor * ggml_new_tensor_impl(
     }
     size_needed += sizeof(struct ggml_tensor);
 
-    if (cur_end + size_needed + GGML_OBJECT_SIZE > ctx->mem_size) {
-        GGML_PRINT("%s: not enough space in the context's memory pool\n", __func__);
-        assert(false);
-        return NULL;
-    }
-
     char * const mem_buffer = ctx->mem_buffer;
-
     struct ggml_object * const obj_new = (struct ggml_object *)(mem_buffer + cur_end);
 
-    *obj_new = (struct ggml_object) {
-        .offset = cur_end + GGML_OBJECT_SIZE,
-        .size   = size_needed,
-        .next   = NULL,
-    };
+    size_t   scratch_size = ctx->scratch.k & 1 ? ctx->scratch.size1 : ctx->scratch.size0;
+    void   * scratch_data = ctx->scratch.k & 1 ? ctx->scratch.data1 : ctx->scratch.data0;
+
+    if (scratch_data == NULL) {
+        if (cur_end + size_needed + GGML_OBJECT_SIZE > ctx->mem_size) {
+            GGML_PRINT("%s: not enough space in the context's memory pool (needed %zu, available %zu)\n",
+                    __func__, cur_end + size_needed + GGML_OBJECT_SIZE, ctx->mem_size);
+            assert(false);
+            return NULL;
+        }
+
+        *obj_new = (struct ggml_object) {
+            .offset = cur_end + GGML_OBJECT_SIZE,
+            .size   = size_needed,
+            .next   = NULL,
+        };
+    } else {
+        if (size_needed > scratch_size) {
+            GGML_PRINT("%s: not enough space in the scratch memory\n", __func__);
+            assert(false);
+            return NULL;
+        }
+
+        data = scratch_data;
+
+        *obj_new = (struct ggml_object) {
+            .offset = cur_end + GGML_OBJECT_SIZE,
+            .size   = sizeof(struct ggml_tensor),
+            .next   = NULL,
+        };
+
+        ctx->scratch.k++;
+    }
 
     if (obj_cur != NULL) {
         obj_cur->next = obj_new;
