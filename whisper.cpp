@@ -474,6 +474,12 @@ struct whisper_context {
     int64_t t_decode_us = 0;
     int64_t t_start_us  = 0;
 
+    int32_t n_sample = 0; // number of tokens sampled
+    int32_t n_encode = 0; // number of encoder calls
+    int32_t n_decode = 0; // number of decoder calls
+    int32_t n_fail_p = 0; // number of logprob threshold failures
+    int32_t n_fail_h = 0; // number of entropy threshold failures
+
     ggml_type wtype; // weight type (FP32 or FP16)
 
     whisper_mel mel;
@@ -1620,6 +1626,7 @@ static bool whisper_encode(
     ggml_free(ctx0);
 
     wctx.t_encode_us += ggml_time_us() - t_start_us;
+    wctx.n_encode++;
 
     return true;
 }
@@ -1993,6 +2000,7 @@ static bool whisper_decode(
     ggml_free(ctx0);
 
     wctx.t_decode_us += ggml_time_us() - t_start_us;
+    wctx.n_decode++;
 
     return true;
 }
@@ -2644,12 +2652,17 @@ whisper_token whisper_token_transcribe(void) {
 void whisper_print_timings(struct whisper_context * ctx) {
     const int64_t t_end_us = ggml_time_us();
 
+    const int32_t n_sample = std::max(1, ctx->n_sample);
+    const int32_t n_encode = std::max(1, ctx->n_encode);
+    const int32_t n_decode = std::max(1, ctx->n_decode);
+
     fprintf(stderr, "\n");
+    fprintf(stderr, "%s:     fallbacks = %3d p / %3d h\n", __func__, ctx->n_fail_p, ctx->n_fail_h);
     fprintf(stderr, "%s:     load time = %8.2f ms\n", __func__, ctx->t_load_us/1000.0f);
     fprintf(stderr, "%s:      mel time = %8.2f ms\n", __func__, ctx->t_mel_us/1000.0f);
-    fprintf(stderr, "%s:   sample time = %8.2f ms\n", __func__, ctx->t_sample_us/1000.0f);
-    fprintf(stderr, "%s:   encode time = %8.2f ms / %.2f ms per layer\n", __func__, ctx->t_encode_us/1000.0f, ctx->t_encode_us/1000.0f/ctx->model.hparams.n_audio_layer);
-    fprintf(stderr, "%s:   decode time = %8.2f ms / %.2f ms per layer\n", __func__, ctx->t_decode_us/1000.0f, ctx->t_decode_us/1000.0f/ctx->model.hparams.n_text_layer);
+    fprintf(stderr, "%s:   sample time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f*ctx->t_sample_us, n_sample, 1e-3f*ctx->t_sample_us/n_sample);
+    fprintf(stderr, "%s:   encode time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f*ctx->t_encode_us, n_encode, 1e-3f*ctx->t_encode_us/n_encode);
+    fprintf(stderr, "%s:   decode time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f*ctx->t_decode_us, n_decode, 1e-3f*ctx->t_decode_us/n_decode);
     fprintf(stderr, "%s:    total time = %8.2f ms\n", __func__, (t_end_us - ctx->t_start_us)/1000.0f);
 }
 
@@ -3004,7 +3017,7 @@ static void whisper_process_logits(
 }
 
 static whisper_token_data whisper_sample_token(
-      const whisper_context & ctx,
+            whisper_context & ctx,
       const whisper_decoder & decoder,
                        bool   best) {
     whisper_token_data result = {
@@ -3058,6 +3071,8 @@ static whisper_token_data whisper_sample_token(
         result.tid = result.id;
         result.pt  = result.p;
     }
+
+    ctx.n_sample++;
 
     return result;
 }
@@ -3126,6 +3141,8 @@ static std::vector<whisper_token_data> whisper_sample_token_topk(
             result[i].pt  = result[i].p;
         }
     }
+
+    ctx.n_sample++;
 
     return result;
 }
@@ -3726,6 +3743,7 @@ int whisper_full(
                                 __func__, j, decoder.sequence.entropy, params.entropy_thold);
 
                         decoder.failed = true;
+                        ctx->n_fail_h++;
 
                         continue;
                     }
@@ -3747,6 +3765,7 @@ int whisper_full(
 
                 if (decoder.failed || decoder.sequence.avg_logprobs < params.logprob_thold) {
                     success = false;
+                    ctx->n_fail_p++;
                 }
 
                 if (success) {
