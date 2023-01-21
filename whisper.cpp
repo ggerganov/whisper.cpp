@@ -218,10 +218,10 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
 static const size_t MB = 1024*1024;
 
 static const std::map<e_model, size_t> MEM_REQ_SCRATCH = {
-    { MODEL_TINY,     32ull*MB },
-    { MODEL_BASE,     44ull*MB },
-    { MODEL_SMALL,    64ull*MB },
-    { MODEL_MEDIUM,   84ull*MB },
+    { MODEL_TINY,    132ull*MB },
+    { MODEL_BASE,    144ull*MB },
+    { MODEL_SMALL,   164ull*MB },
+    { MODEL_MEDIUM,  184ull*MB },
     { MODEL_LARGE,   110ull*MB },
 };
 
@@ -1346,7 +1346,7 @@ static bool whisper_encode(
 
     struct ggml_tensor * cur;
 
-    ggml_set_scratch(ctx0, { 0, wctx.buf_scratch.size()/2, wctx.buf_scratch.data(), wctx.buf_scratch.size()/2, wctx.buf_scratch.data() + wctx.buf_scratch.size()/2 });
+    ggml_set_scratch(ctx0, { 0, wctx.buf_scratch.size(), wctx.buf_scratch.data(), });
 
     // convolution + gelu
     {
@@ -1370,7 +1370,7 @@ static bool whisper_encode(
         cur = ggml_gelu(ctx0, cur);
     }
 
-    ggml_set_scratch(ctx0, { 0, 0, nullptr, 0, nullptr });
+    ggml_set_scratch(ctx0, { 0, 0, nullptr, });
 
     // ===================================================================
     // NOTE: experimenting with partial evaluation of the encoder (ignore)
@@ -1411,6 +1411,8 @@ static bool whisper_encode(
 
         struct ggml_context * ctxL = ggml_init(paramsL);
 
+        ggml_set_scratch(ctxL, { 0, wctx.buf_scratch.size(), wctx.buf_scratch.data(), });
+
         // norm
         {
             cur = ggml_norm(ctxL, inpL);
@@ -1422,6 +1424,8 @@ static bool whisper_encode(
                         cur),
                     ggml_repeat(ctxL, layer.attn_ln_0_b, cur));
         }
+
+        ggml_set_scratch(ctxL, { 0, 0, nullptr, });
 
         // self-attention
         {

@@ -303,13 +303,9 @@ struct ggml_cgraph {
 
 // scratch buffer
 struct ggml_scratch {
-    int k;
-
-    size_t size0;
-    void * data0;
-
-    size_t size1;
-    void * data1;
+    size_t offs;
+    size_t size;
+    void * data;
 };
 
 struct ggml_init_params {
