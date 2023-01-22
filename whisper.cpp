@@ -3449,7 +3449,7 @@ int whisper_full(
                 prompt.clear();
 
                 // if we have already generated some text, use it as a prompt to condition the next generation
-                if (!prompt_past.empty() && t_cur > 0.5f) {
+                if (!prompt_past.empty() && t_cur < 0.5f) {
                     int n_take = std::min(std::min(params.n_max_text_ctx, whisper_n_text_ctx(ctx)/2), int(prompt_past.size()));
 
                     prompt = { whisper_token_prev(ctx) };
