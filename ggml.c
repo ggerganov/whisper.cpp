@@ -1595,8 +1595,12 @@ size_t ggml_used_mem(const struct ggml_context * ctx) {
     return ctx->objects_end->offs + ctx->objects_end->size;
 }
 
-void ggml_set_scratch(struct ggml_context * ctx, struct ggml_scratch scratch) {
+size_t ggml_set_scratch(struct ggml_context * ctx, struct ggml_scratch scratch) {
+    const size_t result = ctx->scratch.data ? ctx->scratch.offs : 0;
+
     ctx->scratch = scratch;
+
+    return result;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1610,9 +1614,9 @@ struct ggml_tensor * ggml_new_tensor_impl(
     // always insert objects at the end of the context's memory pool
     struct ggml_object * obj_cur = ctx->objects_end;
 
-    const size_t cur_offset = obj_cur == NULL ? 0 : obj_cur->offs;
-    const size_t cur_size   = obj_cur == NULL ? 0 : obj_cur->size;
-    const size_t cur_end    = cur_offset + cur_size;
+    const size_t cur_offs = obj_cur == NULL ? 0 : obj_cur->offs;
+    const size_t cur_size = obj_cur == NULL ? 0 : obj_cur->size;
+    const size_t cur_end  = cur_offs + cur_size;
 
     size_t size_needed = 0;
 
@@ -1628,7 +1632,7 @@ struct ggml_tensor * ggml_new_tensor_impl(
     char * const mem_buffer = ctx->mem_buffer;
     struct ggml_object * const obj_new = (struct ggml_object *)(mem_buffer + cur_end);
 
-    if (ctx->scratch.data == NULL) {
+    if (ctx->scratch.data == NULL || data != NULL) {
         size_needed += sizeof(struct ggml_tensor);
 
         if (cur_end + size_needed + GGML_OBJECT_SIZE > ctx->mem_size) {
@@ -1643,8 +1647,8 @@ struct ggml_tensor * ggml_new_tensor_impl(
             .size = size_needed,
             .next = NULL,
         };
-    } else if (data == NULL) {
-        if (size_needed > ctx->scratch.size) {
+    } else {
+        if (ctx->scratch.offs + size_needed > ctx->scratch.size) {
             GGML_PRINT("%s: not enough space in the scratch memory\n", __func__);
             assert(false);
             return NULL;
@@ -1657,10 +1661,6 @@ struct ggml_tensor * ggml_new_tensor_impl(
             return NULL;
         }
 
-        if (ctx->scratch.offs + size_needed > ctx->scratch.size) {
-            ctx->scratch.offs = 0;
-        }
-
         data = (char * const) ctx->scratch.data + ctx->scratch.offs;
 
         *obj_new = (struct ggml_object) {
@@ -1668,6 +1668,8 @@ struct ggml_tensor * ggml_new_tensor_impl(
             .size = sizeof(struct ggml_tensor),
             .next = NULL,
         };
+
+        //printf("scratch offs = %zu, size_needed = %zu\n", ctx->scratch.offs, size_needed);
 
         ctx->scratch.offs += size_needed;
     }
@@ -1681,7 +1683,7 @@ struct ggml_tensor * ggml_new_tensor_impl(
 
     ctx->objects_end = obj_new;
 
-    //GGML_PRINT_DEBUG("%s: inserted new object at %zu\n", __func__, cur_end);
+    //printf("%s: inserted new object at %zu, size = %zu\n", __func__, cur_end, obj_new->size);
 
     struct ggml_tensor * const result = (struct ggml_tensor *)(mem_buffer + obj_new->offs);
 
@@ -1726,7 +1728,7 @@ struct ggml_tensor * ggml_new_tensor(
         struct ggml_context * ctx,
         enum   ggml_type type,
         int    n_dims,
-        const int* ne) {
+        const int * ne) {
     return ggml_new_tensor_impl(ctx, type, n_dims, ne, NULL);
 }
 
@@ -1768,7 +1770,13 @@ struct ggml_tensor * ggml_new_tensor_4d(
 }
 
 struct ggml_tensor * ggml_new_i32(struct ggml_context * ctx, int32_t value) {
+    // TODO: FIX ME !!!!!!!!!!!!!!!!!!!!!!!!
+    void * tmp = ctx->scratch.data;
+    ctx->scratch.data = NULL;
+
     struct ggml_tensor * result = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, 1);
+
+    ctx->scratch.data = tmp;
 
     ggml_set_i32(result, value);
 
@@ -1776,7 +1784,13 @@ struct ggml_tensor * ggml_new_i32(struct ggml_context * ctx, int32_t value) {
 }
 
 struct ggml_tensor * ggml_new_f32(struct ggml_context * ctx, float value) {
+    // TODO: FIX ME !!!!!!!!!!!!!!!!!!!!!!!!
+    void * tmp = ctx->scratch.data;
+    ctx->scratch.data = NULL;
+
     struct ggml_tensor * result = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, 1);
+
+    ctx->scratch.data = tmp;
 
     ggml_set_f32(result, value);
 
@@ -3003,8 +3017,14 @@ struct ggml_tensor * ggml_diag_mask_inf(
     //struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);
     struct ggml_tensor * result = ggml_view_tensor(ctx, a);
 
+    // TODO: FIX ME !!!!!!!!!!!!!!!!!!!!!!!!
+    void * tmp = ctx->scratch.data;
+    ctx->scratch.data = NULL;
+
     struct ggml_tensor * b = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, 1);
     ((int32_t *) b->data)[0] = n_past;
+
+    ctx->scratch.data = tmp;
 
     result->op   = GGML_OP_DIAG_MASK_INF;
     result->grad = is_node ? ggml_dup_tensor(ctx, result) : NULL;
@@ -4336,7 +4356,9 @@ static bool ggml_compute_forward_mul_mat_use_blas(
     const int ne1 = dst->ne[1];
 
     // TODO: find the optimal values for these
-    if (ggml_is_contiguous(src0) && ggml_is_contiguous(src1) && ne0 >= 32 && ne1 >= 32 && ne10 >= 32) {
+    if (ggml_is_contiguous(src0) && ggml_is_contiguous(src1) && (
+             (ne0 >= 32 && ne1  >= 32   && ne10 >= 32)
+            )) {
         //printf("BLAS: %d %d %d\n", ne0, ne1, ne10);
         return true;
     }
@@ -7325,6 +7347,9 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
                                     node->n_tasks = 1; // TODO: this actually is doing nothing
                                                        //       the threads are still spinning
                                     cur = sizeof(float)*(node->src0->ne[0]*node->src0->ne[1]);
+                                    //printf("src0: ne0 = %d, ne1 = %d, ne = %d\n", node->src0->ne[0], node->src0->ne[1], node->src0->ne[0]*node->src0->ne[1]);
+                                    //printf("src1: ne0 = %d, ne1 = %d, ne = %d\n", node->src1->ne[0], node->src1->ne[1], node->src1->ne[0]*node->src1->ne[1]);
+                                    //printf("cur = %zu\n", cur);
                                 } else {
                                     cur = sizeof(ggml_fp16_t)*ggml_nelements(node->src1);
                                 }

@@ -334,7 +334,7 @@ void ggml_free(struct ggml_context * ctx);
 
 size_t ggml_used_mem(const struct ggml_context * ctx);
 
-void ggml_set_scratch(struct ggml_context * ctx, struct ggml_scratch scratch);
+size_t ggml_set_scratch(struct ggml_context * ctx, struct ggml_scratch scratch);
 
 struct ggml_tensor * ggml_new_tensor(
         struct ggml_context * ctx,
