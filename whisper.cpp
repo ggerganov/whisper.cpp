@@ -300,8 +300,8 @@ static const std::map<e_model, size_t> MEM_REQ_KV_CROSS = {
 };
 
 static const std::map<e_model, size_t> MEM_REQ_ENCODE = {
-    { MODEL_TINY,      4ull*MB },
-    { MODEL_BASE,      6ull*MB },
+    { MODEL_TINY,      6ull*MB },
+    { MODEL_BASE,      8ull*MB },
     { MODEL_SMALL,    13ull*MB },
     { MODEL_MEDIUM,   22ull*MB },
     { MODEL_LARGE,    33ull*MB },
