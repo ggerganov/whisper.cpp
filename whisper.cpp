@@ -244,35 +244,35 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
 static const size_t MB = 1024*1024;
 
 static const std::map<e_model, size_t> MEM_REQ_SCRATCH0 = {
-    { MODEL_TINY,    132ull*MB },
+    { MODEL_TINY,     12ull*MB },
     { MODEL_BASE,     15ull*MB },
-    { MODEL_SMALL,   164ull*MB },
-    { MODEL_MEDIUM,  184ull*MB },
-    { MODEL_LARGE,   110ull*MB },
+    { MODEL_SMALL,    23ull*MB },
+    { MODEL_MEDIUM,   31ull*MB },
+    { MODEL_LARGE,    38ull*MB },
 };
 
 static const std::map<e_model, size_t> MEM_REQ_SCRATCH1 = {
-    { MODEL_TINY,    132ull*MB },
+    { MODEL_TINY,     18ull*MB },
     { MODEL_BASE,     24ull*MB },
-    { MODEL_SMALL,   164ull*MB },
-    { MODEL_MEDIUM,  184ull*MB },
-    { MODEL_LARGE,   110ull*MB },
+    { MODEL_SMALL,    36ull*MB },
+    { MODEL_MEDIUM,   48ull*MB },
+    { MODEL_LARGE,    60ull*MB },
 };
 
 static const std::map<e_model, size_t> MEM_REQ_SCRATCH2 = {
-    { MODEL_TINY,    132ull*MB },
+    { MODEL_TINY,      4ull*MB },
     { MODEL_BASE,      4ull*MB },
-    { MODEL_SMALL,   164ull*MB },
-    { MODEL_MEDIUM,  184ull*MB },
-    { MODEL_LARGE,   110ull*MB },
+    { MODEL_SMALL,     6ull*MB },
+    { MODEL_MEDIUM,    7ull*MB },
+    { MODEL_LARGE,     9ull*MB },
 };
 
 static const std::map<e_model, size_t> MEM_REQ_SCRATCH3 = {
-    { MODEL_TINY,    132ull*MB },
+    { MODEL_TINY,      4ull*MB },
     { MODEL_BASE,      4ull*MB },
-    { MODEL_SMALL,   164ull*MB },
-    { MODEL_MEDIUM,  184ull*MB },
-    { MODEL_LARGE,   110ull*MB },
+    { MODEL_SMALL,     6ull*MB },
+    { MODEL_MEDIUM,    7ull*MB },
+    { MODEL_LARGE,     9ull*MB },
 };
 
 static const std::map<e_model, size_t> MEM_REQ_MODEL = {
@@ -300,19 +300,19 @@ static const std::map<e_model, size_t> MEM_REQ_KV_CROSS = {
 };
 
 static const std::map<e_model, size_t> MEM_REQ_ENCODE = {
-    { MODEL_TINY,     80ull*MB },
+    { MODEL_TINY,      4ull*MB },
     { MODEL_BASE,      6ull*MB },
-    { MODEL_SMALL,   300ull*MB },
-    { MODEL_MEDIUM,  680ull*MB },
-    { MODEL_LARGE,  1100ull*MB },
+    { MODEL_SMALL,    13ull*MB },
+    { MODEL_MEDIUM,   22ull*MB },
+    { MODEL_LARGE,    33ull*MB },
 };
 
 static const std::map<e_model, size_t> MEM_REQ_DECODE = {
-    { MODEL_TINY,    200ull*MB },
+    { MODEL_TINY,      3ull*MB },
     { MODEL_BASE,      5ull*MB },
-    { MODEL_SMALL,   204ull*MB },
-    { MODEL_MEDIUM,  206ull*MB },
-    { MODEL_LARGE,   208ull*MB },
+    { MODEL_SMALL,    10ull*MB },
+    { MODEL_MEDIUM,   18ull*MB },
+    { MODEL_LARGE,    27ull*MB },
 };
 
 struct whisper_mel {
