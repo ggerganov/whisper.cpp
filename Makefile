@@ -115,10 +115,14 @@ endif
 ifeq ($(UNAME_M),amd64)
 	CFLAGS += -mavx -mavx2 -mfma -mf16c
 endif
-ifeq ($(UNAME_M),ppc64le)
+ifneq ($(filter ppc64%,$(UNAME_M)),)
 	POWER9_M := $(shell grep "POWER9" /proc/cpuinfo)
 	ifneq (,$(findstring POWER9,$(POWER9_M)))
 		CFLAGS += -mpower9-vector
+	endif
+	# Require c++23's std::byteswap for big-endian support.
+	ifeq ($(UNAME_M),ppc64)
+		CXXFLAGS += -std=c++23 -DGGML_BIG_ENDIAN
 	endif
 endif
 ifndef WHISPER_NO_ACCELERATE
