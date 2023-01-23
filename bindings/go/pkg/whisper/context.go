@@ -107,6 +107,16 @@ func (context *context) SetMaxTokensPerSegment(n uint) {
 	context.params.SetMaxTokensPerSegment(int(n))
 }
 
+// ResetTimings resets the mode timings. Should be called before processing
+func (context *context) ResetTimings() {
+	context.model.ctx.Whisper_reset_timings()
+}
+
+// PrintTimings prints the model timings to stdout.
+func (context *context) PrintTimings() {
+	context.model.ctx.Whisper_print_timings()
+}
+
 // Process new sample data and return any errors
 func (context *context) Process(data []float32, cb SegmentCallback) error {
 	if context.model.ctx == nil {
