@@ -2988,6 +2988,16 @@ static void whisper_process_logits(
             }
         }
 
+        // condition timestamp tokens to be increasing
+        // ref: https://github.com/openai/whisper/pull/831#issuecomment-1385910556
+        if (decoder.has_ts) {
+            const int tid0 = decoder.seek_delta/2;
+
+            for (int i = vocab.token_beg; i < vocab.token_beg + tid0; ++i) {
+                logits[i] = -INFINITY;
+            }
+        }
+
         // populate the logprobs array (log_softmax)
         {
             const float logit_max = *std::max_element(logits.begin(), logits.end());
