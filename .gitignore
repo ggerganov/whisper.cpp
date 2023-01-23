@@ -18,6 +18,7 @@ build-sanitize-thread/
 /talk
 /bench
 
+arm_neon.h
 sync.sh
 libwhisper.a
 libwhisper.so
