@@ -16,6 +16,7 @@
 #include <vector>
 #include <fstream>
 #include <mutex>
+#include <sstream>
 
 // Terminal color map. 10 colors grouped in ranges [0.0, 0.1, ..., 0.9]
 // Lowest is red, middle is yellow, highest is green.
@@ -649,43 +650,62 @@ int main(int argc, char ** argv) {
                 } else {
                     const int64_t t1 = (t_last - t_start).count()/1000000;
                     const int64_t t0 = std::max(0.0, t1 - pcmf32.size()*1000.0/WHISPER_SAMPLE_RATE);
+                    
+                    auto now = std::chrono::system_clock::now();
+                    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+                    std::stringstream ss;
+                    ss << std::put_time(std::localtime(&now_c), "%F %T");
 
                     printf("\n");
-                    printf("### Transcription %d START | t0 = %d ms | t1 = %d ms\n", n_iter, (int) t0, (int) t1);
+                    printf("### Transcription %d START | t0 = %d ms | t1 = %d ms | %s\n", n_iter, (int) t0, (int) t1, ss.str().c_str());
                     printf("\n");
                 }
 
                 const int n_segments = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n_segments; ++i) {
-                    const char * text = whisper_full_get_segment_text(ctx, i);
+                    if (params.print_colors) {
+                        for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
+                            if (params.print_special == false) {
+                                const whisper_token id = whisper_full_get_token_id(ctx, i, j);
+                                if (id >= whisper_token_eot(ctx)) {
+                                    continue;
+                                }
+                            }
 
-                    if (params.no_timestamps) {
-                        printf("%s", text);
-                        fflush(stdout);
-
+                            const char * ttext = whisper_full_get_token_text(ctx, i, j);
+                            const float  p    = whisper_full_get_token_p   (ctx, i, j);
+                            const int col = std::max(0, std::min((int) k_colors.size() - 1, (int) (pow(p, 3)*float(k_colors.size()))));
+                            printf ("%s%s%s", k_colors[col].c_str(), ttext, "\033[0m");
+                        }
+                        const char * stext = whisper_full_get_segment_text(ctx, i);
                         if (params.fname_out.length() > 0) {
-                            fout << text;
+                            std::time_t now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                            fout << "[" << std::put_time(std::localtime(&now_c), "%F %T") << "]  ";
+                            fout << stext;
                         }
                     } 
-
-                    if (params.print_colors) {
-                        const float p = whisper_full_get_token_p (ctx, i);
-                        const int col = std::max(0, std::min((int) k_colors.size() - 1, (int) (std::pow(p, 3)*float(k_colors.size()))));
-
-                        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-
-                        printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), k_colors[col].c_str(), text, "\033[0m");
-
-                    }
                     else {
-                        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                        const char * text = whisper_full_get_segment_text(ctx, i);
 
-                        printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
+                        if (params.no_timestamps) {
+                            printf("%s", text);
+                            fflush(stdout);
 
-                        if (params.fname_out.length() > 0) {
-                            fout << "[" << to_timestamp(t0) << " --> " << to_timestamp(t1) << "]  " << text << std::endl;
+                            if (params.fname_out.length() > 0) {
+                                fout << text;
+                            }
+                        } 
+
+                        else {
+                            const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+                            const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                            printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
+                            if (params.fname_out.length() > 0) {
+                                // fout << "[" << to_timestamp(t0) << " --> " << to_timestamp(t1) << "]  " << text << std::endl;
+                                auto now = std::chrono::system_clock::now();
+                                std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+                                fout << "[" << std::put_time(std::localtime(&now_c), "%F %T") << "]  " << text << std::endl;
+                            }
                         }
                     }
                 }
