@@ -13,7 +13,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - AVX intrinsics support for x86 architectures
 - VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
-- Low memory usage (Flash Attention + Flash Forward)
+- Low memory usage (Flash Attention)
 - Zero memory allocations at runtime
 - Runs on the CPU
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)

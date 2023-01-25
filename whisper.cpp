@@ -619,6 +619,7 @@ struct whisper_context {
         buf_last = i;
 #else
         (void) i;
+        (void) ctx;
 #endif
     }
 
@@ -1631,7 +1632,7 @@ static bool whisper_encode(
             wctx.use_buf(ctx0, 0);
 
             cur = ggml_flash_ff(ctx0,
-                    ggml_cpy(ctx0, cur, ggml_new_tensor_2d(ctx0, wctx.wtype, n_state, N)),
+                    ggml_cpy(ctx0, cur, ggml_new_tensor_2d(ctx0, wctx.wtype, n_state, n_ctx)),
                     layer.mlp_0_w, layer.mlp_0_b, layer.mlp_1_w, layer.mlp_1_b);
 #else
             wctx.use_buf(ctx0, 0);
