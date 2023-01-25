@@ -60,6 +60,9 @@ type Context interface {
 	IsNOT(Token) bool          // Test for "No timestamps" token
 	IsLANG(Token, string) bool // Test for token associated with a specific language
 	IsText(Token) bool         // Test for text token
+
+	PrintTimings()
+	ResetTimings()
 }
 
 // Segment is the text result of a speech recognition.
