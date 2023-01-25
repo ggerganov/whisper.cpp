@@ -64,9 +64,12 @@ func Process(model whisper.Model, path string, flags *Flags) error {
 
 	// Process the data
 	fmt.Fprintf(flags.Output(), "  ...processing %q\n", path)
+	context.ResetTimings()
 	if err := context.Process(data, cb); err != nil {
 		return err
 	}
+
+	context.PrintTimings()
 
 	// Print out the results
 	switch {

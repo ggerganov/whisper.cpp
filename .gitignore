@@ -1,4 +1,5 @@
 *.o
+*.a
 .cache/
 .vs/
 .vscode/
