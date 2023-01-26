@@ -1,4 +1,4 @@
-set(TARGET addon)
+set(TARGET whisper-addon)
 
 # Base settings
 #==================================================================

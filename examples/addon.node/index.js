@@ -1,5 +1,5 @@
 const path = require('path');
-const { whisper } = require(path.join(__dirname, '../../build/Release/addon'));
+const { whisper } = require(path.join(__dirname, '../../build/Release/whisper-addon'));
 
 const whisperParams = {
     language: 'en',
