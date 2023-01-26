@@ -2,7 +2,6 @@
 #include <thread>
 #include <vector>
 #include <cmath>
-#include <iostream>
 
 #include "napi.h"
 
@@ -392,9 +391,10 @@ Napi::Object whisper(const Napi::CallbackInfo& info) {
     // run model
     run(params, result);
 
-    std::cout << "RESULT:" << std::endl;
+    fprintf(stderr, "RESULT:\n");
     for (auto sentence:result) {
-        std::cout << sentence[0] << " " << sentence[1] << " " << sentence[2] << std::endl;
+        fprintf(stderr, "t0: %s, t1: %s, content: %s \n",
+                sentence[0].c_str(), sentence[1].c_str(), sentence[2].c_str());
     }
 
     Napi::Object res = Napi::Array::New(env, result.size());
