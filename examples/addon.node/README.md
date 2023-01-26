@@ -27,7 +27,7 @@ For Electron addon and cmake-js options, you can see [cmake-js](https://github.c
 ## Run
 
 ```shell
-cd examples/addon
+cd examples/addon.node
 
 node index.js --language='language' --model='model-path' --fname_inp='file-path'
 ```
