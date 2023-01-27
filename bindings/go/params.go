@@ -66,6 +66,11 @@ func (p *Params) Language() int {
 	return int(C.whisper_lang_id(p.language))
 }
 
+// Threads available
+func (p *Params) Threads() int {
+	return int(p.n_threads)
+}
+
 // Set number of threads to use
 func (p *Params) SetThreads(threads int) {
 	p.n_threads = C.int(threads)

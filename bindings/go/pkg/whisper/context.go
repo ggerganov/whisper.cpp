@@ -1,7 +1,9 @@
 package whisper
 
 import (
+	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"time"
 
@@ -117,13 +119,22 @@ func (context *context) PrintTimings() {
 	context.model.ctx.Whisper_print_timings()
 }
 
+// SystemInfo returns the system information
+func (context *context) SystemInfo() string {
+	return fmt.Sprintf("system_info: n_threads = %d / %d | %s\n",
+		context.params.Threads(),
+		runtime.NumCPU(),
+		whisper.Whisper_print_system_info(),
+	)
+}
+
 // Use mel data at offset_ms to try and auto-detect the spoken language
 // Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first.
 // Returns the probabilities of all languages.
 func (context *context) WhisperLangAutoDetect(offset_ms int, n_threads int) ([]float32, error) {
 	langProbs, err := context.model.ctx.Whisper_lang_auto_detect(offset_ms, n_threads)
 	if err != nil {
-			return nil, err
+		return nil, err
 	}
 	return langProbs, nil
 }
