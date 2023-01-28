@@ -3016,15 +3016,7 @@ struct ggml_tensor * ggml_diag_mask_inf(
     // TODO: when implement backward, fix this:
     //struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);
     struct ggml_tensor * result = ggml_view_tensor(ctx, a);
-
-    // TODO: FIX ME !!!!!!!!!!!!!!!!!!!!!!!!
-    void * tmp = ctx->scratch.data;
-    ctx->scratch.data = NULL;
-
-    struct ggml_tensor * b = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, 1);
-    ((int32_t *) b->data)[0] = n_past;
-
-    ctx->scratch.data = tmp;
+    struct ggml_tensor * b = ggml_new_i32(ctx, n_past);
 
     result->op   = GGML_OP_DIAG_MASK_INF;
     result->grad = is_node ? ggml_dup_tensor(ctx, result) : NULL;
