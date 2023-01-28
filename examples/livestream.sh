@@ -100,7 +100,7 @@ while [ $running -eq 1 ]; do
         err=$(cat /tmp/whisper-live.err | wc -l)
     done
 
-    ./main -t 8 -m ./models/ggml-base.en.bin -f /tmp/whisper-live.wav --no-timestamps -otxt 2> /tmp/whispererr | tail -n 1
+    ./main -t 8 -m ./models/ggml-${model}.bin -f /tmp/whisper-live.wav --no-timestamps -otxt 2> /tmp/whispererr | tail -n 1
 
     while [ $SECONDS -lt $((($i+1)*$step_s)) ]; do
         sleep 1

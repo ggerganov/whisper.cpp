@@ -117,6 +117,17 @@ func (context *context) PrintTimings() {
 	context.model.ctx.Whisper_print_timings()
 }
 
+// Use mel data at offset_ms to try and auto-detect the spoken language
+// Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first.
+// Returns the probabilities of all languages.
+func (context *context) WhisperLangAutoDetect(offset_ms int, n_threads int) ([]float32, error) {
+	langProbs, err := context.model.ctx.Whisper_lang_auto_detect(offset_ms, n_threads)
+	if err != nil {
+			return nil, err
+	}
+	return langProbs, nil
+}
+
 // Process new sample data and return any errors
 func (context *context) Process(data []float32, cb SegmentCallback) error {
 	if context.model.ctx == nil {
