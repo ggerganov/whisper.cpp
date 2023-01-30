@@ -61,8 +61,11 @@ type Context interface {
 	IsLANG(Token, string) bool // Test for token associated with a specific language
 	IsText(Token) bool         // Test for text token
 
+	// Timings
 	PrintTimings()
 	ResetTimings()
+
+	SystemInfo() string
 }
 
 // Segment is the text result of a speech recognition.

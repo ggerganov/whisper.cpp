@@ -25,6 +25,8 @@ func Process(model whisper.Model, path string, flags *Flags) error {
 		return err
 	}
 
+	fmt.Printf("\n%s\n", context.SystemInfo())
+
 	// Open the file
 	fmt.Fprintf(flags.Output(), "Loading %q\n", path)
 	fh, err := os.Open(path)
