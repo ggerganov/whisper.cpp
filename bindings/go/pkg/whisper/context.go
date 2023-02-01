@@ -46,7 +46,10 @@ func (context *context) SetLanguage(lang string) error {
 	if !context.model.IsMultilingual() {
 		return ErrModelNotMultilingual
 	}
-	if id := context.model.ctx.Whisper_lang_id(lang); id < 0 {
+
+	if lang == "auto" {
+		context.params.SetLanguage(-1)
+	} else if id := context.model.ctx.Whisper_lang_id(lang); id < 0 {
 		return ErrUnsupportedLanguage
 	} else if err := context.params.SetLanguage(id); err != nil {
 		return err
@@ -61,6 +64,10 @@ func (context *context) IsMultilingual() bool {
 
 // Get language
 func (context *context) Language() string {
+	id := context.params.Language()
+	if id == -1 {
+		return "auto"
+	}
 	return whisper.Whisper_lang_str(context.params.Language())
 }
 
