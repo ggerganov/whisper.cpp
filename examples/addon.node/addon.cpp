@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <string>
 #include <thread>
 #include <vector>
@@ -398,9 +399,9 @@ Napi::Object whisper(const Napi::CallbackInfo& info) {
     }
 
     Napi::Object res = Napi::Array::New(env, result.size());
-    for (u_int32_t i = 0; i < result.size(); ++i) {
+    for (uint64_t i = 0; i < result.size(); ++i) {
         Napi::Object tmp = Napi::Array::New(env, 3);
-        for (u_int32_t j = 0; j < 3; ++j) {
+        for (uint64_t j = 0; j < 3; ++j) {
             tmp[j] = Napi::String::New(env, result[i][j]);
         }
         res[i] = tmp;
