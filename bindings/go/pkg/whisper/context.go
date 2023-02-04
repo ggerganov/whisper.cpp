@@ -1,7 +1,9 @@
 package whisper
 
 import (
+	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"time"
 
@@ -44,7 +46,10 @@ func (context *context) SetLanguage(lang string) error {
 	if !context.model.IsMultilingual() {
 		return ErrModelNotMultilingual
 	}
-	if id := context.model.ctx.Whisper_lang_id(lang); id < 0 {
+
+	if lang == "auto" {
+		context.params.SetLanguage(-1)
+	} else if id := context.model.ctx.Whisper_lang_id(lang); id < 0 {
 		return ErrUnsupportedLanguage
 	} else if err := context.params.SetLanguage(id); err != nil {
 		return err
@@ -59,6 +64,10 @@ func (context *context) IsMultilingual() bool {
 
 // Get language
 func (context *context) Language() string {
+	id := context.params.Language()
+	if id == -1 {
+		return "auto"
+	}
 	return whisper.Whisper_lang_str(context.params.Language())
 }
 
@@ -105,6 +114,36 @@ func (context *context) SetMaxSegmentLength(n uint) {
 // Set max tokens per segment (0 = no limit)
 func (context *context) SetMaxTokensPerSegment(n uint) {
 	context.params.SetMaxTokensPerSegment(int(n))
+}
+
+// ResetTimings resets the mode timings. Should be called before processing
+func (context *context) ResetTimings() {
+	context.model.ctx.Whisper_reset_timings()
+}
+
+// PrintTimings prints the model timings to stdout.
+func (context *context) PrintTimings() {
+	context.model.ctx.Whisper_print_timings()
+}
+
+// SystemInfo returns the system information
+func (context *context) SystemInfo() string {
+	return fmt.Sprintf("system_info: n_threads = %d / %d | %s\n",
+		context.params.Threads(),
+		runtime.NumCPU(),
+		whisper.Whisper_print_system_info(),
+	)
+}
+
+// Use mel data at offset_ms to try and auto-detect the spoken language
+// Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first.
+// Returns the probabilities of all languages.
+func (context *context) WhisperLangAutoDetect(offset_ms int, n_threads int) ([]float32, error) {
+	langProbs, err := context.model.ctx.Whisper_lang_auto_detect(offset_ms, n_threads)
+	if err != nil {
+		return nil, err
+	}
+	return langProbs, nil
 }
 
 // Process new sample data and return any errors

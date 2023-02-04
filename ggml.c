@@ -1258,7 +1258,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
 //
 
 struct ggml_object {
-    size_t offset;
+    size_t offs;
     size_t size;
 
     struct ggml_object * next;
@@ -1284,6 +1284,9 @@ struct ggml_context {
 
     struct ggml_object * objects_begin;
     struct ggml_object * objects_end;
+
+    struct ggml_scratch scratch;
+    struct ggml_scratch scratch_save;
 };
 
 struct ggml_context_container {
@@ -1346,7 +1349,7 @@ inline static void ggml_critical_section_end(void) {
 
 void ggml_print_object(const struct ggml_object * obj) {
     GGML_PRINT(" - ggml_object: offset = %zu, size = %zu, next = %p\n",
-            obj->offset, obj->size, (const void *) obj->next);
+            obj->offs, obj->size, (const void *) obj->next);
 }
 
 void ggml_print_objects(const struct ggml_context * ctx) {
@@ -1542,12 +1545,14 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
     }
 
     *ctx = (struct ggml_context) {
-        .mem_size         = params.mem_size,
-        .mem_buffer       = params.mem_buffer ? params.mem_buffer : malloc(params.mem_size),
-        .mem_buffer_owned = params.mem_buffer ? false : true,
-        .n_objects        = 0,
-        .objects_begin    = NULL,
-        .objects_end      = NULL,
+        /*.mem_size         =*/ params.mem_size,
+        /*.mem_buffer       =*/ params.mem_buffer ? params.mem_buffer : malloc(params.mem_size),
+        /*.mem_buffer_owned =*/ params.mem_buffer ? false : true,
+        /*.n_objects        =*/ 0,
+        /*.objects_begin    =*/ NULL,
+        /*.objects_end      =*/ NULL,
+        /*.scratch          =*/ { 0, 0, NULL, },
+        /*.scratch_save     =*/ { 0, 0, NULL, },
     };
 
     ggml_assert_aligned(ctx->mem_buffer);
@@ -1570,7 +1575,7 @@ void ggml_free(struct ggml_context * ctx) {
             g_state.contexts[i].used = false;
 
             GGML_PRINT_DEBUG("%s: context %d with %d objects has been freed. memory used = %zu\n",
-                    __func__, i, ctx->n_objects, ctx->objects_end->offset + ctx->objects_end->size);
+                    __func__, i, ctx->n_objects, ctx->objects_end->offs + ctx->objects_end->size);
 
             if (ctx->mem_buffer_owned) {
                 free(ctx->mem_buffer);
@@ -1589,7 +1594,15 @@ void ggml_free(struct ggml_context * ctx) {
 }
 
 size_t ggml_used_mem(const struct ggml_context * ctx) {
-    return ctx->objects_end->offset + ctx->objects_end->size;
+    return ctx->objects_end->offs + ctx->objects_end->size;
+}
+
+size_t ggml_set_scratch(struct ggml_context * ctx, struct ggml_scratch scratch) {
+    const size_t result = ctx->scratch.data ? ctx->scratch.offs : 0;
+
+    ctx->scratch = scratch;
+
+    return result;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1603,9 +1616,9 @@ struct ggml_tensor * ggml_new_tensor_impl(
     // always insert objects at the end of the context's memory pool
     struct ggml_object * obj_cur = ctx->objects_end;
 
-    const size_t cur_offset = obj_cur == NULL ? 0 : obj_cur->offset;
-    const size_t cur_size   = obj_cur == NULL ? 0 : obj_cur->size;
-    const size_t cur_end    = cur_offset + cur_size;
+    const size_t cur_offs = obj_cur == NULL ? 0 : obj_cur->offs;
+    const size_t cur_size = obj_cur == NULL ? 0 : obj_cur->size;
+    const size_t cur_end  = cur_offs + cur_size;
 
     size_t size_needed = 0;
 
@@ -1616,25 +1629,52 @@ struct ggml_tensor * ggml_new_tensor_impl(
         }
         // align to GGML_MEM_ALIGN
         size_needed = ((size_needed + GGML_MEM_ALIGN - 1)/GGML_MEM_ALIGN)*GGML_MEM_ALIGN;
-
-    }
-    size_needed += sizeof(struct ggml_tensor);
-
-    if (cur_end + size_needed + GGML_OBJECT_SIZE > ctx->mem_size) {
-        GGML_PRINT("%s: not enough space in the context's memory pool\n", __func__);
-        assert(false);
-        return NULL;
     }
 
     char * const mem_buffer = ctx->mem_buffer;
-
     struct ggml_object * const obj_new = (struct ggml_object *)(mem_buffer + cur_end);
 
-    *obj_new = (struct ggml_object) {
-        .offset = cur_end + GGML_OBJECT_SIZE,
-        .size   = size_needed,
-        .next   = NULL,
-    };
+    if (ctx->scratch.data == NULL || data != NULL) {
+        size_needed += sizeof(struct ggml_tensor);
+
+        if (cur_end + size_needed + GGML_OBJECT_SIZE > ctx->mem_size) {
+            GGML_PRINT("%s: not enough space in the context's memory pool (needed %zu, available %zu)\n",
+                    __func__, cur_end + size_needed + GGML_OBJECT_SIZE, ctx->mem_size);
+            assert(false);
+            return NULL;
+        }
+
+        *obj_new = (struct ggml_object) {
+            .offs = cur_end + GGML_OBJECT_SIZE,
+            .size = size_needed,
+            .next = NULL,
+        };
+    } else {
+        if (ctx->scratch.offs + size_needed > ctx->scratch.size) {
+            GGML_PRINT("%s: not enough space in the scratch memory\n", __func__);
+            assert(false);
+            return NULL;
+        }
+
+        if (cur_end + sizeof(struct ggml_tensor) + GGML_OBJECT_SIZE > ctx->mem_size) {
+            GGML_PRINT("%s: not enough space in the context's memory pool (needed %zu, available %zu)\n",
+                    __func__, cur_end + sizeof(struct ggml_tensor) + GGML_OBJECT_SIZE, ctx->mem_size);
+            assert(false);
+            return NULL;
+        }
+
+        data = (char * const) ctx->scratch.data + ctx->scratch.offs;
+
+        *obj_new = (struct ggml_object) {
+            .offs = cur_end + GGML_OBJECT_SIZE,
+            .size = sizeof(struct ggml_tensor),
+            .next = NULL,
+        };
+
+        //printf("scratch offs = %zu, size_needed = %zu\n", ctx->scratch.offs, size_needed);
+
+        ctx->scratch.offs += size_needed;
+    }
 
     if (obj_cur != NULL) {
         obj_cur->next = obj_new;
@@ -1645,9 +1685,9 @@ struct ggml_tensor * ggml_new_tensor_impl(
 
     ctx->objects_end = obj_new;
 
-    //GGML_PRINT_DEBUG("%s: inserted new object at %zu\n", __func__, cur_end);
+    //printf("%s: inserted new object at %zu, size = %zu\n", __func__, cur_end, obj_new->size);
 
-    struct ggml_tensor * const result = (struct ggml_tensor *)(mem_buffer + obj_new->offset);
+    struct ggml_tensor * const result = (struct ggml_tensor *)(mem_buffer + obj_new->offs);
 
     ggml_assert_aligned(result);
 
@@ -1690,7 +1730,7 @@ struct ggml_tensor * ggml_new_tensor(
         struct ggml_context * ctx,
         enum   ggml_type type,
         int    n_dims,
-        const int* ne) {
+        const int * ne) {
     return ggml_new_tensor_impl(ctx, type, n_dims, ne, NULL);
 }
 
@@ -1732,7 +1772,12 @@ struct ggml_tensor * ggml_new_tensor_4d(
 }
 
 struct ggml_tensor * ggml_new_i32(struct ggml_context * ctx, int32_t value) {
+    ctx->scratch_save = ctx->scratch;
+    ctx->scratch.data = NULL;
+
     struct ggml_tensor * result = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, 1);
+
+    ctx->scratch = ctx->scratch_save;
 
     ggml_set_i32(result, value);
 
@@ -1740,7 +1785,12 @@ struct ggml_tensor * ggml_new_i32(struct ggml_context * ctx, int32_t value) {
 }
 
 struct ggml_tensor * ggml_new_f32(struct ggml_context * ctx, float value) {
+    ctx->scratch_save = ctx->scratch;
+    ctx->scratch.data = NULL;
+
     struct ggml_tensor * result = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, 1);
+
+    ctx->scratch = ctx->scratch_save;
 
     ggml_set_f32(result, value);
 
@@ -2350,7 +2400,7 @@ struct ggml_tensor * ggml_repeat(
     result->op   = GGML_OP_REPEAT;
     result->grad = is_node ? ggml_dup_tensor(ctx, result) : NULL;
     result->src0 = a;
-    result->src1 = NULL;
+    result->src1 = b;
 
     return result;
 }
@@ -2966,9 +3016,7 @@ struct ggml_tensor * ggml_diag_mask_inf(
     // TODO: when implement backward, fix this:
     //struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);
     struct ggml_tensor * result = ggml_view_tensor(ctx, a);
-
-    struct ggml_tensor * b = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, 1);
-    ((int32_t *) b->data)[0] = n_past;
+    struct ggml_tensor * b = ggml_new_i32(ctx, n_past);
 
     result->op   = GGML_OP_DIAG_MASK_INF;
     result->grad = is_node ? ggml_dup_tensor(ctx, result) : NULL;
@@ -4300,7 +4348,9 @@ static bool ggml_compute_forward_mul_mat_use_blas(
     const int ne1 = dst->ne[1];
 
     // TODO: find the optimal values for these
-    if (ggml_is_contiguous(src0) && ggml_is_contiguous(src1) && ne0 >= 32 && ne1 >= 32 && ne10 >= 32) {
+    if (ggml_is_contiguous(src0) && ggml_is_contiguous(src1) && (
+             (ne0 >= 32 && ne1  >= 32   && ne10 >= 32)
+            )) {
         //printf("BLAS: %d %d %d\n", ne0, ne1, ne10);
         return true;
     }
@@ -7289,6 +7339,9 @@ void ggml_graph_compute(struct ggml_context * ctx, struct ggml_cgraph * cgraph) 
                                     node->n_tasks = 1; // TODO: this actually is doing nothing
                                                        //       the threads are still spinning
                                     cur = sizeof(float)*(node->src0->ne[0]*node->src0->ne[1]);
+                                    //printf("src0: ne0 = %d, ne1 = %d, ne = %d\n", node->src0->ne[0], node->src0->ne[1], node->src0->ne[0]*node->src0->ne[1]);
+                                    //printf("src1: ne0 = %d, ne1 = %d, ne = %d\n", node->src1->ne[0], node->src1->ne[1], node->src1->ne[0]*node->src1->ne[1]);
+                                    //printf("cur = %zu\n", cur);
                                 } else {
                                     cur = sizeof(ggml_fp16_t)*ggml_nelements(node->src1);
                                 }

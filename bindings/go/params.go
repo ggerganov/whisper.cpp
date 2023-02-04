@@ -49,6 +49,10 @@ func (p *Params) SetSpeedup(v bool) {
 
 // Set language id
 func (p *Params) SetLanguage(lang int) error {
+	if lang == -1 {
+		p.language = nil
+		return nil
+	}
 	str := C.whisper_lang_str(C.int(lang))
 	if str == nil {
 		return ErrInvalidLanguage
@@ -64,6 +68,11 @@ func (p *Params) Language() int {
 		return -1
 	}
 	return int(C.whisper_lang_id(p.language))
+}
+
+// Threads available
+func (p *Params) Threads() int {
+	return int(p.n_threads)
 }
 
 // Set number of threads to use
