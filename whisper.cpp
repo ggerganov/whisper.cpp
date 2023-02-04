@@ -2780,6 +2780,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.thold_pt         =*/ 0.01f,
         /*.thold_ptsum      =*/ 0.01f,
         /*.max_len          =*/ 0,
+        /*.split_on_word    =*/ false,
         /*.max_tokens       =*/ 0,
 
         /*.speed_up         =*/ false,
@@ -2866,9 +2867,16 @@ static inline void trim(std::string &s) {
     ltrim(s);
 }
 
+static inline bool should_split_on_word(const char * txt, bool split_on_word) {
+    if (!split_on_word) return true;
+
+    std::string s = txt;
+    return s.substr(0, 1) == " ";
+}
+
 // wrap the last segment to max_len characters
 // returns the number of new segments
-static int whisper_wrap_segment(struct whisper_context & ctx, int max_len) {
+static int whisper_wrap_segment(struct whisper_context & ctx, int max_len, bool split_on_word) {
     auto segment = ctx.result_all.back();
 
     int res = 1;
@@ -2883,11 +2891,9 @@ static int whisper_wrap_segment(struct whisper_context & ctx, int max_len) {
         }
 
         const auto txt = whisper_token_to_str(&ctx, token.id);
-        std::string s = txt;
-
         const int cur = strlen(txt);
 
-        if (acc + cur > max_len && i > 0 && s.substr(0, 1) == " ") {
+        if (acc + cur > max_len && i > 0 && should_split_on_word(txt, split_on_word)) {
             // split here
             trim(text);
             ctx.result_all.back().text = std::move(text);
@@ -3946,7 +3952,7 @@ int whisper_full(
                                         *ctx, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
 
                                 if (params.max_len > 0) {
-                                    n_new = whisper_wrap_segment(*ctx, params.max_len);
+                                    n_new = whisper_wrap_segment(*ctx, params.max_len, params.split_on_word);
                                 }
                             }
                             if (params.new_segment_callback) {
@@ -3990,7 +3996,7 @@ int whisper_full(
                                 *ctx, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
 
                         if (params.max_len > 0) {
-                            n_new = whisper_wrap_segment(*ctx, params.max_len);
+                            n_new = whisper_wrap_segment(*ctx, params.max_len, params.split_on_word);
                         }
                     }
                     if (params.new_segment_callback) {
