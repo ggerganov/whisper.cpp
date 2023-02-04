@@ -2956,6 +2956,10 @@ static void whisper_process_logits(
         logits[vocab.token_sot]  = -INFINITY;
         logits[vocab.token_solm] = -INFINITY;
 
+        // suppress task tokens
+        logits[vocab.token_translate]  = -INFINITY;
+        logits[vocab.token_transcribe] = -INFINITY;
+
         // timestamps have to appear in pairs, except directly before EOT; mask logits accordingly
         // https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L414-L424
         {
