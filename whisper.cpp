@@ -2771,15 +2771,16 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.translate        =*/ false,
         /*.no_context       =*/ false,
         /*.single_segment   =*/ false,
-        /*.print_special    =*/ false,
+        /*.print_special    =*/ true,
         /*.print_progress   =*/ true,
         /*.print_realtime   =*/ false,
         /*.print_timestamps =*/ true,
+        /*.print_colors     =*/ true,
 
         /*.token_timestamps =*/ false,
         /*.thold_pt         =*/ 0.01f,
         /*.thold_ptsum      =*/ 0.01f,
-        /*.max_len          =*/ 0,
+        /*.max_len          =*/ 1,
         /*.max_tokens       =*/ 0,
 
         /*.speed_up         =*/ false,

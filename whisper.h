@@ -251,6 +251,7 @@ extern "C" {
         bool print_progress;    // print progress information
         bool print_realtime;    // print results from within whisper.cpp (avoid it, use callback instead)
         bool print_timestamps;  // print timestamps for each text segment when printing realtime
+        bool print_colors;      // print colors
 
         // [EXPERIMENTAL] token-level timestamps
         bool  token_timestamps; // enable token-level timestamps
