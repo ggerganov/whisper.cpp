@@ -13,7 +13,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - AVX intrinsics support for x86 architectures
 - VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
-- Low memory usage (Flash Attention + Flash Forward)
+- Low memory usage (Flash Attention)
 - Zero memory allocations at runtime
 - Runs on the CPU
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
@@ -89,35 +89,37 @@ c++ -I. -I./examples -O3 -std=c++11 -pthread examples/main/main.cpp whisper.o gg
 usage: ./main [options] file0.wav file1.wav ...
 
 options:
-  -h,       --help            [default] show this help message and exit
-  -t N,     --threads N       [4      ] number of threads to use during computation
-  -p N,     --processors N    [1      ] number of processors to use during computation
-  -ot N,    --offset-t N      [0      ] time offset in milliseconds
-  -on N,    --offset-n N      [0      ] segment index offset
-  -d  N,    --duration N      [0      ] duration of audio to process in milliseconds
-  -mc N,    --max-context N   [-1     ] maximum number of text context tokens to store
-  -ml N,    --max-len N       [0      ] maximum segment length in characters
-  -bo N,    --best-of N       [5      ] number of best candidates to keep
-  -bs N,    --beam-size N     [-1     ] beam size for beam search
-  -wt N,    --word-thold N    [0.01   ] word timestamp probability threshold
-  -et N,    --entropy-thold N [2.40   ] entropy threshold for decoder fail
-  -lpt N,   --logprob-thold N [-1.00  ] log probability threshold for decoder fail
-  -su,      --speed-up        [false  ] speed up audio by x2 (reduced accuracy)
-  -tr,      --translate       [false  ] translate from source language to english
-  -di,      --diarize         [false  ] stereo audio diarization
-  -otxt,    --output-txt      [false  ] output result in a text file
-  -ovtt,    --output-vtt      [false  ] output result in a vtt file
-  -osrt,    --output-srt      [false  ] output result in a srt file
-  -owts,    --output-words    [false  ] output script for generating karaoke video
-  -ocsv,    --output-csv      [false  ] output result in a CSV file
-  -ps,      --print-special   [false  ] print special tokens
-  -pc,      --print-colors    [false  ] print colors
-  -pp,      --print-progress  [false  ] print progress
-  -nt,      --no-timestamps   [true   ] do not print timestamps
-  -l LANG,  --language LANG   [en     ] spoken language ('auto' for auto-detect)
-            --prompt PROMPT   [       ] initial prompt
-  -m FNAME, --model FNAME     [models/ggml-base.en.bin] model path
-  -f FNAME, --file FNAME      [       ] input WAV file path
+  -h,        --help              [default] show this help message and exit
+  -t N,      --threads N         [4      ] number of threads to use during computation
+  -p N,      --processors N      [1      ] number of processors to use during computation
+  -ot N,     --offset-t N        [0      ] time offset in milliseconds
+  -on N,     --offset-n N        [0      ] segment index offset
+  -d  N,     --duration N        [0      ] duration of audio to process in milliseconds
+  -mc N,     --max-context N     [-1     ] maximum number of text context tokens to store
+  -ml N,     --max-len N         [0      ] maximum segment length in characters
+  -bo N,     --best-of N         [5      ] number of best candidates to keep
+  -bs N,     --beam-size N       [-1     ] beam size for beam search
+  -wt N,     --word-thold N      [0.01   ] word timestamp probability threshold
+  -et N,     --entropy-thold N   [2.40   ] entropy threshold for decoder fail
+  -lpt N,    --logprob-thold N   [-1.00  ] log probability threshold for decoder fail
+  -su,       --speed-up          [false  ] speed up audio by x2 (reduced accuracy)
+  -tr,       --translate         [false  ] translate from source language to english
+  -di,       --diarize           [false  ] stereo audio diarization
+  -nf,       --no-fallback       [false  ] do not use temperature fallback while decoding
+  -otxt,     --output-txt        [false  ] output result in a text file
+  -ovtt,     --output-vtt        [false  ] output result in a vtt file
+  -osrt,     --output-srt        [false  ] output result in a srt file
+  -owts,     --output-words      [false  ] output script for generating karaoke video
+  -ocsv,     --output-csv        [false  ] output result in a CSV file
+  -of FNAME, --output-file FNAME [       ] output file path (without file extension)
+  -ps,       --print-special     [false  ] print special tokens
+  -pc,       --print-colors      [false  ] print colors
+  -pp,       --print-progress    [false  ] print progress
+  -nt,       --no-timestamps     [true   ] do not print timestamps
+  -l LANG,   --language LANG     [en     ] spoken language ('auto' for auto-detect)
+             --prompt PROMPT     [       ] initial prompt
+  -m FNAME,  --model FNAME       [models/ggml-base.en.bin] model path
+  -f FNAME,  --file FNAME        [       ] input WAV file path
 
 
 bash ./models/download-ggml-model.sh base.en
@@ -137,7 +139,8 @@ Running base.en on all samples in ./samples ...
 [+] Running base.en on samples/jfk.wav ... (run 'ffplay samples/jfk.wav' to listen)
 ----------------------------------------------
 
-whisper_model_load: loading model from 'models/ggml-base.en.bin'
+whisper_init_from_file: loading model from 'models/ggml-base.en.bin'
+whisper_model_load: loading model
 whisper_model_load: n_vocab       = 51864
 whisper_model_load: n_audio_ctx   = 1500
 whisper_model_load: n_audio_state = 512
@@ -150,13 +153,14 @@ whisper_model_load: n_text_layer  = 6
 whisper_model_load: n_mels        = 80
 whisper_model_load: f16           = 1
 whisper_model_load: type          = 2
+whisper_model_load: mem required  =  215.00 MB (+    6.00 MB per decoder)
+whisper_model_load: kv self size  =    5.25 MB
+whisper_model_load: kv cross size =   17.58 MB
 whisper_model_load: adding 1607 extra tokens
-whisper_model_load: mem_required  =  506.00 MB
-whisper_model_load: ggml ctx size =  140.60 MB
-whisper_model_load: memory size   =   22.83 MB
+whisper_model_load: model ctx     =  140.60 MB
 whisper_model_load: model size    =  140.54 MB
 
-system_info: n_threads = 4 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 |
+system_info: n_threads = 4 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | FMA = 0 | NEON = 1 | ARM_FMA = 1 | F16C = 0 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 0 | VSX = 0 |
 
 main: processing 'samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
 
@@ -164,12 +168,13 @@ main: processing 'samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 proc
 [00:00:00.000 --> 00:00:11.000]   And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.
 
 
-whisper_print_timings:     load time =   105.91 ms
-whisper_print_timings:      mel time =    24.62 ms
-whisper_print_timings:   sample time =     3.63 ms
-whisper_print_timings:   encode time =   324.71 ms / 54.12 ms per layer
-whisper_print_timings:   decode time =    83.58 ms / 13.93 ms per layer
-whisper_print_timings:    total time =   542.81 ms
+whisper_print_timings:     fallbacks =   0 p /   0 h
+whisper_print_timings:     load time =   113.81 ms
+whisper_print_timings:      mel time =    15.40 ms
+whisper_print_timings:   sample time =    11.58 ms /    27 runs (    0.43 ms per run)
+whisper_print_timings:   encode time =   266.60 ms /     1 runs (  266.60 ms per run)
+whisper_print_timings:   decode time =    66.11 ms /    27 runs (    2.45 ms per run)
+whisper_print_timings:    total time =   476.31 ms
 ```
 
 The command downloads the `base.en` model converted to custom `ggml` format and runs the inference on all `.wav` samples in the folder `samples`.
@@ -212,11 +217,11 @@ make large
 
 | Model  | Disk   | Mem     | SHA                                        |
 | ---    | ---    | ---     | ---                                        |
-| tiny   |  75 MB | ~390 MB | `bd577a113a864445d4c299885e0cb97d4ba92b5f` |
-| base   | 142 MB | ~500 MB | `465707469ff3a37a2b9b8d8f89f2f99de7299dac` |
-| small  | 466 MB | ~1.0 GB | `55356645c2b361a969dfd0ef2c5a50d530afd8d5` |
-| medium | 1.5 GB | ~2.6 GB | `fd9727b6e1217c2f614f9b698455c4ffd82463b4` |
-| large  | 2.9 GB | ~4.7 GB | `0f4c8e34f21cf1a914c59d8b3ce882345ad349d6` |
+| tiny   |  75 MB | ~125 MB | `bd577a113a864445d4c299885e0cb97d4ba92b5f` |
+| base   | 142 MB | ~210 MB | `465707469ff3a37a2b9b8d8f89f2f99de7299dac` |
+| small  | 466 MB | ~600 MB | `55356645c2b361a969dfd0ef2c5a50d530afd8d5` |
+| medium | 1.5 GB | ~1.7 GB | `fd9727b6e1217c2f614f9b698455c4ffd82463b4` |
+| large  | 2.9 GB | ~3.3 GB | `0f4c8e34f21cf1a914c59d8b3ce882345ad349d6` |
 
 ## Limitations
 
@@ -234,7 +239,8 @@ in about half a minute on a MacBook M1 Pro, using `medium.en` model:
 ```java
 $ ./main -m models/ggml-medium.en.bin -f samples/gb1.wav -t 8
 
-whisper_model_load: loading model from 'models/ggml-medium.en.bin'
+whisper_init_from_file: loading model from 'models/ggml-medium.en.bin'
+whisper_model_load: loading model
 whisper_model_load: n_vocab       = 51864
 whisper_model_load: n_audio_ctx   = 1500
 whisper_model_load: n_audio_state = 1024
@@ -247,55 +253,60 @@ whisper_model_load: n_text_layer  = 24
 whisper_model_load: n_mels        = 80
 whisper_model_load: f16           = 1
 whisper_model_load: type          = 4
-whisper_model_load: mem_required  = 2610.00 MB
+whisper_model_load: mem required  = 1720.00 MB (+   43.00 MB per decoder)
+whisper_model_load: kv self size  =   42.00 MB
+whisper_model_load: kv cross size =  140.62 MB
 whisper_model_load: adding 1607 extra tokens
-whisper_model_load: ggml ctx size = 1644.97 MB
-whisper_model_load: memory size =   182.62 MB
-whisper_model_load: model size  =  1462.12 MB
+whisper_model_load: model ctx     = 1462.35 MB
+whisper_model_load: model size    = 1462.12 MB
 
-main: processing 'samples/gb1.wav' (3179750 samples, 198.7 sec), 8 threads, lang = en, task = transcribe, timestamps = 1 ...
+system_info: n_threads = 8 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | FMA = 0 | NEON = 1 | ARM_FMA = 1 | F16C = 0 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 0 | VSX = 0 |
 
-[00:00.000 --> 00:08.000]   My fellow Americans, this day has brought terrible news and great sadness to our country.
-[00:08.000 --> 00:17.000]   At nine o'clock this morning, Mission Control in Houston lost contact with our Space Shuttle Columbia.
-[00:17.000 --> 00:23.000]   A short time later, debris was seen falling from the skies above Texas.
-[00:23.000 --> 00:29.000]   The Columbia's lost. There are no survivors.
-[00:29.000 --> 00:32.000]   On board was a crew of seven.
-[00:32.000 --> 00:39.000]   Colonel Rick Husband, Lieutenant Colonel Michael Anderson, Commander Laurel Clark,
-[00:39.000 --> 00:48.000]   Captain David Brown, Commander William McCool, Dr. Kultna Shavla, and Ilan Ramon,
-[00:48.000 --> 00:52.000]   a colonel in the Israeli Air Force.
-[00:52.000 --> 00:58.000]   These men and women assumed great risk in the service to all humanity.
-[00:58.000 --> 01:03.000]   In an age when space flight has come to seem almost routine,
-[01:03.000 --> 01:07.000]   it is easy to overlook the dangers of travel by rocket
-[01:07.000 --> 01:12.000]   and the difficulties of navigating the fierce outer atmosphere of the Earth.
-[01:12.000 --> 01:18.000]   These astronauts knew the dangers, and they faced them willingly,
-[01:18.000 --> 01:23.000]   knowing they had a high and noble purpose in life.
-[01:23.000 --> 01:31.000]   Because of their courage and daring and idealism, we will miss them all the more.
-[01:31.000 --> 01:36.000]   All Americans today are thinking as well of the families of these men and women
-[01:36.000 --> 01:40.000]   who have been given this sudden shock and grief.
-[01:40.000 --> 01:45.000]   You're not alone. Our entire nation grieves with you,
-[01:45.000 --> 01:52.000]   and those you love will always have the respect and gratitude of this country.
-[01:52.000 --> 01:56.000]   The cause in which they died will continue.
-[01:56.000 --> 02:04.000]   Mankind is led into the darkness beyond our world by the inspiration of discovery
-[02:04.000 --> 02:11.000]   and the longing to understand. Our journey into space will go on.
-[02:11.000 --> 02:16.000]   In the skies today, we saw destruction and tragedy.
-[02:16.000 --> 02:22.000]   Yet farther than we can see, there is comfort and hope.
-[02:22.000 --> 02:29.000]   In the words of the prophet Isaiah, "Lift your eyes and look to the heavens
-[02:29.000 --> 02:35.000]   who created all these. He who brings out the starry hosts one by one
-[02:35.000 --> 02:39.000]   and calls them each by name."
-[02:39.000 --> 02:46.000]   Because of His great power and mighty strength, not one of them is missing.
-[02:46.000 --> 02:55.000]   The same Creator who names the stars also knows the names of the seven souls we mourn today.
-[02:55.000 --> 03:01.000]   The crew of the shuttle Columbia did not return safely to earth,
-[03:01.000 --> 03:05.000]   yet we can pray that all are safely home.
-[03:05.000 --> 03:13.000]   May God bless the grieving families, and may God continue to bless America.
-[03:13.000 --> 03:41.000]   Audio
+main: processing 'samples/gb1.wav' (3179750 samples, 198.7 sec), 8 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
 
 
-whisper_print_timings:     load time =   575.92 ms
-whisper_print_timings:      mel time =   230.60 ms
-whisper_print_timings:   sample time =    73.19 ms
-whisper_print_timings:   encode time = 19552.61 ms / 814.69 ms per layer
-whisper_print_timings:   decode time = 13249.96 ms / 552.08 ms per layer
-whisper_print_timings:    total time = 33686.27 ms
+[00:00:00.000 --> 00:00:08.000]   My fellow Americans, this day has brought terrible news and great sadness to our country.
+[00:00:08.000 --> 00:00:17.000]   At nine o'clock this morning, Mission Control in Houston lost contact with our Space Shuttle Columbia.
+[00:00:17.000 --> 00:00:23.000]   A short time later, debris was seen falling from the skies above Texas.
+[00:00:23.000 --> 00:00:29.000]   The Columbia's lost. There are no survivors.
+[00:00:29.000 --> 00:00:32.000]   On board was a crew of seven.
+[00:00:32.000 --> 00:00:39.000]   Colonel Rick Husband, Lieutenant Colonel Michael Anderson, Commander Laurel Clark,
+[00:00:39.000 --> 00:00:48.000]   Captain David Brown, Commander William McCool, Dr. Kultna Shavla, and Ilan Ramon,
+[00:00:48.000 --> 00:00:52.000]   a colonel in the Israeli Air Force.
+[00:00:52.000 --> 00:00:58.000]   These men and women assumed great risk in the service to all humanity.
+[00:00:58.000 --> 00:01:03.000]   In an age when space flight has come to seem almost routine,
+[00:01:03.000 --> 00:01:07.000]   it is easy to overlook the dangers of travel by rocket
+[00:01:07.000 --> 00:01:12.000]   and the difficulties of navigating the fierce outer atmosphere of the Earth.
+[00:01:12.000 --> 00:01:18.000]   These astronauts knew the dangers, and they faced them willingly,
+[00:01:18.000 --> 00:01:23.000]   knowing they had a high and noble purpose in life.
+[00:01:23.000 --> 00:01:31.000]   Because of their courage and daring and idealism, we will miss them all the more.
+[00:01:31.000 --> 00:01:36.000]   All Americans today are thinking as well of the families of these men and women
+[00:01:36.000 --> 00:01:40.000]   who have been given this sudden shock and grief.
+[00:01:40.000 --> 00:01:45.000]   You're not alone. Our entire nation grieves with you,
+[00:01:45.000 --> 00:01:52.000]   and those you love will always have the respect and gratitude of this country.
+[00:01:52.000 --> 00:01:56.000]   The cause in which they died will continue.
+[00:01:56.000 --> 00:02:04.000]   Mankind is led into the darkness beyond our world by the inspiration of discovery
+[00:02:04.000 --> 00:02:11.000]   and the longing to understand. Our journey into space will go on.
+[00:02:11.000 --> 00:02:16.000]   In the skies today, we saw destruction and tragedy.
+[00:02:16.000 --> 00:02:22.000]   Yet farther than we can see, there is comfort and hope.
+[00:02:22.000 --> 00:02:29.000]   In the words of the prophet Isaiah, "Lift your eyes and look to the heavens
+[00:02:29.000 --> 00:02:35.000]   who created all these. He who brings out the starry hosts one by one
+[00:02:35.000 --> 00:02:39.000]   and calls them each by name."
+[00:02:39.000 --> 00:02:46.000]   Because of His great power and mighty strength, not one of them is missing.
+[00:02:46.000 --> 00:02:55.000]   The same Creator who names the stars also knows the names of the seven souls we mourn today.
+[00:02:55.000 --> 00:03:01.000]   The crew of the shuttle Columbia did not return safely to earth,
+[00:03:01.000 --> 00:03:05.000]   yet we can pray that all are safely home.
+[00:03:05.000 --> 00:03:13.000]   May God bless the grieving families, and may God continue to bless America.
+[00:03:13.000 --> 00:03:19.000]   [Silence]
+
+
+whisper_print_timings:     fallbacks =   1 p /   0 h
+whisper_print_timings:     load time =   569.03 ms
+whisper_print_timings:      mel time =   146.85 ms
+whisper_print_timings:   sample time =   238.66 ms /   553 runs (    0.43 ms per run)
+whisper_print_timings:   encode time = 18665.10 ms /     9 runs ( 2073.90 ms per run)
+whisper_print_timings:   decode time = 13090.93 ms /   549 runs (   23.85 ms per run)
+whisper_print_timings:    total time = 32733.52 ms
 ```
 </details>
 
@@ -321,14 +332,14 @@ to highlight words with high or low confidence:
 
 ## Controlling the length of the generated text segments (experimental)
 
-For example, to limit the line length to a maximum of 16 characters, simply add `-ml 16`: 
+For example, to limit the line length to a maximum of 16 characters, simply add `-ml 16`:
 
 ```java
 ./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -ml 16
 
 whisper_model_load: loading model from './models/ggml-base.en.bin'
 ...
-system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | 
+system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 |
 
 main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
 
@@ -352,7 +363,7 @@ The `--max-len` argument can be used to obtain word-level timestamps. Simply use
 
 whisper_model_load: loading model from './models/ggml-base.en.bin'
 ...
-system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | 
+system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 |
 
 main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
 
