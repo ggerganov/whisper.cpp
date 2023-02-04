@@ -242,7 +242,7 @@ add_subdirectory(bindings)
 # programs, examples and tests
 #
 
-if (WHISPER_BUILD_TESTS)
+if (WHISPER_BUILD_TESTS AND NOT CMAKE_JS_VERSION)
     enable_testing()
     add_subdirectory(tests)
 endif ()
