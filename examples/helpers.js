@@ -8,7 +8,7 @@ function convertTypedArray(src, type) {
 
 var printTextarea = (function() {
     var element = document.getElementById('output');
-    if (element) element.alue = ''; // clear browser cache
+    if (element) element.value = ''; // clear browser cache
     return function(text) {
         if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
         console.log(text);
