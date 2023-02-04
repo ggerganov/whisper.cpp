@@ -53,23 +53,24 @@ void replace_all(std::string & s, const std::string & search, const std::string 
 // command-line parameters
 struct whisper_params {
     int32_t n_threads    = std::min(4, (int32_t) std::thread::hardware_concurrency());
-    int32_t n_processors = 1;
-    int32_t offset_t_ms  = 0;
-    int32_t offset_n     = 0;
-    int32_t duration_ms  = 0;
+    int32_t n_processors =  1;
+    int32_t offset_t_ms  =  0;
+    int32_t offset_n     =  0;
+    int32_t duration_ms  =  0;
     int32_t max_context  = -1;
-    int32_t max_len      = 0;
-    int32_t best_of      = 5;
+    int32_t max_len      =  0;
+    int32_t best_of      =  5;
     int32_t beam_size    = -1;
 
-    float word_thold    = 0.01f;
-    float entropy_thold = 2.4f;
-    float logprob_thold = -1.0f;
+    float word_thold    =  0.01f;
+    float entropy_thold =  2.40f;
+    float logprob_thold = -1.00f;
 
     bool speed_up       = false;
     bool translate      = false;
     bool diarize        = false;
     bool split_on_word  = false;
+    bool no_fallback    = false;
     bool output_txt     = false;
     bool output_vtt     = false;
     bool output_srt     = false;
@@ -119,6 +120,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-tr"   || arg == "--translate")      { params.translate      = true; }
         else if (arg == "-di"   || arg == "--diarize")        { params.diarize        = true; }
         else if (arg == "-sow"  || arg == "--split-on-word")  { params.split_on_word  = true; }
+        else if (arg == "-nf"   || arg == "--no-fallback")    { params.no_fallback    = true; }
         else if (arg == "-otxt" || arg == "--output-txt")     { params.output_txt     = true; }
         else if (arg == "-ovtt" || arg == "--output-vtt")     { params.output_vtt     = true; }
         else if (arg == "-osrt" || arg == "--output-srt")     { params.output_srt     = true; }
@@ -165,6 +167,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -su,       --speed-up          [%-7s] speed up audio by x2 (reduced accuracy)\n",        params.speed_up ? "true" : "false");
     fprintf(stderr, "  -tr,       --translate         [%-7s] translate from source language to english\n",      params.translate ? "true" : "false");
     fprintf(stderr, "  -di,       --diarize           [%-7s] stereo audio diarization\n",                       params.diarize ? "true" : "false");
+    fprintf(stderr, "  -nf,       --no-fallback       [%-7s] do not use temperature fallback while decoding\n", params.no_fallback ? "true" : "false");
     fprintf(stderr, "  -otxt,     --output-txt        [%-7s] output result in a text file\n",                   params.output_txt ? "true" : "false");
     fprintf(stderr, "  -ovtt,     --output-vtt        [%-7s] output result in a vtt file\n",                    params.output_vtt ? "true" : "false");
     fprintf(stderr, "  -osrt,     --output-srt        [%-7s] output result in a srt file\n",                    params.output_srt ? "true" : "false");
@@ -349,9 +352,6 @@ bool output_csv(struct whisper_context * ctx, const char * fname) {
     const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
         const char * text = whisper_full_get_segment_text(ctx, i);
-        if (text[0] == ' ') {
-            text = text + sizeof(char); //whisper_full_get_segment_text() returns a string with leading space, point to the next character.
-        }
         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
@@ -520,7 +520,7 @@ int main(int argc, char ** argv) {
 
     for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
         const auto fname_inp = params.fname_inp[f];
-		const auto fname_outp = f < params.fname_outp.size() && !params.fname_outp[f].empty() ? params.fname_outp[f] : params.fname_inp[f];
+		const auto fname_outp = f < (int) params.fname_outp.size() && !params.fname_outp[f].empty() ? params.fname_outp[f] : params.fname_inp[f];
 
         std::vector<float> pcmf32; // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
@@ -653,18 +653,20 @@ int main(int argc, char ** argv) {
 
             wparams.token_timestamps = params.output_wts || params.max_len > 0;
             wparams.thold_pt         = params.word_thold;
-            wparams.entropy_thold    = params.entropy_thold;
-            wparams.logprob_thold    = params.logprob_thold;
             wparams.max_len          = params.output_wts && params.max_len == 0 ? 60 : params.max_len;
             wparams.split_on_word    = params.split_on_word;
 
             wparams.speed_up         = params.speed_up;
 
+            wparams.prompt_tokens     = prompt_tokens.empty() ? nullptr : prompt_tokens.data();
+            wparams.prompt_n_tokens   = prompt_tokens.empty() ? 0       : prompt_tokens.size();
+
             wparams.greedy.best_of        = params.best_of;
             wparams.beam_search.beam_size = params.beam_size;
 
-            wparams.prompt_tokens     = prompt_tokens.empty() ? nullptr : prompt_tokens.data();
-            wparams.prompt_n_tokens   = prompt_tokens.empty() ? 0       : prompt_tokens.size();
+            wparams.temperature_inc  = params.no_fallback ? 0.0f : wparams.temperature_inc;
+            wparams.entropy_thold    = params.entropy_thold;
+            wparams.logprob_thold    = params.logprob_thold;
 
             whisper_print_user_data user_data = { &params, &pcmf32s };
 

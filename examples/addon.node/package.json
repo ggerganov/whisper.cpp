@@ -1,0 +1,12 @@
+{
+  "name": "whisper-addon",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "author": "Qanhe Chen",
+  "license": "MIT",
+  "devDependencies": {
+    "cmake-js": "^7.1.1",
+    "node-addon-api": "^5.0.0"
+  }
+}
