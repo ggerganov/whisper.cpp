@@ -4,7 +4,7 @@ const { whisper } = require(path.join(__dirname, '../../../build/Release/whisper
 const whisperParamsMock = {
     language: 'en',
     model: path.join(__dirname, '../../../models/ggml-base.en.bin'),
-    fname_inp: path.join(__dirname, './samples_jfk.wav'),
+    fname_inp: path.join(__dirname, '../../../samples/jfk.wav'),
 };
 
 describe("Run whisper.node", () => {
