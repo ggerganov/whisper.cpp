@@ -3133,6 +3133,35 @@ static void whisper_process_logits(
         logits[vocab.token_translate]  = -INFINITY;
         logits[vocab.token_transcribe] = -INFINITY;
 
+
+        // suppress non-speech tokens
+        // ref: https://github.com/openai/whisper/blob/7858aa9c08d98f75575035ecd6481f462d66ca27/whisper/tokenizer.py#L224-L253
+        std::vector<std::string> non_speech_tokens{
+            "\"", "#", "(", ")", "*", "+", "/", ":", ";", "<", "=", ">", "@", "[", "\\", "]", "^",
+            "_", "`", "{", "|", "}", "~", "「", "」", "『", "』", "<<", ">>", "<<<", ">>>", "--",
+            "---", "-(", "-[", "('", "(\"", "((", "))", "(((", ")))", "[[", "]]", "{{", "}}", "♪♪",
+            "♪♪♪","♩", "♪", "♫", "♬", "♭", "♮", "♯"
+        };
+
+        for (const std::string &token : non_speech_tokens)
+        {
+            std::string suppress_tokens[] = {token, " " + token};
+            for (const std::string &suppress_token : suppress_tokens)
+            {
+                if (vocab.token_to_id.find(suppress_token) != vocab.token_to_id.end())
+                {
+                    logits[vocab.token_to_id.at(suppress_token)] = -INFINITY;
+                }
+            }
+        }
+        // allow hyphens "-" and single quotes "'" between words, but not at the beginning of a word
+        if (vocab.token_to_id.find(" -") != vocab.token_to_id.end()) {
+            logits[vocab.token_to_id.at(" -")] = -INFINITY;
+        }
+        if (vocab.token_to_id.find(" '") != vocab.token_to_id.end()) {
+            logits[vocab.token_to_id.at(" '")] = -INFINITY;
+        }
+
         // timestamps have to appear in pairs, except directly before EOT; mask logits accordingly
         // https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L414-L424
         {
