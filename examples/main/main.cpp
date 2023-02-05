@@ -69,6 +69,7 @@ struct whisper_params {
     bool speed_up       = false;
     bool translate      = false;
     bool diarize        = false;
+    bool split_on_word  = false;
     bool no_fallback    = false;
     bool output_txt     = false;
     bool output_vtt     = false;
@@ -118,6 +119,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-su"   || arg == "--speed-up")       { params.speed_up       = true; }
         else if (arg == "-tr"   || arg == "--translate")      { params.translate      = true; }
         else if (arg == "-di"   || arg == "--diarize")        { params.diarize        = true; }
+        else if (arg == "-sow"  || arg == "--split-on-word")  { params.split_on_word  = true; }
         else if (arg == "-nf"   || arg == "--no-fallback")    { params.no_fallback    = true; }
         else if (arg == "-otxt" || arg == "--output-txt")     { params.output_txt     = true; }
         else if (arg == "-ovtt" || arg == "--output-vtt")     { params.output_vtt     = true; }
@@ -156,6 +158,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -d  N,     --duration N        [%-7d] duration of audio to process in milliseconds\n",   params.duration_ms);
     fprintf(stderr, "  -mc N,     --max-context N     [%-7d] maximum number of text context tokens to store\n", params.max_context);
     fprintf(stderr, "  -ml N,     --max-len N         [%-7d] maximum segment length in characters\n",           params.max_len);
+    fprintf(stderr, "  -sow,      --split-on-word     [%-7s] split on word rather than on token\n",             params.split_on_word ? "true" : "false");
     fprintf(stderr, "  -bo N,     --best-of N         [%-7d] number of best candidates to keep\n",              params.best_of);
     fprintf(stderr, "  -bs N,     --beam-size N       [%-7d] beam size for beam search\n",                      params.beam_size);
     fprintf(stderr, "  -wt N,     --word-thold N      [%-7.2f] word timestamp probability threshold\n",         params.word_thold);
@@ -651,6 +654,7 @@ int main(int argc, char ** argv) {
             wparams.token_timestamps = params.output_wts || params.max_len > 0;
             wparams.thold_pt         = params.word_thold;
             wparams.max_len          = params.output_wts && params.max_len == 0 ? 60 : params.max_len;
+            wparams.split_on_word    = params.split_on_word;
 
             wparams.speed_up         = params.speed_up;
 

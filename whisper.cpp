@@ -2922,6 +2922,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.thold_pt         =*/ 0.01f,
         /*.thold_ptsum      =*/ 0.01f,
         /*.max_len          =*/ 0,
+        /*.split_on_word    =*/ false,
         /*.max_tokens       =*/ 0,
 
         /*.speed_up         =*/ false,
@@ -2988,9 +2989,36 @@ static void whisper_exp_compute_token_level_timestamps(
                          float   thold_pt,
                          float   thold_ptsum);
 
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+}
+
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
+// trim from both ends (in place)
+static inline void trim(std::string &s) {
+    rtrim(s);
+    ltrim(s);
+}
+
+static inline bool should_split_on_word(const char * txt, bool split_on_word) {
+    if (!split_on_word) return true;
+
+    std::string s = txt;
+    return s.substr(0, 1) == " ";
+}
+
 // wrap the last segment to max_len characters
 // returns the number of new segments
-static int whisper_wrap_segment(struct whisper_context & ctx, int max_len) {
+static int whisper_wrap_segment(struct whisper_context & ctx, int max_len, bool split_on_word) {
     auto segment = ctx.result_all.back();
 
     int res = 1;
@@ -3005,11 +3033,11 @@ static int whisper_wrap_segment(struct whisper_context & ctx, int max_len) {
         }
 
         const auto txt = whisper_token_to_str(&ctx, token.id);
-
         const int cur = strlen(txt);
 
-        if (acc + cur > max_len && i > 0) {
+        if (acc + cur > max_len && i > 0 && should_split_on_word(txt, split_on_word)) {
             // split here
+            trim(text);
             ctx.result_all.back().text = std::move(text);
             ctx.result_all.back().t1 = token.t0;
             ctx.result_all.back().tokens.resize(i);
@@ -3037,6 +3065,7 @@ static int whisper_wrap_segment(struct whisper_context & ctx, int max_len) {
         }
     }
 
+    trim(text);
     ctx.result_all.back().text = std::move(text);
 
     return res;
@@ -4069,7 +4098,7 @@ int whisper_full(
                                         *ctx, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
 
                                 if (params.max_len > 0) {
-                                    n_new = whisper_wrap_segment(*ctx, params.max_len);
+                                    n_new = whisper_wrap_segment(*ctx, params.max_len, params.split_on_word);
                                 }
                             }
                             if (params.new_segment_callback) {
@@ -4113,7 +4142,7 @@ int whisper_full(
                                 *ctx, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
 
                         if (params.max_len > 0) {
-                            n_new = whisper_wrap_segment(*ctx, params.max_len);
+                            n_new = whisper_wrap_segment(*ctx, params.max_len, params.split_on_word);
                         }
                     }
                     if (params.new_segment_callback) {
