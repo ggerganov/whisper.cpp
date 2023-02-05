@@ -592,6 +592,8 @@ struct whisper_context {
 
     mutable std::mt19937 rng; // used for sampling at t > 0.0
 
+    int lang_id;
+
     // [EXPERIMENTAL] token-level timestamps data
     int64_t t_beg;
     int64_t t_last;
@@ -3478,7 +3480,7 @@ int whisper_full(
             fprintf(stderr, "%s: failed to auto-detect language\n", __func__);
             return -3;
         }
-
+        ctx->lang_id = lang_id;
         params.language = whisper_lang_str(lang_id);
 
         fprintf(stderr, "%s: auto-detected language: %s (p = %f)\n", __func__, params.language, probs[whisper_lang_id(params.language)]);
@@ -3575,6 +3577,7 @@ int whisper_full(
     std::vector<whisper_token> prompt_init = { whisper_token_sot(ctx) };
     if (whisper_is_multilingual(ctx)) {
         const int lang_id = whisper_lang_id(params.language);
+        ctx->lang_id = lang_id;
         prompt_init.push_back(whisper_token_lang(ctx, lang_id));
         if (params.translate) {
             prompt_init.push_back(whisper_token_translate());
@@ -4293,6 +4296,10 @@ int whisper_full_parallel(
 
 int whisper_full_n_segments(struct whisper_context * ctx) {
     return ctx->result_all.size();
+}
+
+int whisper_full_lang_id(struct whisper_context * ctx) {
+    return ctx->lang_id; 
 }
 
 int64_t whisper_full_get_segment_t0(struct whisper_context * ctx, int i_segment) {
