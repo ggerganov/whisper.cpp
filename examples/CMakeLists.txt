@@ -25,6 +25,22 @@ add_library(${TARGET} STATIC
 
 include(DefaultTargetOptions)
 
+if (WHISPER_SUPPORT_SDL2)
+    # common-sdl
+
+    set(TARGET common-sdl)
+
+    add_library(${TARGET} STATIC
+        common-sdl.h
+        common-sdl.cpp
+        )
+
+    include(DefaultTargetOptions)
+
+    target_include_directories(${TARGET} PUBLIC ${SDL2_INCLUDE_DIRS})
+    target_link_libraries(${TARGET} PRIVATE ${SDL2_LIBRARIES})
+endif()
+
 # examples
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -43,4 +59,5 @@ else()
     add_subdirectory(command)
     add_subdirectory(bench)
     add_subdirectory(talk)
+    add_subdirectory(chess)
 endif()
