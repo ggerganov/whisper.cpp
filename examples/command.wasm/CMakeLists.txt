@@ -11,6 +11,7 @@ add_executable(${TARGET}
 include(DefaultTargetOptions)
 
 target_link_libraries(${TARGET} PRIVATE
+    common
     whisper
     )
 

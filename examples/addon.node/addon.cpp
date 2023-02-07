@@ -1,15 +1,13 @@
-#include <cstdint>
+#include "napi.h"
+#include "common.h"
+
+#include "whisper.h"
+
 #include <string>
 #include <thread>
 #include <vector>
 #include <cmath>
-
-#include "napi.h"
-
-#define DR_WAV_IMPLEMENTATION
-#include "dr_wav.h"
-
-#include "whisper.h"
+#include <cstdint>
 
 struct whisper_params {
     int32_t n_threads    = std::min(4, (int32_t) std::thread::hardware_concurrency());
@@ -44,7 +42,7 @@ struct whisper_params {
     std::string model    = "../../ggml-large.bin";
 
     std::vector<std::string> fname_inp = {};
-    std::vector<std::string> fname_outp = {};
+    std::vector<std::string> fname_out = {};
 };
 
 struct whisper_print_user_data {
@@ -143,7 +141,6 @@ void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, voi
 }
 
 int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
-
     if (params.fname_inp.empty()) {
         fprintf(stderr, "error: no input files specified\n");
         return 2;
@@ -181,91 +178,14 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
 
     for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
         const auto fname_inp = params.fname_inp[f];
-        const auto fname_outp = f < (int)params.fname_outp.size() && !params.fname_outp[f].empty() ? params.fname_outp[f] : params.fname_inp[f];
+        const auto fname_out = f < (int)params.fname_out.size() && !params.fname_out[f].empty() ? params.fname_out[f] : params.fname_inp[f];
 
         std::vector<float> pcmf32; // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
-        // WAV input
-        {
-            drwav wav;
-            std::vector<uint8_t> wav_data; // used for pipe input from stdin
-
-            if (fname_inp == "-") {
-                {
-                    uint8_t buf[1024];
-                    while (true)
-                    {
-                        const size_t n = fread(buf, 1, sizeof(buf), stdin);
-                        if (n == 0) {
-                            break;
-                        }
-                        wav_data.insert(wav_data.end(), buf, buf + n);
-                    }
-                }
-
-                if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), nullptr) == false) {
-                    fprintf(stderr, "error: failed to open WAV file from stdin\n");
-                    return 4;
-                }
-
-                fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
-            }
-            else if (drwav_init_file(&wav, fname_inp.c_str(), nullptr) == false) {
-                fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname_inp.c_str());
-                return 5;
-            }
-
-           if (wav.channels != 1 && wav.channels != 2) {
-               fprintf(stderr, "error: WAV file '%s' must be mono or stereo\n", fname_inp.c_str());
-               return 6;
-           }
-
-           if (params.diarize && wav.channels != 2 && params.no_timestamps == false) {
-               fprintf(stderr, "error: WAV file '%s' must be stereo for diarization and timestamps have to be enabled\n", fname_inp.c_str());
-               return 6;
-           }
-
-           if (wav.sampleRate != WHISPER_SAMPLE_RATE) {
-               fprintf(stderr, "error: WAV file '%s' must be %i kHz\n", fname_inp.c_str(), WHISPER_SAMPLE_RATE/1000);
-               return 8;
-           }
-
-           if (wav.bitsPerSample != 16) {
-               fprintf(stderr, "error: WAV file '%s' must be 16-bit\n", fname_inp.c_str());
-               return 9;
-           }
-
-            const uint64_t n = wav_data.empty() ? wav.totalPCMFrameCount : wav_data.size()/(wav.channels*wav.bitsPerSample/8);
-
-            std::vector<int16_t> pcm16;
-            pcm16.resize(n*wav.channels);
-            drwav_read_pcm_frames_s16(&wav, n, pcm16.data());
-            drwav_uninit(&wav);
-
-            // convert to mono, float
-            pcmf32.resize(n);
-            if (wav.channels == 1) {
-                for (uint64_t i = 0; i < n; i++) {
-                    pcmf32[i] = float(pcm16[i])/32768.0f;
-                }
-            } else {
-                for (uint64_t i = 0; i < n; i++) {
-                    pcmf32[i] = float(pcm16[2*i] + pcm16[2*i + 1])/65536.0f;
-                }
-            }
-
-            if (params.diarize) {
-                // convert to stereo, float
-                pcmf32s.resize(2);
-
-                pcmf32s[0].resize(n);
-                pcmf32s[1].resize(n);
-                for (uint64_t i = 0; i < n; i++) {
-                    pcmf32s[0][i] = float(pcm16[2*i])/32768.0f;
-                    pcmf32s[1][i] = float(pcm16[2*i + 1])/32768.0f;
-                }
-            }
+        if (!::read_wav(fname_inp, pcmf32, pcmf32s, params.diarize)) {
+            fprintf(stderr, "error: failed to read WAV file '%s'\n", fname_inp.c_str());
+            continue;
         }
 
         // print system information

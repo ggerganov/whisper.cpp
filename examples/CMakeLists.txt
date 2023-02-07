@@ -14,6 +14,17 @@ if (WHISPER_SUPPORT_SDL2)
     message(STATUS "SDL2_LIBRARIES = ${SDL2_LIBRARIES}")
 endif()
 
+# common
+
+set(TARGET common)
+
+add_library(${TARGET} STATIC
+    common.h
+    common.cpp
+    )
+
+include(DefaultTargetOptions)
+
 # examples
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

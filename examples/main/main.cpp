@@ -1,9 +1,6 @@
-#include "whisper.h"
+#include "common.h"
 
-// third-party utilities
-// use your favorite implementations
-#define DR_WAV_IMPLEMENTATION
-#include "dr_wav.h"
+#include "whisper.h"
 
 #include <cmath>
 #include <fstream>
@@ -86,7 +83,7 @@ struct whisper_params {
     std::string model    = "models/ggml-base.en.bin";
 
     std::vector<std::string> fname_inp = {};
-    std::vector<std::string> fname_outp = {};
+    std::vector<std::string> fname_out = {};
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -126,7 +123,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-osrt" || arg == "--output-srt")     { params.output_srt     = true; }
         else if (arg == "-owts" || arg == "--output-words")   { params.output_wts     = true; }
         else if (arg == "-ocsv" || arg == "--output-csv")     { params.output_csv     = true; }
-        else if (arg == "-of"   || arg == "--output-file")    { params.fname_outp.emplace_back(argv[++i]); }
+        else if (arg == "-of"   || arg == "--output-file")    { params.fname_out.emplace_back(argv[++i]); }
         else if (arg == "-ps"   || arg == "--print-special")  { params.print_special  = true; }
         else if (arg == "-pc"   || arg == "--print-colors")   { params.print_colors   = true; }
         else if (arg == "-pp"   || arg == "--print-progress") { params.print_progress = true; }
@@ -520,91 +517,14 @@ int main(int argc, char ** argv) {
 
     for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
         const auto fname_inp = params.fname_inp[f];
-		const auto fname_outp = f < (int) params.fname_outp.size() && !params.fname_outp[f].empty() ? params.fname_outp[f] : params.fname_inp[f];
+		const auto fname_out = f < (int) params.fname_out.size() && !params.fname_out[f].empty() ? params.fname_out[f] : params.fname_inp[f];
 
-        std::vector<float> pcmf32; // mono-channel F32 PCM
+        std::vector<float> pcmf32;               // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
-        // WAV input
-        {
-            drwav wav;
-            std::vector<uint8_t> wav_data; // used for pipe input from stdin
-
-            if (fname_inp == "-") {
-                {
-                    uint8_t buf[1024];
-                    while (true)
-                    {
-                        const size_t n = fread(buf, 1, sizeof(buf), stdin);
-                        if (n == 0) {
-                            break;
-                        }
-                        wav_data.insert(wav_data.end(), buf, buf + n);
-                    }
-                }
-
-                if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), nullptr) == false) {
-                    fprintf(stderr, "error: failed to open WAV file from stdin\n");
-                    return 4;
-                }
-
-                fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
-            }
-            else if (drwav_init_file(&wav, fname_inp.c_str(), nullptr) == false) {
-                fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname_inp.c_str());
-                return 5;
-            }
-
-            if (wav.channels != 1 && wav.channels != 2) {
-                fprintf(stderr, "%s: WAV file '%s' must be mono or stereo\n", argv[0], fname_inp.c_str());
-                return 6;
-            }
-
-            if (params.diarize && wav.channels != 2 && params.no_timestamps == false) {
-                fprintf(stderr, "%s: WAV file '%s' must be stereo for diarization and timestamps have to be enabled\n", argv[0], fname_inp.c_str());
-                return 6;
-            }
-
-            if (wav.sampleRate != WHISPER_SAMPLE_RATE) {
-                fprintf(stderr, "%s: WAV file '%s' must be %i kHz\n", argv[0], fname_inp.c_str(), WHISPER_SAMPLE_RATE/1000);
-                return 8;
-            }
-
-            if (wav.bitsPerSample != 16) {
-                fprintf(stderr, "%s: WAV file '%s' must be 16-bit\n", argv[0], fname_inp.c_str());
-                return 9;
-            }
-
-            const uint64_t n = wav_data.empty() ? wav.totalPCMFrameCount : wav_data.size()/(wav.channels*wav.bitsPerSample/8);
-
-            std::vector<int16_t> pcm16;
-            pcm16.resize(n*wav.channels);
-            drwav_read_pcm_frames_s16(&wav, n, pcm16.data());
-            drwav_uninit(&wav);
-
-            // convert to mono, float
-            pcmf32.resize(n);
-            if (wav.channels == 1) {
-                for (uint64_t i = 0; i < n; i++) {
-                    pcmf32[i] = float(pcm16[i])/32768.0f;
-                }
-            } else {
-                for (uint64_t i = 0; i < n; i++) {
-                    pcmf32[i] = float(pcm16[2*i] + pcm16[2*i + 1])/65536.0f;
-                }
-            }
-
-            if (params.diarize) {
-                // convert to stereo, float
-                pcmf32s.resize(2);
-
-                pcmf32s[0].resize(n);
-                pcmf32s[1].resize(n);
-                for (uint64_t i = 0; i < n; i++) {
-                    pcmf32s[0][i] = float(pcm16[2*i])/32768.0f;
-                    pcmf32s[1][i] = float(pcm16[2*i + 1])/32768.0f;
-                }
-            }
+        if (!::read_wav(fname_inp, pcmf32, pcmf32s, params.diarize)) {
+            fprintf(stderr, "error: failed to read WAV file '%s'\n", fname_inp.c_str());
+            continue;
         }
 
         // print system information
@@ -701,34 +621,33 @@ int main(int argc, char ** argv) {
 
             // output to text file
             if (params.output_txt) {
-                const auto fname_txt = fname_outp + ".txt";
+                const auto fname_txt = fname_out + ".txt";
                 output_txt(ctx, fname_txt.c_str());
             }
 
             // output to VTT file
             if (params.output_vtt) {
-                const auto fname_vtt = fname_outp + ".vtt";
+                const auto fname_vtt = fname_out + ".vtt";
                 output_vtt(ctx, fname_vtt.c_str());
             }
 
             // output to SRT file
             if (params.output_srt) {
-                const auto fname_srt = fname_outp + ".srt";
+                const auto fname_srt = fname_out + ".srt";
                 output_srt(ctx, fname_srt.c_str(), params);
             }
 
             // output to WTS file
             if (params.output_wts) {
-                const auto fname_wts = fname_outp + ".wts";
+                const auto fname_wts = fname_out + ".wts";
                 output_wts(ctx, fname_wts.c_str(), fname_inp.c_str(), params, float(pcmf32.size() + 1000)/WHISPER_SAMPLE_RATE);
             }
 
-	    // output to CSV file
+            // output to CSV file
             if (params.output_csv) {
-                const auto fname_csv = fname_outp + ".csv";
+                const auto fname_csv = fname_out + ".csv";
                 output_csv(ctx, fname_csv.c_str());
             }
-
         }
     }
 
