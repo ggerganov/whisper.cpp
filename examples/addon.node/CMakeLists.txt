@@ -1,4 +1,5 @@
 set(TARGET whisper-addon)
+# set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
 
 # Base settings
 #==================================================================
@@ -8,7 +9,7 @@ include_directories(${CMAKE_JS_INC})
 #==================================================================
 
 add_library(${TARGET} SHARED ${CMAKE_JS_SRC} addon.cpp)
-set_target_properties(${TARGET} PROPERTIES PREFIX "" SUFFIX ".node")
+set_target_properties(${TARGET} PROPERTIES PREFIX "" SUFFIX ".node" LINK_FLAGS "-Wl,-rpath,@loader_path/")
 
 include(DefaultTargetOptions)
 
