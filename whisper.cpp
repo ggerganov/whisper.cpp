@@ -3014,8 +3014,7 @@ static inline void trim(std::string &s) {
 static inline bool should_split_on_word(const char * txt, bool split_on_word) {
     if (!split_on_word) return true;
 
-    std::string s = txt;
-    return s.substr(0, 1) == " ";
+    return txt[0] == ' ';
 }
 
 // wrap the last segment to max_len characters
@@ -3039,7 +3038,10 @@ static int whisper_wrap_segment(struct whisper_context & ctx, int max_len, bool 
 
         if (acc + cur > max_len && i > 0 && should_split_on_word(txt, split_on_word)) {
             // split here
-            trim(text);
+            if (split_on_word) {
+                trim(text);
+            }
+
             ctx.result_all.back().text = std::move(text);
             ctx.result_all.back().t1 = token.t0;
             ctx.result_all.back().tokens.resize(i);
@@ -3067,7 +3069,9 @@ static int whisper_wrap_segment(struct whisper_context & ctx, int max_len, bool 
         }
     }
 
-    trim(text);
+    if (split_on_word) {
+        trim(text);
+    }
     ctx.result_all.back().text = std::move(text);
 
     return res;
