@@ -2905,7 +2905,7 @@ const char * whisper_print_system_info(void) {
 
 struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy) {
     struct whisper_full_params result = {
-        /*.strategy         =*/ WHISPER_SAMPLING_GREEDY,
+        /*.strategy         =*/ strategy,
 
         /*.n_threads        =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
         /*.n_max_text_ctx   =*/ 16384,
@@ -3829,7 +3829,7 @@ int whisper_full(
 
                         auto & cur = beam_candidates[cur_c++];
 
-                        while (beam_candidates[cur_c].sequence.sum_logprobs_all == cur.sequence.sum_logprobs_all && i > 0) {
+                        while (beam_candidates.size() > cur_c && beam_candidates[cur_c].sequence.sum_logprobs_all == cur.sequence.sum_logprobs_all && i > 0) {
                             ++cur_c;
                         }
 
