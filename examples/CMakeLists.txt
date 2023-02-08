@@ -25,6 +25,8 @@ add_library(${TARGET} STATIC
 
 include(DefaultTargetOptions)
 
+set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 if (WHISPER_SUPPORT_SDL2)
     # common-sdl
 
@@ -39,6 +41,8 @@ if (WHISPER_SUPPORT_SDL2)
 
     target_include_directories(${TARGET} PUBLIC ${SDL2_INCLUDE_DIRS})
     target_link_libraries(${TARGET} PRIVATE ${SDL2_LIBRARIES})
+
+    set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 
 # examples
