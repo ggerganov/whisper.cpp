@@ -8,6 +8,10 @@
 #include <cmath>
 #include <regex>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 std::string trim(const std::string & s) {
     std::regex e("^\\s+|\\s+$");
     return std::regex_replace(s, e, "");
