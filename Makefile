@@ -143,12 +143,12 @@ endif
 ifneq ($(filter aarch64%,$(UNAME_M)),)
 endif
 ifneq ($(filter armv6%,$(UNAME_M)),)
-	# Raspberry Pi 1, 2, 3
-	CFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access
+	# 32-bit Raspberry Pi 1, 2, 3
+	CFLAGS += -mfpu=neon -mfp16-format=ieee -mno-unaligned-access
 endif
 ifneq ($(filter armv7%,$(UNAME_M)),)
-	# Raspberry Pi 4
-	CFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations
+	# 32-bit ARM, for example on Armbian or possibly raspbian
+	CFLAGS += -mfpu=neon -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations  # works with small
 endif
 ifneq ($(filter armv8%,$(UNAME_M)),)
 	# Raspberry Pi 4
