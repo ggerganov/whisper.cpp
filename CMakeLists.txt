@@ -226,10 +226,13 @@ target_compile_definitions(${TARGET} PUBLIC
     ${WHISPER_EXTRA_FLAGS}
     )
 
+set_target_properties(${TARGET} PROPERTIES PUBLIC_HEADER "whisper.h")
+
 install(TARGETS ${TARGET}
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib/static
     RUNTIME DESTINATION bin
+    PUBLIC_HEADER DESTINATION include
     )
 
 #
