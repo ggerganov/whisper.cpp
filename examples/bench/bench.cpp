@@ -55,6 +55,8 @@ int whisper_bench_encoder(const whisper_params & params) {
 
     struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
 
+    struct whisper_state * state = whisper_init_state(ctx);
+
     {
         fprintf(stderr, "\n");
         fprintf(stderr, "system_info: n_threads = %d / %d | %s\n", params.n_threads, std::thread::hardware_concurrency(), whisper_print_system_info());
@@ -65,17 +67,17 @@ int whisper_bench_encoder(const whisper_params & params) {
         return 2;
     }
 
-    if (int ret = whisper_set_mel(ctx, nullptr, 0, WHISPER_N_MEL)) {
+    if (int ret = whisper_set_mel(state, nullptr, 0, WHISPER_N_MEL)) {
         fprintf(stderr, "error: failed to set mel: %d\n", ret);
         return 3;
     }
 
-    if (int ret = whisper_encode(ctx, 0, params.n_threads) != 0) {
+    if (int ret = whisper_encode(ctx, state, 0, params.n_threads) != 0) {
         fprintf(stderr, "error: failed to encode model: %d\n", ret);
         return 4;
     }
 
-    whisper_print_timings(ctx);
+    whisper_print_timings(ctx, state);
     whisper_free(ctx);
 
     fprintf(stderr, "\n");

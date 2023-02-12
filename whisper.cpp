@@ -567,7 +567,7 @@ struct whisper_state {
     whisper_decoder decoders[WHISPER_MAX_DECODERS] = {};
 
     // memory buffers used by encode / decode contexts
-    std::vector<uint8_t> buf_compute;
+    std::vector<uint8_t> buf_compute{};
     std::vector<uint8_t> buf_scratch[WHISPER_MAX_SCRATCH_BUFFERS];
 
     int    buf_last = 0;
@@ -576,11 +576,11 @@ struct whisper_state {
     // decode output (2-dimensional array: [n_tokens][n_vocab])
     std::vector<float> logits;
 
-    std::vector<whisper_segment> result_all;
-    std::vector<whisper_token>   prompt_past;
+    std::vector<whisper_segment> result_all{};
+    std::vector<whisper_token>   prompt_past{};
 
     // work container used to avoid memory allocations
-    std::vector<std::pair<double, whisper_vocab::id>> logits_id;
+    std::vector<std::pair<double, whisper_vocab::id>> logits_id{};
 
     mutable std::mt19937 rng; // used for sampling at t > 0.0
 
@@ -590,7 +590,7 @@ struct whisper_state {
     int64_t t_beg;
     int64_t t_last;
     whisper_token tid_last;
-    std::vector<float> energy; // PCM signal energy
+    std::vector<float> energy{}; // PCM signal energy
 
     // [EXPERIMENTAL] speed-up techniques
     int32_t exp_n_audio_ctx; // 0 - use default
@@ -4248,6 +4248,7 @@ int whisper_full(
 
 int whisper_full_parallel(
            struct whisper_context * ctx,
+             struct whisper_state * result_state,
        struct whisper_full_params   params,
                       const float * samples,
                               int   n_samples,
@@ -4261,8 +4262,6 @@ int whisper_full_parallel(
     const int offset_samples = (WHISPER_SAMPLE_RATE*params.offset_ms)/1000;
     const int n_samples_per_processor = (n_samples - offset_samples)/n_processors;
     const int64_t offset_t = (int64_t)params.offset_ms / 10.0;
-
-    auto aggregated_whisper_state = whisper_init_state(ctx);
 
     std::vector<whisper_state*> states{};
 
@@ -4316,32 +4315,32 @@ int whisper_full_parallel(
 
 
             // make sure that segments are not overlapping
-            if (!aggregated_whisper_state->result_all.empty()) {
-                result.t0 = std::max(result.t0, aggregated_whisper_state->result_all.back().t1);
+            if (!result_state->result_all.empty()) {
+                result.t0 = std::max(result.t0, result_state->result_all.back().t1);
             }
 
-            aggregated_whisper_state->result_all.push_back(std::move(result));
+            result_state->result_all.push_back(std::move(result));
 
             // call the new_segment_callback for each segment
             if (params.new_segment_callback) {
-                params.new_segment_callback(ctx, aggregated_whisper_state, 1, params.new_segment_callback_user_data);
+                params.new_segment_callback(ctx, result_state, 1, params.new_segment_callback_user_data);
             }
         }
 
-        aggregated_whisper_state->t_mel_us += states[i]->t_mel_us;
+        result_state->t_mel_us += states[i]->t_mel_us;
 
-        aggregated_whisper_state->t_sample_us += states[i]->t_sample_us;
-        aggregated_whisper_state->t_encode_us += states[i]->t_encode_us;
-        aggregated_whisper_state->t_decode_us += states[i]->t_decode_us;
+        result_state->t_sample_us += states[i]->t_sample_us;
+        result_state->t_encode_us += states[i]->t_encode_us;
+        result_state->t_decode_us += states[i]->t_decode_us;
 
         whisper_free_state(states[i]);
     }
 
     // average the timings
-    aggregated_whisper_state->t_mel_us /= n_processors;
-    aggregated_whisper_state->t_sample_us /= n_processors;
-    aggregated_whisper_state->t_encode_us /= n_processors;
-    aggregated_whisper_state->t_decode_us /= n_processors;
+    result_state->t_mel_us /= n_processors;
+    result_state->t_sample_us /= n_processors;
+    result_state->t_encode_us /= n_processors;
+    result_state->t_decode_us /= n_processors;
 
     // print information about the audio boundaries
     fprintf(stderr, "\n");
@@ -4351,7 +4350,7 @@ int whisper_full_parallel(
     }
     fprintf(stderr, "%s: the transcription quality may be degraded near these boundaries\n", __func__);
 
-    whisper_free_state(aggregated_whisper_state);
+    whisper_free_state(result_state);
 
     return ret;
 }

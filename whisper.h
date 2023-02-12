@@ -344,6 +344,7 @@ extern "C" {
     // However, the transcription accuracy can be worse at the beginning and end of each chunk.
     WHISPER_API int whisper_full_parallel(
                 struct whisper_context * ctx,
+                  struct whisper_state * state,
             struct whisper_full_params   params,
                            const float * samples,
                                    int   n_samples,
