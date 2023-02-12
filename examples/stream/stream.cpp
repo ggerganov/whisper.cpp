@@ -458,6 +458,7 @@ int main(int argc, char ** argv) {
     }
 
     struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
+    struct whisper_state * state = whisper_init_state(ctx);
 
     std::vector<float> pcmf32    (n_samples_30s, 0.0f);
     std::vector<float> pcmf32_old;
@@ -622,7 +623,7 @@ int main(int argc, char ** argv) {
             wparams.prompt_tokens    = params.no_context ? nullptr : prompt_tokens.data();
             wparams.prompt_n_tokens  = params.no_context ? 0       : prompt_tokens.size();
 
-            if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
+            if (whisper_full_with_state(ctx, state, wparams, pcmf32.data(), pcmf32.size()) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
                 return 6;
             }
@@ -645,9 +646,9 @@ int main(int argc, char ** argv) {
                     printf("\n");
                 }
 
-                const int n_segments = whisper_full_n_segments(ctx);
+                const int n_segments = whisper_full_n_segments(state);
                 for (int i = 0; i < n_segments; ++i) {
-                    const char * text = whisper_full_get_segment_text(ctx, i);
+                    const char * text = whisper_full_get_segment_text(state, i);
 
                     if (params.no_timestamps) {
                         printf("%s", text);
@@ -657,8 +658,8 @@ int main(int argc, char ** argv) {
                             fout << text;
                         }
                     } else {
-                        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                        const int64_t t0 = whisper_full_get_segment_t0(state, i);
+                        const int64_t t1 = whisper_full_get_segment_t1(state, i);
 
                         printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
 
@@ -690,11 +691,11 @@ int main(int argc, char ** argv) {
                 if (!params.no_context) {
                     prompt_tokens.clear();
 
-                    const int n_segments = whisper_full_n_segments(ctx);
+                    const int n_segments = whisper_full_n_segments(state);
                     for (int i = 0; i < n_segments; ++i) {
-                        const int token_count = whisper_full_n_tokens(ctx, i);
+                        const int token_count = whisper_full_n_tokens(state, i);
                         for (int j = 0; j < token_count; ++j) {
-                            prompt_tokens.push_back(whisper_full_get_token_id(ctx, i, j));
+                            prompt_tokens.push_back(whisper_full_get_token_id(state, i, j));
                         }
                     }
                 }
@@ -704,7 +705,8 @@ int main(int argc, char ** argv) {
 
     audio.pause();
 
-    whisper_print_timings(ctx);
+    whisper_print_timings(ctx, state);
+    whisper_free_state(state);
     whisper_free(ctx);
 
     return 0;

@@ -503,7 +503,7 @@ int main(int argc, char ** argv) {
     }
 
     // state init for the current transformation
-    struct whisper_state* state = whisper_init_state(ctx);
+    struct whisper_state * state = whisper_init_state(ctx);
 
     // initial prompt
     std::vector<whisper_token> prompt_tokens;

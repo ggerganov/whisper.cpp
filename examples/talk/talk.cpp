@@ -16,6 +16,7 @@
 #include <thread>
 #include <vector>
 #include <regex>
+#include <cstdlib>
 
 // command-line parameters
 struct whisper_params {
@@ -419,7 +420,7 @@ bool vad_simple(std::vector<float> & pcmf32, int sample_rate, int last_ms, float
     return true;
 }
 
-std::string transcribe(whisper_context * ctx, const whisper_params & params, const std::vector<float> & pcmf32, float & prob, int64_t & t_ms) {
+std::string transcribe(whisper_context * ctx, whisper_state * state, const whisper_params & params, const std::vector<float> & pcmf32, float & prob, int64_t & t_ms) {
     const auto t_start = std::chrono::high_resolution_clock::now();
 
     prob = 0.0f;
@@ -441,22 +442,22 @@ std::string transcribe(whisper_context * ctx, const whisper_params & params, con
     wparams.audio_ctx        = params.audio_ctx;
     wparams.speed_up         = params.speed_up;
 
-    if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
+    if (whisper_full_with_state(ctx, state, wparams, pcmf32.data(), pcmf32.size()) != 0) {
         return "";
     }
 
     int prob_n = 0;
     std::string result;
 
-    const int n_segments = whisper_full_n_segments(ctx);
+    const int n_segments = whisper_full_n_segments(state);
     for (int i = 0; i < n_segments; ++i) {
-        const char * text = whisper_full_get_segment_text(ctx, i);
+        const char * text = whisper_full_get_segment_text(state, i);
 
         result += text;
 
-        const int n_tokens = whisper_full_n_tokens(ctx, i);
+        const int n_tokens = whisper_full_n_tokens(state, i);
         for (int j = 0; j < n_tokens; ++j) {
-            const auto token = whisper_full_get_token_data(ctx, i, j);
+            const auto token = whisper_full_get_token_data(state, i, j);
 
             prob += token.p;
             ++prob_n;
@@ -469,6 +470,8 @@ std::string transcribe(whisper_context * ctx, const whisper_params & params, con
 
     const auto t_end = std::chrono::high_resolution_clock::now();
     t_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
+
+    whisper_free_state(state);
 
     return result;
 }
@@ -499,6 +502,8 @@ int main(int argc, char ** argv) {
     // whisper init
 
     struct whisper_context * ctx_wsp = whisper_init_from_file(params.model_wsp.c_str());
+
+    struct whisper_state * state_wsp = whisper_init_state(ctx_wsp);
 
     // gpt init
 
@@ -591,7 +596,7 @@ int main(int argc, char ** argv) {
                 std::string text_heard;
 
                 if (!force_speak) {
-                    text_heard = ::trim(::transcribe(ctx_wsp, params, pcmf32_cur, prob0, t_ms));
+                    text_heard = ::trim(::transcribe(ctx_wsp, state_wsp, params, pcmf32_cur, prob0, t_ms));
                 }
 
                 // remove text between brackets using regex
@@ -688,7 +693,8 @@ int main(int argc, char ** argv) {
 
     audio.pause();
 
-    whisper_print_timings(ctx_wsp);
+    whisper_print_timings(ctx_wsp, state_wsp);
+    whisper_free_state(state_wsp);
     whisper_free(ctx_wsp);
 
     return 0;

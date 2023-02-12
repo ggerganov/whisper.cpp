@@ -2481,7 +2481,7 @@ struct whisper_state* whisper_init_state(whisper_context * ctx) {
 
     if (!kv_cache_init(ctx->model.hparams, scale * MEM_REQ_KV_SELF.at(ctx->model.type), state->decoders[0].kv_self, ctx->wtype, ctx->model.hparams.n_text_ctx)) {
         fprintf(stderr, "%s: kv_cache_init() failed for self-attention cache\n", __func__);
-        return false;
+        return NULL;
     }
 
     {
@@ -2491,7 +2491,7 @@ struct whisper_state* whisper_init_state(whisper_context * ctx) {
 
     if (!kv_cache_init(ctx->model.hparams, scale * MEM_REQ_KV_CROSS.at(ctx->model.type), state->kv_cross, ctx->wtype, ctx->model.hparams.n_audio_ctx)) {
         fprintf(stderr, "%s: kv_cache_init() failed for cross-attention cache\n", __func__);
-        return false;
+        return NULL;
     }
 
     {
@@ -3514,7 +3514,7 @@ static void whisper_sequence_score(
     }
 }
 
-int whisper_full_state(
+int whisper_full_with_state(
         struct whisper_context * ctx,
           struct whisper_state * state,
     struct whisper_full_params   params,
@@ -3522,6 +3522,11 @@ int whisper_full_state(
                            int   n_samples) {
     
     auto& result_all = state->result_all;
+
+    // clear previous results in case some state is re-used
+    if (!result_all.empty()) {
+        result_all.clear();
+    }
 
     // compute log mel spectrogram
     if (params.speed_up) {
@@ -4238,7 +4243,7 @@ int whisper_full(
     // Initialize a new state for the current transformation
     whisper_state* state = whisper_init_state(ctx);
 
-    int result = whisper_full_state(ctx, state, params, samples, n_samples);
+    int result = whisper_full_with_state(ctx, state, params, samples, n_samples);
 
     whisper_free_state(state);
 
@@ -4287,7 +4292,7 @@ int whisper_full_parallel(
         params_cur.new_segment_callback = nullptr;
         params_cur.new_segment_callback_user_data = nullptr;
 
-        workers[i] = std::thread(whisper_full_state, ctx, states[i + 1], std::move(params_cur), samples + start_samples, n_samples_cur);
+        workers[i] = std::thread(whisper_full_with_state, ctx, states[i + 1], std::move(params_cur), samples + start_samples, n_samples_cur);
     }
 
     {
@@ -4297,7 +4302,7 @@ int whisper_full_parallel(
         params_cur.print_realtime = false;
 
         // Run the first transformation using the first state and for the first chunk.
-        ret = whisper_full_state(ctx, states[0],  std::move(params_cur), samples, offset_samples + n_samples_per_processor);
+        ret = whisper_full_with_state(ctx, states[0],  std::move(params_cur), samples, offset_samples + n_samples_per_processor);
     }
 
     for (int i = 0; i < n_processors - 1; ++i) {

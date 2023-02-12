@@ -413,7 +413,7 @@ bool vad_simple(std::vector<float> & pcmf32, int sample_rate, int last_ms, float
     return true;
 }
 
-std::string transcribe(whisper_context * ctx, const whisper_params & params, const std::vector<float> & pcmf32, float & prob, int64_t & t_ms) {
+std::string transcribe(whisper_context * ctx, whisper_state * state, const whisper_params & params, const std::vector<float> & pcmf32, float & prob, int64_t & t_ms) {
     const auto t_start = std::chrono::high_resolution_clock::now();
 
     prob = 0.0f;
@@ -435,22 +435,22 @@ std::string transcribe(whisper_context * ctx, const whisper_params & params, con
     wparams.audio_ctx        = params.audio_ctx;
     wparams.speed_up         = params.speed_up;
 
-    if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
+    if (whisper_full_with_state(ctx, state, wparams, pcmf32.data(), pcmf32.size()) != 0) {
         return "";
     }
 
     int prob_n = 0;
     std::string result;
 
-    const int n_segments = whisper_full_n_segments(ctx);
+    const int n_segments = whisper_full_n_segments(state);
     for (int i = 0; i < n_segments; ++i) {
-        const char * text = whisper_full_get_segment_text(ctx, i);
+        const char * text = whisper_full_get_segment_text(state, i);
 
         result += text;
 
-        const int n_tokens = whisper_full_n_tokens(ctx, i);
+        const int n_tokens = whisper_full_n_tokens(state, i);
         for (int j = 0; j < n_tokens; ++j) {
-            const auto token = whisper_full_get_token_data(ctx, i, j);
+            const auto token = whisper_full_get_token_data(state, i, j);
 
             prob += token.p;
             ++prob_n;
@@ -545,7 +545,7 @@ bool process_sdl_events() {
 
 // command-list mode
 // guide the transcription to match the most likely command from a provided list
-int process_command_list(struct whisper_context * ctx, audio_async &audio, const whisper_params &params) {
+int process_command_list(struct whisper_context * ctx, struct whisper_state * state, audio_async &audio, const whisper_params &params) {
     fprintf(stderr, "\n");
     fprintf(stderr, "%s: guided mode\n", __func__);
 
@@ -666,7 +666,7 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
             wparams.prompt_n_tokens  = k_tokens.size();
 
             // run the transformer and a single decoding pass
-            if (whisper_full(ctx, wparams, pcmf32_cur.data(), pcmf32_cur.size()) != 0) {
+            if (whisper_full_with_state(ctx, state, wparams, pcmf32_cur.data(), pcmf32_cur.size()) != 0) {
                 fprintf(stderr, "%s: ERROR: whisper_full() failed\n", __func__);
                 break;
             }
@@ -674,7 +674,7 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
             // estimate command probability
             // NOTE: not optimal
             {
-                const auto * logits = whisper_get_logits(ctx);
+                const auto * logits = whisper_get_logits(state);
 
                 std::vector<float> probs(whisper_n_vocab(ctx), 0.0f);
 
@@ -757,7 +757,7 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
 
 // always-prompt mode
 // transcribe the voice into text after valid prompt
-int always_prompt_transcription(struct whisper_context * ctx, audio_async & audio, const whisper_params & params) {
+int always_prompt_transcription(struct whisper_context * ctx, struct whisper_state * state, audio_async & audio, const whisper_params & params) {
     bool is_running = true;
     bool ask_prompt = true;
 
@@ -799,7 +799,7 @@ int always_prompt_transcription(struct whisper_context * ctx, audio_async & audi
                 // detect the commands
                 audio.get(params.command_ms, pcmf32_cur);
 
-                const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob, t_ms));
+                const auto txt = ::trim(::transcribe(ctx, state, params, pcmf32_cur, prob, t_ms));
 
                 const auto words = get_words(txt);
 
@@ -835,7 +835,7 @@ int always_prompt_transcription(struct whisper_context * ctx, audio_async & audi
 
 // general-purpose mode
 // freely transcribe the voice into text
-int process_general_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params) {
+int process_general_transcription(struct whisper_context * ctx, struct whisper_state * state, audio_async &audio, const whisper_params &params) {
     bool is_running  = true;
     bool have_prompt = false;
     bool ask_prompt  = true;
@@ -879,7 +879,7 @@ int process_general_transcription(struct whisper_context * ctx, audio_async &aud
                     // wait for activation phrase
                     audio.get(params.prompt_ms, pcmf32_cur);
 
-                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob0, t_ms));
+                    const auto txt = ::trim(::transcribe(ctx, state, params, pcmf32_cur, prob0, t_ms));
 
                     fprintf(stdout, "%s: Heard '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", txt.c_str(), "\033[0m", (int) t_ms);
 
@@ -905,7 +905,7 @@ int process_general_transcription(struct whisper_context * ctx, audio_async &aud
                     // prepend the prompt audio
                     pcmf32_cur.insert(pcmf32_cur.begin(), pcmf32_prompt.begin(), pcmf32_prompt.end());
 
-                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob, t_ms));
+                    const auto txt = ::trim(::transcribe(ctx, state, params, pcmf32_cur, prob, t_ms));
 
                     prob = 100.0f*(prob - prob0);
 
@@ -958,6 +958,8 @@ int main(int argc, char ** argv) {
 
     struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
 
+    struct whisper_state * state = whisper_init_state(ctx);
+
     // print some info about the processing
     {
         fprintf(stderr, "\n");
@@ -995,16 +997,17 @@ int main(int argc, char ** argv) {
     int  ret_val = 0;
 
     if (!params.commands.empty()) {
-        ret_val = process_command_list(ctx, audio, params);
+        ret_val = process_command_list(ctx, state, audio, params);
     } else if (!params.prompt.empty()) {
-        ret_val = always_prompt_transcription(ctx, audio, params);
+        ret_val = always_prompt_transcription(ctx, state, audio, params);
     } else {
-        ret_val = process_general_transcription(ctx, audio, params);
+        ret_val = process_general_transcription(ctx, state, audio, params);
     }
 
     audio.pause();
 
-    whisper_print_timings(ctx);
+    whisper_print_timings(ctx, state);
+    whisper_free_state(state);
     whisper_free(ctx);
 
     return ret_val;

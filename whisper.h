@@ -339,6 +339,14 @@ extern "C" {
                            const float * samples,
                                    int   n_samples);
 
+    // Same as whisper_full() but uses the specified state, so that the caller can read the result on the state after the method call
+    WHISPER_API int whisper_full_with_state(
+				struct whisper_context * ctx,
+				  struct whisper_state * state,
+			struct whisper_full_params   params,
+						   const float * samples,
+								   int   n_samples);
+
     // Split the input audio in chunks and process each chunk separately using whisper_full()
     // It seems this approach can offer some speedup in some cases.
     // However, the transcription accuracy can be worse at the beginning and end of each chunk.
