@@ -91,7 +91,7 @@ EMSCRIPTEN_BINDINGS(whisper) {
         {
             whisper_reset_timings(g_state);
             whisper_full_with_state(g_context, g_state, params, pcmf32.data(), pcmf32.size());
-            whisper_print_timings(g_state);
+            whisper_print_timings(g_context, g_state);
         }
 
         return 0;
