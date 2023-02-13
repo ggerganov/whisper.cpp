@@ -74,11 +74,11 @@ int timestamp_to_sample(int64_t t, int n_samples) {
     return std::max(0, std::min((int) n_samples - 1, (int) ((t*WHISPER_SAMPLE_RATE)/100)));
 }
 
-void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, void * user_data) {
+void whisper_print_segment_callback(struct whisper_context * /*ctx*/, struct whisper_state * state, int n_new, void * user_data) {
     const auto & params  = *((whisper_print_user_data *) user_data)->params;
     const auto & pcmf32s = *((whisper_print_user_data *) user_data)->pcmf32s;
 
-    const int n_segments = whisper_full_n_segments(ctx);
+    const int n_segments = whisper_full_n_segments(state);
 
     std::string speaker = "";
 
@@ -94,8 +94,8 @@ void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, voi
 
     for (int i = s0; i < n_segments; i++) {
         if (!params.no_timestamps || params.diarize) {
-            t0 = whisper_full_get_segment_t0(ctx, i);
-            t1 = whisper_full_get_segment_t1(ctx, i);
+            t0 = whisper_full_get_segment_t0(state, i);
+            t1 = whisper_full_get_segment_t1(state, i);
         }
 
         if (!params.no_timestamps) {
@@ -129,7 +129,7 @@ void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, voi
 
         // colorful print bug
         //
-        const char * text = whisper_full_get_segment_text(ctx, i);
+        const char * text = whisper_full_get_segment_text(state, i);
         printf("%s%s", speaker.c_str(), text);
 
 
@@ -157,6 +157,8 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
     // whisper init
 
     struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
+
+    struct whisper_state * state = whisper_init_state(ctx);
 
     if (ctx == nullptr) {
         fprintf(stderr, "error: failed to initialize whisper context\n");
@@ -340,33 +342,34 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
             {
                 static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
 
-                wparams.encoder_begin_callback = [](struct whisper_context * /*ctx*/, void * user_data) {
+                wparams.encoder_begin_callback = [](struct whisper_context * /*ctx*/, struct whisper_state * /*state*/ , void * user_data) {
                     bool is_aborted = *(bool*)user_data;
                     return !is_aborted;
                 };
                 wparams.encoder_begin_callback_user_data = &is_aborted;
             }
 
-            if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), params.n_processors) != 0) {
+            if (whisper_full_parallel(ctx, state, wparams, pcmf32.data(), pcmf32.size(), params.n_processors) != 0) {
                 fprintf(stderr, "failed to process audio\n");
                 return 10;
             }
         }
     }
 
-    const int n_segments = whisper_full_n_segments(ctx);
+    const int n_segments = whisper_full_n_segments(state);
     result.resize(n_segments);
     for (int i = 0; i < n_segments; ++i) {
-        const char * text = whisper_full_get_segment_text(ctx, i);
-        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+        const char * text = whisper_full_get_segment_text(state, i);
+        const int64_t t0 = whisper_full_get_segment_t0(state, i);
+        const int64_t t1 = whisper_full_get_segment_t1(state, i);
 
         result[i].emplace_back(to_timestamp(t0, true));
         result[i].emplace_back(to_timestamp(t1, true));
         result[i].emplace_back(text);
     }
 
-    whisper_print_timings(ctx);
+    whisper_print_timings(ctx, state);
+    whisper_free_state(state);
     whisper_free(ctx);
 
     return 0;
