@@ -103,7 +103,7 @@ extern "C" {
     WHISPER_API struct whisper_context * whisper_init(struct whisper_model_loader * loader);
 
     // Function to create a new state used to run a transformation.
-    WHISPER_API struct whisper_state* whisper_init_state(whisper_context* ctx);
+    WHISPER_API struct whisper_state * whisper_init_state(struct whisper_context * ctx);
 
     // Frees all memory allocated by the model.
     WHISPER_API void whisper_free(struct whisper_context * ctx);

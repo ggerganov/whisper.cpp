@@ -16,13 +16,15 @@
 #include <vector>
 
 struct whisper_context * g_context;
+struct whisper_state * g_state;
 
 EMSCRIPTEN_BINDINGS(whisper) {
     emscripten::function("init", emscripten::optional_override([](const std::string & path_model) {
         if (g_context == nullptr) {
             g_context = whisper_init_from_file(path_model.c_str());
             if (g_context != nullptr) {
-                return true;
+                g_state = whisper_init_state(g_context);
+                return g_state != nullptr;
             } else {
                 return false;
             }
@@ -36,10 +38,14 @@ EMSCRIPTEN_BINDINGS(whisper) {
             whisper_free(g_context);
             g_context = nullptr;
         }
+        if (g_state) {
+            whisper_free_state(g_state);
+            g_state = nullptr;
+        }
     }));
 
     emscripten::function("full_default", emscripten::optional_override([](const emscripten::val & audio, const std::string & lang, bool translate) {
-        if (g_context == nullptr) {
+        if (g_context == nullptr || g_state == nullptr) {
             return -1;
         }
 
@@ -83,9 +89,9 @@ EMSCRIPTEN_BINDINGS(whisper) {
 
         // run whisper
         {
-            whisper_reset_timings(g_context);
-            whisper_full(g_context, params, pcmf32.data(), pcmf32.size());
-            whisper_print_timings(g_context);
+            whisper_reset_timings(g_state);
+            whisper_full_with_state(g_context, g_state, params, pcmf32.data(), pcmf32.size());
+            whisper_print_timings(g_state);
         }
 
         return 0;
