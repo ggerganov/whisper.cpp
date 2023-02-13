@@ -7,12 +7,15 @@ enum WhisperError: Error {
 // Meet Whisper C++ constraint: Don't access from more than one thread at a time.
 actor WhisperContext {
     private var context: OpaquePointer
-    
+    private var state: OpaquePointer
+
     init(context: OpaquePointer) {
         self.context = context
+        self.state = whisper_init_state(context)
     }
     
     deinit {
+        whisper_free_state(state)
         whisper_free(context)
     }
     
@@ -37,10 +40,10 @@ actor WhisperContext {
             whisper_reset_timings(context)
             print("About to run whisper_full")
             samples.withUnsafeBufferPointer { samples in
-                if (whisper_full(context, params, samples.baseAddress, Int32(samples.count)) != 0) {
+                if (whisper_full_with_state(context, state, params, samples.baseAddress, Int32(samples.count)) != 0) {
                     print("Failed to run the model")
                 } else {
-                    whisper_print_timings(context)
+                    whisper_print_timings(context, state)
                 }
             }
         }
@@ -48,8 +51,8 @@ actor WhisperContext {
     
     func getTranscription() -> String {
         var transcription = ""
-        for i in 0..<whisper_full_n_segments(context) {
-            transcription += String.init(cString: whisper_full_get_segment_text(context, i))
+        for i in 0..<whisper_full_n_segments(state) {
+            transcription += String.init(cString: whisper_full_get_segment_text(state, i))
         }
         return transcription
     }
