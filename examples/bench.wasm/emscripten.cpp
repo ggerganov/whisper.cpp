@@ -10,8 +10,8 @@
 
 constexpr int N_THREAD = 8;
 
-// TODO: get rid of this vector of contexts - bad idea in the first place
-std::vector<struct whisper_context *> g_contexts(4, nullptr);
+whisper_context * g_context;
+std::vector<struct whisper_state *> g_states(4, nullptr);
 
 std::thread g_worker;
 
@@ -19,11 +19,11 @@ void bench_main(size_t index) {
     const int n_threads = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
 
     // whisper context
-    auto & ctx = g_contexts[index];
+    whisper_state * state = g_states[index];
 
     fprintf(stderr, "%s: running benchmark with %d threads - please wait...\n", __func__, n_threads);
 
-    if (int ret = whisper_set_mel(ctx, nullptr, 0, WHISPER_N_MEL)) {
+    if (int ret = whisper_set_mel(state, nullptr, 0, WHISPER_N_MEL)) {
         fprintf(stderr, "error: failed to set mel: %d\n", ret);
         return;
     }
@@ -33,12 +33,12 @@ void bench_main(size_t index) {
         fprintf(stderr, "system_info: n_threads = %d / %d | %s\n", n_threads, std::thread::hardware_concurrency(), whisper_print_system_info());
     }
 
-    if (int ret = whisper_encode(ctx, 0, n_threads) != 0) {
+    if (int ret = whisper_encode(g_context, state, 0, n_threads) != 0) {
         fprintf(stderr, "error: failed to encode model: %d\n", ret);
         return;
     }
 
-    whisper_print_timings(ctx);
+    whisper_print_timings(g_context, state);
 
     fprintf(stderr, "\n");
     fprintf(stderr, "If you wish, you can submit these results here:\n");
@@ -55,10 +55,14 @@ void bench_main(size_t index) {
 
 EMSCRIPTEN_BINDINGS(bench) {
     emscripten::function("init", emscripten::optional_override([](const std::string & path_model) {
-        for (size_t i = 0; i < g_contexts.size(); ++i) {
-            if (g_contexts[i] == nullptr) {
-                g_contexts[i] = whisper_init_from_file(path_model.c_str());
-                if (g_contexts[i] != nullptr) {
+        if(g_context == nullptr) {
+            g_context = whisper_init_from_file(path_model.c_str());
+        }
+
+        for (size_t i = 0; i < g_states.size(); ++i) {
+            if (g_states[i] == nullptr) {
+                g_states[i] = whisper_init_state(g_context);
+                if (g_states[i] != nullptr) {
                     if (g_worker.joinable()) {
                         g_worker.join();
                     }
@@ -77,9 +81,11 @@ EMSCRIPTEN_BINDINGS(bench) {
     }));
 
     emscripten::function("free", emscripten::optional_override([](size_t index) {
-        if (index < g_contexts.size()) {
-            whisper_free(g_contexts[index]);
-            g_contexts[index] = nullptr;
+        if (index < g_states.size()) {
+            whisper_free_state(g_states[index]);
+            g_states[index] = nullptr;
         }
+        whisper_free(g_context);
+        g_context = nullptr;
     }));
 }

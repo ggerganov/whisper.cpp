@@ -13,7 +13,8 @@
 
 constexpr int N_THREAD = 8;
 
-std::vector<struct whisper_context *> g_contexts(4, nullptr);
+whisper_context * g_context;
+std::vector<struct whisper_state *> g_states(4, nullptr);
 
 std::mutex g_mutex;
 std::thread g_worker;
@@ -59,7 +60,8 @@ void stream_main(size_t index) {
     std::vector<float> pcmf32;
 
     // whisper context
-    auto & ctx = g_contexts[index];
+    auto & ctx = g_context;
+    auto & state = g_states[index];
 
     // 5 seconds interval
     const int64_t window_samples = 5*WHISPER_SAMPLE_RATE;
@@ -87,7 +89,7 @@ void stream_main(size_t index) {
 
             stream_set_status("running whisper ...");
 
-            int ret = whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size());
+            int ret = whisper_full_with_state(ctx, state, wparams, pcmf32.data(), pcmf32.size());
             if (ret != 0) {
                 printf("whisper_full() failed: %d\n", ret);
                 break;
@@ -102,12 +104,12 @@ void stream_main(size_t index) {
             std::string text_heard;
 
             {
-                const int n_segments = whisper_full_n_segments(ctx);
+                const int n_segments = whisper_full_n_segments(state);
                 for (int i = n_segments - 1; i < n_segments; ++i) {
-                    const char * text = whisper_full_get_segment_text(ctx, i);
+                    const char * text = whisper_full_get_segment_text(state, i);
 
-                    const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                    const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                    const int64_t t0 = whisper_full_get_segment_t0(state, i);
+                    const int64_t t1 = whisper_full_get_segment_t1(state, i);
 
                     printf("transcribed: %s\n", text);
 
@@ -122,18 +124,25 @@ void stream_main(size_t index) {
         }
     }
 
-    if (index < g_contexts.size()) {
-        whisper_free(g_contexts[index]);
-        g_contexts[index] = nullptr;
+    if (index < g_states.size()) {
+        whisper_free_state(g_states[index]);
+        g_states[index] = nullptr;
     }
+
+    whisper_free(g_context);
+    g_context = nullptr;
 }
 
 EMSCRIPTEN_BINDINGS(stream) {
     emscripten::function("init", emscripten::optional_override([](const std::string & path_model) {
-        for (size_t i = 0; i < g_contexts.size(); ++i) {
-            if (g_contexts[i] == nullptr) {
-                g_contexts[i] = whisper_init_from_file(path_model.c_str());
-                if (g_contexts[i] != nullptr) {
+        if (g_context == nullptr) {
+            g_context = whisper_init_from_file(path_model.c_str());
+        }
+
+        for (size_t i = 0; i < g_states.size(); ++i) {
+            if (g_states[i] == nullptr) {
+                g_states[i] = whisper_init_state(g_context);
+                if (g_states[i] != nullptr) {
                     g_running = true;
                     if (g_worker.joinable()) {
                         g_worker.join();
@@ -161,12 +170,16 @@ EMSCRIPTEN_BINDINGS(stream) {
     emscripten::function("set_audio", emscripten::optional_override([](size_t index, const emscripten::val & audio) {
         --index;
 
-        if (index >= g_contexts.size()) {
+        if (index >= g_states.size()) {
             return -1;
         }
 
-        if (g_contexts[index] == nullptr) {
+        if (g_states[index] == nullptr) {
             return -2;
+        }
+
+        if (g_context == nullptr) {
+            return -3;
         }
 
         {
