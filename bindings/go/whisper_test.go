@@ -49,20 +49,23 @@ func Test_Whisper_001(t *testing.T) {
 	// Run whisper
 	ctx := whisper.Whisper_init(ModelPath)
 	assert.NotNil(ctx)
+	state := ctx.Whisper_init_state()
+	assert.NotNil(state)
+	defer state.Whisper_free_state()
 	defer ctx.Whisper_free()
 	params := ctx.Whisper_full_default_params(whisper.SAMPLING_GREEDY)
 	data := buf.AsFloat32Buffer().Data
-	err = ctx.Whisper_full(params, data, nil, nil)
+	err = ctx.Whisper_full_with_state(state, params, data, nil, nil)
 	assert.NoError(err)
 
 	// Print out tokens
-	num_segments := ctx.Whisper_full_n_segments()
+	num_segments := state.Whisper_full_n_segments()
 	assert.GreaterOrEqual(num_segments, 1)
 	for i := 0; i < num_segments; i++ {
-		str := ctx.Whisper_full_get_segment_text(i)
+		str := state.Whisper_full_get_segment_text(i)
 		assert.NotEmpty(str)
-		t0 := time.Duration(ctx.Whisper_full_get_segment_t0(i)) * time.Millisecond
-		t1 := time.Duration(ctx.Whisper_full_get_segment_t1(i)) * time.Millisecond
+		t0 := time.Duration(state.Whisper_full_get_segment_t0(i)) * time.Millisecond
+		t1 := time.Duration(state.Whisper_full_get_segment_t1(i)) * time.Millisecond
 		t.Logf("[%6s->%-6s] %q", t0, t1, str)
 	}
 }
@@ -101,11 +104,16 @@ func Test_Whisper_003(t *testing.T) {
 	assert.NotNil(ctx)
 	defer ctx.Whisper_free()
 
+	// Create the state for manual transformation
+	state := ctx.Whisper_init_state()
+	assert.NotNil(state)
+	defer state.Whisper_free_state()
+
 	// Get MEL
-	assert.NoError(ctx.Whisper_pcm_to_mel(buf.AsFloat32Buffer().Data, threads))
+	assert.NoError(ctx.Whisper_pcm_to_mel(state, buf.AsFloat32Buffer().Data, threads))
 
 	// Get Languages
-	languages, err := ctx.Whisper_lang_auto_detect(0, threads)
+	languages, err := ctx.Whisper_lang_auto_detect(state, 0, threads)
 	assert.NoError(err)
 	for i, p := range languages {
 		t.Logf("%s: %f", whisper.Whisper_lang_str(i), p)

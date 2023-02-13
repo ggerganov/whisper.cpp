@@ -15,6 +15,7 @@ import (
 type model struct {
 	path string
 	ctx  *whisper.Context
+	state *whisper.State
 }
 
 // Make sure model adheres to the interface
@@ -30,6 +31,11 @@ func New(path string) (Model, error) {
 	} else if ctx := whisper.Whisper_init(path); ctx == nil {
 		return nil, ErrUnableToLoadModel
 	} else {
+		state := ctx.Whisper_init_state();
+		if state == nil {
+			return nil, ErrUnableToLoadModel
+		}
+		model.state = state
 		model.ctx = ctx
 		model.path = path
 	}
@@ -43,8 +49,13 @@ func (model *model) Close() error {
 		model.ctx.Whisper_free()
 	}
 
+	if model.state != nil {
+		model.state.Whisper_free_state()
+	}
+
 	// Release resources
 	model.ctx = nil
+	model.state = nil
 
 	// Return success
 	return nil

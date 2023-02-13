@@ -20,8 +20,8 @@ extern bool callEncoderBegin(void* user_data);
 // Text segment callback
 // Called on every newly generated text segment
 // Use the whisper_full_...() functions to obtain the text segments
-static void whisper_new_segment_cb(struct whisper_context* ctx, int n_new, void* user_data) {
-    if(user_data != NULL && ctx != NULL) {
+static void whisper_new_segment_cb(struct whisper_context* ctx, struct whisper_state* state, int n_new, void* user_data) {
+    if(user_data != NULL && ctx != NULL && state != NULL) {
         callNewSegment(user_data, n_new);
     }
 }
@@ -29,8 +29,8 @@ static void whisper_new_segment_cb(struct whisper_context* ctx, int n_new, void*
 // Encoder begin callback
 // If not NULL, called before the encoder starts
 // If it returns false, the computation is aborted
-static bool whisper_encoder_begin_cb(struct whisper_context* ctx, void* user_data) {
-    if(user_data != NULL && ctx != NULL) {
+static bool whisper_encoder_begin_cb(struct whisper_context* ctx, struct whisper_state* state, void* user_data) {
+    if(user_data != NULL && ctx != NULL && state != NULL) {
         return callEncoderBegin(user_data);
     }
     return false;
@@ -53,6 +53,7 @@ import "C"
 
 type (
 	Context          C.struct_whisper_context
+	State		 	 C.struct_whisper_state
 	Token            C.whisper_token
 	TokenData        C.struct_whisper_token_data
 	SamplingStrategy C.enum_whisper_sampling_strategy
@@ -98,15 +99,28 @@ func Whisper_init(path string) *Context {
 	}
 }
 
+func (ctx *Context) Whisper_init_state() *State {
+	state := C.whisper_init_state((*C.struct_whisper_context)(ctx))
+	if state != nil {
+		return (*State)(state)
+	} else {
+		return nil
+	}
+}
+
 // Frees all memory allocated by the model.
 func (ctx *Context) Whisper_free() {
 	C.whisper_free((*C.struct_whisper_context)(ctx))
 }
 
+func (state *State) Whisper_free_state() {
+	C.whisper_free_state((*C.struct_whisper_state)(state))
+}
+
 // Convert RAW PCM audio to log mel spectrogram.
 // The resulting spectrogram is stored inside the provided whisper context.
-func (ctx *Context) Whisper_pcm_to_mel(data []float32, threads int) error {
-	if C.whisper_pcm_to_mel((*C.struct_whisper_context)(ctx), (*C.float)(&data[0]), C.int(len(data)), C.int(threads)) == 0 {
+func (ctx *Context) Whisper_pcm_to_mel(state *State, data []float32, threads int) error {
+	if C.whisper_pcm_to_mel((*C.struct_whisper_context)(ctx),(*C.struct_whisper_state)(state), (*C.float)(&data[0]), C.int(len(data)), C.int(threads)) == 0 {
 		return nil
 	} else {
 		return ErrConversionFailed
@@ -116,8 +130,8 @@ func (ctx *Context) Whisper_pcm_to_mel(data []float32, threads int) error {
 // This can be used to set a custom log mel spectrogram inside the provided whisper context.
 // Use this instead of whisper_pcm_to_mel() if you want to provide your own log mel spectrogram.
 // n_mel must be 80
-func (ctx *Context) Whisper_set_mel(data []float32, n_mel int) error {
-	if C.whisper_set_mel((*C.struct_whisper_context)(ctx), (*C.float)(&data[0]), C.int(len(data)), C.int(n_mel)) == 0 {
+func (state *State) Whisper_set_mel(data []float32, n_mel int) error {
+	if C.whisper_set_mel((*C.struct_whisper_state)(state), (*C.float)(&data[0]), C.int(len(data)), C.int(n_mel)) == 0 {
 		return nil
 	} else {
 		return ErrConversionFailed
@@ -127,8 +141,8 @@ func (ctx *Context) Whisper_set_mel(data []float32, n_mel int) error {
 // Run the Whisper encoder on the log mel spectrogram stored inside the provided whisper context.
 // Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first.
 // offset can be used to specify the offset of the first frame in the spectrogram.
-func (ctx *Context) Whisper_encode(offset, threads int) error {
-	if C.whisper_encode((*C.struct_whisper_context)(ctx), C.int(offset), C.int(threads)) == 0 {
+func (ctx *Context) Whisper_encode(state *State, offset, threads int) error {
+	if C.whisper_encode((*C.struct_whisper_context)(ctx), (*C.struct_whisper_state)(state), C.int(offset), C.int(threads)) == 0 {
 		return nil
 	} else {
 		return ErrConversionFailed
@@ -139,8 +153,8 @@ func (ctx *Context) Whisper_encode(offset, threads int) error {
 // Make sure to call whisper_encode() first.
 // tokens + n_tokens is the provided context for the decoder.
 // n_past is the number of tokens to use from previous decoder calls.
-func (ctx *Context) Whisper_decode(tokens []Token, past, threads int) error {
-	if C.whisper_decode((*C.struct_whisper_context)(ctx), (*C.whisper_token)(&tokens[0]), C.int(len(tokens)), C.int(past), C.int(threads)) == 0 {
+func (ctx *Context) Whisper_decode(state *State, tokens []Token, past, threads int) error {
+	if C.whisper_decode((*C.struct_whisper_context)(ctx), (*C.struct_whisper_state)(state), (*C.whisper_token)(&tokens[0]), C.int(len(tokens)), C.int(past), C.int(threads)) == 0 {
 		return nil
 	} else {
 		return ErrConversionFailed
@@ -183,17 +197,17 @@ func Whisper_lang_str(id int) string {
 // Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first.
 // Returns the probabilities of all languages.
 // ref: https://github.com/openai/whisper/blob/main/whisper/decoding.py#L18-L69
-func (ctx *Context) Whisper_lang_auto_detect(offset_ms, n_threads int) ([]float32, error) {
+func (ctx *Context) Whisper_lang_auto_detect(state *State, offset_ms, n_threads int) ([]float32, error) {
 	probs := make([]float32, Whisper_lang_max_id()+1)
-	if n := int(C.whisper_lang_auto_detect((*C.struct_whisper_context)(ctx), C.int(offset_ms), C.int(n_threads), (*C.float)(&probs[0]))); n < 0 {
+	if n := int(C.whisper_lang_auto_detect((*C.struct_whisper_context)(ctx), (*C.struct_whisper_state)(state), C.int(offset_ms), C.int(n_threads), (*C.float)(&probs[0]))); n < 0 {
 		return nil, ErrAutoDetectFailed
 	} else {
 		return probs, nil
 	}
 }
 
-func (ctx *Context) Whisper_n_len() int {
-	return int(C.whisper_n_len((*C.struct_whisper_context)(ctx)))
+func (state *State) Whisper_n_len() int {
+	return int(C.whisper_n_len((*C.struct_whisper_state)(state)))
 }
 
 func (ctx *Context) Whisper_n_vocab() int {
@@ -268,13 +282,13 @@ func Whisper_token_transcribe() Token {
 }
 
 // Performance information
-func (ctx *Context) Whisper_print_timings() {
-	C.whisper_print_timings((*C.struct_whisper_context)(ctx))
+func (ctx *Context) Whisper_print_timings(state *State) {
+	C.whisper_print_timings((*C.struct_whisper_context)(ctx), (*C.struct_whisper_state)(state))
 }
 
 // Performance information
-func (ctx *Context) Whisper_reset_timings() {
-	C.whisper_reset_timings((*C.struct_whisper_context)(ctx))
+func (state *State) Whisper_reset_timings() {
+	C.whisper_reset_timings((*C.struct_whisper_state)(state))
 }
 
 // Print system information
@@ -302,16 +316,30 @@ func (ctx *Context) Whisper_full(params Params, samples []float32, encoderBeginC
 	}
 }
 
+// Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text with the given state
+// Uses the specified decoding strategy to obtain the text.
+func (ctx *Context) Whisper_full_with_state(state *State, params Params, samples []float32, encoderBeginCallback func() bool, newSegmentCallback func(int)) error {
+	registerEncoderBeginCallback(ctx, encoderBeginCallback)
+	registerNewSegmentCallback(ctx, newSegmentCallback)
+	defer registerEncoderBeginCallback(ctx, nil)
+	defer registerNewSegmentCallback(ctx, nil)
+	if C.whisper_full_with_state((*C.struct_whisper_context)(ctx), (*C.struct_whisper_state)(state), (C.struct_whisper_full_params)(params), (*C.float)(&samples[0]), C.int(len(samples))) == 0 {
+		return nil
+	} else {
+		return ErrConversionFailed
+	}
+}
+
 // Split the input audio in chunks and process each chunk separately using whisper_full()
 // It seems this approach can offer some speedup in some cases.
 // However, the transcription accuracy can be worse at the beginning and end of each chunk.
-func (ctx *Context) Whisper_full_parallel(params Params, samples []float32, processors int, encoderBeginCallback func() bool, newSegmentCallback func(int)) error {
+func (ctx *Context) Whisper_full_parallel(state *State, params Params, samples []float32, processors int, encoderBeginCallback func() bool, newSegmentCallback func(int)) error {
 	registerEncoderBeginCallback(ctx, encoderBeginCallback)
 	registerNewSegmentCallback(ctx, newSegmentCallback)
 	defer registerEncoderBeginCallback(ctx, nil)
 	defer registerNewSegmentCallback(ctx, nil)
 
-	if C.whisper_full_parallel((*C.struct_whisper_context)(ctx), (C.struct_whisper_full_params)(params), (*C.float)(&samples[0]), C.int(len(samples)), C.int(processors)) == 0 {
+	if C.whisper_full_parallel((*C.struct_whisper_context)(ctx), (*C.struct_whisper_state)(state), (C.struct_whisper_full_params)(params), (*C.float)(&samples[0]), C.int(len(samples)), C.int(processors)) == 0 {
 		return nil
 	} else {
 		return ErrConversionFailed
@@ -320,49 +348,49 @@ func (ctx *Context) Whisper_full_parallel(params Params, samples []float32, proc
 
 // Number of generated text segments.
 // A segment can be a few words, a sentence, or even a paragraph.
-func (ctx *Context) Whisper_full_n_segments() int {
-	return int(C.whisper_full_n_segments((*C.struct_whisper_context)(ctx)))
+func (state *State) Whisper_full_n_segments() int {
+	return int(C.whisper_full_n_segments((*C.struct_whisper_state)(state)))
 }
 
 // Get the start and end time of the specified segment.
-func (ctx *Context) Whisper_full_get_segment_t0(segment int) int64 {
-	return int64(C.whisper_full_get_segment_t0((*C.struct_whisper_context)(ctx), C.int(segment)))
+func (state *State) Whisper_full_get_segment_t0(segment int) int64 {
+	return int64(C.whisper_full_get_segment_t0((*C.struct_whisper_state)(state), C.int(segment)))
 }
 
 // Get the start and end time of the specified segment.
-func (ctx *Context) Whisper_full_get_segment_t1(segment int) int64 {
-	return int64(C.whisper_full_get_segment_t1((*C.struct_whisper_context)(ctx), C.int(segment)))
+func (state *State) Whisper_full_get_segment_t1(segment int) int64 {
+	return int64(C.whisper_full_get_segment_t1((*C.struct_whisper_state)(state), C.int(segment)))
 }
 
 // Get the text of the specified segment.
-func (ctx *Context) Whisper_full_get_segment_text(segment int) string {
-	return C.GoString(C.whisper_full_get_segment_text((*C.struct_whisper_context)(ctx), C.int(segment)))
+func (state *State) Whisper_full_get_segment_text(segment int) string {
+	return C.GoString(C.whisper_full_get_segment_text((*C.struct_whisper_state)(state), C.int(segment)))
 }
 
 // Get number of tokens in the specified segment.
-func (ctx *Context) Whisper_full_n_tokens(segment int) int {
-	return int(C.whisper_full_n_tokens((*C.struct_whisper_context)(ctx), C.int(segment)))
+func (state *State) Whisper_full_n_tokens(segment int) int {
+	return int(C.whisper_full_n_tokens((*C.struct_whisper_state)(state), C.int(segment)))
 }
 
 // Get the token text of the specified token index in the specified segment.
-func (ctx *Context) Whisper_full_get_token_text(segment int, token int) string {
-	return C.GoString(C.whisper_full_get_token_text((*C.struct_whisper_context)(ctx), C.int(segment), C.int(token)))
+func (ctx *Context) Whisper_full_get_token_text(state *State, segment int, token int) string {
+	return C.GoString(C.whisper_full_get_token_text((*C.struct_whisper_context)(ctx), (*C.struct_whisper_state)(state), C.int(segment), C.int(token)))
 }
 
 // Get the token of the specified token index in the specified segment.
-func (ctx *Context) Whisper_full_get_token_id(segment int, token int) Token {
-	return Token(C.whisper_full_get_token_id((*C.struct_whisper_context)(ctx), C.int(segment), C.int(token)))
+func (state *State) Whisper_full_get_token_id(segment int, token int) Token {
+	return Token(C.whisper_full_get_token_id((*C.struct_whisper_state)(state), C.int(segment), C.int(token)))
 }
 
 // Get token data for the specified token in the specified segment.
 // This contains probabilities, timestamps, etc.
-func (ctx *Context) whisper_full_get_token_data(segment int, token int) TokenData {
-	return TokenData(C.whisper_full_get_token_data((*C.struct_whisper_context)(ctx), C.int(segment), C.int(token)))
+func (state *State) whisper_full_get_token_data(segment int, token int) TokenData {
+	return TokenData(C.whisper_full_get_token_data((*C.struct_whisper_state)(state), C.int(segment), C.int(token)))
 }
 
 // Get the probability of the specified token in the specified segment.
-func (ctx *Context) Whisper_full_get_token_p(segment int, token int) float32 {
-	return float32(C.whisper_full_get_token_p((*C.struct_whisper_context)(ctx), C.int(segment), C.int(token)))
+func (state *State) Whisper_full_get_token_p(segment int, token int) float32 {
+	return float32(C.whisper_full_get_token_p((*C.struct_whisper_state)(state), C.int(segment), C.int(token)))
 }
 
 ///////////////////////////////////////////////////////////////////////////////
