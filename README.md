@@ -465,7 +465,9 @@ in [models](models).
 - [X] Javascript: [bindings/javascript](bindings/javascript) | [#309](https://github.com/ggerganov/whisper.cpp/discussions/309)
 - [X] Go: [bindings/go](bindings/go) | [#312](https://github.com/ggerganov/whisper.cpp/discussions/312)
 - [X] Objective-C / Swift: [ggerganov/whisper.spm](https://github.com/ggerganov/whisper.spm) | [#313](https://github.com/ggerganov/whisper.cpp/discussions/313)
-- [X] .NET: [sandrohanea/whisper.net](https://github.com/sandrohanea/whisper.net)
+- [X] .NET:
+  - [sandrohanea/whisper.net](https://github.com/sandrohanea/whisper.net)
+  - [NickDarvey/whisper](https://github.com/NickDarvey/whisper)
 - [ ] Python: soon | [WIP](https://github.com/ggerganov/whisper.cpp/issues/9)
 
 ## Examples
