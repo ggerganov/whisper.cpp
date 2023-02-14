@@ -8,7 +8,8 @@ typedef struct {
 } ruby_whisper;
 
 typedef struct {
-  struct whisper_full_params *params;
+  struct whisper_full_params params;
+  bool diarize;
 } ruby_whisper_params;
 
 #endif

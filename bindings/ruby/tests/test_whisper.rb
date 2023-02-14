@@ -12,11 +12,11 @@ class TestWhisper < Test::Unit::TestCase
     @params  = Whisper::Params.new
   end
 
-  def test_autodetect
-    @params.auto_detection = true
-    assert @params.auto_detection
-    @params.auto_detection = false
-    assert !@params.auto_detection
+  def test_language
+    @params.language = "en"
+    assert_equal @params.language, "en"
+    @params.language = "auto"
+    assert_equal @params.language, "auto"
   end
 
   def test_offset
@@ -103,8 +103,36 @@ class TestWhisper < Test::Unit::TestCase
     assert !@params.suppress_non_speech_tokens
   end
 
+  def test_token_timestamps
+    @params.token_timestamps = true
+    assert @params.token_timestamps
+    @params.token_timestamps = false
+    assert !@params.token_timestamps
+  end
+
+  def test_split_on_word
+    @params.split_on_word = true
+    assert @params.split_on_word
+    @params.split_on_word = false
+    assert !@params.split_on_word
+  end
+
+  def test_speed_up
+    @params.speed_up = true
+    assert @params.speed_up
+    @params.speed_up = false
+    assert !@params.speed_up
+  end
+
   def test_whisper
     @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'for-tests-ggml-base.en.bin'))
+    params  = Whisper::Params.new
+    params.print_timestamps = false
+
+    jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
+    @whisper.transcribe(jfk, params) {|text|
+      puts text.inspect
+    }
   end
 
 end

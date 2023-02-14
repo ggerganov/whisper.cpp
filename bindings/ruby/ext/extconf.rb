@@ -3,6 +3,7 @@ system("cp #{File.join(File.dirname(__FILE__),'..','..','..','whisper.cpp')} .")
 system("cp #{File.join(File.dirname(__FILE__),'..','..','..','whisper.h')} .")
 system("cp #{File.join(File.dirname(__FILE__),'..','..','..','ggml.h')} .")
 system("cp #{File.join(File.dirname(__FILE__),'..','..','..','ggml.c')} .")
+system("cp #{File.join(File.dirname(__FILE__),'..','..','..','examples','dr_wav.h')} .")
 
 
 # need to use c++ compiler flags

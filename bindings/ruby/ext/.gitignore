@@ -4,3 +4,4 @@ ggml.h
 whisper.bundle
 whisper.cpp
 whisper.h
+dr_wav.h
