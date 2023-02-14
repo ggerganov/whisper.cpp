@@ -1,0 +1,6 @@
+Makefile
+ggml.c
+ggml.h
+whisper.bundle
+whisper.cpp
+whisper.h
