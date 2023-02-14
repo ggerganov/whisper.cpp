@@ -125,13 +125,13 @@ class TestWhisper < Test::Unit::TestCase
   end
 
   def test_whisper
-    @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'for-tests-ggml-base.en.bin'))
+    @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
     params  = Whisper::Params.new
     params.print_timestamps = false
 
     jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
     @whisper.transcribe(jfk, params) {|text|
-      puts text.inspect
+      assert_match /ask not what your country can do for you, ask what you can do for your country/, text
     }
   end
 
