@@ -3854,7 +3854,7 @@ int whisper_full(
                         return a.sequence.sum_logprobs_all > b.sequence.sum_logprobs_all;
                     });
 
-                    int cur_c = 0;
+                    unsigned int cur_c = 0;
 
                     for (int j = 0; j < n_decoders_cur; ++j) {
                         auto & decoder = ctx->decoders[j];
