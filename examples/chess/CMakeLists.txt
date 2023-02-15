@@ -1,0 +1,10 @@
+if (WHISPER_SUPPORT_SDL2)
+    # chess
+    set(TARGET chess)
+    add_executable(${TARGET} chess.cpp)
+
+    include(DefaultTargetOptions)
+
+    target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS})
+    target_link_libraries(${TARGET} PRIVATE common whisper ${SDL2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+endif ()
