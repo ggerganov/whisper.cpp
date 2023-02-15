@@ -1,0 +1,22 @@
+name: Bindings Tests (Ruby)
+on:
+  push:
+    paths:
+      - bindings/ruby/**
+      - whisper.h
+  pull_request:
+    paths:
+      - bindings/ruby/**
+      - whisper.h
+
+jobs:
+  ubuntu-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+      - uses: actions/checkout@v1
+      - run: |
+          cd bindings/ruby/ext
+          ruby extconf.rb && make
