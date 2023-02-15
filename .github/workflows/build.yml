@@ -14,11 +14,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install build-essential
           sudo apt-get install libsdl2-dev
+          sudo apt-get install ruby-dev
 
       - name: Build
         run: |
           make
           make stream
+          cd bindings/ruby/ext && ruby extconf.rb && make
 
   macOS-latest:
     runs-on: macOS-latest
@@ -30,12 +32,13 @@ jobs:
       - name: Dependencies
         run: |
           brew update
-          brew install sdl2
+          brew install sdl2 ruby
 
       - name: Build
         run: |
           make
           make stream
+          cd bindings/ruby/ext && ruby extconf.rb && make
 
   ubuntu-latest-gcc:
     runs-on: ubuntu-latest
