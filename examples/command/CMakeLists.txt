@@ -5,6 +5,5 @@ if (WHISPER_SUPPORT_SDL2)
 
     include(DefaultTargetOptions)
 
-    target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS})
-    target_link_libraries(${TARGET} PRIVATE whisper ${SDL2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(${TARGET} PRIVATE common common-sdl whisper ${CMAKE_THREAD_LIBS_INIT})
 endif ()

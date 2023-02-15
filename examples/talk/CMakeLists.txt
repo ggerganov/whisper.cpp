@@ -7,7 +7,7 @@ if (WHISPER_SUPPORT_SDL2)
 
     # TODO: this is temporary
     #       need to export ggml symbols for MSVC, but too lazy ..
-    add_executable(${TARGET} talk.cpp gpt-2.cpp ../../ggml.c ../../whisper.cpp)
+    add_executable(${TARGET} talk.cpp gpt-2.cpp ../common.cpp ../common-sdl.cpp ../../ggml.c ../../whisper.cpp)
 
     include(DefaultTargetOptions)
 
