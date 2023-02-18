@@ -91,12 +91,12 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
 bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
-	    
+
         if (arg == "-"){
             params.fname_inp.push_back(arg);
             continue;
         }
-	
+
         if (arg[0] != '-') {
             params.fname_inp.push_back(arg);
             continue;

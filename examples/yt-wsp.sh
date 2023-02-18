@@ -67,23 +67,6 @@ msg() {
     echo >&2 -e "${1-}"
 }
 
-################################################################################
-# create a temporary directory to work in
-# set the temp_dir and temp_filename variables
-################################################################################
-temp_dir="$(mktemp -d ${SCRIPT_DIR}/tmp.XXXXXX)";
-temp_filename="${temp_dir}/yt-dlp-filename";
-
-################################################################################
-# for now we only take one argument
-# TODO: a for loop
-################################################################################
-source_url="${1}"
-
-
-title_name="";
-
-
 cleanup() {
     local -r clean_me="${1}";
 
@@ -145,6 +128,20 @@ fi
 
 check_requirements;
 
+################################################################################
+# create a temporary directory to work in
+# set the temp_dir and temp_filename variables
+################################################################################
+temp_dir="$(mktemp -d ${SCRIPT_DIR}/tmp.XXXXXX)";
+temp_filename="${temp_dir}/yt-dlp-filename";
+
+################################################################################
+# for now we only take one argument
+# TODO: a for loop
+################################################################################
+source_url="${1}"
+title_name="";
+
 msg "Downloading VOD...";
 
 ################################################################################
@@ -199,6 +196,6 @@ ffmpeg -i "${temp_dir}/${title_name}.vod.mp4" \
     -c:s mov_text \
     -y "${title_name}-res.mp4";
 
-cleanup "${temp_dir}";
+#cleanup "${temp_dir}";
 
 msg "Done! Your finished file is ready: ${title_name}-res.mp4";
