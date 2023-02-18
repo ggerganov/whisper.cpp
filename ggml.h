@@ -727,6 +727,16 @@ enum ggml_opt_result ggml_opt(
         struct ggml_tensor * f);
 
 //
+// Temp stuff
+//
+
+void ggml_svd_reduce_dims(
+        int ne0,
+        int ne1,
+        float * a,
+        int nd);
+
+//
 // system info
 //
 
