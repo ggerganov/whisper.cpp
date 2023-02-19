@@ -603,6 +603,8 @@ struct whisper_context {
     // [EXPERIMENTAL] speed-up techniques
     int32_t exp_n_audio_ctx; // 0 - use default
 
+    std::vector<float> audio_embd;
+
     void use_buf(struct ggml_context * ctx, int i) {
 #if defined(WHISPER_USE_SCRATCH)
         size_t last_size = 0;
@@ -1723,17 +1725,35 @@ static bool whisper_encode(
     }
 
     // cur
+    //{
+    //    printf("ne0 = %d\n", cur->ne[0]);
+    //    printf("ne1 = %d\n", cur->ne[1]);
+    //    for (int i = 0; i < 10; ++i) {
+    //        printf("%8.4f ", ((float *)(cur->data))[i]);
+    //    }
+    //    printf("... ");
+    //    for (int i = cur->ne[0] - 10; i < cur->ne[0]; ++i) {
+    //        printf("%8.4f ", ((float *)(cur->data))[i]);
+    //    }
+    //    printf("\n");
+    //}
+
     {
-        //printf("ne0 = %d\n", cur->ne[0]);
-        //printf("ne1 = %d\n", cur->ne[1]);
-        //for (int i = 0; i < 10; ++i) {
-        //    printf("%8.4f ", ((float *)(cur->data))[i]);
-        //}
-        //printf("... ");
-        //for (int i = cur->ne[0] - 10; i < cur->ne[0]; ++i) {
-        //    printf("%8.4f ", ((float *)(cur->data))[i]);
-        //}
-        //printf("\n");
+        //const int i0 = std::min(mel_offset, mel_inp.n_len);
+        //const int i1 = std::min(mel_offset + 2*n_ctx, mel_inp.n_len);
+        const int i0 = 0;
+        const int i1 = cur->ne[1];
+
+        //printf("i0 = %d, i1 = %d, (i1 - i0) = %d, embd size = %d\n", i0, i1, i1 - i0, cur->ne[0]);
+
+        wctx.audio_embd.clear();
+        wctx.audio_embd.resize(cur->ne[0], 0.0f);
+        for (int j = 0; j < cur->ne[0]; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                wctx.audio_embd[j] += ((float *)(cur->data))[(i - i0)*cur->ne[0] + j];
+            }
+            wctx.audio_embd[j] /= (i1 - i0);
+        }
     }
 
     // pre-compute cross-attention memory
@@ -4838,6 +4858,28 @@ void whisper_full_cluster_segments(struct whisper_context * ctx) {
     const int n_state = ctx->model.hparams.n_audio_state;
     const int n_layer = ctx->model.hparams.n_audio_layer;
 
+#if 1
+    // use the last layer of the encoder
+    {
+        std::vector<float> embd(n_segments*n_state);
+
+        for (int i = 0; i < n_segments; ++i) {
+            const auto & segment_i = ctx->result_all[i];
+            printf("%s: segment %3d: t0 = %7d, t1 = %7d, text = %s\n", __func__, i, (int) segment_i.t0, (int) segment_i.t1, segment_i.text.c_str());
+
+            ctx->mel.n_len = segment_i.t1;
+            whisper_encode(*ctx, segment_i.t0, 7, true);
+
+            for (int j = 0; j < n_state; ++j) {
+                embd[i*n_state + j] = ctx->audio_embd[j];
+            }
+        }
+
+        const int n_features = std::min(4, n_segments);
+
+        ggml_svd_reduce_dims(n_state, n_segments, embd.data(), n_features);
+#else
+    // use cross kv cache of various layers
     for (int il = 0; il < n_layer; ++il) {
         std::vector<float> embd(n_segments*n_ctx*n_state);
 
@@ -4856,9 +4898,10 @@ void whisper_full_cluster_segments(struct whisper_context * ctx) {
             }
         }
 
-        const int n_features = 64;
+        const int n_features = std::min(4, n_segments);
 
         ggml_svd_reduce_dims(n_ctx*n_state, n_segments, embd.data(), n_features);
+#endif
 
         std::vector<std::vector<float>> features(n_segments);
 
@@ -4927,32 +4970,59 @@ void whisper_full_cluster_segments(struct whisper_context * ctx) {
                     for (int l = 0; l < n_clusters; ++l) {
                         //sum += std::pow(whisper_distance(features[j], centroids[k])/whisper_distance(features[j], centroids[l]), 2.0/(2.0 - 1.0));
 
-                        // use the euclidean distance
                         double d0 = 0.0;
-                        for (int m = 0; m < n_features; ++m) {
-                            d0 += std::pow(features[j][m] - centroids[k][m], 2.0);
-                        }
-                        d0 = std::sqrt(d0);
-
                         double d1 = 0.0;
-                        for (int m = 0; m < n_features; ++m) {
-                            d1 += std::pow(features[j][m] - centroids[l][m], 2.0);
-                        }
-                        d1 = std::sqrt(d1);
 
-                        if (d1 == 0.0) {
-                            sum += 1.0;
-                        } else {
-                            sum += std::pow(d0/d1, 2.0/(1.10 - 1.0));
+                        // use the euclidean distance
+                        {
+                            for (int m = 0; m < n_features; ++m) {
+                                d0 += std::pow(features[j][m] - centroids[k][m], 2.0);
+                            }
+                            d0 = std::sqrt(d0);
+
+                            for (int m = 0; m < n_features; ++m) {
+                                d1 += std::pow(features[j][m] - centroids[l][m], 2.0);
+                            }
+                            d1 = std::sqrt(d1);
                         }
+
+                        // use the cosine distance
+                        //{
+                        //    double dot = 0.0;
+                        //    double norm0 = 0.0;
+                        //    double norm1 = 0.0;
+
+                        //    for (int m = 0; m < n_features; ++m) {
+                        //        dot += features[j][m]*centroids[k][m];
+                        //        norm0 += std::pow(features[j][m], 2.0);
+                        //        norm1 += std::pow(centroids[k][m], 2.0);
+                        //    }
+
+                        //    d0 = 1.0 - dot/(std::sqrt(norm0)*std::sqrt(norm1));
+
+                        //    dot = 0.0;
+                        //    norm0 = 0.0;
+                        //    norm1 = 0.0;
+
+                        //    for (int m = 0; m < n_features; ++m) {
+                        //        dot += features[j][m]*centroids[l][m];
+                        //        norm0 += std::pow(features[j][m], 2.0);
+                        //        norm1 += std::pow(centroids[l][m], 2.0);
+                        //    }
+
+                        //    d1 = 1.0 - dot/(std::sqrt(norm0)*std::sqrt(norm1));
+                        //}
+
+                        sum += std::pow(d0/d1, 2.0/(1.15 - 1.0));
                     }
 
-                    membership[j][k] = 1.0/sum;
+                    membership[j][k] = sum == 0.0 ? 0.0 : 1.0/sum;
                 }
             }
 
             // print the membership
             if (i == niter - 1) {
+            //{
                 for (int i = 0; i < n_segments; ++i) {
                     printf("%s: membership %3d: ", __func__, i);
                     for (int j = 0; j < n_clusters; ++j) {
