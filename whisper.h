@@ -243,6 +243,16 @@ extern "C" {
     // If it returns false, the computation is aborted
     typedef bool (*whisper_encoder_begin_callback)(struct whisper_context * ctx, void * user_data);
 
+    // Logits filter callback
+    // Can be used to modify the logits before sampling
+    // If not NULL, called after applying temperature to logits
+    typedef void (*whisper_logits_filter_callback)(
+            struct whisper_context * ctx,
+          const whisper_token_data * tokens,
+                               int   n_tokens,
+                             float * logits,
+                              void * user_data);
+
     // Parameters for the whisper_full() function
     // If you chnage the order or add new parameters, make sure to update the default values in whisper.cpp:
     // whisper_full_default_params()
@@ -315,6 +325,10 @@ extern "C" {
         // called each time before the encoder starts
         whisper_encoder_begin_callback encoder_begin_callback;
         void * encoder_begin_callback_user_data;
+
+        // called by each decoder to filter obtained logits
+        whisper_logits_filter_callback logits_filter_callback;
+        void * logits_filter_callback_user_data;
     };
 
     WHISPER_API struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy);
