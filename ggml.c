@@ -8529,28 +8529,30 @@ void ggml_svd_reduce_dims(
     float * A0 = (float *) malloc(n * m * sizeof(float));
 
     // average vector
-    float * M = (float *) malloc(m * sizeof(float));
+    //float * M = (float *) malloc(m * sizeof(float));
 
-    {
-        for (int j = 0; j < m; ++j) {
-            M[j] = 0.0f;
-        }
-        for (int i = 0; i < n; ++i) {
-            for (int j = 0; j < m; ++j) {
-                M[j] += A[i * m + j];
-            }
-        }
-        for (int j = 0; j < m; ++j) {
-            M[j] /= (float) n;
-        }
-    }
+    //{
+    //    for (int j = 0; j < m; ++j) {
+    //        M[j] = 0.0f;
+    //    }
+    //    for (int i = 0; i < n; ++i) {
+    //        for (int j = 0; j < m; ++j) {
+    //            M[j] += A[i * m + j];
+    //        }
+    //    }
+    //    for (int j = 0; j < m; ++j) {
+    //        M[j] /= (float) n;
+    //    }
+    //}
 
-    // subtract average vector
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < m; ++j) {
-            A[i * m + j] -= M[j];
-        }
-    }
+    //// subtract average vector
+    //for (int i = 0; i < n; ++i) {
+    //    for (int j = 0; j < m; ++j) {
+    //        A[i * m + j] -= M[j];
+    //    }
+    //}
+
+    //free(M);
 
     memcpy(A0, A, n * m * sizeof(float));
 
@@ -8616,11 +8618,11 @@ void ggml_svd_reduce_dims(
     }
 
     // print S
-    //printf("S:\n");
-    //for (int i = 0; i < n; ++i) {
-    //    printf("- %d = %9.5f\n", i, S[i]);
-    //}
-    //printf("\n");
+    printf("S:\n");
+    for (int i = 0; i < n; ++i) {
+        printf("- %d = %9.5f\n", i, S[i]);
+    }
+    printf("\n");
 
     // print V
     //printf("V:\n");
@@ -8652,16 +8654,16 @@ void ggml_svd_reduce_dims(
     }
 
     // normalize U
-    //for (int i = 0; i < n; ++i) {
-    //    double sum = 0.0;
-    //    for (int j = 0; j < m; ++j) {
-    //        sum += U[i * m + j] * U[i * m + j];
-    //    }
-    //    sum = sqrt(sum);
-    //    for (int j = 0; j < m; ++j) {
-    //        U[i * m + j] /= sum*sqrt((double) m);
-    //    }
-    //}
+    for (int i = 0; i < n; ++i) {
+        double sum = 0.0;
+        for (int j = 0; j < m; ++j) {
+            sum += U[i * m + j] * U[i * m + j];
+        }
+        sum = sqrt(sum);
+        for (int j = 0; j < m; ++j) {
+            U[i * m + j] /= sum*sqrt((double) m);
+        }
+    }
 
     // print U
     //printf("U:\n");
@@ -8674,12 +8676,11 @@ void ggml_svd_reduce_dims(
     //}
     //printf("\n");
 
-
-    printf("n = %d, m = %d, nd = %d\n", n, m, nd);
     // project A0 onto U
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < nd; ++j) {
             A[i * nd + j] = 0.0f;
+            //if (j == 0) continue;
             for (int k = 0; k < m; ++k) {
                 A[i * nd + j] += A0[i * m + k] * U[j * m + k];
             }
