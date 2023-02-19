@@ -193,7 +193,7 @@ struct whisper_print_user_data {
     const std::vector<std::vector<float>> * pcmf32s;
 };
 
-void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, void * user_data) {
+void whisper_print_segment(struct whisper_context * ctx, int n_new, void * user_data) {
     const auto & params  = *((whisper_print_user_data *) user_data)->params;
     const auto & pcmf32s = *((whisper_print_user_data *) user_data)->pcmf32s;
 
@@ -597,7 +597,7 @@ int main(int argc, char ** argv) {
 
             // this callback is called on each new segment
             if (!wparams.print_realtime) {
-                wparams.new_segment_callback           = whisper_print_segment_callback;
+                wparams.new_segment_callback           = whisper_print_segment;
                 wparams.new_segment_callback_user_data = &user_data;
             }
 

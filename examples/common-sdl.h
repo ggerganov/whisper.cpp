@@ -1,12 +1,12 @@
 #pragma once
 
-#include <SDL.h>
-#include <SDL_audio.h>
-
 #include <atomic>
 #include <cstdint>
 #include <vector>
 #include <mutex>
+
+#include <SDL.h>
+#include <SDL_audio.h>
 
 //
 // SDL Audio capture

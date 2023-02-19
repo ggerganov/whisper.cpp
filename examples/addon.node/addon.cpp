@@ -72,7 +72,7 @@ int timestamp_to_sample(int64_t t, int n_samples) {
     return std::max(0, std::min((int) n_samples - 1, (int) ((t*WHISPER_SAMPLE_RATE)/100)));
 }
 
-void whisper_print_segment_callback(struct whisper_context * ctx, int n_new, void * user_data) {
+void whisper_print_segment(struct whisper_context * ctx, int n_new, void * user_data) {
     const auto & params  = *((whisper_print_user_data *) user_data)->params;
     const auto & pcmf32s = *((whisper_print_user_data *) user_data)->pcmf32s;
 
@@ -250,7 +250,7 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
 
             // this callback is called on each new segment
             if (!wparams.print_realtime) {
-                wparams.new_segment_callback           = whisper_print_segment_callback;
+                wparams.new_segment_callback           = whisper_print_segment;
                 wparams.new_segment_callback_user_data = &user_data;
             }
 
