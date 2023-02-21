@@ -592,11 +592,11 @@ struct whisper_context {
 
     mutable std::mt19937 rng; // used for sampling at t > 0.0
 
-    int lang_id;
+    int lang_id = 0; // english by default
 
     // [EXPERIMENTAL] token-level timestamps data
-    int64_t t_beg;
-    int64_t t_last;
+    int64_t t_beg = 0;
+    int64_t t_last = 0;
     whisper_token tid_last;
     std::vector<float> energy; // PCM signal energy
 
@@ -4339,7 +4339,7 @@ int whisper_full_n_segments(struct whisper_context * ctx) {
 }
 
 int whisper_full_lang_id(struct whisper_context * ctx) {
-    return ctx->lang_id; 
+    return ctx->lang_id;
 }
 
 int64_t whisper_full_get_segment_t0(struct whisper_context * ctx, int i_segment) {
