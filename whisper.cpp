@@ -2899,8 +2899,12 @@ int whisper_lang_auto_detect(
     return whisper_lang_auto_detect_with_state(ctx, ctx->default_state, offset_ms, n_threads, lang_probs);
 }
 
-int whisper_n_len(struct whisper_state * state) {
+int whisper_n_len_from_state(struct whisper_state * state) {
     return state->mel.n_len;
+}
+
+int whisper_n_len(struct whisper_context * ctx) {
+    return ctx->default_state->mel.n_len;
 }
 
 int whisper_n_vocab(struct whisper_context * ctx) {
@@ -3655,7 +3659,7 @@ int whisper_full_with_state(
     }
 
     const int seek_start = params.offset_ms/10;
-    const int seek_end = seek_start + (params.duration_ms == 0 ? whisper_n_len(state) : params.duration_ms/10);
+    const int seek_end = seek_start + (params.duration_ms == 0 ? whisper_n_len_from_state(state) : params.duration_ms/10);
 
     // if length of spectrogram is less than 1s (100 samples), then return
     // basically don't process anything that is less than 1s

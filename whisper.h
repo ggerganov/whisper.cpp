@@ -264,11 +264,12 @@ extern "C" {
                                int   n_threads,
                              float * lang_probs);
 
-    WHISPER_API int whisper_n_len          (struct whisper_context * ctx); // mel length
-    WHISPER_API int whisper_n_vocab        (struct whisper_context * ctx);
-    WHISPER_API int whisper_n_text_ctx     (struct whisper_context * ctx);
-    WHISPER_API int whisper_n_audio_ctx    (struct whisper_context * ctx);
-    WHISPER_API int whisper_is_multilingual(struct whisper_context * ctx);
+    WHISPER_API int whisper_n_len           (struct whisper_context * ctx); // mel length
+    WHISPER_API int whisper_n_len_from_state(struct whisper_state * state); // mel length
+    WHISPER_API int whisper_n_vocab         (struct whisper_context * ctx);
+    WHISPER_API int whisper_n_text_ctx      (struct whisper_context * ctx);
+    WHISPER_API int whisper_n_audio_ctx     (struct whisper_context * ctx);
+    WHISPER_API int whisper_is_multilingual (struct whisper_context * ctx);
 
     // Token logits obtained from the last call to whisper_decode() for the default state
     // The logits for the last token are stored in the last row
