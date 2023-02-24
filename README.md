@@ -469,7 +469,8 @@ in [models](models).
 - [X] .NET: | [#422](https://github.com/ggerganov/whisper.cpp/discussions/422)
   - [sandrohanea/whisper.net](https://github.com/sandrohanea/whisper.net)
   - [NickDarvey/whisper](https://github.com/NickDarvey/whisper)
-- [ ] Python: soon | [WIP](https://github.com/ggerganov/whisper.cpp/issues/9)
+- [X] Python: | [#9](https://github.com/ggerganov/whisper.cpp/issues/9)
+  - [stlukey/whispercpp.py](https://github.com/stlukey/whispercpp.py) (Cython)
 
 ## Examples
 
