@@ -1,0 +1,40 @@
+Gem::Specification.new do |s|
+  s.name    = "whispercpp"
+  s.authors = ["Georgi Gerganov", "Todd A. Fisher"]
+  s.version = '<%= CURRENT_VERSION %>'
+  s.date    = '<%= Time.now.strftime("%Y-%m-%d") %>'
+  s.description = %q{High-performance inference of OpenAI's Whisper automatic speech recognition (ASR) model via Ruby}
+  s.email   = 'todd.fisher@gmail.com'
+  s.extra_rdoc_files = ['../../LICENSE', '../../README.md']
+  <%
+    files = %w(../../LICENSE ../../README.md Rakefile ext/extconf.rb) +
+      Dir["lib/**/**.rb"] +
+      Dir["ext/**/**.c"] +
+      Dir["ext/**/**.cpp"] +
+      Dir["ext/**/**.h"]
+
+    if ENV['BINARY_PACKAGE'] # TODO: we could build binary packages 
+      files += Dir['ext/**/*.{o,so,bundle}']
+    end
+  %>
+  s.files = <%= files.inspect %>
+
+  #### Load-time details
+  s.require_paths = ['lib','ext']
+  s.summary = %q{Ruby whisper.cpp bindings}
+  s.test_files = <%= Dir['tests/**/**.rb'].inspect %>
+  <% unless ENV['BINARY_PACKAGE'] %>
+  s.extensions << 'ext/extconf.rb'
+  <% end %>
+
+  #### Documentation and testing.
+  s.homepage = 'https://github.com/ggerganov/whisper.cpp'
+  s.rdoc_options = ['--main', '../../README.md']
+
+  <% if ENV['BINARY_PACKAGE'] %>
+    s.platform = Gem::Platform::CURRENT
+  <% else %>
+    s.platform = Gem::Platform::RUBY
+  <% end %>
+  s.licenses = ['MIT']
+end
