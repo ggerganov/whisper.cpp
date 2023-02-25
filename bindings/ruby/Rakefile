@@ -1,15 +1,18 @@
 require 'erb'
 require 'rubygems/package'
 
+BUILD_VERSION=1
 # Determine the current version of the software
 if File.read('../../CMakeLists.txt') =~ /project.*\s*VERSION\s*(\d.+)\)/
-  CURRENT_VERSION = $1
+  CURRENT_VERSION = "#{$1}.#{BUILD_VERSION}"
 else
-  CURRENT_VERSION = "0.0.0"
+  CURRENT_VERSION = "0.0.0.#{BUILD_VERSION}"
 end
 
 desc 'Generate gem specification'
 task :gemspec do
+  system("cp ../../LICENSE .")
+  system("cp ../../README.md .")
   tspec = ERB.new(File.read(File.join(File.dirname(__FILE__),'lib','whispercpp.gemspec.erb')))
   File.open(File.join(File.dirname(__FILE__),'whispercpp.gemspec'),'wb') do|f|
     f << tspec.result

@@ -5,9 +5,9 @@ Gem::Specification.new do |s|
   s.date    = '<%= Time.now.strftime("%Y-%m-%d") %>'
   s.description = %q{High-performance inference of OpenAI's Whisper automatic speech recognition (ASR) model via Ruby}
   s.email   = 'todd.fisher@gmail.com'
-  s.extra_rdoc_files = ['../../LICENSE', '../../README.md']
+  s.extra_rdoc_files = ['LICENSE', 'README.md']
   <%
-    files = %w(../../LICENSE ../../README.md Rakefile ext/extconf.rb) +
+    files = %w(LICENSE README.md Rakefile ext/extconf.rb) +
       Dir["lib/**/**.rb"] +
       Dir["ext/**/**.c"] +
       Dir["ext/**/**.cpp"] +
