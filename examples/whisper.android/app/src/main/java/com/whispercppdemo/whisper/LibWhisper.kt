@@ -27,6 +27,14 @@ class WhisperContext private constructor(private var ptr: Long) {
         }
     }
 
+    suspend fun benchMemory(nthreads: Int): String = withContext(scope.coroutineContext) {
+        return@withContext WhisperLib.benchMemcpy(nthreads)
+    }
+
+    suspend fun benchGgmlMulMat(nthreads: Int): String = withContext(scope.coroutineContext) {
+        return@withContext WhisperLib.benchGgmlMulMat(nthreads)
+    }
+
     suspend fun release() = withContext(scope.coroutineContext) {
         if (ptr != 0L) {
             WhisperLib.freeContext(ptr)
@@ -66,6 +74,10 @@ class WhisperContext private constructor(private var ptr: Long) {
             }
             return WhisperContext(ptr)
         }
+
+        fun getSystemInfo(): String {
+            return WhisperLib.getSystemInfo()
+        }
     }
 }
 
@@ -103,6 +115,9 @@ private class WhisperLib {
         external fun fullTranscribe(contextPtr: Long, audioData: FloatArray)
         external fun getTextSegmentCount(contextPtr: Long): Int
         external fun getTextSegment(contextPtr: Long, index: Int): String
+        external fun getSystemInfo(): String
+        external fun benchMemcpy(nthread: Int): String
+        external fun benchGgmlMulMat(nthread: Int): String
     }
 }
 

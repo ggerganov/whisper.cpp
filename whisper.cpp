@@ -4381,7 +4381,16 @@ float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int 
 // Will be removed in the future when ggml becomes a separate library
 //
 
-WHISPER_API int whisper_bench_memcpy(int n_threads) {
+WHISPER_API int whisper_print_bench_memcpy(int n_threads) {
+    fputs(whisper_bench_memcpy(n_threads), stderr);
+    return 0;
+}
+
+WHISPER_API const char * whisper_bench_memcpy(int n_threads) {
+    static std::string s;
+    s = "";
+    char strbuf[256];
+
     ggml_time_init();
 
     size_t n    = 50;
@@ -4411,7 +4420,8 @@ WHISPER_API int whisper_bench_memcpy(int n_threads) {
         src[0] = rand();
     }
 
-    fprintf(stderr, "memcpy: %.2f GB/s\n", (double) (n*size)/(tsum*1024llu*1024llu*1024llu));
+    snprintf(strbuf, sizeof(strbuf), "memcpy: %.2f GB/s\n", (double) (n*size)/(tsum*1024llu*1024llu*1024llu));
+    s += strbuf;
 
     // needed to prevent the compile from optimizing the memcpy away
     {
@@ -4419,16 +4429,26 @@ WHISPER_API int whisper_bench_memcpy(int n_threads) {
 
         for (size_t i = 0; i < size; i++) sum += dst[i];
 
-        fprintf(stderr, "sum:    %s %f\n", sum == -536870910.00 ? "ok" : "error", sum);
+        snprintf(strbuf, sizeof(strbuf), "sum:    %s %f\n", sum == -536870910.00 ? "ok" : "error", sum);
+        s += strbuf;
     }
 
     free(src);
     free(dst);
 
+    return s.c_str();
+}
+
+WHISPER_API int whisper_print_bench_ggml_mul_mat(int n_threads) {
+    fputs(whisper_bench_ggml_mul_mat(n_threads), stderr);
     return 0;
 }
 
-WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads) {
+WHISPER_API const char * whisper_bench_ggml_mul_mat(int n_threads) {
+    static std::string s;
+    s = "";
+    char strbuf[256];
+
     ggml_time_init();
 
     const int n_max = 128;
@@ -4504,11 +4524,12 @@ WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads) {
             s = ((2.0*N*N*N*n)/tsum)*1e-9;
         }
 
-        fprintf(stderr, "ggml_mul_mat: %5zu x %5zu: F16 %8.1f GFLOPS (%3d runs) / F32 %8.1f GFLOPS (%3d runs)\n",
+        snprintf(strbuf, sizeof(strbuf), "ggml_mul_mat: %5zu x %5zu: F16 %8.1f GFLOPS (%3d runs) / F32 %8.1f GFLOPS (%3d runs)\n",
             N, N, s_fp16, n_fp16, s_fp32, n_fp32);
+        s += strbuf;
     }
 
-    return 0;
+    return s.c_str();
 }
 
 // =================================================================================================

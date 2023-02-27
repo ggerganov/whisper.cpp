@@ -19,6 +19,7 @@ fun MainScreen(viewModel: MainScreenViewModel) {
         canTranscribe = viewModel.canTranscribe,
         isRecording = viewModel.isRecording,
         messageLog = viewModel.dataLog,
+        onBenchmarkTapped = viewModel::benchmark,
         onTranscribeSampleTapped = viewModel::transcribeSample,
         onRecordTapped = viewModel::toggleRecord
     )
@@ -30,6 +31,7 @@ private fun MainScreen(
     canTranscribe: Boolean,
     isRecording: Boolean,
     messageLog: String,
+    onBenchmarkTapped: () -> Unit,
     onTranscribeSampleTapped: () -> Unit,
     onRecordTapped: () -> Unit
 ) {
@@ -45,8 +47,11 @@ private fun MainScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            Row(horizontalArrangement = Arrangement.SpaceBetween) {
-                TranscribeSampleButton(enabled = canTranscribe, onClick = onTranscribeSampleTapped)
+            Column(verticalArrangement = Arrangement.SpaceBetween) {
+                Row(horizontalArrangement = Arrangement.SpaceBetween) {
+                    BenchmarkButton(enabled = canTranscribe, onClick = onBenchmarkTapped)
+                    TranscribeSampleButton(enabled = canTranscribe, onClick = onTranscribeSampleTapped)
+                }
                 RecordButton(
                     enabled = canTranscribe,
                     isRecording = isRecording,
@@ -61,6 +66,13 @@ private fun MainScreen(
 @Composable
 private fun MessageLog(log: String) {
     Text(modifier = Modifier.verticalScroll(rememberScrollState()), text = log)
+}
+
+@Composable
+private fun BenchmarkButton(enabled: Boolean, onClick: () -> Unit) {
+    Button(onClick = onClick, enabled = enabled) {
+        Text("Benchmark")
+    }
 }
 
 @Composable
