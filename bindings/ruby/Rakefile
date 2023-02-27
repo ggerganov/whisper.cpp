@@ -15,7 +15,7 @@ CLOBBER.include '**/whisper.*'
 CLOBBER.include '**/ggml.*'
 CLOBBER.include '**/dr_wav.h'
 
-BUILD_VERSION=1
+BUILD_VERSION=2
 # Determine the current version of the software
 if File.read('../../CMakeLists.txt') =~ /project.*\s*VERSION\s*(\d.+)\)/
   CURRENT_VERSION = "#{$1}.#{BUILD_VERSION}"
