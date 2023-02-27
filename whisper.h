@@ -225,6 +225,15 @@ extern "C" {
     // Print system information
     WHISPER_API const char * whisper_print_system_info(void);
 
+    // Abort a running whisper_full_parallel or whisper_full
+    WHISPER_API void whisper_running_abort(struct whisper_context * ctx);
+
+    // Resume whisper context from an aborted state allowing it run again
+    WHISPER_API void whisper_running_restore(struct whisper_context * ctx);
+
+    // Check the whisper context state if true then it can run if false it can not
+    WHISPER_API bool whisper_running_state(struct whisper_context * ctx);
+
     ////////////////////////////////////////////////////////////////////////////
 
     // Available sampling strategies

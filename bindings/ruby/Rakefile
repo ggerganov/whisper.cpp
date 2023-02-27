@@ -1,6 +1,19 @@
 require 'erb'
+require 'open3'
+require 'rake/clean'
 require 'rake/testtask'
 require 'rubygems/package'
+
+CLEAN.include '**/*.o'
+CLEAN.include "**/*.#{(defined?(RbConfig) ? RbConfig : Config)::MAKEFILE_CONFIG['DLEXT']}"
+CLOBBER.include 'doc'
+CLOBBER.include '**/*.log'
+CLOBBER.include '**/Makefile'
+CLOBBER.include '**/extconf.h'
+CLOBBER.include '**/extconf.h'
+CLOBBER.include '**/whisper.*'
+CLOBBER.include '**/ggml.*'
+CLOBBER.include '**/dr_wav.h'
 
 BUILD_VERSION=1
 # Determine the current version of the software
@@ -9,6 +22,58 @@ if File.read('../../CMakeLists.txt') =~ /project.*\s*VERSION\s*(\d.+)\)/
 else
   CURRENT_VERSION = "0.0.0.#{BUILD_VERSION}"
 end
+
+def shell(args, opts = {})
+  puts "> #{args.join(' ')}"
+  cmd, live_stream, cwd = args, opts[:live_stdout], opts[:cwd]
+  Dir.chdir(cwd) {
+    wait_thr = nil
+
+    Open3.popen3(*cmd) do |stdin, stdout, stderr, thr|
+      stdin.close
+      wait_thr = thr # Ruby 1.8 will not yield thr, this will be nil
+
+      while line = stdout.gets do
+        live_stream.puts(line) if live_stream
+      end
+
+      while line = stderr.gets do
+        puts line
+      end
+    end
+
+    # prefer process handle directly from popen3, but if not available
+    # fallback to global.
+    p_status = wait_thr ? wait_thr.value : $?
+    exit_code = p_status.exitstatus
+    error = (exit_code != 0)
+  }
+end
+
+make_program = (/mswin/ =~ RUBY_PLATFORM) ? 'nmake' : 'make'
+MAKECMD = ENV['MAKE_CMD'] || make_program
+MAKEOPTS = ENV['MAKE_OPTS'] || ''
+WHISPER_SO = "ext/whisper.#{(defined?(RbConfig) ? RbConfig : Config)::MAKEFILE_CONFIG['DLEXT']}"
+
+file 'ext/Makefile' => 'ext/extconf.rb' do
+  shell(['ruby', 'extconf.rb', ENV['EXTCONF_OPTS'].to_s],
+        { live_stdout: STDOUT, cwd: "#{Dir.pwd}/ext" }
+       )
+end
+
+def make(target = '')
+  shell(["#{MAKECMD}", "#{MAKEOPTS}", "#{target}"].reject(&:empty?),
+        { live_stdout: STDOUT, cwd: "#{Dir.pwd}/ext" }
+       )
+end
+
+# Let make handle dependencies between c/o/so - we'll just run it. 
+file WHISPER_SO => (['ext/Makefile'] + Dir['ext/*.cpp'] + Dir['ext/*.c'] + Dir['ext/*.h']) do
+  make
+end
+
+desc "Compile the shared object"
+task :compile => [WHISPER_SO]
 
 desc "Default Task (Test project)"
 task :default => :test

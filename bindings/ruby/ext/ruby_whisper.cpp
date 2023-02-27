@@ -1,4 +1,5 @@
 #include <ruby.h>
+#include <ruby/thread.h>
 #include "ruby_whisper.h"
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"
@@ -94,6 +95,32 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   return self;
 }
 
+struct WhisperFullParallelParams {
+  ruby_whisper *rw;
+  ruby_whisper_params *rwp;
+  std::vector<float> pcmf32; // mono-channel F32 PCM
+  std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
+};
+
+
+static void stop_whisper_unblock(void *args) {
+  struct WhisperFullParallelParams *object = (struct WhisperFullParallelParams *)args;
+  fprintf(stderr, "Set running to abort\n");
+  whisper_running_abort(object->rw->context);
+}
+
+static VALUE call_whisper_full_parallel(void *args) {
+  struct WhisperFullParallelParams *object = (struct WhisperFullParallelParams *)args;
+
+  whisper_running_restore(object->rw->context);
+
+  if (whisper_full_parallel(object->rw->context, object->rwp->params, object->pcmf32.data(), object->pcmf32.size(), 1) != 0) {
+    fprintf(stderr, "failed to process audio\n");
+    return INT2FIX(-1);
+  }
+  return INT2FIX(0);
+}
+
 /*
  * transcribe a single file
  * can emit to a block results
@@ -114,8 +141,9 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
 
   std::string fname_inp = StringValueCStr(wave_file_path);
 
-  std::vector<float> pcmf32; // mono-channel F32 PCM
-  std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
+  //std::vector<float> pcmf32; // mono-channel F32 PCM
+  //std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
+  struct WhisperFullParallelParams object; 
 
   // WAV input - this is directly from main.cpp example
   {
@@ -173,26 +201,26 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
     drwav_uninit(&wav);
 
     // convert to mono, float
-    pcmf32.resize(n);
+    object.pcmf32.resize(n);
     if (wav.channels == 1) {
       for (uint64_t i = 0; i < n; i++) {
-        pcmf32[i] = float(pcm16[i])/32768.0f;
+        object.pcmf32[i] = float(pcm16[i])/32768.0f;
       }
     } else {
       for (uint64_t i = 0; i < n; i++) {
-        pcmf32[i] = float(pcm16[2*i] + pcm16[2*i + 1])/65536.0f;
+        object.pcmf32[i] = float(pcm16[2*i] + pcm16[2*i + 1])/65536.0f;
       }
     }
 
     if (rwp->diarize) {
       // convert to stereo, float
-      pcmf32s.resize(2);
+      object.pcmf32s.resize(2);
 
-      pcmf32s[0].resize(n);
-      pcmf32s[1].resize(n);
+      object.pcmf32s[0].resize(n);
+      object.pcmf32s[1].resize(n);
       for (uint64_t i = 0; i < n; i++) {
-        pcmf32s[0][i] = float(pcm16[2*i])/32768.0f;
-        pcmf32s[1][i] = float(pcm16[2*i + 1])/32768.0f;
+        object.pcmf32s[0][i] = float(pcm16[2*i])/32768.0f;
+        object.pcmf32s[1][i] = float(pcm16[2*i + 1])/32768.0f;
       }
     }
   }
@@ -206,10 +234,16 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
     rwp->params.encoder_begin_callback_user_data = &is_aborted;
   }
 
-  if (whisper_full_parallel(rw->context, rwp->params, pcmf32.data(), pcmf32.size(), 1) != 0) {
+  object.rw = rw;
+  object.rwp = rwp;
+
+  int r = (int)(VALUE)rb_thread_call_without_gvl((void *(*)(void *))call_whisper_full_parallel, &object, stop_whisper_unblock, &object);
+  //if (whisper_full_parallel(rw->context, rwp->params, object.pcmf32.data(), pcmf32.size(), 1) != 0) {
+  if (r != 0) {
     fprintf(stderr, "failed to process audio\n");
     return self;
   }
+
   const int n_segments = whisper_full_n_segments(rw->context);
   VALUE output = rb_str_new2("");
   for (int i = 0; i < n_segments; ++i) {

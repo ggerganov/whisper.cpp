@@ -603,6 +603,9 @@ struct whisper_context {
     // [EXPERIMENTAL] speed-up techniques
     int32_t exp_n_audio_ctx = 0; // 0 - use default
 
+    // [EXPERIMENTAL] abort handling
+    bool running = true;
+
     void use_buf(struct ggml_context * ctx, int i) {
 #if defined(WHISPER_USE_SCRATCH)
         size_t last_size = 0;
@@ -3654,7 +3657,7 @@ int whisper_full(
     std::vector<beam_candidate> beam_candidates;
 
     // main loop
-    while (true) {
+    while (ctx->running) {
         const int progress_cur = (100*(seek - seek_start))/(seek_end - seek_start);
         while (progress_cur >= progress_prev + progress_step) {
             progress_prev += progress_step;
@@ -4204,12 +4207,27 @@ int whisper_full(
     return 0;
 }
 
+void whisper_running_abort(struct whisper_context * ctx) {
+    ctx->running = false;
+}
+
+void whisper_running_restore(struct whisper_context * ctx) {
+    ctx->running = true;
+}
+
+bool whisper_running_state(struct whisper_context * ctx) {
+    return ctx->running;
+}
+
 int whisper_full_parallel(
         struct whisper_context * ctx,
         struct whisper_full_params params,
         const float * samples,
         int n_samples,
         int n_processors) {
+   
+    ctx->running = true;
+
     if (n_processors == 1) {
         return whisper_full(ctx, params, samples, n_samples);
     }
