@@ -141,6 +141,8 @@ ifdef WHISPER_GPROF
 	CXXFLAGS += -pg
 endif
 ifneq ($(filter aarch64%,$(UNAME_M)),)
+	CFLAGS += -mcpu=native
+	CXXFLAGS += -mcpu=native
 endif
 ifneq ($(filter armv6%,$(UNAME_M)),)
 	# Raspberry Pi 1, 2, 3
