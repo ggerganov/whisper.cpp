@@ -101,6 +101,9 @@ extern "C" {
     WHISPER_API struct whisper_context * whisper_init_from_file(const char * path_model);
     WHISPER_API struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size);
     WHISPER_API struct whisper_context * whisper_init(struct whisper_model_loader * loader);
+    WHISPER_API struct whisper_context * whisper_init_from_file_no_state(const char * path_model);
+    WHISPER_API struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t buffer_size);
+    WHISPER_API struct whisper_context * whisper_init_no_state(struct whisper_model_loader * loader);
 
     WHISPER_API struct whisper_state * whisper_init_state(struct whisper_context * ctx);
 
@@ -119,9 +122,6 @@ extern "C" {
                                int   n_samples,
                                int   n_threads);
 
-    // Convert RAW PCM audio to log mel spectrogram.
-    // The resulting spectrogram is stored inside the provided state.
-    // Returns 0 on success
     WHISPER_API int whisper_pcm_to_mel_with_state(
             struct whisper_context * ctx,
               struct whisper_state * state,
@@ -138,9 +138,6 @@ extern "C" {
                            int   n_samples,
                            int   n_threads);
     
-    // Convert RAW PCM audio to log mel spectrogram but applies a Phase Vocoder to speed up the audio x2. 
-    // The resulting spectrogram is stored inside the provided state.
-    // Returns 0 on success
     WHISPER_API int whisper_pcm_to_mel_phase_vocoder_with_state(
         struct whisper_context * ctx,
           struct whisper_state * state,
@@ -158,10 +155,6 @@ extern "C" {
                                int   n_len,
                                int   n_mel);
     
-    // This can be used to set a custom log mel spectrogram inside the provided state.
-    // Use this instead of whisper_pcm_to_mel() if you want to provide your own log mel spectrogram.
-    // n_mel must be 80
-    // Returns 0 on success
     WHISPER_API int whisper_set_mel_with_state(
             struct whisper_context * ctx,
               struct whisper_state * state,
@@ -177,11 +170,7 @@ extern "C" {
             struct whisper_context * ctx,
                                int   offset,
                                int   n_threads);
-    
-    // Run the Whisper encoder on the log mel spectrogram stored inside the provided whisper state.
-    // Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first.
-    // offset can be used to specify the offset of the first frame in the spectrogram.
-    // Returns 0 on success
+
     WHISPER_API int whisper_encode_with_state(
             struct whisper_context * ctx,
               struct whisper_state * state,
@@ -201,13 +190,6 @@ extern "C" {
                                int   n_past,
                                int   n_threads);
 
-    
-    // Run the Whisper decoder to obtain the logits and probabilities for the next token.
-    // Make sure to call whisper_encode() first.
-    // tokens + n_tokens is the provided context for the decoder.
-    // n_past is the number of tokens to use from previous decoder calls.
-    // Returns 0 on success
-    // TODO: add support for multiple decoders
     WHISPER_API int whisper_decode_with_state(
             struct whisper_context * ctx,
               struct whisper_state * state,
@@ -250,13 +232,7 @@ extern "C" {
                                int   offset_ms,
                                int   n_threads,
                              float * lang_probs);
-    
-    // Use mel data at offset_ms to try and auto-detect the spoken language
-    // Make sure to call whisper_pcm_to_mel_with_state() or whisper_set_mel_with_state() first
-    // Returns the top language id or negative on failure
-    // If not null, fills the lang_probs array with the probabilities of all languages
-    // The array must be whispe_lang_max_id() + 1 in size
-    // ref: https://github.com/openai/whisper/blob/main/whisper/decoding.py#L18-L69
+
     WHISPER_API int whisper_lang_auto_detect_with_state(
             struct whisper_context * ctx,
               struct whisper_state * state,
@@ -424,9 +400,6 @@ extern "C" {
                            const float * samples,
                                    int   n_samples);
 
-    // Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text on the given state
-    // Thread safe for same context, as long as different state is provided.
-    // Uses the specified decoding strategy to obtain the text.
     WHISPER_API int whisper_full_with_state(
                 struct whisper_context * ctx,
                   struct whisper_state * state,
