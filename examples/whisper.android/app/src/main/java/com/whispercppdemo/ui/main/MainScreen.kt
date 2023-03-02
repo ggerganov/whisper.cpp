@@ -2,6 +2,7 @@ package com.whispercppdemo.ui.main
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -48,7 +49,7 @@ private fun MainScreen(
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.SpaceBetween) {
-                Row(horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     BenchmarkButton(enabled = canTranscribe, onClick = onBenchmarkTapped)
                     TranscribeSampleButton(enabled = canTranscribe, onClick = onTranscribeSampleTapped)
                 }
@@ -65,7 +66,9 @@ private fun MainScreen(
 
 @Composable
 private fun MessageLog(log: String) {
-    Text(modifier = Modifier.verticalScroll(rememberScrollState()), text = log)
+    SelectionContainer() {
+        Text(modifier = Modifier.verticalScroll(rememberScrollState()), text = log)
+    }
 }
 
 @Composable
