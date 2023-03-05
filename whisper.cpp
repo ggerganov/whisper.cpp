@@ -2523,6 +2523,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     state->buf_scratch[3].resize(MEM_REQ_SCRATCH3.at(ctx->model.type));
 
     state->rng = std::mt19937(0);
+
     return state;
 }
 
@@ -2658,14 +2659,12 @@ struct whisper_context * whisper_init(struct whisper_model_loader * loader) {
 void whisper_free_state(struct whisper_state * state)
 {
     if (state) {
-        if (state->kv_cross.ctx) {
-            ggml_free(state->kv_cross.ctx);
-        }
+        kv_cache_free(state->kv_cross);
+
         for (int i = 0; i < WHISPER_MAX_DECODERS; ++i) {
-            if (state->decoders[i].kv_self.ctx) {
-                ggml_free(state->decoders[i].kv_self.ctx);
-            }
+            kv_cache_free(state->decoders[i].kv_self);
         }
+
         delete state;
     }
 }
@@ -2714,7 +2713,7 @@ int whisper_pcm_to_mel_phase_vocoder(struct whisper_context * ctx, const float *
 }
 
 int whisper_set_mel_with_state(
-        struct whisper_context * ctx,
+        struct whisper_context * /*ctx*/,
           struct whisper_state * state,
                    const float * data,
                            int   n_len,
@@ -4381,9 +4380,9 @@ int whisper_full_parallel(
 
     std::vector<std::thread> workers(n_processors - 1);
     for (int i = 0; i < n_processors - 1; ++i) {
-
         // create a new state for each thread
         states.push_back(whisper_init_state(ctx));
+
         const int start_samples = offset_samples + (i + 1)*n_samples_per_processor;
         const int n_samples_cur = (i == n_processors - 2) ? n_samples - start_samples : n_samples_per_processor;
 
@@ -4536,7 +4535,7 @@ struct whisper_token_data whisper_full_get_token_data(struct whisper_context * c
     return ctx->state->result_all[i_segment].tokens[i_token];
 }
 
-float whisper_full_get_token_p_from_state(struct whisper_context * ctx, struct whisper_state * state, int i_segment, int i_token) {
+float whisper_full_get_token_p_from_state(struct whisper_context * /*ctx*/, struct whisper_state * state, int i_segment, int i_token) {
     return state->result_all[i_segment].tokens[i_token].p;
 }
 
