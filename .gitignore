@@ -1,5 +1,7 @@
 *.o
 *.a
+*.mlmodel
+*.mlmodelc
 .cache/
 .vs/
 .vscode/

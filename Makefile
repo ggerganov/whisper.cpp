@@ -138,6 +138,10 @@ ifndef WHISPER_NO_ACCELERATE
 		LDFLAGS += -framework Accelerate
 	endif
 endif
+ifdef WHISPER_COREML
+	CXXFLAGS += -DWHISPER_USE_COREML
+	LDFLAGS  += -framework Foundation -framework CoreML
+endif
 ifdef WHISPER_OPENBLAS
 	CFLAGS  += -DGGML_USE_OPENBLAS -I/usr/local/include/openblas
 	LDFLAGS += -lopenblas
@@ -190,11 +194,23 @@ ggml.o: ggml.c ggml.h
 whisper.o: whisper.cpp whisper.h
 	$(CXX) $(CXXFLAGS) -c whisper.cpp -o whisper.o
 
-libwhisper.a: ggml.o whisper.o
-	$(AR) rcs libwhisper.a ggml.o whisper.o
+ifndef WHISPER_COREML
+WHISPER_OBJ = whisper.o
+else
+whisper-encoder.o: coreml/whisper-encoder.mm coreml/whisper-encoder.h
+	$(CXX) -O3 -I . -c coreml/whisper-encoder.mm -o whisper-encoder.o
 
-libwhisper.so: ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o whisper.o $(LDFLAGS)
+whisper-encoder-impl.o: coreml/whisper-encoder-impl.m coreml/whisper-encoder-impl.h
+	$(CXX) -O3 -I . -fobjc-arc -c coreml/whisper-encoder-impl.m -o whisper-encoder-impl.o
+
+WHISPER_OBJ = whisper.o whisper-encoder.o whisper-encoder-impl.o
+endif
+
+libwhisper.a: ggml.o $(WHISPER_OBJ)
+	$(AR) rcs libwhisper.a ggml.o $(WHISPER_OBJ)
+
+libwhisper.so: ggml.o $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o $(WHISPER_OBJ) $(LDFLAGS)
 
 clean:
 	rm -f *.o main stream command talk bench libwhisper.a libwhisper.so
@@ -208,21 +224,21 @@ CC_SDL=`sdl2-config --cflags --libs`
 SRC_COMMON = examples/common.cpp
 SRC_COMMON_SDL = examples/common-sdl.cpp
 
-main: examples/main/main.cpp $(SRC_COMMON) ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) examples/main/main.cpp $(SRC_COMMON) ggml.o whisper.o -o main $(LDFLAGS)
+main: examples/main/main.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/main/main.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ) -o main $(LDFLAGS)
 	./main -h
 
-stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o -o stream $(CC_SDL) $(LDFLAGS)
+stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
 
-command: examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o -o command $(CC_SDL) $(LDFLAGS)
+command: examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
 
-talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o -o talk $(CC_SDL) $(LDFLAGS)
+talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o talk $(CC_SDL) $(LDFLAGS)
 
-bench: examples/bench/bench.cpp ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp ggml.o whisper.o -o bench $(LDFLAGS)
+bench: examples/bench/bench.cpp ggml.o $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp ggml.o $(WHISPER_OBJ) -o bench $(LDFLAGS)
 
 #
 # Audio samples
