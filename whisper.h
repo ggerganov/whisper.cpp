@@ -101,16 +101,17 @@ extern "C" {
     WHISPER_API struct whisper_context * whisper_init_from_file(const char * path_model);
     WHISPER_API struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size);
     WHISPER_API struct whisper_context * whisper_init(struct whisper_model_loader * loader);
+
+    // These are the same as the above, but the internal state of the context is not allocated automatically
+    // It is the responsibility of the caller to allocate the state using whisper_init_state() (#523)
     WHISPER_API struct whisper_context * whisper_init_from_file_no_state(const char * path_model);
     WHISPER_API struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t buffer_size);
     WHISPER_API struct whisper_context * whisper_init_no_state(struct whisper_model_loader * loader);
 
     WHISPER_API struct whisper_state * whisper_init_state(struct whisper_context * ctx);
 
-    // Frees all memory allocated by the model.
-    WHISPER_API void whisper_free(struct whisper_context * ctx);
-
-    // Frees all memory allocated by the state.
+    // Frees all allocated memory
+    WHISPER_API void whisper_free      (struct whisper_context * ctx);
     WHISPER_API void whisper_free_state(struct whisper_state * state);
 
     // Convert RAW PCM audio to log mel spectrogram.
@@ -129,7 +130,7 @@ extern "C" {
                                int   n_samples,
                                int   n_threads);
 
-    // Convert RAW PCM audio to log mel spectrogram but applies a Phase Vocoder to speed up the audio x2. 
+    // Convert RAW PCM audio to log mel spectrogram but applies a Phase Vocoder to speed up the audio x2.
     // The resulting spectrogram is stored inside the default state of the provided whisper context.
     // Returns 0 on success
     WHISPER_API int whisper_pcm_to_mel_phase_vocoder(
@@ -137,7 +138,7 @@ extern "C" {
                    const float * samples,
                            int   n_samples,
                            int   n_threads);
-    
+
     WHISPER_API int whisper_pcm_to_mel_phase_vocoder_with_state(
         struct whisper_context * ctx,
           struct whisper_state * state,
@@ -154,7 +155,7 @@ extern "C" {
                        const float * data,
                                int   n_len,
                                int   n_mel);
-    
+
     WHISPER_API int whisper_set_mel_with_state(
             struct whisper_context * ctx,
               struct whisper_state * state,
@@ -247,17 +248,12 @@ extern "C" {
     WHISPER_API int whisper_n_audio_ctx     (struct whisper_context * ctx);
     WHISPER_API int whisper_is_multilingual (struct whisper_context * ctx);
 
-    // Token logits obtained from the last call to whisper_decode() for the default state
+    // Token logits obtained from the last call to whisper_decode()
     // The logits for the last token are stored in the last row
     // Rows: n_tokens
     // Cols: n_vocab
-    WHISPER_API float * whisper_get_logits(struct whisper_context * ctx);
-
-    // Token logits obtained from the last call to whisper_decode() for the given state
-    // The logits for the last token are stored in the last row
-    // Rows: n_tokens
-    // Cols: n_vocab
-    WHISPER_API float* whisper_get_logits_from_state(struct whisper_state * state);
+    WHISPER_API float * whisper_get_logits           (struct whisper_context * ctx);
+    WHISPER_API float * whisper_get_logits_from_state(struct whisper_state * state);
 
     // Token Id -> String. Uses the vocabulary in the provided context
     WHISPER_API const char * whisper_token_to_str(struct whisper_context * ctx, whisper_token token);
@@ -391,8 +387,8 @@ extern "C" {
 
     WHISPER_API struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy);
 
-    // Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text on the default state from the context
-    // Not Thread safe for same context
+    // Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text
+    // Not thread safe for same context
     // Uses the specified decoding strategy to obtain the text.
     WHISPER_API int whisper_full(
                 struct whisper_context * ctx,
@@ -406,10 +402,10 @@ extern "C" {
             struct whisper_full_params   params,
                            const float * samples,
                                    int   n_samples);
-         
+
     // Split the input audio in chunks and process each chunk separately using whisper_full_with_state()
-    // Result is stored on the default state from the context
-    // Not Thread safe if executed in parallel on the same context.
+    // Result is stored in the default state of the context
+    // Not thread safe if executed in parallel on the same context.
     // It seems this approach can offer some speedup in some cases.
     // However, the transcription accuracy can be worse at the beginning and end of each chunk.
     WHISPER_API int whisper_full_parallel(
@@ -419,62 +415,48 @@ extern "C" {
                                    int   n_samples,
                                    int   n_processors);
 
-    // Number of generated text segments in default state.
+    // Number of generated text segments
     // A segment can be a few words, a sentence, or even a paragraph.
-    WHISPER_API int whisper_full_n_segments(struct whisper_context * ctx);
-
-    // Number of generated text segments from given state.
-    // A segment can be a few words, a sentence, or even a paragraph.
+    WHISPER_API int whisper_full_n_segments           (struct whisper_context * ctx);
     WHISPER_API int whisper_full_n_segments_from_state(struct whisper_state * state);
 
-    // Language id associated with the current context's default state
+    // Language id associated with the context's default state
     WHISPER_API int whisper_full_lang_id(struct whisper_context * ctx);
 
-    // Language id associated with the current context's default state
+    // Language id associated with the provided state
     WHISPER_API int whisper_full_lang_id_from_state(struct whisper_state * state);
 
-    // Get the start and end time of the specified segment from the default state
-    WHISPER_API int64_t whisper_full_get_segment_t0(struct whisper_context * ctx, int i_segment);
-    WHISPER_API int64_t whisper_full_get_segment_t1(struct whisper_context * ctx, int i_segment);
-
-    // Get the start and end time of the specified segment from the given state
+    // Get the start and end time of the specified segment
+    WHISPER_API int64_t whisper_full_get_segment_t0           (struct whisper_context * ctx, int i_segment);
     WHISPER_API int64_t whisper_full_get_segment_t0_from_state(struct whisper_state * state, int i_segment);
+
+    WHISPER_API int64_t whisper_full_get_segment_t1           (struct whisper_context * ctx, int i_segment);
     WHISPER_API int64_t whisper_full_get_segment_t1_from_state(struct whisper_state * state, int i_segment);
 
-    // Get the text of the specified segment in the default state
-    WHISPER_API const char * whisper_full_get_segment_text(struct whisper_context * ctx, int i_segment);
-
-    // Get the text of the specified segment in the given state
+    // Get the text of the specified segment
+    WHISPER_API const char * whisper_full_get_segment_text           (struct whisper_context * ctx, int i_segment);
     WHISPER_API const char * whisper_full_get_segment_text_from_state(struct whisper_state * state, int i_segment);
 
-    // Get number of tokens in the specified segment from the default state
-    WHISPER_API int whisper_full_n_tokens(struct whisper_context * ctx, int i_segment);
-
-    // Get number of tokens in the specified segment from the given state
+    // Get number of tokens in the specified segment
+    WHISPER_API int whisper_full_n_tokens           (struct whisper_context * ctx, int i_segment);
     WHISPER_API int whisper_full_n_tokens_from_state(struct whisper_state * state, int i_segment);
 
-    // Get the token text of the specified token in the specified segment from the default state
-    WHISPER_API const char * whisper_full_get_token_text(struct whisper_context * ctx, int i_segment, int i_token);
-    WHISPER_API whisper_token whisper_full_get_token_id (struct whisper_context * ctx, int i_segment, int i_token);
-
-    
-    // Get the token text of the specified token index in the specified segment from the given state
+    // Get the token text of the specified token in the specified segment
+    WHISPER_API const char * whisper_full_get_token_text           (struct whisper_context * ctx, int i_segment, int i_token);
     WHISPER_API const char * whisper_full_get_token_text_from_state(struct whisper_context * ctx, struct whisper_state * state, int i_segment, int i_token);
+
+    WHISPER_API whisper_token whisper_full_get_token_id           (struct whisper_context * ctx, int i_segment, int i_token);
     WHISPER_API whisper_token whisper_full_get_token_id_from_state(struct whisper_state * state, int i_segment, int i_token);
 
-    // Get token data for the specified token in the specified segment from the given state
+    // Get token data for the specified token in the specified segment
     // This contains probabilities, timestamps, etc.
+    WHISPER_API whisper_token_data whisper_full_get_token_data           (struct whisper_context * ctx, int i_segment, int i_token);
     WHISPER_API whisper_token_data whisper_full_get_token_data_from_state(struct whisper_state * state, int i_segment, int i_token);
 
-    // Get token data for the specified token in the specified segment from the default state
-    // This contains probabilities, timestamps, etc.
-    WHISPER_API whisper_token_data whisper_full_get_token_data(struct whisper_context * ctx, int i_segment, int i_token);
+    // Get the probability of the specified token in the specified segment
+    WHISPER_API float whisper_full_get_token_p           (struct whisper_context * ctx, int i_segment, int i_token);
+    WHISPER_API float whisper_full_get_token_p_from_state(struct whisper_state * state, int i_segment, int i_token);
 
-    // Get the probability of the specified token in the specified segment from the default state.
-    WHISPER_API float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token);
-
-    // Get the probability of the specified token in the specified segment from the given state.
-    WHISPER_API float whisper_full_get_token_p_from_state(struct whisper_context * ctx, struct whisper_state * state, int i_segment, int i_token);
     ////////////////////////////////////////////////////////////////////////////
 
     // Temporary helpers needed for exposing ggml interface

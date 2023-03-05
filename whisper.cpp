@@ -4535,7 +4535,7 @@ struct whisper_token_data whisper_full_get_token_data(struct whisper_context * c
     return ctx->state->result_all[i_segment].tokens[i_token];
 }
 
-float whisper_full_get_token_p_from_state(struct whisper_context * /*ctx*/, struct whisper_state * state, int i_segment, int i_token) {
+float whisper_full_get_token_p_from_state(struct whisper_state * state, int i_segment, int i_token) {
     return state->result_all[i_segment].tokens[i_token].p;
 }
 
