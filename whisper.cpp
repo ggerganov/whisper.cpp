@@ -1,5 +1,8 @@
 #define WHISPER_BUILD
 #include "whisper.h"
+#if WHISPER_USE_COREML
+#include "coreml/whisper-encoder.h"
+#endif
 
 #include "ggml.h"
 
@@ -585,6 +588,11 @@ struct whisper_state {
     mutable std::mt19937 rng; // used for sampling at t > 0.0
 
     int lang_id = 0; // english by default
+
+    std::string path_model; // populated by whisper_init_from_file()
+#ifdef WHISPER_USE_COREML
+    whisper_coreml_context * ctx_coreml;
+#endif
 
     // [EXPERIMENTAL] token-level timestamps data
     int64_t t_beg = 0;
@@ -1674,6 +1682,9 @@ static bool whisper_encode_internal(
     wstate.use_buf(ctx0, -1);
 
     // run the computation
+#ifdef WHISPER_USE_COREML
+    whisper_coreml_encode(wctx.ctx_coreml, (float *) mel->data, (float *) cur->data);
+#else
     {
         struct ggml_cgraph gf = {};
         gf.n_threads = n_threads;
@@ -1683,6 +1694,7 @@ static bool whisper_encode_internal(
 
         //ggml_graph_print(&gf);
     }
+#endif
 
     // cur
     //{
@@ -2524,6 +2536,20 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     return state;
 }
 
+#ifdef WHISPER_USE_COREML
+// replace .bin with .mlmodelc
+static std::string whisper_get_coreml_path(std::string path_bin) {
+    auto pos = path_bin.rfind('.');
+    if (pos != std::string::npos) {
+        path_bin = path_bin.substr(0, pos);
+    }
+
+    path_bin += ".mlmodelc";
+
+    return path_bin;
+}
+#endif
+
 struct whisper_context * whisper_init_from_file_no_state(const char * path_model) {
     whisper_model_loader loader = {};
 
@@ -2536,6 +2562,7 @@ struct whisper_context * whisper_init_from_file_no_state(const char * path_model
     }
 
     loader.context = &fin;
+
     loader.read = [](void * ctx, void * output, size_t read_size) {
         std::ifstream * fin = (std::ifstream*)ctx;
         fin->read((char *)output, read_size);
@@ -2556,6 +2583,16 @@ struct whisper_context * whisper_init_from_file_no_state(const char * path_model
 
     if (ctx) {
         ctx->path_model = path_model;
+#ifdef WHISPER_USE_COREML
+        const auto path_coreml = whisper_get_coreml_path(ctx->path_model);
+        fprintf(stderr, "%s: loading Core ML model from '%s'\n", __func__, path_coreml.c_str());
+
+        ctx->ctx_coreml = whisper_coreml_init(path_coreml.c_str());
+        if (!ctx->ctx_coreml) {
+            fprintf(stderr, "%s: failed to load Core ML model from '%s'\n", __func__, path_coreml.c_str());
+            return nullptr;
+        }
+#endif
     }
 
     return ctx;
@@ -2683,6 +2720,10 @@ void whisper_free(struct whisper_context * ctx) {
 
         whisper_free_state(ctx->state);
 
+#ifdef WHISPER_USE_COREML
+        whisper_coreml_free(ctx->ctx_coreml);
+        ctx->ctx_coreml = nullptr;
+#endif
         delete ctx;
     }
 }
