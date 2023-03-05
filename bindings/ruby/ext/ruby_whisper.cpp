@@ -199,7 +199,7 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
   {
     static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
 
-    rwp->params.encoder_begin_callback = [](struct whisper_context * /*ctx*/, void * user_data) {
+    rwp->params.encoder_begin_callback = [](struct whisper_context * /*ctx*/, struct whisper_state * /*state*/, void * user_data) {
       bool is_aborted = *(bool*)user_data;
       return !is_aborted;
     };
