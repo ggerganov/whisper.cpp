@@ -1374,6 +1374,7 @@ static bool whisper_encode_internal(
         }
     }
 
+#ifndef WHISPER_USE_COREML
     struct ggml_tensor * cur;
 
     // convolution + gelu
@@ -1673,9 +1674,6 @@ static bool whisper_encode_internal(
     wstate.use_buf(ctx0, -1);
 
     // run the computation
-#ifdef WHISPER_USE_COREML
-    whisper_coreml_encode(wctx.ctx_coreml, (float *) mel->data, (float *) cur->data);
-#else
     {
         struct ggml_cgraph gf = {};
         gf.n_threads = n_threads;
@@ -1685,6 +1683,12 @@ static bool whisper_encode_internal(
 
         //ggml_graph_print(&gf);
     }
+#else
+    wctx.use_buf(ctx0, -1);
+
+    struct ggml_tensor * cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
+
+    whisper_coreml_encode(wctx.ctx_coreml, (float *) mel->data, (float *) cur->data);
 #endif
 
     // cur
@@ -2588,12 +2592,15 @@ struct whisper_context * whisper_init_from_file_no_state(const char * path_model
 #ifdef WHISPER_USE_COREML
         const auto path_coreml = whisper_get_coreml_path(ctx->path_model);
         fprintf(stderr, "%s: loading Core ML model from '%s'\n", __func__, path_coreml.c_str());
+        fprintf(stderr, "%s: first run on a device may take a while ...\n", __func__);
 
         ctx->ctx_coreml = whisper_coreml_init(path_coreml.c_str());
         if (!ctx->ctx_coreml) {
             fprintf(stderr, "%s: failed to load Core ML model from '%s'\n", __func__, path_coreml.c_str());
             return nullptr;
         }
+
+        fprintf(stderr, "%s: Core ML model loaded\n", __func__);
 #endif
     }
 
