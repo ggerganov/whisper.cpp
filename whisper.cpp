@@ -268,6 +268,14 @@ static const std::map<e_model, size_t> MEM_REQ_KV_SELF = {
     { MODEL_LARGE,    71ull*MB },
 };
 
+static const std::map<e_model, size_t> MEM_REQ_KV_ENC_SELF = {
+    { MODEL_TINY,     23ull*MB },
+    { MODEL_BASE,     26ull*MB },
+    { MODEL_SMALL,   216ull*MB },
+    { MODEL_MEDIUM,  243ull*MB },
+    { MODEL_LARGE,   271ull*MB },
+};
+
 static const std::map<e_model, size_t> MEM_REQ_KV_CROSS = {
     { MODEL_TINY,      9ull*MB },
     { MODEL_BASE,     18ull*MB },
@@ -571,6 +579,7 @@ struct whisper_context {
     // cross-attention KV cache for the decoders
     // shared between all decoders
     whisper_kv_cache kv_cross;
+    whisper_kv_cache kv_enc_self;
 
     whisper_decoder decoders[WHISPER_MAX_DECODERS] = {};
 
@@ -602,6 +611,8 @@ struct whisper_context {
 
     // [EXPERIMENTAL] speed-up techniques
     int32_t exp_n_audio_ctx = 0; // 0 - use default
+
+    std::vector<float> audio_embd;
 
     void use_buf(struct ggml_context * ctx, int i) {
 #if defined(WHISPER_USE_SCRATCH)
@@ -832,6 +843,11 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         }
 
         if (!kv_cache_init(model.hparams, scale*MEM_REQ_KV_CROSS.at(model.type), wctx.kv_cross, wctx.wtype, model.hparams.n_audio_ctx)) {
+            fprintf(stderr, "%s: kv_cache_init() failed for cross-attention cache\n", __func__);
+            return false;
+        }
+
+        if (!kv_cache_init(model.hparams, scale*MEM_REQ_KV_ENC_SELF.at(model.type), wctx.kv_enc_self, wctx.wtype, model.hparams.n_audio_ctx)) {
             fprintf(stderr, "%s: kv_cache_init() failed for cross-attention cache\n", __func__);
             return false;
         }
@@ -1358,7 +1374,8 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 static bool whisper_encode(
         whisper_context & wctx,
               const int   mel_offset,
-              const int   n_threads) {
+              const int   n_threads,
+              bool repeat = false) {
     const int64_t t_start_us = ggml_time_us();
 
     const auto & model   = wctx.model;
@@ -1390,12 +1407,30 @@ static bool whisper_encode(
         const int i0 = std::min(mel_offset, mel_inp.n_len);
         const int i1 = std::min(mel_offset + 2*n_ctx, mel_inp.n_len);
 
-        for (int j = 0; j < mel_inp.n_mel; ++j) {
-            for (int i = i0; i < i1; ++i) {
-                dst[j*2*n_ctx + (i - i0)] = mel_inp.data[j*mel_inp.n_len + i];
+        if (repeat == false) {
+            for (int j = 0; j < mel_inp.n_mel; ++j) {
+                for (int i = i0; i < i1; ++i) {
+                    dst[j*2*n_ctx + (i - i0)] = mel_inp.data[j*mel_inp.n_len + i];
+                }
+            }
+        } else {
+            for (int j = 0; j < mel_inp.n_mel; ++j) {
+                int k = 0;
+                while (k < 2*n_ctx) {
+                    for (int i = i0; i < i1; ++i) {
+                        dst[j*2*n_ctx + k] = mel_inp.data[j*mel_inp.n_len + i];
+                        k++;
+                        if (k >= 2*n_ctx) {
+                            break;
+                        }
+                    }
+                }
             }
         }
     }
+
+    struct ggml_cgraph gf = {};
+    gf.n_threads = n_threads;
 
     struct ggml_tensor * cur;
 
@@ -1423,6 +1458,18 @@ static bool whisper_encode(
 
         cur = ggml_gelu(ctx0, cur);
     }
+
+    //{
+    //    //printf("cur: %d %d %d %d, size element = %d\n", cur->ne[0], cur->ne[1], cur->ne[2], cur->ne[3], ggml_element_size(cur));
+
+    //    wctx.use_buf(ctx0, -1);
+
+    //    struct ggml_tensor * k = ggml_view_1d(ctx0, wctx.kv_enc_self.k, n_state*n_ctx, (ggml_element_size(wctx.kv_enc_self.k)*n_state)*(0*n_ctx));
+    //    //struct ggml_tensor * v = ggml_view_1d(ctx0, wctx.kv_enc_self.v, n_state*n_ctx, (ggml_element_size(wctx.kv_enc_self.v)*n_state)*(il*n_ctx));
+
+    //    ggml_build_forward_expand(&gf, ggml_cpy(ctx0, cur, k));
+    //    //ggml_build_forward_expand(&gf, ggml_cpy(ctx0, Vcur, v));
+    //}
 
     wctx.use_buf(ctx0, 3);
 
@@ -1503,6 +1550,18 @@ static bool whisper_encode(
                         layer.attn_v_b,
                         Vcur),
                     Vcur);
+
+            //{
+            //    //printf("Kcur: %d %d %d %d, size element = %d\n", Kcur->ne[0], Kcur->ne[1], Kcur->ne[2], Kcur->ne[3], ggml_element_size(Kcur));
+
+            //    wctx.use_buf(ctx0, -1);
+
+            //    struct ggml_tensor * k = ggml_view_1d(ctx0, wctx.kv_enc_self.k, n_state*n_ctx, (ggml_element_size(wctx.kv_enc_self.k)*n_state)*(il*n_ctx));
+            //    struct ggml_tensor * v = ggml_view_1d(ctx0, wctx.kv_enc_self.v, n_state*n_ctx, (ggml_element_size(wctx.kv_enc_self.v)*n_state)*(il*n_ctx));
+
+            //    ggml_build_forward_expand(&gf, ggml_cpy(ctx0, Kcur, k));
+            //    ggml_build_forward_expand(&gf, ggml_cpy(ctx0, Vcur, v));
+            //}
 
             // ------
 
@@ -1588,6 +1647,18 @@ static bool whisper_encode(
             cur = ggml_cpy(ctx0,
                     KQV_merged,
                     ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx));
+
+            {
+                //printf("cur: %d %d %d %d, size element = %d\n", cur->ne[0], cur->ne[1], cur->ne[2], cur->ne[3], ggml_element_size(cur));
+
+                wctx.use_buf(ctx0, -1);
+
+                struct ggml_tensor * k = ggml_view_1d(ctx0, wctx.kv_enc_self.k, n_state*n_ctx, (ggml_element_size(wctx.kv_enc_self.k)*n_state)*(il*n_ctx));
+                //struct ggml_tensor * v = ggml_view_1d(ctx0, wctx.kv_enc_self.v, n_state*n_ctx, (ggml_element_size(wctx.kv_enc_self.v)*n_state)*(il*n_ctx));
+
+                ggml_build_forward_expand(&gf, ggml_cpy(ctx0, cur, k));
+                //ggml_build_forward_expand(&gf, ggml_cpy(ctx0, Vcur, v));
+            }
         }
 
         // projection
@@ -1697,8 +1768,6 @@ static bool whisper_encode(
 
     // run the computation
     {
-        struct ggml_cgraph gf = {};
-        gf.n_threads = n_threads;
 
         ggml_build_forward_expand(&gf, cur);
         ggml_graph_compute       (ctx0, &gf);
@@ -1719,6 +1788,24 @@ static bool whisper_encode(
     //    }
     //    printf("\n");
     //}
+
+    {
+        //const int i0 = std::min(mel_offset, mel_inp.n_len);
+        //const int i1 = std::min(mel_offset + 2*n_ctx, mel_inp.n_len);
+        const int i0 = 0;
+        const int i1 = cur->ne[1];
+
+        //printf("i0 = %d, i1 = %d, (i1 - i0) = %d, embd size = %d\n", i0, i1, i1 - i0, cur->ne[0]);
+
+        wctx.audio_embd.clear();
+        wctx.audio_embd.resize(cur->ne[0], 0.0f);
+        for (int j = 0; j < cur->ne[0]; ++j) {
+            for (int i = i0; i < i1; ++i) {
+                wctx.audio_embd[j] += ((float *)(cur->data))[(i - i0)*cur->ne[0] + j];
+            }
+            wctx.audio_embd[j] /= (i1 - i0);
+        }
+    }
 
     // pre-compute cross-attention memory
     {
@@ -4811,4 +4898,259 @@ static void whisper_exp_compute_token_level_timestamps(
     //        continue;
     //    }
     //}
+}
+
+//
+// diarization stuff
+//
+
+void whisper_full_cluster_segments(struct whisper_context * ctx) {
+    const int n_segments = ctx->result_all.size();
+    printf("%s: clustering %d segments\n", __func__, n_segments);
+
+    const auto mel_len_save = ctx->mel.n_len;
+    printf("%s: mel_len_save = %d\n", __func__, mel_len_save);
+
+    const int n_ctx   = ctx->model.hparams.n_audio_ctx;
+    const int n_state = ctx->model.hparams.n_audio_state;
+    const int n_layer = ctx->model.hparams.n_audio_layer;
+
+#if 0
+    // use the last layer of the encoder
+    {
+        std::vector<float> embd(n_segments*n_state);
+
+        for (int i = 0; i < n_segments; ++i) {
+            const auto & segment_i = ctx->result_all[i];
+            printf("%s: segment %3d: t0 = %7d, t1 = %7d, text = %s\n", __func__, i, (int) segment_i.t0, (int) segment_i.t1, segment_i.text.c_str());
+
+            ctx->mel.n_len = segment_i.t1;
+            whisper_encode(*ctx, segment_i.t0, 7, true);
+
+            for (int j = 0; j < n_state; ++j) {
+                embd[i*n_state + j] = ctx->audio_embd[j];
+            }
+        }
+
+        const int n_features = std::min(4, n_segments);
+
+        ggml_svd_reduce_dims(n_state, n_segments, embd.data(), n_features);
+#elif 0
+    // use cross kv cache of various layers
+    for (int il = 0; il < n_layer; ++il) {
+        std::vector<float> embd(n_segments*n_ctx*n_state);
+
+        for (int i = 0; i < n_segments; ++i) {
+            const auto & segment_i = ctx->result_all[i];
+            printf("%s: layer %2d, segment %3d: t0 = %7d, t1 = %7d, text = %s\n", __func__, il, i, (int) segment_i.t0, (int) segment_i.t1, segment_i.text.c_str());
+
+            ctx->mel.n_len = segment_i.t1;
+            whisper_encode(*ctx, segment_i.t0, 7, true);
+
+            const size_t offs = ggml_element_size(ctx->kv_cross.k)*(il*n_ctx*n_state);
+            const ggml_fp16_t * f = (const ggml_fp16_t * )((const char *) ctx->kv_cross.k->data + offs);
+
+            for (int j = 0; j < n_ctx*n_state; ++j) {
+                embd[i*n_ctx*n_state + j] = ggml_fp16_to_fp32(f[j]);
+            }
+        }
+
+        const int n_features = std::min(4, n_segments);
+
+        ggml_svd_reduce_dims(n_ctx*n_state, n_segments, embd.data(), n_features);
+#elif 0
+    // use conv embedding
+    for (int il = 0; il < 1; ++il) {
+        std::vector<float> embd(n_segments*n_ctx*n_state);
+
+        for (int i = 0; i < n_segments; ++i) {
+            const auto & segment_i = ctx->result_all[i];
+            printf("%s: layer %2d, segment %3d: t0 = %7d, t1 = %7d, text = %s\n", __func__, il, i, (int) segment_i.t0, (int) segment_i.t1, segment_i.text.c_str());
+
+            ctx->mel.n_len = segment_i.t1;
+            whisper_encode(*ctx, segment_i.t0, 7, true);
+
+            const size_t offs = ggml_element_size(ctx->kv_enc_self.k)*(il*n_ctx*n_state);
+            const ggml_fp16_t * f = (const ggml_fp16_t * )((const char *) ctx->kv_enc_self.k->data + offs);
+
+            for (int j = 0; j < n_ctx*n_state; ++j) {
+                embd[i*n_ctx*n_state + j] = ggml_fp16_to_fp32(f[j]);
+            }
+        }
+
+        const int n_features = std::min(3, n_segments);
+
+        ggml_svd_reduce_dims(n_ctx*n_state, n_segments, embd.data(), n_features);
+#else
+    // use enc self kv cache of various layers
+    for (int il = 0; il < n_layer; ++il) {
+        std::vector<float> embd(n_segments*n_ctx*n_state);
+
+        for (int i = 0; i < n_segments; ++i) {
+            const auto & segment_i = ctx->result_all[i];
+            printf("%s: layer %2d, segment %3d: t0 = %7d, t1 = %7d, text = %s\n", __func__, il, i, (int) segment_i.t0, (int) segment_i.t1, segment_i.text.c_str());
+
+            ctx->mel.n_len = segment_i.t1;
+            whisper_encode(*ctx, segment_i.t0, 7, true);
+
+            const size_t offs = ggml_element_size(ctx->kv_enc_self.k)*(il*n_ctx*n_state);
+            const ggml_fp16_t * f = (const ggml_fp16_t * )((const char *) ctx->kv_enc_self.k->data + offs);
+
+            for (int j = 0; j < n_ctx*n_state; ++j) {
+                embd[i*n_ctx*n_state + j] = ggml_fp16_to_fp32(f[j]);
+            }
+        }
+
+        const int n_features = std::min(4, n_segments);
+
+        ggml_svd_reduce_dims(n_ctx*n_state, n_segments, embd.data(), n_features);
+#endif
+
+        std::vector<std::vector<double>> features(n_segments);
+
+        for (int i = 0; i < n_segments; ++i) {
+            features[i].resize(n_features);
+            for (int j = 0; j < n_features; ++j) {
+                features[i][j] = embd[i*n_features + j];
+            }
+        }
+
+        // fuzzy c-means clustering
+        const int n_clusters = 2;
+
+        std::vector<std::vector<double>> centroids(n_clusters,  std::vector<double>(n_features, 0.0));
+        std::vector<std::vector<double>> membership(n_segments, std::vector<double>(n_clusters, 0.0));
+
+        // initialize the centroids
+        for (int i = 0; i < n_clusters; ++i) {
+            for (int j = 0; j < n_features; ++j) {
+                centroids[i][j] = features[i][j];
+            }
+        }
+
+        // initialize the membership
+        for (int i = 0; i < n_segments; ++i) {
+            //membership[i][i % n_clusters] = 1.0;
+            //for (int j = 0; j < n_clusters; ++j) {
+            //    membership[i][j] = rand() / (float) RAND_MAX;
+            //}
+            for (int j = 0; j < n_clusters; ++j) {
+                membership[i][j] = 1.0 / n_clusters;
+            }
+        }
+
+        const int niter = 10000;
+
+        // iterate
+        for (int i = 0; i < niter; ++i) {
+            // print the membership
+            if (i == niter - 1) {
+            //{
+                for (int i = 0; i < n_segments; ++i) {
+#if 1
+                    printf("%s: membership %3d: ", __func__, i);
+                    for (int j = 0; j < n_clusters; ++j) {
+                        printf("%.1f ", membership[i][j]);
+                    }
+                    printf(" '%s'\n", ctx->result_all[i].text.c_str());
+#else
+                    printf("%s: features      : ", __func__);
+                    for (int j = 0; j < n_features; ++j) {
+                        printf("%8.3f ", features[i][j]);
+                    }
+                    printf(" '%s'\n", ctx->result_all[i].text.c_str());
+#endif
+                }
+                printf("----------------\n");
+
+                // print the centroids
+                for (int i = 0; i < n_clusters; ++i) {
+                    printf("%s: centroid %d: ", __func__, i);
+                    for (int j = 0; j < n_features; ++j) {
+                        printf("%f ", centroids[i][j]);
+                    }
+                    printf("\n");
+                }
+            }
+
+            // update the membership
+            for (int j = 0; j < n_segments; ++j) {
+                for (int k = 0; k < n_clusters; ++k) {
+                    double sum = 0.0;
+                    for (int l = 0; l < n_clusters; ++l) {
+                        //sum += std::pow(whisper_distance(features[j], centroids[k])/whisper_distance(features[j], centroids[l]), 2.0/(2.0 - 1.0));
+
+                        double d0 = 0.0;
+                        double d1 = 0.0;
+
+#if 1
+                        // use the euclidean distance
+                        {
+                            for (int m = 0; m < n_features; ++m) {
+                                d0 += std::pow(features[j][m] - centroids[k][m], 2.0);
+                            }
+                            d0 = std::sqrt(d0);
+
+                            for (int m = 0; m < n_features; ++m) {
+                                d1 += std::pow(features[j][m] - centroids[l][m], 2.0);
+                            }
+                            d1 = std::sqrt(d1);
+                        }
+#else
+                        // use the cosine distance
+                        {
+                            double dot = 0.0;
+                            double norm0 = 0.0;
+                            double norm1 = 0.0;
+
+                            for (int m = 0; m < n_features; ++m) {
+                                dot += features[j][m]*centroids[k][m];
+                                norm0 += std::pow(features[j][m], 2.0);
+                                norm1 += std::pow(centroids[k][m], 2.0);
+                            }
+
+                            d0 = 1.0 - dot/(std::sqrt(norm0)*std::sqrt(norm1));
+
+                            dot = 0.0;
+                            norm0 = 0.0;
+                            norm1 = 0.0;
+
+                            for (int m = 0; m < n_features; ++m) {
+                                dot += features[j][m]*centroids[l][m];
+                                norm0 += std::pow(features[j][m], 2.0);
+                                norm1 += std::pow(centroids[l][m], 2.0);
+                            }
+
+                            d1 = 1.0 - dot/(std::sqrt(norm0)*std::sqrt(norm1));
+                        }
+#endif
+
+                        if (d1 > 0.0) {
+                            sum += std::pow(d0/d1, 2.0/(1.20 - 1.0));
+                        } else {
+                            sum += 1.0;
+                        }
+                    }
+
+                    membership[j][k] = sum == 0.0 ? 1.0 : 1.0/sum;
+                }
+            }
+
+            // update the centroids
+            for (int j = 0; j < n_clusters; ++j) {
+                for (int k = 0; k < n_features; ++k) {
+                    double sum  = 0.0;
+                    double sum2 = 0.0;
+                    for (int l = 0; l < n_segments; ++l) {
+                        sum  += membership[l][j]*features[l][k];
+                        sum2 += membership[l][j];
+                    }
+                    centroids[j][k] = sum2 == 0.0 ? 0.0 : sum/sum2;
+                }
+            }
+        }
+    }
+
+    // restore the mel length
+    ctx->mel.n_len = mel_len_save;
 }

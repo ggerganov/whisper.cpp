@@ -8517,6 +8517,195 @@ enum ggml_opt_result ggml_opt(
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void ggml_svd_reduce_dims(
+        int ne0,
+        int ne1,
+        float * a,
+        int nd) {
+    int n = ne1;
+    int m = ne0;
+
+    float * A = a;
+    float * A0 = (float *) malloc(n * m * sizeof(float));
+
+    // average vector
+    //float * M = (float *) malloc(m * sizeof(float));
+
+    //{
+    //    for (int j = 0; j < m; ++j) {
+    //        M[j] = 0.0f;
+    //    }
+    //    for (int i = 0; i < n; ++i) {
+    //        for (int j = 0; j < m; ++j) {
+    //            M[j] += A[i * m + j];
+    //        }
+    //    }
+    //    for (int j = 0; j < m; ++j) {
+    //        M[j] /= (float) n;
+    //    }
+    //}
+
+    //// subtract average vector
+    //for (int i = 0; i < n; ++i) {
+    //    for (int j = 0; j < m; ++j) {
+    //        A[i * m + j] -= M[j];
+    //    }
+    //}
+
+    //free(M);
+
+    memcpy(A0, A, n * m * sizeof(float));
+
+    // print A
+    //printf("A:\n");
+    //for (int i = 0; i < n; ++i) {
+    //    printf("col %d : ", i);
+    //    for (int j = 0; j < m; ++j) {
+    //        printf("%9.5f ", A[i * m + j]);
+    //    }
+    //    printf("\n");
+    //}
+    //printf("\n");
+
+    // SVD
+    // A = U * S * V^T
+
+    float * U = (float *) malloc(n * m * sizeof(float));
+    float * S = (float *) malloc(n * sizeof(float));
+    float * V = (float *) malloc(n * n * sizeof(float));
+
+    int lda = m;
+    int ldu = m;
+    int ldvt = n;
+
+    float work_size;
+    int lwork = -1;
+    int info = 0;
+
+    sgesvd_("S", "S", &m, &n, A, &lda, S, U, &ldu, V, &ldvt, &work_size, &lwork, &info);
+
+    lwork = (int) work_size;
+
+    //printf("work_size = %f, info = %d, lwork = %d\n", work_size, info, lwork);
+
+    float * work = (float *) malloc(lwork * sizeof(float));
+
+    sgesvd_("S", "S", &m, &n, A, &lda, S, U, &ldu, V, &ldvt, work, &lwork, &info);
+
+    free(work);
+
+    // print U
+    //printf("U:\n");
+    //for (int i = 0; i < n; ++i) {
+    //    printf("col %d : ", i);
+    //    for (int j = 0; j < m; ++j) {
+    //        printf("%9.5f ", U[i * m + j]);
+    //    }
+    //    printf("\n");
+    //}
+    //printf("\n");
+
+    // normalize S
+    {
+        double sum = 0.0;
+        for (int i = 0; i < n; ++i) {
+            sum += S[i];
+        }
+        sum *= sqrt((double) m);
+        for (int i = 0; i < n; ++i) {
+            S[i] /= sum;
+        }
+    }
+
+    // print S
+    printf("S:\n");
+    for (int i = 0; i < n; ++i) {
+        printf("- %d = %9.5f\n", i, S[i]);
+    }
+    printf("\n");
+
+    // print V
+    //printf("V:\n");
+    //for (int i = 0; i < n; ++i) {
+    //    printf("col %d : ", i);
+    //    for (int j = 0; j < n; ++j) {
+    //        printf("%9.5f ", V[i * n + j]);
+    //    }
+    //    printf("\n");
+    //}
+    //printf("\n");
+
+    // print A
+    //printf("A:\n");
+    //for (int i = 0; i < n; ++i) {
+    //    printf("col %d : ", i);
+    //    for (int j = 0; j < m; ++j) {
+    //        printf("%9.5f ", A[i * m + j]);
+    //    }
+    //    printf("\n");
+    //}
+    //printf("\n");
+
+    // compute singular vectors in U
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < m; ++j) {
+            U[i * m + j] *= S[i];
+        }
+    }
+
+    // normalize U
+    for (int i = 0; i < n; ++i) {
+        double sum = 0.0;
+        for (int j = 0; j < m; ++j) {
+            sum += U[i * m + j] * U[i * m + j];
+        }
+        sum = sqrt(sum);
+        for (int j = 0; j < m; ++j) {
+            U[i * m + j] /= sum*sqrt((double) m);
+        }
+    }
+
+    // print U
+    //printf("U:\n");
+    //for (int i = 0; i < n; ++i) {
+    //    printf("col %d : ", i);
+    //    for (int j = 0; j < m; ++j) {
+    //        printf("%9.5f ", U[i * m + j]);
+    //    }
+    //    printf("\n");
+    //}
+    //printf("\n");
+
+    // project A0 onto U
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < nd; ++j) {
+            A[i * nd + j] = 0.0f;
+            //if (j == 0) continue;
+            for (int k = 0; k < m; ++k) {
+                A[i * nd + j] += A0[i * m + k] * U[j * m + k];
+            }
+        }
+    }
+
+    // print A
+    //printf("A:\n");
+    //for (int i = 0; i < n; ++i) {
+    //    printf("col %d : ", i);
+    //    for (int j = 0; j < n; ++j) {
+    //        printf("%9.5f ", A[i * n + j]);
+    //    }
+    //    printf("\n");
+    //}
+    //printf("\n");
+
+    free(U);
+    free(S);
+    free(V);
+    free(A0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 int ggml_cpu_has_avx(void) {
 #if defined(__AVX__)
     return 1;
