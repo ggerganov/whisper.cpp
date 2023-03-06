@@ -34,6 +34,12 @@ CFLAGS   = -I.              -O3 -DNDEBUG -std=c11   -fPIC
 CXXFLAGS = -I. -I./examples -O3 -DNDEBUG -std=c++11 -fPIC
 LDFLAGS  =
 
+# ref: https://github.com/ggerganov/whisper.cpp/issues/37
+ifneq ($(wildcard /usr/include/musl/*),)
+	CFLAGS   += -D_POSIX_SOURCE -D_GNU_SOURCE
+	CXXFLAGS += -D_POSIX_SOURCE -D_GNU_SOURCE
+endif
+
 # OS specific
 # TODO: support Windows
 ifeq ($(UNAME_S),Linux)
