@@ -1,6 +1,8 @@
+# Benchmark word-level timestamps for different models
+#
 # This script takes two arguments
 # - an audio file
-# - [optional] path to a font file 
+# - [optional] path to a font file
 
 # I'm using "/usr/share/fonts/truetype/freefont/FreeMono.ttf" on Ubuntu
 
@@ -10,8 +12,9 @@ if [ -z "$1" ]; then
 fi
 
 #TODO: Make this a command line parameter
-models="base small large"
+#models="base small large"
 #models="tiny.en tiny base.en base small.en small medium.en medium large-v1 large"
+models="tiny.en base.en small.en medium.en large"
 
 DURATION=$(ffprobe -i $1 -show_entries format=duration -v quiet -of csv="p=0")
 DURATION=$(printf "%.2f" $DURATION)
@@ -19,7 +22,7 @@ echo "Input file duration: ${DURATION}s"
 
 for model in $models; do
     echo "Running $model"
-    COMMAND="./main -m models/ggml-$model.bin -owts -f $1 -of $1.$model" 
+    COMMAND="./main -m models/ggml-$model.bin -owts -f $1 -of $1.$model"
 
     if [ ! -z "$2" ]; then
         COMMAND="$COMMAND -fp $2"
@@ -40,7 +43,7 @@ for model in $models; do
 
     # If the file already exists, delete it
     if [ -f $1.mp4 ]; then
-        rm $1.$model.mp4
+        rm $1.mp4
     fi
 
     bash $1.$model.wts >/dev/null 2>&1
