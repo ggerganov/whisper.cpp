@@ -462,7 +462,9 @@ extern "C" {
     // Temporary helpers needed for exposing ggml interface
 
     WHISPER_API int whisper_bench_memcpy(int n_threads);
+    WHISPER_API const char * whisper_bench_memcpy_str(int n_threads);
     WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads);
+    WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads);
 
 #ifdef __cplusplus
 }

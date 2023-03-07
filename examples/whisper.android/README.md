@@ -9,4 +9,4 @@ To use:
 5. Select the "release" active build variant, and use Android Studio to run and deploy to your device.
 [^1]: I recommend the tiny or base models for running on an Android device.
 
-<img width="300" alt="image" src="https://user-images.githubusercontent.com/1991296/208154256-82d972dc-221b-48c4-bfcb-36ce68602f93.png">
+<img width="300" alt="image" src="https://user-images.githubusercontent.com/1670775/221613663-a17bf770-27ef-45ab-9a46-a5f99ba65d2a.jpg">

@@ -41,8 +41,13 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
 
     init {
         viewModelScope.launch {
+            printSystemInfo()
             loadData()
         }
+    }
+
+    private suspend fun printSystemInfo() {
+        printMessage(String.format("System Info: %s\n", WhisperContext.getSystemInfo()));
     }
 
     private suspend fun loadData() {
@@ -81,8 +86,27 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
         //whisperContext = WhisperContext.createContextFromFile(firstModel.absolutePath)
     }
 
+    fun benchmark() = viewModelScope.launch {
+        runBenchmark(6)
+    }
+
     fun transcribeSample() = viewModelScope.launch {
         transcribeAudio(getFirstSample())
+    }
+
+    private suspend fun runBenchmark(nthreads: Int) {
+        if (!canTranscribe) {
+            return
+        }
+
+        canTranscribe = false
+
+        printMessage("Running benchmark. This will take minutes...\n")
+        whisperContext?.benchMemory(nthreads)?.let{ printMessage(it) }
+        printMessage("\n")
+        whisperContext?.benchGgmlMulMat(nthreads)?.let{ printMessage(it) }
+
+        canTranscribe = true
     }
 
     private suspend fun getFirstSample(): File = withContext(Dispatchers.IO) {
@@ -114,11 +138,14 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
         canTranscribe = false
 
         try {
-            printMessage("Reading wave samples...\n")
+            printMessage("Reading wave samples... ")
             val data = readAudioSamples(file)
+            printMessage("${data.size / (16000 / 1000)} ms\n")
             printMessage("Transcribing data...\n")
+            val start = System.currentTimeMillis()
             val text = whisperContext?.transcribeData(data)
-            printMessage("Done: $text\n")
+            val elapsed = System.currentTimeMillis() - start
+            printMessage("Done ($elapsed ms): $text\n")
         } catch (e: Exception) {
             Log.w(LOG_TAG, e)
             printMessage("${e.localizedMessage}\n")
