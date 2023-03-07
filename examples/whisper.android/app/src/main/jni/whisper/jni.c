@@ -230,7 +230,7 @@ JNIEXPORT jstring JNICALL
 Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_benchMemcpy(JNIEnv *env, jobject thiz,
                                                                       jint n_threads) {
     UNUSED(thiz);
-    const char *bench_ggml_memcpy = whisper_bench_memcpy(n_threads);
+    const char *bench_ggml_memcpy = whisper_bench_memcpy_str(n_threads);
     jstring string = (*env)->NewStringUTF(env, bench_ggml_memcpy);
 }
 
@@ -238,6 +238,6 @@ JNIEXPORT jstring JNICALL
 Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_benchGgmlMulMat(JNIEnv *env, jobject thiz,
                                                                           jint n_threads) {
     UNUSED(thiz);
-    const char *bench_ggml_mul_mat = whisper_bench_ggml_mul_mat(n_threads);
+    const char *bench_ggml_mul_mat = whisper_bench_ggml_mul_mat_str(n_threads);
     jstring string = (*env)->NewStringUTF(env, bench_ggml_mul_mat);
 }

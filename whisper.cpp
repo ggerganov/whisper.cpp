@@ -4381,12 +4381,12 @@ float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int 
 // Will be removed in the future when ggml becomes a separate library
 //
 
-WHISPER_API int whisper_print_bench_memcpy(int n_threads) {
-    fputs(whisper_bench_memcpy(n_threads), stderr);
+WHISPER_API int whisper_bench_memcpy(int n_threads) {
+    fputs(whisper_bench_memcpy_str(n_threads), stderr);
     return 0;
 }
 
-WHISPER_API const char * whisper_bench_memcpy(int n_threads) {
+WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
     static std::string s;
     s = "";
     char strbuf[256];
@@ -4439,12 +4439,12 @@ WHISPER_API const char * whisper_bench_memcpy(int n_threads) {
     return s.c_str();
 }
 
-WHISPER_API int whisper_print_bench_ggml_mul_mat(int n_threads) {
-    fputs(whisper_bench_ggml_mul_mat(n_threads), stderr);
+WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads) {
+    fputs(whisper_bench_ggml_mul_mat_str(n_threads), stderr);
     return 0;
 }
 
-WHISPER_API const char * whisper_bench_ggml_mul_mat(int n_threads) {
+WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads) {
     static std::string s;
     s = "";
     char strbuf[256];
