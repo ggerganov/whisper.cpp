@@ -2283,9 +2283,20 @@ static bool log_mel_spectrogram(
                 }
 
                 // mel spectrogram
+                // (this is a matrix-vector multiply)
                 for (int j = 0; j < mel.n_mel; j++) {
                     double sum = 0.0;
-                    for (int k = 0; k < n_fft; k++) {
+                    int k = 0;
+                    for (k = 0; k < n_fft - 3; k += 4) {
+                        sum += (
+                            fft_out[k+0].real() * filters.data[j*n_fft + k + 0] +
+                            fft_out[k+1].real() * filters.data[j*n_fft + k + 1] +
+                            fft_out[k+2].real() * filters.data[j*n_fft + k + 2] +
+                            fft_out[k+3].real() * filters.data[j*n_fft + k + 3]
+                        );
+                    }
+                    // handle n_fft remainder
+                    for (; k < n_fft; k++) {
                         sum += fft_out[k].real() * filters.data[j*n_fft + k];
                     }
                     sum = log10(std::max(sum, 1e-10));
