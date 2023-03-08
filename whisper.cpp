@@ -2251,7 +2251,7 @@ static bool log_mel_spectrogram(
         workers[iw] = std::thread([&](int ith) {
             float *fft_in = fft_alloc<float>(fft_size);
             std::fill(fft_in, fft_in + fft_size, 0.0);
-            std::complex<float> *fft_out = fft_alloc<std::complex<float>>(n_fft);
+            std::complex<float> *fft_out = fft_alloc<std::complex<float>>(fft_size / 2 + 1);
 
             pocketfft::shape_t  fft_shape          = {(size_t)fft_size};
             pocketfft::stride_t fft_stride_real    = {(ptrdiff_t)sizeof(float)};
@@ -2271,14 +2271,14 @@ static bool log_mel_spectrogram(
                 }
 
                 pocketfft::r2c<float>(fft_shape, fft_stride_real, fft_stride_complex, 0, pocketfft::FORWARD, fft_in, fft_out, 1.0, 1);
-                for (int j = 0; j < n_fft; j++) {
+                for (int j = 0; j < fft_size / 2 + 1; j++) {
                     fft_out[j] = std::norm(fft_out[j]);
                 }
 
                 if (speed_up) {
                     // scale down in the frequency domain results in a speed up in the time domain
-                    for (int j = 0; j < n_fft; j++) {
-                        fft_out[j].real(0.5 * fft_out[j].real());
+                    for (int j = 0; j < n_fft; j += 2) {
+                        fft_out[j].real(0.5 * (fft_out[j].real() + fft_out[j + 1].real()));
                     }
                 }
 
