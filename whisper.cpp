@@ -2,6 +2,7 @@
 #include "whisper.h"
 
 #include "ggml.h"
+#include "pocketfft.h"
 
 #include <algorithm>
 #include <cassert>
@@ -2202,84 +2203,15 @@ static std::string to_timestamp(int64_t t, bool comma = false) {
     return std::string(buf);
 }
 
-// naive Discrete Fourier Transform
-// input is real-valued
-// output is complex-valued
-static void dft(const std::vector<float> & in, std::vector<float> & out) {
-    int N = in.size();
 
-    out.resize(N*2);
-
-    for (int k = 0; k < N; k++) {
-        float re = 0;
-        float im = 0;
-
-        for (int n = 0; n < N; n++) {
-            float angle = 2*M_PI*k*n/N;
-            re += in[n]*cos(angle);
-            im -= in[n]*sin(angle);
-        }
-
-        out[k*2 + 0] = re;
-        out[k*2 + 1] = im;
-    }
+template <typename T>
+static inline T *fft_alloc(size_t size) {
+    return reinterpret_cast<T *>(pocketfft::detail::aligned_alloc((size_t)16, size * sizeof(T)));
 }
 
-// Cooley-Tukey FFT
-// poor man's implementation - use something better
-// input is real-valued
-// output is complex-valued
-static void fft(const std::vector<float> & in, std::vector<float> & out) {
-    out.resize(in.size()*2);
-
-    int N = in.size();
-
-    if (N == 1) {
-        out[0] = in[0];
-        out[1] = 0;
-        return;
-    }
-
-    if (N%2 == 1) {
-        dft(in, out);
-        return;
-    }
-
-    std::vector<float> even;
-    std::vector<float> odd;
-
-    even.reserve(N/2);
-    odd.reserve(N/2);
-
-    for (int i = 0; i < N; i++) {
-        if (i % 2 == 0) {
-            even.push_back(in[i]);
-        } else {
-            odd.push_back(in[i]);
-        }
-    }
-
-    std::vector<float> even_fft;
-    std::vector<float> odd_fft;
-
-    fft(even, even_fft);
-    fft(odd, odd_fft);
-
-    for (int k = 0; k < N/2; k++) {
-        float theta = 2*M_PI*k/N;
-
-        float re = cos(theta);
-        float im = -sin(theta);
-
-        float re_odd = odd_fft[2*k + 0];
-        float im_odd = odd_fft[2*k + 1];
-
-        out[2*k + 0] = even_fft[2*k + 0] + re*re_odd - im*im_odd;
-        out[2*k + 1] = even_fft[2*k + 1] + re*im_odd + im*re_odd;
-
-        out[2*(k + N/2) + 0] = even_fft[2*k + 0] - re*re_odd + im*im_odd;
-        out[2*(k + N/2) + 1] = even_fft[2*k + 1] - re*im_odd - im*re_odd;
-    }
+template <typename T>
+static inline void fft_dealloc(T *ptr) {
+    return pocketfft::detail::aligned_dealloc(ptr);
 }
 
 // ref: https://github.com/openai/whisper/blob/main/whisper/audio.py#L92-L124
@@ -2313,18 +2245,19 @@ static bool log_mel_spectrogram(
     //printf("%s: n_samples = %d, n_len = %d\n", __func__, n_samples, mel.n_len);
     //printf("%s: recording length: %f s\n", __func__, (float) n_samples/sample_rate);
 
+    std::vector<float> worker_max(n_threads, 0.0);
     std::vector<std::thread> workers(n_threads);
     for (int iw = 0; iw < n_threads; ++iw) {
         workers[iw] = std::thread([&](int ith) {
-            std::vector<float> fft_in;
-            fft_in.resize(fft_size);
-            for (int i = 0; i < fft_size; i++) {
-                fft_in[i] = 0.0;
-            }
+            float *fft_in = fft_alloc<float>(fft_size);
+            std::fill(fft_in, fft_in + fft_size, 0.0);
+            std::complex<float> *fft_out = fft_alloc<std::complex<float>>(n_fft);
 
-            std::vector<float> fft_out;
-            fft_out.resize(2*fft_size);
+            pocketfft::shape_t  fft_shape          = {(size_t)fft_size};
+            pocketfft::stride_t fft_stride_real    = {(ptrdiff_t)sizeof(float)};
+            pocketfft::stride_t fft_stride_complex = {(ptrdiff_t)sizeof(std::complex<float>)};
 
+            float max = -1e20;
             for (int i = ith; i < mel.n_len; i += n_threads) {
                 const int offset = i*fft_step;
 
@@ -2337,47 +2270,32 @@ static bool log_mel_spectrogram(
                     }
                 }
 
-                // FFT -> mag^2
-                fft(fft_in, fft_out);
-
-                for (int j = 0; j < fft_size; j++) {
-                    fft_out[j] = (fft_out[2*j + 0]*fft_out[2*j + 0] + fft_out[2*j + 1]*fft_out[2*j + 1]);
-                }
-                for (int j = 1; j < fft_size/2; j++) {
-                    //if (i == 0) {
-                    //    printf("%d: %f %f\n", j, fft_out[j], fft_out[fft_size - j]);
-                    //}
-                    fft_out[j] += fft_out[fft_size - j];
-                }
-                if (i == 0) {
-                    //for (int j = 0; j < fft_size; j++) {
-                    //    printf("%d: %e\n", j, fft_out[j]);
-                    //}
+                pocketfft::r2c<float>(fft_shape, fft_stride_real, fft_stride_complex, 0, pocketfft::FORWARD, fft_in, fft_out, 1.0, 1);
+                for (int j = 0; j < n_fft; j++) {
+                    fft_out[j] = std::norm(fft_out[j]);
                 }
 
                 if (speed_up) {
                     // scale down in the frequency domain results in a speed up in the time domain
                     for (int j = 0; j < n_fft; j++) {
-                        fft_out[j] = 0.5*(fft_out[2*j] + fft_out[2*j + 1]);
+                        fft_out[j].real(0.5 * fft_out[j].real());
                     }
                 }
 
                 // mel spectrogram
                 for (int j = 0; j < mel.n_mel; j++) {
                     double sum = 0.0;
-
                     for (int k = 0; k < n_fft; k++) {
-                        sum += fft_out[k]*filters.data[j*n_fft + k];
+                        sum += fft_out[k].real() * filters.data[j*n_fft + k];
                     }
-                    if (sum < 1e-10) {
-                        sum = 1e-10;
-                    }
-
-                    sum = log10(sum);
-
+                    sum = log10(std::max(sum, 1e-10));
                     mel.data[j*mel.n_len + i] = sum;
+                    max = std::max((float)sum, max);
                 }
             }
+            worker_max[ith] = max;
+            fft_dealloc(fft_in);
+            fft_dealloc(fft_out);
         }, iw);
     }
 
@@ -2386,22 +2304,11 @@ static bool log_mel_spectrogram(
     }
 
     // clamping and normalization
-    double mmax = -1e20;
-    for (int i = 0; i < mel.n_mel*mel.n_len; i++) {
-        if (mel.data[i] > mmax) {
-            mmax = mel.data[i];
-        }
-    }
+    float mmax = *std::max_element(worker_max.begin(), worker_max.end()) - 8.0;
     //printf("%s: max = %f\n", __func__, mmax);
 
-    mmax -= 8.0;
-
     for (int i = 0; i < mel.n_mel*mel.n_len; i++) {
-        if (mel.data[i] < mmax) {
-            mel.data[i] = mmax;
-        }
-
-        mel.data[i] = (mel.data[i] + 4.0)/4.0;
+        mel.data[i] = (std::max(mel.data[i], mmax) + 4.0)/4.0;
     }
 
     wstate.t_mel_us += ggml_time_us() - t_start_us;
