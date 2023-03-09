@@ -2160,6 +2160,12 @@ static bool whisper_decode_internal(
         ggml_graph_compute       (ctx0, &gf);
     }
 
+    // print the time for computing the last ggml_mul_mat that computes logits
+    // also print the total decoder time
+    // these need to be called after ggml_graph_compute()
+    printf("logits t = %7.3f ms (%2d runs, N = %3d, ggml_mul_mat: [%d x %d] * [%d x %d])\n", 1e-3*double(logits->perf_time_us)/logits->perf_runs, logits->perf_runs, N, logits->ne[0], logits->ne[1], cur->ne[1], cur->ne[0]);
+    printf("total  t = %7.3f ms (%2d runs)\n", 1e-3*double(gf.perf_time_us)/gf.perf_runs, gf.perf_runs);
+
     // extract logits for all N tokens
     //logits_out.resize(N*n_vocab);
     //memcpy(logits_out.data(), ggml_get_data(logits), sizeof(float)*N*n_vocab);

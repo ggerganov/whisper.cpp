@@ -79,7 +79,7 @@ typedef void* thread_ret_t;
 #define static_assert(cond, msg) _Static_assert(cond, msg)
 #endif
 
-/*#define GGML_PERF*/
+#define GGML_PERF
 #define GGML_DEBUG 0
 #define GGML_GELU_FP16
 
