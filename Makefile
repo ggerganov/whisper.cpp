@@ -1,3 +1,5 @@
+IMAGE := us.gcr.io/kapwing-dev/whisper.cpp
+TAG := latest
 ifndef UNAME_S
 UNAME_S := $(shell uname -s)
 endif
@@ -279,3 +281,11 @@ tiny.en tiny base.en base small.en small medium.en medium large-v1 large: main
 .PHONY: tests
 tests:
 	bash ./tests/run-tests.sh
+
+build:
+	DOCKER_BUILDKIT=1 docker build -f Dockerfile -t {IMAGE} .
+
+push:
+	docker tag $(IMAGE) $(IMAGE):$(TAG)
+	docker push $(IMAGE):$(TAG)
+
