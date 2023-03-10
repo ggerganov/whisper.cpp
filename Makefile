@@ -127,13 +127,13 @@ ifneq ($(filter ppc64%,$(UNAME_M)),)
 		CXXFLAGS += -std=c++23 -DGGML_BIG_ENDIAN
 	endif
 endif
-ifndef WHISPER_NO_ACCELERATE
-	# Mac M1 - include Accelerate framework
-	ifeq ($(UNAME_S),Darwin)
-		CFLAGS  += -DGGML_USE_ACCELERATE
-		LDFLAGS += -framework Accelerate
-	endif
-endif
+#ifndef WHISPER_NO_ACCELERATE
+#	# Mac M1 - include Accelerate framework
+#	ifeq ($(UNAME_S),Darwin)
+#		CFLAGS  += -DGGML_USE_ACCELERATE
+#		LDFLAGS += -framework Accelerate
+#	endif
+#endif
 ifdef WHISPER_OPENBLAS
 	CFLAGS  += -DGGML_USE_OPENBLAS -I/usr/local/include/openblas
 	LDFLAGS += -lopenblas
