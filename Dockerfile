@@ -16,5 +16,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN mkdir whisper/
 COPY . whisper/
 WORKDIR whisper
+RUN make clean
 RUN models/download-ggml-model.sh large
 RUN make

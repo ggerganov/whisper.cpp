@@ -8,6 +8,8 @@
 
 src="https://huggingface.co/datasets/ggerganov/whisper.cpp"
 pfx="resolve/main/ggml"
+#src="https://storage.cloud.google.com/kapwing-build"
+#pfx="ggml"
 
 # get the path of this script
 function get_script_path() {
