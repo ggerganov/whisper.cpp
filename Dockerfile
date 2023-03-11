@@ -18,6 +18,4 @@ COPY . whisper/
 WORKDIR whisper
 RUN make clean
 RUN models/download-ggml-model.sh base.en
-RUN models/download-ggml-model.sh medium.en
-RUN models/download-ggml-model.sh large
 RUN make
