@@ -288,7 +288,6 @@ int main(int argc, char ** argv) {
             wparams.print_realtime   = false;
             wparams.print_timestamps = !params.no_timestamps;
             wparams.translate        = params.translate;
-            wparams.no_context       = true;
             wparams.single_segment   = !use_vad;
             wparams.max_tokens       = params.max_tokens;
             wparams.language         = params.language.c_str();

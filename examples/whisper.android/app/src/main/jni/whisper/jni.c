@@ -6,6 +6,7 @@
 #include <sys/sysinfo.h>
 #include <string.h>
 #include "whisper.h"
+#include "ggml.h"
 
 #define UNUSED(x) (void)(x)
 #define TAG "JNI"
@@ -213,4 +214,30 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_getTextSegment(
     const char *text = whisper_full_get_segment_text(context, index);
     jstring string = (*env)->NewStringUTF(env, text);
     return string;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_getSystemInfo(
+        JNIEnv *env, jobject thiz
+) {
+    UNUSED(thiz);
+    const char *sysinfo = whisper_print_system_info();
+    jstring string = (*env)->NewStringUTF(env, sysinfo);
+    return string;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_benchMemcpy(JNIEnv *env, jobject thiz,
+                                                                      jint n_threads) {
+    UNUSED(thiz);
+    const char *bench_ggml_memcpy = whisper_bench_memcpy_str(n_threads);
+    jstring string = (*env)->NewStringUTF(env, bench_ggml_memcpy);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_benchGgmlMulMat(JNIEnv *env, jobject thiz,
+                                                                          jint n_threads) {
+    UNUSED(thiz);
+    const char *bench_ggml_mul_mat = whisper_bench_ggml_mul_mat_str(n_threads);
+    jstring string = (*env)->NewStringUTF(env, bench_ggml_mul_mat);
 }

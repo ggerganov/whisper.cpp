@@ -433,6 +433,19 @@ https://user-images.githubusercontent.com/1991296/199337538-b7b0c7a3-2753-4a88-a
 
 ---
 
+## Video comparison of different models
+
+Use the [extra/bench-wts.sh](https://github.com/ggerganov/whisper.cpp/blob/master/extra/bench-wts.sh) script to generate a video in the following format:
+
+```java
+./extra/bench-wts.sh samples/jfk.wav
+ffplay ./samples/jfk.wav.all.mp4
+```
+
+https://user-images.githubusercontent.com/1991296/223206245-2d36d903-cf8e-4f09-8c3b-eb9f9c39d6fc.mp4
+
+---
+
 ## Benchmarks
 
 In order to have an objective comparison of the performance of the inference across different system configurations,

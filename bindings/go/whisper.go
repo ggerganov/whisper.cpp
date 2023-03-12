@@ -20,7 +20,7 @@ extern bool callEncoderBegin(void* user_data);
 // Text segment callback
 // Called on every newly generated text segment
 // Use the whisper_full_...() functions to obtain the text segments
-static void whisper_new_segment_cb(struct whisper_context* ctx, int n_new, void* user_data) {
+static void whisper_new_segment_cb(struct whisper_context* ctx, struct whisper_state* state, int n_new, void* user_data) {
     if(user_data != NULL && ctx != NULL) {
         callNewSegment(user_data, n_new);
     }
@@ -29,7 +29,7 @@ static void whisper_new_segment_cb(struct whisper_context* ctx, int n_new, void*
 // Encoder begin callback
 // If not NULL, called before the encoder starts
 // If it returns false, the computation is aborted
-static bool whisper_encoder_begin_cb(struct whisper_context* ctx, void* user_data) {
+static bool whisper_encoder_begin_cb(struct whisper_context* ctx, struct whisper_state* state, void* user_data) {
     if(user_data != NULL && ctx != NULL) {
         return callEncoderBegin(user_data);
     }
