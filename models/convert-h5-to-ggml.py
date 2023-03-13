@@ -79,11 +79,11 @@ dir_model   = sys.argv[1]
 dir_whisper = sys.argv[2]
 dir_out     = sys.argv[3]
 
-with open(dir_model + "/vocab.json", "r") as f:
+with open(dir_model + "/vocab.json", "r", encoding="utf8") as f:
     encoder = json.load(f)
-with open(dir_model + "/added_tokens.json", "r") as f:
+with open(dir_model + "/added_tokens.json", "r", encoding="utf8") as f:
     encoder_added = json.load(f)
-with open(dir_model + "/config.json", "r") as f:
+with open(dir_model + "/config.json", "r", encoding="utf8") as f:
     hparams = json.load(f)
 
 model = WhisperForConditionalGeneration.from_pretrained(dir_model)
