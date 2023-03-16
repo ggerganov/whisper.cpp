@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 #include <fstream>
+#include <sstream>
 
 //  500 -> 00:05.000
 // 6000 -> 01:00.000
@@ -279,8 +280,12 @@ int main(int argc, char ** argv) {
             t_last = t_now;
         }
 
+
         // run the inference
         {
+            std::stringbuf sbuf;
+            std::ostream sout (&sbuf);
+
             whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
             wparams.print_progress   = false;
@@ -334,7 +339,7 @@ int main(int argc, char ** argv) {
                         fflush(stdout);
 
                         if (params.fname_out.length() > 0) {
-                            fout << text;
+                            sout << ( (i == 0 && *text == ' ') ? text + 1 : text);
                         }
                     } else {
                         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
@@ -349,7 +354,7 @@ int main(int argc, char ** argv) {
                 }
 
                 if (params.fname_out.length() > 0) {
-                    fout << std::endl;
+                    sout << std::endl;
                 }
 
                 if (use_vad){
@@ -361,6 +366,7 @@ int main(int argc, char ** argv) {
             ++n_iter;
 
             if (!use_vad && (n_iter % n_new_line) == 0) {
+                fout << sbuf.str() << std::flush;
                 printf("\n");
 
                 // keep part of the audio for next iteration to try to mitigate word boundary issues
