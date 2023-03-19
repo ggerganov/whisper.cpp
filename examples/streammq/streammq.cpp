@@ -125,7 +125,7 @@ int main(int argc, char ** argv) {
 
     zmq::context_t zmq_context(1);
     zmq::socket_t zmq_socket(zmq_context, zmq::socket_type::pub);
-    zmq_socket.bind("tcp://*:5555");
+    zmq_socket.bind("tcp://*:5749");
 
     if (whisper_params_parse(argc, argv, params) == false) {
         return 1;
@@ -353,7 +353,7 @@ int main(int argc, char ** argv) {
                         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
                         printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
-                        snprintf(formatted_text, sizeof(formatted_text), "%s | %s | %s", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
+                        snprintf(formatted_text, sizeof(formatted_text), "%d | %s | %s | %s", n_iter, to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
                         send_transcription_to_zeromq(zmq_socket, formatted_text);
                         if (params.fname_out.length() > 0) {
                             fout << "[" << to_timestamp(t0) << " --> " << to_timestamp(t1) << "]  " << text << std::endl;
