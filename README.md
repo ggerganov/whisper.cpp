@@ -325,7 +325,7 @@ https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a
 
 ## Real-time audio with ZMQ
 
-Install `zmq` (e.g., `brew install zmq).
+Install `zmq` (e.g., `brew install zmq sdl2`).
 
 ```sh
 make streammq

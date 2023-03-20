@@ -15,6 +15,8 @@
 #include <thread>
 #include <vector>
 #include <fstream>
+#include <sstream>
+#include <iostream>
 
 void send_transcription_to_zeromq(zmq::socket_t& socket, const std::string& message) {
     zmq::message_t zmq_message(message.begin(), message.end());
@@ -56,7 +58,6 @@ struct whisper_params {
 
     std::string language  = "en";
     std::string model     = "models/ggml-base.en.bin";
-    std::string fname_out;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -84,7 +85,6 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-kc"  || arg == "--keep-context")  { params.no_context    = false; }
         else if (arg == "-l"   || arg == "--language")      { params.language      = argv[++i]; }
         else if (arg == "-m"   || arg == "--model")         { params.model         = argv[++i]; }
-        else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -116,7 +116,6 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -kc,      --keep-context  [%-7s] keep context between audio chunks\n",           params.no_context ? "false" : "true");
     fprintf(stderr, "  -l LANG,  --language LANG [%-7s] spoken language\n",                             params.language.c_str());
     fprintf(stderr, "  -m FNAME, --model FNAME   [%-7s] model path\n",                                  params.model.c_str());
-    fprintf(stderr, "  -f FNAME, --file FNAME    [%-7s] text output file name\n",                       params.fname_out.c_str());
     fprintf(stderr, "\n");
 }
 
@@ -204,22 +203,12 @@ int main(int argc, char ** argv) {
     }
 
     int n_iter = 0;
-    char formatted_text[1024];
     bool is_running = true;
-
-    std::ofstream fout;
-    if (params.fname_out.length() > 0) {
-        fout.open(params.fname_out);
-        if (!fout.is_open()) {
-            fprintf(stderr, "%s: failed to open output file '%s'!\n", __func__, params.fname_out.c_str());
-            return 1;
-        }
-    }
 
     printf("[Start speaking]");
     fflush(stdout);
 
-          auto t_last  = std::chrono::high_resolution_clock::now();
+    auto t_last  = std::chrono::high_resolution_clock::now();
     const auto t_start = t_last;
 
     // main audio loop
@@ -335,34 +324,28 @@ int main(int argc, char ** argv) {
                     printf("### Transcription %d START | t0 = %d ms | t1 = %d ms\n", n_iter, (int) t0, (int) t1);
                     printf("\n");
                 }
-
+                std::ostringstream message;
                 const int n_segments = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n_segments; ++i) {
                     const char * text = whisper_full_get_segment_text(ctx, i);
-
+                    // skip over previous segment that helps context
+                    if(use_vad || (n_iter % n_new_line) != 0 || n_iter == 0)
+                        // add text and remove leading space
+                        message << ( (i == 0 && *text == ' ') ? text + 1 : text);
+                    printf(text);
                     if (params.no_timestamps) {
-                        printf("%s", text);
+                        std::cout << message.str();
                         fflush(stdout);
 
-                        if (params.fname_out.length() > 0) {
-                            fout << text;
-                        }
-                        send_transcription_to_zeromq(zmq_socket, text);
+                        send_transcription_to_zeromq(zmq_socket, message.str());
                     } else {
                         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
                         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
-                        printf ("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
-                        snprintf(formatted_text, sizeof(formatted_text), "%d | %s | %s | %s", n_iter, to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text);
-                        send_transcription_to_zeromq(zmq_socket, formatted_text);
-                        if (params.fname_out.length() > 0) {
-                            fout << "[" << to_timestamp(t0) << " --> " << to_timestamp(t1) << "]  " << text << std::endl;
-                        }
+                        std::cout << "[" << to_timestamp(t0) << " --> " << to_timestamp(t1) <<  message.str() << std::endl;
+                        message << " | " << n_iter << " | " << to_timestamp(t0) << " | " << to_timestamp(t1) << " | " << std::endl;
+                        send_transcription_to_zeromq(zmq_socket, message.str());
                     }
-                }
-
-                if (params.fname_out.length() > 0) {
-                    fout << std::endl;
                 }
 
                 if (use_vad){

@@ -19,6 +19,7 @@ build-sanitize-thread/
 /command
 /talk
 /bench
+/streammq
 
 arm_neon.h
 sync.sh
