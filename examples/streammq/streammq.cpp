@@ -329,21 +329,18 @@ int main(int argc, char ** argv) {
                 for (int i = 0; i < n_segments; ++i) {
                     const char * text = whisper_full_get_segment_text(ctx, i);
                     // skip over previous segment that helps context
-                    if(use_vad || (n_iter % n_new_line) != 0 || n_iter == 0)
+                    if(use_vad || (n_iter % n_new_line) != 0 || n_iter == 0 || i > 0)
                         // add text and remove leading space
                         message << ( (i == 0 && *text == ' ') ? text + 1 : text);
-                    printf(text);
                     if (params.no_timestamps) {
-                        std::cout << message.str();
+                        printf("%s\n", message.str().c_str());
                         fflush(stdout);
-
                         send_transcription_to_zeromq(zmq_socket, message.str());
                     } else {
                         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
                         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-
-                        std::cout << "[" << to_timestamp(t0) << " --> " << to_timestamp(t1) <<  message.str() << std::endl;
                         message << " | " << n_iter << " | " << to_timestamp(t0) << " | " << to_timestamp(t1) << " | " << std::endl;
+                        printf("%s\n", message.str().c_str());
                         send_transcription_to_zeromq(zmq_socket, message.str());
                     }
                 }
