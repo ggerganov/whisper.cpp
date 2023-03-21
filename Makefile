@@ -1,4 +1,4 @@
-IMAGE := us.gcr.io/kapwing-dev/whisper.cpp
+IMAGE := us.gcr.io/kapwing-dev/scripts/whisper.cpp
 TAG := latest
 ifndef UNAME_S
 UNAME_S := $(shell uname -s)
