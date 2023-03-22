@@ -7,6 +7,10 @@ const { promisify } = require("util");
 
 const whisperAsync = promisify(whisper);
 
+async function runWhisper(whisperParams) {
+  await whisperAsync(whisperParams);
+}
+
 const whisperParams = {
   language: "en",
   model: path.join(__dirname, "../../models/ggml-base.en.bin"),
@@ -32,7 +36,3 @@ for (const key in params) {
 console.log("whisperParams =", whisperParams);
 const result = runWhisper(whisperParams);
 console.log(result);
-
-async function runWhisper(whisperParams) {
-  await whisperAsync(whisperParams);
-}
