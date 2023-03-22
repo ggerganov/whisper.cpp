@@ -34,5 +34,6 @@ for (const key in params) {
 }
 
 console.log("whisperParams =", whisperParams);
-const result = runWhisper(whisperParams);
-console.log(result);
+runWhisper(whisperParams).then((result) => {
+  console.log(`This is the whisper result ${result}`);
+});
