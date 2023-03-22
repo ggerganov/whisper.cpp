@@ -24,3 +24,5 @@ Also, don't forget to add the `-DGGML_USE_ACCELERATE` compiler flag in Build Pha
 This can significantly improve the performance of the transcription:
 
 <img width="1072" alt="image" src="https://user-images.githubusercontent.com/1991296/208511239-8d7cdbd1-aa48-41b5-becd-ca288d53cc07.png">
+
+In this project, it also added `-O3 -DNDEBUG` to `Other C Flags`, but adding flags to app proj is not ideal in real world (applies to all C/C++ files), consider splitting xcodeproj in workspace in your own project.
