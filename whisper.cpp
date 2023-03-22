@@ -3146,7 +3146,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.max_initial_ts   =*/  1.0f,
         /*.length_penalty   =*/ -1.0f,
 
-        /*.temperature_inc  =*/  0.2f,
+        /*.temperature_inc  =*/  0.0f, // TODO: temporary disabled until improve performance
         /*.entropy_thold    =*/  2.4f,
         /*.logprob_thold    =*/ -1.0f,
         /*.no_speech_thold  =*/  0.6f,
