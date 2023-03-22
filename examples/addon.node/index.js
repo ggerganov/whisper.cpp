@@ -8,7 +8,7 @@ const { promisify } = require("util");
 const whisperAsync = promisify(whisper);
 
 async function runWhisper(whisperParams) {
-  await whisperAsync(whisperParams);
+  return await whisperAsync(whisperParams);
 }
 
 const whisperParams = {
@@ -34,6 +34,7 @@ for (const key in params) {
 }
 
 console.log("whisperParams =", whisperParams);
+
 runWhisper(whisperParams).then((result) => {
-  console.log(`This is the whisper result ${result}`);
+  console.log(`Result from whisper: ${result}`);
 });
