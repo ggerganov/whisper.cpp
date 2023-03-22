@@ -2855,7 +2855,7 @@ int whisper_lang_auto_detect_with_state(
     }
 
     // run the encoder
-    if (whisper_encode(ctx, seek, n_threads) != 0) {
+    if (whisper_encode_with_state(ctx, state, seek, n_threads) != 0) {
         fprintf(stderr, "%s: failed to encode\n", __func__);
         return -6;
     }
