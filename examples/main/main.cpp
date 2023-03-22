@@ -438,19 +438,6 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
         return false;
     }
 
-    WHISPER_API int whisper_model_n_vocab      (struct whisper_context * ctx);
-    WHISPER_API int whisper_model_n_audio_ctx  (struct whisper_context * ctx);
-    WHISPER_API int whisper_model_n_audio_state(struct whisper_context * ctx);
-    WHISPER_API int whisper_model_n_audio_head (struct whisper_context * ctx);
-    WHISPER_API int whisper_model_n_audio_layer(struct whisper_context * ctx);
-    WHISPER_API int whisper_model_n_text_ctx   (struct whisper_context * ctx);
-    WHISPER_API int whisper_model_n_text_state (struct whisper_context * ctx);
-    WHISPER_API int whisper_model_n_text_head  (struct whisper_context * ctx);
-    WHISPER_API int whisper_model_n_text_layer (struct whisper_context * ctx);
-    WHISPER_API int whisper_model_n_mels       (struct whisper_context * ctx);
-    WHISPER_API int whisper_model_f16          (struct whisper_context * ctx);
-    WHISPER_API int whisper_model_type         (struct whisper_context * ctx);
-
     fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
     start_obj();
         value_s("systeminfo", whisper_print_system_info());
