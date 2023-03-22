@@ -631,7 +631,6 @@ struct whisper_context {
     int64_t t_load_us = 0;
     int64_t t_start_us = 0;
 
-
     ggml_type wtype = ggml_type::GGML_TYPE_F16; // weight type (FP32 or FP16)
 
     whisper_model model;

@@ -6,7 +6,7 @@
 #src="https://ggml.ggerganov.com"
 #pfx="ggml-model-whisper"
 
-src="https://huggingface.co/datasets/ggerganov/whisper.cpp"
+src="https://huggingface.co/ggerganov/whisper.cpp"
 pfx="resolve/main/ggml"
 
 # get the path of this script

@@ -466,7 +466,7 @@ The original models are converted to a custom binary format. This allows to pack
 You can download the converted models using the [models/download-ggml-model.sh](models/download-ggml-model.sh) script
 or manually from here:
 
-- https://huggingface.co/datasets/ggerganov/whisper.cpp
+- https://huggingface.co/ggerganov/whisper.cpp
 - https://ggml.ggerganov.com
 
 For more details, see the conversion script [models/convert-pt-to-ggml.py](models/convert-pt-to-ggml.py) or the README
