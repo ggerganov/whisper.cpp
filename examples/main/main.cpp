@@ -73,6 +73,7 @@ struct whisper_params {
     bool output_srt     = false;
     bool output_wts     = false;
     bool output_csv     = false;
+    bool output_jsn     = false;
     bool print_special  = false;
     bool print_colors   = false;
     bool print_progress = false;
@@ -130,6 +131,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-owts" || arg == "--output-words")   { params.output_wts     = true; }
         else if (arg == "-fp"   || arg == "--font-path")      { params.font_path      = argv[++i]; }
         else if (arg == "-ocsv" || arg == "--output-csv")     { params.output_csv     = true; }
+        else if (arg == "-oj"   || arg == "--output-json")    { params.output_jsn     = true; }
         else if (arg == "-of"   || arg == "--output-file")    { params.fname_out.emplace_back(argv[++i]); }
         else if (arg == "-ps"   || arg == "--print-special")  { params.print_special  = true; }
         else if (arg == "-pc"   || arg == "--print-colors")   { params.print_colors   = true; }
@@ -178,6 +180,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -owts,     --output-words      [%-7s] output script for generating karaoke video\n",     params.output_wts ? "true" : "false");
     fprintf(stderr, "  -fp,       --font-path         [%-7s] path to a monospace font for karaoke video\n",     params.font_path.c_str());
     fprintf(stderr, "  -ocsv,     --output-csv        [%-7s] output result in a CSV file\n",                    params.output_csv ? "true" : "false");
+    fprintf(stderr, "  -oj,       --output-json       [%-7s] output result in a JSON file\n",                   params.output_jsn ? "true" : "false");
     fprintf(stderr, "  -of FNAME, --output-file FNAME [%-7s] output file path (without file extension)\n",      "");
     fprintf(stderr, "  -ps,       --print-special     [%-7s] print special tokens\n",                           params.print_special ? "true" : "false");
     fprintf(stderr, "  -pc,       --print-colors      [%-7s] print colors\n",                                   params.print_colors ? "true" : "false");
@@ -365,6 +368,129 @@ bool output_csv(struct whisper_context * ctx, const char * fname) {
         fout << 10 * t0 << "," << 10 * t1 << ",\"" << text    << "\"\n";
     }
 
+    return true;
+}
+
+bool output_json(struct whisper_context * ctx, const char * fname, const whisper_params & params) {
+    std::ofstream fout(fname);
+    int indent = 0;
+
+    auto doindent = [&]() {
+        for (int i = 0; i < indent; i++) fout << "\t";
+    };
+
+    auto start_arr = [&](const char *name) {
+        doindent();
+        fout << "\"" << name << "\": [\n";
+        indent++;
+    };
+
+    auto end_arr = [&](bool end = false) {
+        indent--;
+        doindent();
+        fout << (end ? "]\n" : "},\n");
+    };
+
+    auto start_obj = [&](const char *name = nullptr) {
+        doindent();
+        if (name) {
+            fout << "\"" << name << "\": {\n";
+        } else {
+            fout << "{\n";
+        }
+        indent++;
+    };
+
+    auto end_obj = [&](bool end = false) {
+        indent--;
+        doindent();
+        fout << (end ? "}\n" : "},\n");
+    };
+
+    auto start_value = [&](const char *name) {
+        doindent();
+        fout << "\"" << name << "\": ";
+    };
+
+    auto value_s = [&](const char *name, const char *val, bool end = false) {
+        start_value(name);
+        fout << "\"" << val << (end ? "\"\n" : "\",\n");
+    };
+
+    auto end_value = [&](bool end = false) {
+        fout << (end ? "\n" : ",\n");
+    };
+
+    auto value_i = [&](const char *name, const int64_t val, bool end = false) {
+        start_value(name);
+        fout << val;
+        end_value(end);
+    };
+
+    auto value_b = [&](const char *name, const bool val, bool end = false) {
+        start_value(name);
+        fout << (val ? "true" : "false");
+        end_value(end);
+    };
+
+    if (!fout.is_open()) {
+        fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
+        return false;
+    }
+
+    fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
+    start_obj();
+        value_s("systeminfo", whisper_print_system_info());
+        start_obj("model");
+            value_s("type", whisper_model_type_readable(ctx));
+            value_b("multilingual", whisper_is_multilingual(ctx));
+            value_i("vocab", whisper_model_n_vocab(ctx));
+            start_obj("audio");
+                value_i("ctx", whisper_model_n_audio_ctx(ctx));
+                value_i("state", whisper_model_n_audio_state(ctx));
+                value_i("head", whisper_model_n_audio_head(ctx));
+                value_i("layer", whisper_model_n_audio_layer(ctx), true);
+            end_obj();
+            start_obj("text");
+                value_i("ctx", whisper_model_n_text_ctx(ctx));
+                value_i("state", whisper_model_n_text_state(ctx));
+                value_i("head", whisper_model_n_text_head(ctx));
+                value_i("leyer", whisper_model_n_text_layer(ctx), true);
+            end_obj();
+            value_i("mels", whisper_model_n_mels(ctx));
+            value_i("f16", whisper_model_f16(ctx), true);
+        end_obj();
+        start_obj("params");
+            value_s("model", params.model.c_str());
+            value_s("language", params.language.c_str());
+            value_b("translate", params.translate, true);
+        end_obj();
+        start_obj("result");
+            value_s("language", whisper_lang_str(whisper_full_lang_id(ctx)), true);
+        end_obj();
+        start_arr("transcription");
+
+            const int n_segments = whisper_full_n_segments(ctx);
+            for (int i = 0; i < n_segments; ++i) {
+                const char * text = whisper_full_get_segment_text(ctx, i);
+                const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+                const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+
+                start_obj();
+                    start_obj("timestanps");
+                        value_s("from", to_timestamp(t0, true).c_str());
+                        value_s("to", to_timestamp(t1, true).c_str(), true);
+                    end_obj();
+                    start_obj("offsets");
+                        value_i("from", t0 * 10);
+                        value_i("to", t1 * 10, true);
+                    end_obj();
+                    value_s("text", text, true);
+                end_obj(i == (n_segments - 1));
+            }
+
+        end_arr(true);
+    end_obj(true);
     return true;
 }
 
@@ -661,6 +787,12 @@ int main(int argc, char ** argv) {
             if (params.output_csv) {
                 const auto fname_csv = fname_out + ".csv";
                 output_csv(ctx, fname_csv.c_str());
+            }
+
+            // output to JSON file
+            if (params.output_jsn) {
+                const auto fname_jsn = fname_out + ".json";
+                output_json(ctx, fname_jsn.c_str(), params);
             }
         }
     }

@@ -248,6 +248,19 @@ extern "C" {
     WHISPER_API int whisper_n_audio_ctx     (struct whisper_context * ctx);
     WHISPER_API int whisper_is_multilingual (struct whisper_context * ctx);
 
+    WHISPER_API int whisper_model_n_vocab      (struct whisper_context * ctx);
+    WHISPER_API int whisper_model_n_audio_ctx  (struct whisper_context * ctx);
+    WHISPER_API int whisper_model_n_audio_state(struct whisper_context * ctx);
+    WHISPER_API int whisper_model_n_audio_head (struct whisper_context * ctx);
+    WHISPER_API int whisper_model_n_audio_layer(struct whisper_context * ctx);
+    WHISPER_API int whisper_model_n_text_ctx   (struct whisper_context * ctx);
+    WHISPER_API int whisper_model_n_text_state (struct whisper_context * ctx);
+    WHISPER_API int whisper_model_n_text_head  (struct whisper_context * ctx);
+    WHISPER_API int whisper_model_n_text_layer (struct whisper_context * ctx);
+    WHISPER_API int whisper_model_n_mels       (struct whisper_context * ctx);
+    WHISPER_API int whisper_model_f16          (struct whisper_context * ctx);
+    WHISPER_API int whisper_model_type         (struct whisper_context * ctx);
+
     // Token logits obtained from the last call to whisper_decode()
     // The logits for the last token are stored in the last row
     // Rows: n_tokens
@@ -257,6 +270,8 @@ extern "C" {
 
     // Token Id -> String. Uses the vocabulary in the provided context
     WHISPER_API const char * whisper_token_to_str(struct whisper_context * ctx, whisper_token token);
+    WHISPER_API const char * whisper_model_type_readable(struct whisper_context * ctx);
+
 
     // Special tokens
     WHISPER_API whisper_token whisper_token_eot (struct whisper_context * ctx);

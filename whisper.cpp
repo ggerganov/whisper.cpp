@@ -1408,7 +1408,7 @@ static bool whisper_encode_internal(
     //}
 
     static int iter = 0;
-    
+
     const size_t e_pe_stride = model.e_pe->ne[0]*ggml_element_size(model.e_pe);
     const size_t e_pe_offset = model.e_pe->ne[0]*ggml_element_size(model.e_pe)*n_ctx*iter;
 
@@ -2917,6 +2917,71 @@ int whisper_lang_auto_detect(
                            int   n_threads,
                          float * lang_probs) {
     return whisper_lang_auto_detect_with_state(ctx, ctx->state, offset_ms, n_threads, lang_probs);
+}
+
+int whisper_model_n_vocab(struct whisper_context * ctx) {
+    return ctx->model.hparams.n_vocab;
+}
+
+int whisper_model_n_audio_ctx(struct whisper_context * ctx) {
+    return ctx->model.hparams.n_audio_ctx;
+}
+
+int whisper_model_n_audio_state(struct whisper_context * ctx) {
+    return ctx->model.hparams.n_audio_state;
+}
+
+int whisper_model_n_audio_head(struct whisper_context * ctx) {
+    return ctx->model.hparams.n_audio_head;
+}
+
+int whisper_model_n_audio_layer(struct whisper_context * ctx) {
+    return ctx->model.hparams.n_audio_layer;
+}
+
+int whisper_model_n_text_ctx(struct whisper_context * ctx) {
+    return ctx->model.hparams.n_text_ctx;
+}
+
+int whisper_model_n_text_state(struct whisper_context * ctx) {
+    return ctx->model.hparams.n_text_state;
+}
+
+int whisper_model_n_text_head(struct whisper_context * ctx) {
+    return ctx->model.hparams.n_text_head;
+}
+
+int whisper_model_n_text_layer(struct whisper_context * ctx) {
+    return ctx->model.hparams.n_text_layer;
+}
+
+int whisper_model_n_mels(struct whisper_context * ctx) {
+    return ctx->model.hparams.n_mels;
+}
+
+int whisper_model_f16(struct whisper_context * ctx) {
+    return ctx->model.hparams.f16;
+}
+
+int whisper_model_type(struct whisper_context * ctx) {
+    return ctx->model.type;
+}
+
+const char *whisper_model_type_readable(struct whisper_context * ctx) {
+    switch (ctx->model.type) {
+    case e_model::MODEL_TINY:
+        return "tiny";
+    case e_model::MODEL_BASE:
+        return "base";
+    case e_model::MODEL_SMALL:
+        return "small";
+    case e_model::MODEL_MEDIUM:
+        return "medium";
+    case e_model::MODEL_LARGE:
+        return "large";
+    default:
+        return "unknown";
+    }
 }
 
 int whisper_n_len_from_state(struct whisper_state * state) {
