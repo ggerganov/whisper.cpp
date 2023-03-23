@@ -326,22 +326,21 @@ int main(int argc, char ** argv) {
                     printf("\n");
                 }
                 const int n_segments = whisper_full_n_segments(ctx);
+                const int64_t t0 = whisper_full_get_segment_t0(ctx, 0);
+                
                 for (int i = 0; i < n_segments; ++i) {
                     const char * text = whisper_full_get_segment_text(ctx, i);
                     // skip over previous segment that helps context
                     if(use_vad || (n_iter % n_new_line) != 0 || n_iter == 0 || i > 0)
                         // add text and remove leading space
                         message << ( (i == 0 && *text == ' ') ? text + 1 : text);
-                    if (!params.no_timestamps) {
-                        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-                        message << " | " << n_iter << " | " << to_timestamp(t0) << " | " << to_timestamp(t1) << " | " << std::endl;
-                        printf("%s\n", message.str().c_str());
-                        send_transcription_to_zeromq(zmq_socket, message.str());
-                    }
                 }
 
                 if (use_vad){
+                    const int64_t t1 = whisper_full_get_segment_t1(ctx, n_segments - 1);
+                    message << " | " << n_iter << " | " << to_timestamp(t0) << " | " << to_timestamp(t1) << " | " << std::endl;
+                    send_transcription_to_zeromq(zmq_socket, message.str());
+                    printf("%s\n", message.str().c_str());
                     printf("\n");
                     printf("### Transcription %d END\n", n_iter);
                 }
