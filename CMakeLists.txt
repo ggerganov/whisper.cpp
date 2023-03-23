@@ -190,8 +190,6 @@ endif()
 set(TARGET whisper)
 
 add_library(${TARGET}
-    ggml.h
-    ggml.c
     whisper.h
     whisper.cpp
     )
@@ -200,7 +198,10 @@ include(DefaultTargetOptions)
 
 target_include_directories(${TARGET} PUBLIC
     .
-    )
+  )
+
+add_subdirectory(ggml)
+target_link_libraries(${TARGET} PRIVATE ggml)
 
 if (MSVC)
     target_link_libraries(${TARGET} PRIVATE ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
