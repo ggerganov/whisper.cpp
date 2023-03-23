@@ -306,7 +306,8 @@ int main(int argc, char ** argv) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
                 return 6;
             }
-
+            
+            std::ostringstream message;
             // print result;
             {
                 if (!use_vad) {
@@ -324,7 +325,6 @@ int main(int argc, char ** argv) {
                     printf("### Transcription %d START | t0 = %d ms | t1 = %d ms\n", n_iter, (int) t0, (int) t1);
                     printf("\n");
                 }
-                std::ostringstream message;
                 const int n_segments = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n_segments; ++i) {
                     const char * text = whisper_full_get_segment_text(ctx, i);
@@ -332,11 +332,7 @@ int main(int argc, char ** argv) {
                     if(use_vad || (n_iter % n_new_line) != 0 || n_iter == 0 || i > 0)
                         // add text and remove leading space
                         message << ( (i == 0 && *text == ' ') ? text + 1 : text);
-                    if (params.no_timestamps) {
-                        printf("%s\n", message.str().c_str());
-                        fflush(stdout);
-                        send_transcription_to_zeromq(zmq_socket, message.str());
-                    } else {
+                    if (!params.no_timestamps) {
                         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
                         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
                         message << " | " << n_iter << " | " << to_timestamp(t0) << " | " << to_timestamp(t1) << " | " << std::endl;
@@ -354,7 +350,9 @@ int main(int argc, char ** argv) {
             ++n_iter;
 
             if (!use_vad && (n_iter % n_new_line) == 0) {
-                printf("\n");
+                printf("%s\n", message.str().c_str());
+                fflush(stdout);
+                send_transcription_to_zeromq(zmq_socket, message.str());
 
                 // keep part of the audio for next iteration to try to mitigate word boundary issues
                 pcmf32_old = std::vector<float>(pcmf32.end() - n_samples_keep, pcmf32.end());
