@@ -46,6 +46,7 @@ struct whisper_params {
     int32_t capture_id = -1;
     int32_t max_tokens = 32;
     int32_t audio_ctx  = 0;
+    int32_t port_number = 5749;
 
     float vad_thold    = 0.6f;
     float freq_thold   = 100.0f;
@@ -85,6 +86,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-kc"  || arg == "--keep-context")  { params.no_context    = false; }
         else if (arg == "-l"   || arg == "--language")      { params.language      = argv[++i]; }
         else if (arg == "-m"   || arg == "--model")         { params.model         = argv[++i]; }
+        else if (arg == "-p"   || arg == "--port")          { params.port_number = std::stoi(argv[++i]); }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -124,7 +126,7 @@ int main(int argc, char ** argv) {
 
     zmq::context_t zmq_context(1);
     zmq::socket_t zmq_socket(zmq_context, zmq::socket_type::pub);
-    zmq_socket.bind("tcp://*:5749");
+    zmq_socket.bind("tcp://*:" + std::to_string(params.port_number));
 
     if (whisper_params_parse(argc, argv, params) == false) {
         return 1;
