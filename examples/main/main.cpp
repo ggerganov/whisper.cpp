@@ -455,7 +455,7 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
                 value_i("ctx", whisper_model_n_text_ctx(ctx));
                 value_i("state", whisper_model_n_text_state(ctx));
                 value_i("head", whisper_model_n_text_head(ctx));
-                value_i("leyer", whisper_model_n_text_layer(ctx), true);
+                value_i("layer", whisper_model_n_text_layer(ctx), true);
             end_obj();
             value_i("mels", whisper_model_n_mels(ctx));
             value_i("f16", whisper_model_f16(ctx), true);
@@ -477,7 +477,7 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
                 const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
                 start_obj();
-                    start_obj("timestanps");
+                    start_obj("timestamps");
                         value_s("from", to_timestamp(t0, true).c_str());
                         value_s("to", to_timestamp(t1, true).c_str(), true);
                     end_obj();
