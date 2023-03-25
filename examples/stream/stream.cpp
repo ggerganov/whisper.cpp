@@ -198,6 +198,9 @@ int main(int argc, char ** argv) {
     bool is_running = true;
 
     std::ofstream fout;
+    std::stringbuf sbuf;
+    std::ostream sout (&sbuf);
+
     if (params.fname_out.length() > 0) {
         fout.open(params.fname_out);
         if (!fout.is_open()) {
@@ -283,9 +286,6 @@ int main(int argc, char ** argv) {
 
         // run the inference
         {
-            std::stringbuf sbuf;
-            std::ostream sout (&sbuf);
-
             whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
             wparams.print_progress   = false;
@@ -314,6 +314,8 @@ int main(int argc, char ** argv) {
 
             // print result;
             {
+                sbuf.str("");
+
                 if (!use_vad) {
                     printf("\33[2K\r");
 
@@ -367,6 +369,8 @@ int main(int argc, char ** argv) {
 
             if (!use_vad && (n_iter % n_new_line) == 0) {
                 fout << sbuf.str() << std::flush;
+                sbuf.str("");
+
                 printf("\n");
 
                 // keep part of the audio for next iteration to try to mitigate word boundary issues
@@ -387,6 +391,7 @@ int main(int argc, char ** argv) {
             }
         }
     }
+    fout << sbuf.str() << std::flush;
 
     audio.pause();
 
