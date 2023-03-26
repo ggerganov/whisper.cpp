@@ -1491,11 +1491,7 @@ static inline int ggml_up(int n, int m) {
 //
 // thread data
 //
-// synchronization is done via busy loops
-// I tried using spin locks, but not sure how to use them correctly - the things I tried were slower than busy loops
-//
 
-// if C11 or above use threads.h
 #if defined _MSC_VER || defined(__MINGW32__)
 // (Windows headers included above)
 
