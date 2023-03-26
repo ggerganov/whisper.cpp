@@ -36,7 +36,7 @@ LDFLAGS  =
 
 # ref: https://github.com/ggerganov/whisper.cpp/issues/37
 ifneq ($(wildcard /usr/include/musl/*),)
-	CFLAGS   += -D_POSIX_SOURCE -D_GNU_SOURCE
+	CFLAGS += -D_POSIX_SOURCE -D_GNU_SOURCE
 	CXXFLAGS += -D_POSIX_SOURCE -D_GNU_SOURCE
 endif
 
@@ -178,7 +178,7 @@ $(info I CC:       $(CCV))
 $(info I CXX:      $(CXXV))
 $(info )
 
-default: main
+default: main bench
 
 #
 # Build library
@@ -197,7 +197,7 @@ libwhisper.so: ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o whisper.o $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream command talk bench libwhisper.a libwhisper.so
+	rm -f *.o main stream command talk talk-llama bench libwhisper.a libwhisper.so
 
 #
 # Examples
@@ -212,6 +212,9 @@ main: examples/main/main.cpp $(SRC_COMMON) ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) examples/main/main.cpp $(SRC_COMMON) ggml.o whisper.o -o main $(LDFLAGS)
 	./main -h
 
+bench: examples/bench/bench.cpp ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp ggml.o whisper.o -o bench $(LDFLAGS)
+
 stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o -o stream $(CC_SDL) $(LDFLAGS)
 
@@ -221,8 +224,8 @@ command: examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whi
 talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o
 	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o -o talk $(CC_SDL) $(LDFLAGS)
 
-bench: examples/bench/bench.cpp ggml.o whisper.o
-	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp ggml.o whisper.o -o bench $(LDFLAGS)
+talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o
+	$(CXX) $(CXXFLAGS) examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o whisper.o -o talk-llama $(CC_SDL) $(LDFLAGS)
 
 #
 # Audio samples

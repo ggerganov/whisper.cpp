@@ -18,6 +18,7 @@ build-sanitize-thread/
 /stream
 /command
 /talk
+/talk-llama
 /bench
 
 arm_neon.h
@@ -32,3 +33,5 @@ examples/whisper.objc/whisper.objc.xcodeproj/xcuserdata/
 examples/whisper.objc/whisper.objc.xcodeproj/project.xcworkspace/xcuserdata
 
 extra/bench-gg.txt
+
+*.mlmodel*
