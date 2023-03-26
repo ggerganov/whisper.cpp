@@ -2514,21 +2514,6 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         fprintf(stderr, "%s: kv cross size = %7.2f MB\n", __func__, memory_size / 1024.0 / 1024.0);
     }
 
-#ifdef WHISPER_USE_COREML
-        const auto path_coreml = whisper_get_coreml_path(ctx->path_model);
-
-        fprintf(stderr, "%s: loading Core ML model from '%s'\n", __func__, path_coreml.c_str());
-        fprintf(stderr, "%s: first run on a device may take a while ...\n", __func__);
-
-        state->ctx_coreml = whisper_coreml_init(path_coreml.c_str());
-        if (!state->ctx_coreml) {
-            fprintf(stderr, "%s: failed to load Core ML model from '%s'\n", __func__, path_coreml.c_str());
-            return nullptr;
-        }
-
-        fprintf(stderr, "%s: Core ML model loaded\n", __func__);
-#endif
-
     state->logits.reserve(ctx->vocab.n_vocab * ctx->model.hparams.n_text_ctx);
 
     state->logits_id.reserve(ctx->model.hparams.n_vocab);
@@ -2547,6 +2532,21 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     state->buf_scratch[3].resize(MEM_REQ_SCRATCH3.at(ctx->model.type));
 
     state->rng = std::mt19937(0);
+
+#ifdef WHISPER_USE_COREML
+    const auto path_coreml = whisper_get_coreml_path(ctx->path_model);
+
+    fprintf(stderr, "%s: loading Core ML model from '%s'\n", __func__, path_coreml.c_str());
+    fprintf(stderr, "%s: first run on a device may take a while ...\n", __func__);
+
+    state->ctx_coreml = whisper_coreml_init(path_coreml.c_str());
+    if (!state->ctx_coreml) {
+        fprintf(stderr, "%s: failed to load Core ML model from '%s'\n", __func__, path_coreml.c_str());
+        return nullptr;
+    }
+
+    fprintf(stderr, "%s: Core ML model loaded\n", __func__);
+#endif
 
     return state;
 }
