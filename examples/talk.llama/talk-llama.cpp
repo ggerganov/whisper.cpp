@@ -317,6 +317,8 @@ int main(int argc, char ** argv) {
     printf("%s%s", params.person.c_str(), chat_symb.c_str());
     fflush(stdout);
 
+    audio.clear();
+
     const int n_keep = embd_inp.size();
     const int voice_id = 2;
 
@@ -490,6 +492,7 @@ int main(int argc, char ** argv) {
                     }
                 }
 
+                text_to_speak = ::replace(text_to_speak, "\"", "");
                 system((params.speak + " " + std::to_string(voice_id) + " \"" + text_to_speak + "\"").c_str());
 
                 audio.clear();

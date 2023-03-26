@@ -13,5 +13,5 @@
 #
 wd=$(dirname $0)
 script=$wd/eleven-labs.py
-python3 $script $1 "$2"
-ffplay -autoexit -nodisp -loglevel quiet -hide_banner -i ./audio.mp3
+python3 $script $1 "$2" >/dev/null 2>&1
+ffplay -autoexit -nodisp -loglevel quiet -hide_banner -i ./audio.mp3 >/dev/null 2>&1
