@@ -12,11 +12,11 @@ $models = @( "tiny", "base", "small", "medium", "large" )
 
 Write-Host "`nRunning memcpy benchmark with 1 thread`n"
 
-#.\bench -w 1 -t 1 2>&1
+.\bench -w 1 -t 1 2>&1
 
 Write-Host "`nRunning ggml_mul_mat benchmark with $n_threads threads`n"
 
-#.\bench -w 2 -t $n_threads 2>&1
+.\bench -w 2 -t $n_threads 2>&1
 
 Write-Host "`nRunning benchmark for all models"
 Write-Host "This can take a while!`n"
