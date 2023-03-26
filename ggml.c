@@ -1529,7 +1529,7 @@ static void ggml_thread_pool_init() {
 static void ggml_thread_pool_cleanup() {
 
 }
-static ggml_thread_t ggml_thread_create(pthread_t* out, void* unused, thread_ret_t(*func)(void*), void* arg) {
+static int ggml_thread_create(pthread_t* out, void* unused, thread_ret_t(*func)(void*), void* arg) {
     //if (!atomic_fetch_sub(&g_thread_pool.free_threads, 1) <= 0) {
     //    uintptr_t thread_slot_magic = atomic_fetch_add(&g_thread_pool.free_slot_magic_val, 1);
     //    for (int i = 0; i < GGML_MAX_THREADS; ++i) {
