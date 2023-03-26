@@ -1521,19 +1521,38 @@ void ggml_lock_wait_while(struct ggml_lock_t* lock, bool(*while_what_predicate)(
     LeaveCriticalSection(&lock->CritSection);
 }
 
-typedef pthread_t ggml_thread_t;
 #else
-typedef int ggml_lock_t;
+// (pthread.h included above)
 
-#define ggml_lock_init(x)    UNUSED(x)
-#define ggml_lock_destroy(x) UNUSED(x)
-#define ggml_lock_lock(x)    UNUSED(x)
-#define ggml_lock_unlock(x)  UNUSED(x)
+struct ggml_lock_t {
+    pthread_mutex_t mut;
+    pthread_cond_t cv;
+};
+void ggml_lock_init(struct ggml_lock_t* lock) {
+    memset(lock, 0, sizeof(lock));
+    pthread_mutex_init(&lock->mut, NULL);
+    pthread_cond_init(&lock->cv, NULL);
+}
+void ggml_lock_destroy(struct ggml_lock_t* lock) {
+    pthread_mutex_destroy(&lock->mut);
+    pthread_cond_destroy(&lock->cv);
+}
+void ggml_lock_notify_all(struct ggml_lock_t* lock) {
+    pthread_mutex_lock(&lock->mut);
+    pthread_cond_broadcast(&lock->cv);
+    pthread_mutex_unlock(&lock->mut);
+}
+void ggml_lock_wait_while(struct ggml_lock_t* lock, bool(*while_what_predicate)(void*), void* params) {
+    pthread_mutex_lock(&lock->mut);
+    while (while_what_predicate(params)) {
+        pthread_cond_wait(&lock->cv, &lock->mut);
+    }
+    pthread_mutex_unlock(&lock->mut);
+}
 
-#define GGML_LOCK_INITIALIZER 0
+#endif 
 
 typedef pthread_t ggml_thread_t;
-#endif 
 
 //static_assert(sizeof(ggml_thread_t) <= sizeof(atomic_uintptr_t));
 //struct ggml_thread_pool {
