@@ -30,11 +30,20 @@
 #include <errno.h>
 #endif
 
+// if C11 or above use stdatomic.h
+#if __STDC_VERSION__ >= 201112L
+#include <stdatomic.h>
+#else
 typedef volatile LONG atomic_int;
+typedef volatile char* atomic_uintptr_t;
 typedef atomic_int atomic_bool;
 
 static void atomic_store(atomic_int* ptr, LONG val) {
     InterlockedExchange(ptr, val);
+}
+static int atomic_compare_exchange_strong(atomic_int* ptr, int* expected, int desired) {
+    int old_val = InterlockedCompareExchange(ptr, desired, *expected);
+    return old_val == *expected;
 }
 static LONG atomic_load(atomic_int* ptr) {
     return InterlockedCompareExchange(ptr, 0, 0);
@@ -45,6 +54,7 @@ static LONG atomic_fetch_add(atomic_int* ptr, LONG inc) {
 static LONG atomic_fetch_sub(atomic_int* ptr, LONG dec) {
     return atomic_fetch_add(ptr, -(dec));
 }
+#endif
 
 typedef HANDLE pthread_t;
 
@@ -1478,6 +1488,75 @@ static inline int ggml_up(int n, int m) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+//
+// thread data
+//
+// synchronization is done via busy loops
+// I tried using spin locks, but not sure how to use them correctly - the things I tried were slower than busy loops
+//
+
+//typedef pthread_spinlock_t ggml_lock_t;
+
+//#define ggml_lock_init(x) pthread_spin_init(x, PTHREAD_PROCESS_PRIVATE)
+//#define ggml_lock_destroy pthread_spin_destroy
+//#define ggml_lock_lock    pthread_spin_lock
+//#define ggml_lock_unlock  pthread_spin_unlock
+
+typedef int ggml_lock_t;
+
+#define ggml_lock_init(x)    UNUSED(x)
+#define ggml_lock_destroy(x) UNUSED(x)
+#define ggml_lock_lock(x)    UNUSED(x)
+#define ggml_lock_unlock(x)  UNUSED(x)
+
+#define GGML_LOCK_INITIALIZER 0
+
+typedef pthread_t ggml_thread_t;
+
+//static_assert(sizeof(ggml_thread_t) <= sizeof(atomic_uintptr_t));
+//struct ggml_thread_pool {
+//    atomic_uintptr_t threads[GGML_MAX_THREADS];
+//    bool used_flags[GGML_MAX_THREADS];
+//    atomic_int free_threads;
+//    atomic_int free_slot_magic_val;
+//};
+//
+//static struct ggml_thread_pool g_thread_pool;
+
+static void ggml_thread_pool_init() {
+    //atomic_store(&g_thread_pool.free_slot_magic_val, 1);
+}
+static void ggml_thread_pool_cleanup() {
+
+}
+static ggml_thread_t ggml_thread_create(pthread_t* out, void* unused, thread_ret_t(*func)(void*), void* arg) {
+    //if (!atomic_fetch_sub(&g_thread_pool.free_threads, 1) <= 0) {
+    //    uintptr_t thread_slot_magic = atomic_fetch_add(&g_thread_pool.free_slot_magic_val, 1);
+    //    for (int i = 0; i < GGML_MAX_THREADS; ++i) {
+    //        int expected = 0;
+    //        if (atomic_compare_exchange_strong(&g_thread_pool.threads[i], &expected, thread_slot_magic)) {
+    //            atomic_uintptr_t new_thread = pthread_create(out, unused, func, arg);
+    //            atomic_store(&g_thread_pool.threads[i], new_thread);
+    //            atomic_fetch_add(&g_thread_pool.free_threads, 1);
+    //            g_thread_pool.used_flags[i] = true;
+    //            return new_thread;
+    //        }
+    //    }
+    //    GGML_PRINT_DEBUG("%s: no unused thread slot found\n", __func__);
+    //    return NULL;
+    //}
+
+    //for (int i = 0; i < GGML_MAX_THREADS; ++i) {
+    //    
+    //}
+    return pthread_create(out, unused, func, arg);
+};
+static int ggml_thread_join(pthread_t thread, void* unused) {
+    return pthread_join(thread, unused);
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct ggml_context * ggml_init(struct ggml_init_params params) {
     // make this function thread safe
     ggml_critical_section_start();
@@ -1518,6 +1597,11 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
             const uint64_t t_end = ggml_time_us(); UNUSED(t_end);
 
             GGML_PRINT_DEBUG("%s: g_state initialized in %f ms\n", __func__, (t_end - t_start)/1000.0f);
+        }
+
+        // initialize thread pool
+        {
+            ggml_thread_pool_init();
         }
 
         is_first_call = false;
@@ -1564,11 +1648,16 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
     return ctx;
 }
 
+static void ggml_at_exit() {
+    ggml_thread_pool_cleanup();
+}
+
 void ggml_free(struct ggml_context * ctx) {
     // make this function thread safe
     ggml_critical_section_start();
 
     bool found = false;
+    bool is_last_context = true;
 
     for (int i = 0; i < GGML_MAX_CONTEXTS; i++) {
         if (&g_state.contexts[i].context == ctx) {
@@ -1582,12 +1671,18 @@ void ggml_free(struct ggml_context * ctx) {
             }
 
             found = true;
-            break;
+        }
+        else if (&g_state.contexts[i].context) {
+            is_last_context = false;
         }
     }
 
     if (!found) {
         GGML_PRINT_DEBUG("%s: context not found\n", __func__);
+    }
+
+    if (is_last_context) {
+        ggml_at_exit();
     }
 
     ggml_critical_section_end();
@@ -7104,65 +7199,6 @@ struct ggml_cgraph ggml_build_backward(struct ggml_context * ctx, struct ggml_cg
 
     return result;
 }
-
-//
-// thread data
-//
-// synchronization is done via busy loops
-// I tried using spin locks, but not sure how to use them correctly - the things I tried were slower than busy loops
-//
-
-#ifdef __APPLE__
-
-//#include <os/lock.h>
-//
-//typedef os_unfair_lock ggml_lock_t;
-//
-//#define ggml_lock_init(x)    UNUSED(x)
-//#define ggml_lock_destroy(x) UNUSED(x)
-//#define ggml_lock_lock       os_unfair_lock_lock
-//#define ggml_lock_unlock     os_unfair_lock_unlock
-//
-//#define GGML_LOCK_INITIALIZER OS_UNFAIR_LOCK_INIT
-
-typedef int ggml_lock_t;
-
-#define ggml_lock_init(x)    UNUSED(x)
-#define ggml_lock_destroy(x) UNUSED(x)
-#define ggml_lock_lock(x)    UNUSED(x)
-#define ggml_lock_unlock(x)  UNUSED(x)
-
-#define GGML_LOCK_INITIALIZER 0
-
-typedef pthread_t ggml_thread_t;
-
-#define ggml_thread_create pthread_create
-#define ggml_thread_join   pthread_join
-
-#else
-
-//typedef pthread_spinlock_t ggml_lock_t;
-
-//#define ggml_lock_init(x) pthread_spin_init(x, PTHREAD_PROCESS_PRIVATE)
-//#define ggml_lock_destroy pthread_spin_destroy
-//#define ggml_lock_lock    pthread_spin_lock
-//#define ggml_lock_unlock  pthread_spin_unlock
-
-typedef int ggml_lock_t;
-
-#define ggml_lock_init(x)    UNUSED(x)
-#define ggml_lock_destroy(x) UNUSED(x)
-#define ggml_lock_lock(x)    UNUSED(x)
-#define ggml_lock_unlock(x)  UNUSED(x)
-
-#define GGML_LOCK_INITIALIZER 0
-
-typedef pthread_t ggml_thread_t;
-
-#define ggml_thread_create pthread_create
-#define ggml_thread_join   pthread_join
-
-#endif
 
 struct ggml_compute_state_shared {
     ggml_lock_t spin;
