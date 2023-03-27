@@ -636,6 +636,8 @@ struct whisper_context {
     whisper_model model;
     whisper_vocab vocab;
     whisper_state * state = nullptr;
+
+    std::string path_model; // populated by whisper_init_from_file()
 };
 
 template<typename T>
@@ -1597,7 +1599,7 @@ static bool whisper_encode_internal(
                         ggml_repeat(ctx0, layer.mlp_ln_w, cur),
                         cur),
                     ggml_repeat(ctx0, layer.mlp_ln_b, cur));
-    }
+            }
 
 #ifdef WHISPER_USE_FLASH_FF
             wstate.use_buf(ctx0, 0);
@@ -1637,7 +1639,7 @@ static bool whisper_encode_internal(
                 ggml_repeat(ctx0, layer.mlp_1_b, cur),
                 cur);
 #endif
-}
+        }
 
         wstate.use_buf(ctx0, 3);
 
@@ -1841,8 +1843,6 @@ static bool whisper_decode_internal(
 
         // self-attention
         {
-            wstate.use_buf(ctx0, 1);
-
             struct ggml_tensor * Qcur = ggml_mul_mat(ctx0,
                     layer.attn_q_w,
                     cur);
@@ -1904,8 +1904,6 @@ static bool whisper_decode_internal(
             // K * Q
             struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
 
-            wstate.use_buf(ctx0, 0);
-
             //struct ggml_tensor * KQ_scaled =
             //    ggml_scale(ctx0,
             //            KQ,
@@ -1914,20 +1912,16 @@ static bool whisper_decode_internal(
 
             struct ggml_tensor * KQ_masked = ggml_diag_mask_inf(ctx0, KQ, n_past);
 
-            wstate.use_buf(ctx0, 1);
-
             struct ggml_tensor * KQ_soft_max = ggml_soft_max(ctx0, KQ_masked);
 
-            wstate.use_buf(ctx0, 0);
-
             struct ggml_tensor * V_trans =
-                ggml_permute(ctx0,
-                        ggml_reshape_3d(ctx0,
-                            ggml_view_1d(ctx0, kv_self.v, (n_past + N)*n_state, il*n_ctx*ggml_element_size(kv_self.v)*n_state),
-                            n_state/n_head, n_head, n_past + N),
-                        1, 2, 0, 3);
-
-            wstate.use_buf(ctx0, 1);
+                ggml_cpy(ctx0,
+                        ggml_permute(ctx0,
+                            ggml_reshape_3d(ctx0,
+                                ggml_view_1d(ctx0, kv_self.v, (n_past + N)*n_state, il*n_ctx*ggml_element_size(kv_self.v)*n_state),
+                                n_state/n_head, n_head, n_past + N),
+                            1, 2, 0, 3),
+                        ggml_new_tensor_3d(ctx0, kv_self.v->type, n_past + N, n_state/n_head, n_head));
 
             struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V_trans, KQ_soft_max);
 
@@ -1964,8 +1958,6 @@ static bool whisper_decode_internal(
 
             cur = ggml_norm(ctx0, inpCA); // note: we use inpCA here
 
-            wstate.use_buf(ctx0, 1);
-
             // cur = ln_0_w*cur + ln_0_b
             cur = ggml_add(ctx0,
                     ggml_mul(ctx0,
@@ -1976,8 +1968,6 @@ static bool whisper_decode_internal(
 
         // cross-attention
         {
-            wstate.use_buf(ctx0, 0);
-
             struct ggml_tensor * Qcur = ggml_mul_mat(ctx0,
                     layer.cross_attn_q_w,
                     cur);
@@ -2001,11 +1991,12 @@ static bool whisper_decode_internal(
                         ggml_view_1d(ctx0, wstate.kv_cross.v, M*n_state, il*M*ggml_element_size(wstate.kv_cross.v)*n_state),
                         n_state/n_head, n_head, M);
 
-            struct ggml_tensor * V_trans = ggml_permute(ctx0, Vcross, 1, 2, 0, 3);
+            struct ggml_tensor * V_trans =
+                ggml_cpy(ctx0,
+                        ggml_permute(ctx0, Vcross, 1, 2, 0, 3),
+                        ggml_new_tensor_3d(ctx0, Vcross->type, M, n_state/n_head, n_head));
 
             // ------
-
-            wstate.use_buf(ctx0, 1);
 
             struct ggml_tensor * Q =
                 ggml_permute(ctx0,
@@ -2015,8 +2006,6 @@ static bool whisper_decode_internal(
                         0, 2, 1, 3);
 
             struct ggml_tensor * K = ggml_permute(ctx0, Kcross, 0, 2, 1, 3);
-
-            wstate.use_buf(ctx0, 0);
 
             // K * Q
             struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
@@ -2030,15 +2019,9 @@ static bool whisper_decode_internal(
             // no masking for cross-attention
             //struct ggml_tensor * KQ_masked = ggml_diag_mask_inf(ctx0, KQ_scaled, n_past);
 
-            wstate.use_buf(ctx0, 1);
-
             struct ggml_tensor * KQ_soft_max = ggml_soft_max(ctx0, KQ);
 
-            wstate.use_buf(ctx0, 0);
-
             struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V_trans, KQ_soft_max);
-
-            wstate.use_buf(ctx0, 1);
 
             struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
 
@@ -2482,7 +2465,6 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     const size_t scale = ctx->model.hparams.f16 ? 1 : 2;
 
-
     if (!kv_cache_init(ctx->model.hparams, scale * MEM_REQ_KV_SELF.at(ctx->model.type), state->decoders[0].kv_self, ctx->wtype, ctx->model.hparams.n_text_ctx)) {
         fprintf(stderr, "%s: kv_cache_init() failed for self-attention cache\n", __func__);
         return nullptr;
@@ -2502,7 +2484,6 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         const size_t memory_size = ggml_nbytes(state->kv_cross.k) + ggml_nbytes(state->kv_cross.v);
         fprintf(stderr, "%s: kv cross size = %7.2f MB\n", __func__, memory_size / 1024.0 / 1024.0);
     }
-
 
     state->logits.reserve(ctx->vocab.n_vocab * ctx->model.hparams.n_text_ctx);
 
@@ -2554,7 +2535,13 @@ struct whisper_context * whisper_init_from_file_no_state(const char * path_model
         fin->close();
     };
 
-    return whisper_init_no_state(&loader);
+    auto ctx = whisper_init_no_state(&loader);
+
+    if (ctx) {
+        ctx->path_model = path_model;
+    }
+
+    return ctx;
 }
 
 struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t buffer_size) {
