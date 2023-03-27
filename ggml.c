@@ -5808,16 +5808,16 @@ static void ggml_compute_forward_mul_mat_f32(
 
     const int ne10 = src1->ne[0];
     const int ne11 = src1->ne[1];
-    //const int ne12 = src1->ne[2];
-    //const int ne13 = src1->ne[3];
+    const int ne12 = src1->ne[2];
+    const int ne13 = src1->ne[3];
 
-    //const int ne0  = dst->ne[0];
-    //const int ne1  = dst->ne[1];
-    //const int ne2  = dst->ne[2];
-    //const int ne3  = dst->ne[3];
+    const int ne0  = dst->ne[0];
+    const int ne1  = dst->ne[1];
+    const int ne2  = dst->ne[2];
+    const int ne3  = dst->ne[3];
     //const int ne   = ne0*ne1*ne2*ne3;
 
-    //const int nb00 = src0->nb[0];
+    const int nb00 = src0->nb[0];
     const int nb01 = src0->nb[1];
     const int nb02 = src0->nb[2];
     const int nb03 = src0->nb[3];
