@@ -465,8 +465,8 @@ int main(int argc, char ** argv) {
                         llama_token id = 0;
 
                         {
-                            //auto logits = llama_get_logits(ctx_llama);
-                            //logits[llama_token_eos()] = 0;
+                            auto logits = llama_get_logits(ctx_llama);
+                            logits[llama_token_eos()] = 0;
 
                             id = llama_sample_top_p_top_k(ctx_llama,
                                     embd_inp.data() + std::max(0, n_past - repeat_last_n),
@@ -480,10 +480,6 @@ int main(int argc, char ** argv) {
                             text_to_speak += llama_token_to_str(ctx_llama, id);
 
                             printf("%s", llama_token_to_str(ctx_llama, id));
-                        } else {
-                            // TODO
-                            printf("EOS TOKEN - SHOULD NOT HAPPEN\n");
-                            exit(0);
                         }
                     }
 
