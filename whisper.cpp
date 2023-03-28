@@ -218,14 +218,14 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
     { "su",  { 98,  "sundanese",      } },
 };
 
-static const size_t MB = 1024*1024;
+static const size_t MB = 1ull*1024*1024;
 
 static const std::map<e_model, size_t> MEM_REQ_SCRATCH0 = {
-    { MODEL_TINY,     12ull*MB },
-    { MODEL_BASE,     15ull*MB },
-    { MODEL_SMALL,    23ull*MB },
-    { MODEL_MEDIUM,   31ull*MB },
-    { MODEL_LARGE,    38ull*MB },
+    { MODEL_TINY,     14ull*MB },
+    { MODEL_BASE,     18ull*MB },
+    { MODEL_SMALL,    28ull*MB },
+    { MODEL_MEDIUM,   36ull*MB },
+    { MODEL_LARGE,    42ull*MB },
 };
 
 static const std::map<e_model, size_t> MEM_REQ_SCRATCH1 = {
@@ -1743,10 +1743,10 @@ static bool whisper_encode_internal(
 
     //printf("%s: used_mem = %f MB, %f MB, %f MB %f MB %f MB\n", __func__,
     //        ggml_used_mem(ctx0)/1024.0/1024.0,
-    //        wctx.get_buf_max_mem(0)/1024.0/1024.0,
-    //        wctx.get_buf_max_mem(1)/1024.0/1024.0,
-    //        wctx.get_buf_max_mem(2)/1024.0/1024.0,
-    //        wctx.get_buf_max_mem(3)/1024.0/1024.0);
+    //        wstate.get_buf_max_mem(0)/1024.0/1024.0,
+    //        wstate.get_buf_max_mem(1)/1024.0/1024.0,
+    //        wstate.get_buf_max_mem(2)/1024.0/1024.0,
+    //        wstate.get_buf_max_mem(3)/1024.0/1024.0);
 
     ggml_free(ctx0);
 
@@ -2153,10 +2153,10 @@ static bool whisper_decode_internal(
     if (N > 1) {
         //printf("%s: used_mem = %f MB, %f MB, %f MB %f MB %f MB\n", __func__,
         //        ggml_used_mem(ctx0)/1024.0/1024.0,
-        //        wctx.get_buf_max_mem(0)/1024.0/1024.0,
-        //        wctx.get_buf_max_mem(1)/1024.0/1024.0,
-        //        wctx.get_buf_max_mem(2)/1024.0/1024.0,
-        //        wctx.get_buf_max_mem(3)/1024.0/1024.0);
+        //        wstate.get_buf_max_mem(0)/1024.0/1024.0,
+        //        wstate.get_buf_max_mem(1)/1024.0/1024.0,
+        //        wstate.get_buf_max_mem(2)/1024.0/1024.0,
+        //        wstate.get_buf_max_mem(3)/1024.0/1024.0);
     }
 
     ggml_free(ctx0);
