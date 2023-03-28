@@ -225,7 +225,7 @@ static const std::map<e_model, size_t> MEM_REQ_SCRATCH0 = {
     { MODEL_BASE,     18ull*MB },
     { MODEL_SMALL,    28ull*MB },
     { MODEL_MEDIUM,   36ull*MB },
-    { MODEL_LARGE,    42ull*MB },
+    { MODEL_LARGE,    44ull*MB },
 };
 
 static const std::map<e_model, size_t> MEM_REQ_SCRATCH1 = {
