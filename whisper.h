@@ -356,6 +356,7 @@ extern "C" {
 
         // tokens to provide to the whisper decoder as initial prompt
         // these are prepended to any existing text context from a previous call
+        const char * initial_prompt;
         const whisper_token * prompt_tokens;
         int prompt_n_tokens;
 

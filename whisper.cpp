@@ -3121,6 +3121,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.speed_up         =*/ false,
         /*.audio_ctx        =*/ 0,
 
+        /*.initial_prompt   =*/ nullptr,
         /*.prompt_tokens    =*/ nullptr,
         /*.prompt_n_tokens  =*/ 0,
 
@@ -3791,6 +3792,15 @@ int whisper_full_with_state(
     auto & prompt_past = state->prompt_past;
     if (params.no_context) {
         prompt_past.clear();
+    }
+
+    // initial prompt
+    if (!params.prompt_tokens && params.initial_prompt) {
+        std::vector<whisper_token> prompt_tokens;
+        prompt_tokens.resize(1024);
+        prompt_tokens.resize(whisper_tokenize(ctx, params.initial_prompt, prompt_tokens.data(), prompt_tokens.size()));
+        params.prompt_tokens = prompt_tokens.data();
+        params.prompt_n_tokens = prompt_tokens.size();
     }
 
     // prepend the prompt tokens to the prompt_past
