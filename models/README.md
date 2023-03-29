@@ -6,7 +6,7 @@ using the [convert-pt-to-ggml.py](convert-pt-to-ggml.py) script. You can either 
 the `ggml` files yourself using the conversion script, or you can use the [download-ggml-model.sh](download-ggml-model.sh)
 script to download the already converted models. Currently, they are hosted on the following locations:
 
-- https://huggingface.co/datasets/ggerganov/whisper.cpp
+- https://huggingface.co/ggerganov/whisper.cpp
 - https://ggml.ggerganov.com
 
 Sample usage:
@@ -23,7 +23,7 @@ You can now use it like this:
 
 A third option to obtain the model files is to download them from Hugging Face:
 
-https://huggingface.co/datasets/ggerganov/whisper.cpp/tree/main
+https://huggingface.co/ggerganov/whisper.cpp/tree/main
 
 ## Available models
 

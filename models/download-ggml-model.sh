@@ -6,13 +6,13 @@
 #src="https://ggml.ggerganov.com"
 #pfx="ggml-model-whisper"
 
-src="https://huggingface.co/datasets/ggerganov/whisper.cpp"
+src="https://huggingface.co/ggerganov/whisper.cpp"
 pfx="resolve/main/ggml"
 
 # get the path of this script
 function get_script_path() {
     if [ -x "$(command -v realpath)" ]; then
-        echo "$(dirname $(realpath $0))"
+        echo "$(dirname "$(realpath "$0")")"
     else
         local ret="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)"
         echo "$ret"
