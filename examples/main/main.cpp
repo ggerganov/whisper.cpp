@@ -371,7 +371,7 @@ bool output_csv(struct whisper_context * ctx, const char * fname) {
     return true;
 }
 
-bool output_json(struct whisper_context * ctx, const char * fname, const whisper_params & params) {
+bool output_json(struct whisper_context * ctx, const char * fname, const whisper_params & params, const std::vector<std::vector<float>> & pcmf32s) {
     std::ofstream fout(fname);
     int indent = 0;
 
@@ -475,6 +475,30 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
                 const char * text = whisper_full_get_segment_text(ctx, i);
                 const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
                 const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                const char * speaker = "";
+
+                if (params.diarize && pcmf32s.size() == 2) {
+                    const int64_t n_samples = pcmf32s[0].size();
+
+                    const int64_t is0 = timestamp_to_sample(t0, n_samples);
+                    const int64_t is1 = timestamp_to_sample(t1, n_samples);
+
+                    double energy0 = 0.0f;
+                    double energy1 = 0.0f;
+
+                    for (int64_t j = is0; j < is1; j++) {
+                        energy0 += fabs(pcmf32s[0][j]);
+                        energy1 += fabs(pcmf32s[1][j]);
+                    }
+
+                    if (energy0 > 1.1*energy1) {
+                        speaker = "CUSTOMER";
+                    } else if (energy1 > 1.1*energy0) {
+                        speaker = "AGENT";
+                    } else {
+                        speaker = "UNKNOWN";
+                    }
+                }
 
                 start_obj();
                     start_obj("timestanps");
@@ -485,6 +509,7 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
                         value_i("from", t0 * 10);
                         value_i("to", t1 * 10, true);
                     end_obj();
+                    value_s("speaker", speaker);
                     value_s("text", text, true);
                 end_obj(i == (n_segments - 1));
             }
@@ -792,7 +817,7 @@ int main(int argc, char ** argv) {
             // output to JSON file
             if (params.output_jsn) {
                 const auto fname_jsn = fname_out + ".json";
-                output_json(ctx, fname_jsn.c_str(), params);
+                output_json(ctx, fname_jsn.c_str(), params, pcmf32s);
             }
         }
     }
