@@ -8,6 +8,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <cstring>
 
 // Terminal color map. 10 colors grouped in ranges [0.0, 0.1, ..., 0.9]
 // Lowest is red, middle is yellow, highest is green.
