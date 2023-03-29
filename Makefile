@@ -150,7 +150,7 @@ ifneq ($(filter armv7%,$(UNAME_M)),)
 	# 32-bit ARM, for example on Armbian or possibly raspbian
 	CFLAGS += -mfpu=neon -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations
 	
-	# alternatively, on some RPi4, it can be better to use the following flags:
+	# 64-bit ARM, use these (TODO: auto-detect 64-bit)
 	# CFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations
 endif
 ifneq ($(filter armv8%,$(UNAME_M)),)
