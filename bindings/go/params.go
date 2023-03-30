@@ -105,6 +105,10 @@ func (p *Params) SetMaxSegmentLength(n int) {
 	p.max_len = C.int(n)
 }
 
+func (p *Params) SetTokenTimestamps(b bool) {
+	p.token_timestamps = toBool(b)
+}
+
 // Set max tokens per segment (0 = no limit)
 func (p *Params) SetMaxTokensPerSegment(n int) {
 	p.max_tokens = C.int(n)
