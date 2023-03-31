@@ -813,10 +813,8 @@ void dequantize_row_q4_0(const void * restrict x, float * restrict y, int k) {
             const int8x8_t vb_1 = vsub_s8(vs_1, vdup_n_s8(8));
 
             // Interleave and combine
-            const int8x8_t vx_0 = vzip1_s8(vb_0, vb_1);
-            const int8x8_t vx_1 = vzip2_s8(vb_0, vb_1);
-
-            const int8x16_t vq = vcombine_s8(vx_0, vx_1);
+            const int8x8x2_t vx = vzip_s8(vb_0, vb_1);
+            const int8x16_t vq = vcombine_s8(vx.val[0], vx.val[1]);
 
             // convert to 2x int16x8_t
             const int16x8_t vi_0 = vmovl_s8(vget_low_s8 (vq));
