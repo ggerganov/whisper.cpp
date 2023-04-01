@@ -654,9 +654,11 @@ static bool kv_cache_init(
                                  int   n_ctx) {
     cache.buf.resize(mem_bytes);
 
-    struct ggml_init_params params;
-    params.mem_size   = cache.buf.size();
-    params.mem_buffer = cache.buf.data();
+    struct ggml_init_params params = {
+        /*.mem_size   =*/ cache.buf.size(),
+        /*.mem_buffer =*/ cache.buf.data(),
+        /*.no_alloc   =*/ false,
+    };
 
     cache.ctx = ggml_init(params);
 
@@ -688,9 +690,11 @@ static bool kv_cache_reinit(struct whisper_kv_cache & cache) {
 
     WHISPER_ASSERT(cache.buf.size() >= 2*n_elements*ggml_type_size(wtype));
 
-    struct ggml_init_params params;
-    params.mem_size   = cache.buf.size();
-    params.mem_buffer = cache.buf.data();
+    struct ggml_init_params params = {
+        /*.mem_size   =*/ cache.buf.size(),
+        /*.mem_buffer =*/ cache.buf.data(),
+        /*.no_alloc   =*/ false,
+    };
 
     cache.ctx = ggml_init(params);
 
@@ -1028,9 +1032,11 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
     // create the ggml context
     {
-        struct ggml_init_params params;
-        params.mem_size   = wctx.model.buf->size();
-        params.mem_buffer = wctx.model.buf->data();
+        struct ggml_init_params params = {
+            /*.mem_size   =*/ wctx.model.buf->size(),
+            /*.mem_buffer =*/ wctx.model.buf->data(),
+            /*.no_alloc   =*/ false,
+        };
 
         model.ctx = ggml_init(params);
         if (!model.ctx) {
@@ -1344,9 +1350,11 @@ static bool whisper_encode_internal(
     const int n_mels = hparams.n_mels;
     assert(mel_inp.n_mel == n_mels);
 
-    struct ggml_init_params params;
-    params.mem_size   = wstate.buf_compute.size();
-    params.mem_buffer = wstate.buf_compute.data();
+    struct ggml_init_params params = {
+        /*.mem_size   =*/ wstate.buf_compute.size(),
+        /*.mem_buffer =*/ wstate.buf_compute.data(),
+        /*.no_alloc   =*/ false,
+    };
 
     struct ggml_context * ctx0 = ggml_init(params);
 
@@ -1797,9 +1805,11 @@ static bool whisper_decode_internal(
 
     //WHISPER_PRINT_DEBUG("%s: n_past = %d, N = %d, M = %d, n_ctx = %d\n", __func__, n_past, N, M, n_ctx);
 
-    struct ggml_init_params params;
-    params.mem_size   = wstate.buf_compute.size();
-    params.mem_buffer = wstate.buf_compute.data();
+    struct ggml_init_params params = {
+        /*.mem_size   =*/ wstate.buf_compute.size(),
+        /*.mem_buffer =*/ wstate.buf_compute.data(),
+        /*.no_alloc   =*/ false,
+    };
 
     struct ggml_context * ctx0 = ggml_init(params);
 
@@ -4726,6 +4736,7 @@ WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads) {
             struct ggml_init_params gparams = {
                 /*.mem_size   =*/ buf.size(),
                 /*.mem_buffer =*/ buf.data(),
+                /*.no_alloc   =*/ false,
             };
 
             struct ggml_context * ctx0 = ggml_init(gparams);

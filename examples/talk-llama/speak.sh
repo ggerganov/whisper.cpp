@@ -10,7 +10,15 @@
 #espeak -v en-us+m$1 -s 225 -p 50 -a 200 -g 5 -k 5 "$2"
 
 # for Mac
-say "$2"
+if [ "$1" = "0" ]; then
+    say "$2"
+elif [ "$1" = "1" ]; then
+    say -v "Samantha (Enhanced)" "$2"
+elif [ "$1" = "2" ]; then
+    say -v "Daniel (Enhanced)" "$2"
+elif [ "$1" = "3" ]; then
+    say -v "Veena (Enhanced)" "$2"
+fi
 
 # Eleven Labs
 #
