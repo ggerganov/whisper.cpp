@@ -166,10 +166,10 @@ typedef double ggml_float;
 #undef bool
 #define bool _Bool
 #else
-#if defined(__AVX512F__) || defined(__AVX512BW__) || defined(__AVX__) || defined(__AVX2__)
-#include <immintrin.h>
-#elif defined(__XOP__)
+#ifdef (__XOP__)
 #include <x86intrin.h>
+#else
+#include <immintrin.h>
 #endif
 #endif
 #endif
