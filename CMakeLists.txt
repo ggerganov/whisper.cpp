@@ -2,6 +2,8 @@ cmake_minimum_required (VERSION 3.0)
 
 project(whisper.cpp VERSION 1.2.1)
 
+add_compile_options(/utf-8)
+
 # Add path to modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
