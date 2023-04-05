@@ -850,7 +850,7 @@ int main(int argc, char ** argv) {
                 output_json(ctx, fname_jsn.c_str(), params);
             }
 
-            // output to WTS file
+            // output to LRC file
             if (params.output_lrc) {
                 const auto fname_lrc = fname_out + ".lrc";
                 output_lrc(ctx, fname_lrc.c_str());
