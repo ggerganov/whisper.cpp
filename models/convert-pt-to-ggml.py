@@ -39,6 +39,7 @@ import json
 import code
 import torch
 import numpy as np
+import base64
 
 #from transformers import GPTJForCausalLM
 #from transformers import GPT2TokenizerFast
@@ -224,18 +225,14 @@ with np.load(os.path.join(dir_whisper, "whisper/assets", "mel_filters.npz")) as 
 #code.interact(local=locals())
 
 multilingual = hparams["n_vocab"] == 51865
-dir_tokenizer = os.path.join(dir_whisper, "whisper/assets", multilingual and "multilingual" or "gpt2")
-
-#tokenizer = build_tokenizer(dir_whisper, multilingual and "multilingual" or "gpt2")
-#print(tokenizer)
-#print(tokenizer.name_or_path)
-#print(len(tokenizer.additional_special_tokens))
+tokenizer = os.path.join(dir_whisper, "whisper/assets", multilingual and "multilingual.tiktoken" or "gpt2.tiktoken")
 
 # output in the same directory as the model
 fname_out = dir_out + "/ggml-model.bin"
 
-with open(dir_tokenizer + "/vocab.json", "r", encoding="utf8") as f:
-    tokens = json.load(f)
+with open(tokenizer, "rb") as f:
+    contents = f.read()
+    tokens = {base64.b64decode(token): int(rank) for token, rank in (line.split() for line in contents.splitlines() if line)}
 
 # use 16-bit or 32-bit floats
 use_f16 = True
@@ -271,9 +268,8 @@ byte_decoder = {v:k for k, v in byte_encoder.items()}
 fout.write(struct.pack("i", len(tokens)))
 
 for key in tokens:
-    text = bytearray([byte_decoder[c] for c in key])
-    fout.write(struct.pack("i", len(text)))
-    fout.write(text)
+    fout.write(struct.pack("i", len(key)))
+    fout.write(key)
 
 for name in list_vars.keys():
     data = list_vars[name].squeeze().numpy()
