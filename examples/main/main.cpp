@@ -8,6 +8,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <cstring>
 
 // Terminal color map. 10 colors grouped in ranges [0.0, 0.1, ..., 0.9]
 // Lowest is red, middle is yellow, highest is green.
@@ -371,6 +372,39 @@ bool output_csv(struct whisper_context * ctx, const char * fname) {
     return true;
 }
 
+char *escape_double_quotes(const char *str) {
+    if (str == NULL) {
+        return NULL;
+    }
+
+    size_t escaped_length = strlen(str) + 1;
+
+    for (size_t i = 0; str[i] != '\0'; i++) {
+        if (str[i] == '"') {
+            escaped_length++;
+        }
+    }
+
+    char *escaped = (char *)calloc(escaped_length, 1); // pre-zeroed
+    if (escaped == NULL) {
+        return NULL;
+    }
+
+    size_t pos = 0;
+    for (size_t i = 0; str[i] != '\0'; i++) {
+        if (str[i] == '"') {
+            escaped[pos++] = '\\';
+            escaped[pos++] = '"';
+        } else {
+            escaped[pos++] = str[i];
+        }
+    }
+
+    // no need to set zero due to calloc() being used prior
+
+    return escaped;
+}
+
 bool output_json(struct whisper_context * ctx, const char * fname, const whisper_params & params) {
     std::ofstream fout(fname);
     int indent = 0;
@@ -414,7 +448,9 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
 
     auto value_s = [&](const char *name, const char *val, bool end = false) {
         start_value(name);
-        fout << "\"" << val << (end ? "\"\n" : "\",\n");
+        char * val_escaped = escape_double_quotes(val);
+        fout << "\"" << val_escaped << (end ? "\"\n" : "\",\n");
+        free(val_escaped);
     };
 
     auto end_value = [&](bool end = false) {
@@ -455,7 +491,7 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
                 value_i("ctx", whisper_model_n_text_ctx(ctx));
                 value_i("state", whisper_model_n_text_state(ctx));
                 value_i("head", whisper_model_n_text_head(ctx));
-                value_i("leyer", whisper_model_n_text_layer(ctx), true);
+                value_i("layer", whisper_model_n_text_layer(ctx), true);
             end_obj();
             value_i("mels", whisper_model_n_mels(ctx));
             value_i("f16", whisper_model_f16(ctx), true);
@@ -477,7 +513,7 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
                 const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
                 start_obj();
-                    start_obj("timestanps");
+                    start_obj("timestamps");
                         value_s("from", to_timestamp(t0, true).c_str());
                         value_s("to", to_timestamp(t1, true).c_str(), true);
                     end_obj();
@@ -639,22 +675,6 @@ int main(int argc, char ** argv) {
         return 3;
     }
 
-    // initial prompt
-    std::vector<whisper_token> prompt_tokens;
-
-    if (!params.prompt.empty()) {
-        prompt_tokens.resize(1024);
-        prompt_tokens.resize(whisper_tokenize(ctx, params.prompt.c_str(), prompt_tokens.data(), prompt_tokens.size()));
-
-        fprintf(stderr, "\n");
-        fprintf(stderr, "initial prompt: '%s'\n", params.prompt.c_str());
-        fprintf(stderr, "initial tokens: [ ");
-        for (int i = 0; i < (int) prompt_tokens.size(); ++i) {
-            fprintf(stderr, "%d ", prompt_tokens[i]);
-        }
-        fprintf(stderr, "]\n");
-    }
-
     for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
         const auto fname_inp = params.fname_inp[f];
 		const auto fname_out = f < (int) params.fname_out.size() && !params.fname_out[f].empty() ? params.fname_out[f] : params.fname_inp[f];
@@ -718,8 +738,7 @@ int main(int argc, char ** argv) {
 
             wparams.speed_up         = params.speed_up;
 
-            wparams.prompt_tokens     = prompt_tokens.empty() ? nullptr : prompt_tokens.data();
-            wparams.prompt_n_tokens   = prompt_tokens.empty() ? 0       : prompt_tokens.size();
+            wparams.initial_prompt   = params.prompt.c_str();
 
             wparams.greedy.best_of        = params.best_of;
             wparams.beam_search.beam_size = params.beam_size;

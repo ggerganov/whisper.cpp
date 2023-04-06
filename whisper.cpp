@@ -3121,6 +3121,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.speed_up         =*/ false,
         /*.audio_ctx        =*/ 0,
 
+        /*.initial_prompt   =*/ nullptr,
         /*.prompt_tokens    =*/ nullptr,
         /*.prompt_n_tokens  =*/ 0,
 
@@ -3150,6 +3151,9 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
         /*.new_segment_callback           =*/ nullptr,
         /*.new_segment_callback_user_data =*/ nullptr,
+
+        /*.progress_callback           =*/ nullptr,
+        /*.progress_callback_user_data =*/ nullptr,
 
         /*.encoder_begin_callback           =*/ nullptr,
         /*.encoder_begin_callback_user_data =*/ nullptr,
@@ -3793,6 +3797,15 @@ int whisper_full_with_state(
         prompt_past.clear();
     }
 
+    // initial prompt
+    if (!params.prompt_tokens && params.initial_prompt) {
+        std::vector<whisper_token> prompt_tokens;
+        prompt_tokens.resize(1024);
+        prompt_tokens.resize(whisper_tokenize(ctx, params.initial_prompt, prompt_tokens.data(), prompt_tokens.size()));
+        params.prompt_tokens = prompt_tokens.data();
+        params.prompt_n_tokens = prompt_tokens.size();
+    }
+
     // prepend the prompt tokens to the prompt_past
     if (params.prompt_tokens && params.prompt_n_tokens > 0) {
         // parse tokens from the pointer
@@ -3857,6 +3870,10 @@ int whisper_full_with_state(
             if (params.print_progress) {
                 fprintf(stderr, "%s: progress = %3d%%\n", __func__, progress_prev);
             }
+        }
+        if (params.progress_callback) {
+            params.progress_callback(
+                ctx, ctx->state, progress_prev, params.progress_callback_user_data);
         }
 
         // of only 1 second left, then stop
@@ -4445,6 +4462,9 @@ int whisper_full_parallel(
 
         params_cur.new_segment_callback = nullptr;
         params_cur.new_segment_callback_user_data = nullptr;
+
+        params_cur.progress_callback = nullptr;
+        params_cur.progress_callback_user_data = nullptr;
 
         workers[i] = std::thread(whisper_full_with_state, ctx, states[i], std::move(params_cur), samples + start_samples, n_samples_cur);
     }
