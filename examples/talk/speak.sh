@@ -13,6 +13,7 @@
 say "$2"
 
 # Eleven Labs
+# To use it, install the elevenlabs module from pip (pip install elevenlabs), register to https://beta.elevenlabs.io to get an api key and paste it in /examples/talk/eleven-labs.py 
 #
 #wd=$(dirname $0)
 #script=$wd/eleven-labs.py
