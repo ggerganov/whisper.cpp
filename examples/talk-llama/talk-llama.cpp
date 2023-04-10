@@ -239,7 +239,7 @@ int main(int argc, char ** argv) {
     auto lparams = llama_context_default_params();
 
     // tune these to your liking
-    lparams.n_ctx      = 512;
+    lparams.n_ctx      = 2048;
     lparams.seed       = 1;
     lparams.f16_kv     = true;
     lparams.n_parts    = params.n_parts_llama;
