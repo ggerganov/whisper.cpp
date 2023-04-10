@@ -166,7 +166,7 @@ typedef double ggml_float;
 #undef bool
 #define bool _Bool
 #else
-#ifdef (__XOP__)
+#ifdef __XOP__
 #include <x86intrin.h>
 #else
 #include <immintrin.h>
