@@ -177,11 +177,12 @@ extern "C" {
 #include <stddef.h>
 #include <stdbool.h>
 
-#define GGML_MAX_DIMS     4
-#define GGML_MAX_NODES    4096
-#define GGML_MAX_PARAMS   16
-#define GGML_MAX_CONTEXTS 64
-#define GGML_MAX_OPT      4
+#define GGML_MAX_DIMS          4
+#define GGML_MAX_NODES         4096
+#define GGML_MAX_PARAMS        16
+#define GGML_MAX_CONTEXTS      64
+#define GGML_MAX_OPT           4
+#define GGML_DEFAULT_N_THREADS 4
 
 #ifdef __ARM_NEON
 // we use the built-in 16-bit float type
@@ -198,13 +199,14 @@ struct ggml_object;
 struct ggml_context;
 
 enum ggml_type {
-    GGML_TYPE_Q4_0,
-    GGML_TYPE_Q4_1,
+    // explicitly numbered values are used in llama.cpp files
+    GGML_TYPE_F32  = 0,
+    GGML_TYPE_F16  = 1,
+    GGML_TYPE_Q4_0 = 2,
+    GGML_TYPE_Q4_1 = 3,
     GGML_TYPE_I8,
     GGML_TYPE_I16,
     GGML_TYPE_I32,
-    GGML_TYPE_F16,
-    GGML_TYPE_F32,
     GGML_TYPE_COUNT,
 };
 

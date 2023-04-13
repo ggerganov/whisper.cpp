@@ -157,7 +157,7 @@ endif
 ifneq ($(filter armv7%,$(UNAME_M)),)
 	# 32-bit ARM, for example on Armbian or possibly raspbian
 	CFLAGS += -mfpu=neon -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations
-	
+
 	# 64-bit ARM, use these (TODO: auto-detect 64-bit)
 	# CFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations
 endif
@@ -190,7 +190,7 @@ default: main bench
 ggml.o: ggml.c ggml.h
 	$(CC)  $(CFLAGS)   -c ggml.c -o ggml.o
 
-whisper.o: whisper.cpp whisper.h
+whisper.o: whisper.cpp whisper.h ggml.h
 	$(CXX) $(CXXFLAGS) -c whisper.cpp -o whisper.o
 
 libwhisper.a: ggml.o whisper.o
