@@ -2487,6 +2487,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     if (!kv_cache_init(ctx->model.hparams, scale * MEM_REQ_KV_SELF.at(ctx->model.type), state->decoders[0].kv_self, ctx->wtype, ctx->model.hparams.n_text_ctx)) {
         fprintf(stderr, "%s: kv_cache_init() failed for self-attention cache\n", __func__);
+        delete state;
         return nullptr;
     }
 
@@ -2497,6 +2498,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     if (!kv_cache_init(ctx->model.hparams, scale * MEM_REQ_KV_CROSS.at(ctx->model.type), state->kv_cross, ctx->wtype, ctx->model.hparams.n_audio_ctx)) {
         fprintf(stderr, "%s: kv_cache_init() failed for cross-attention cache\n", __func__);
+        delete state;
         return nullptr;
     }
 
