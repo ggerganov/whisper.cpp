@@ -328,6 +328,10 @@ https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a
 Adding the `--print-colors` argument will print the transcribed text using an experimental color coding strategy
 to highlight words with high or low confidence:
 
+```java
+./main -m models/ggml-base.en.bin -f samples/gb0.wav --print-colors
+```
+
 <img width="965" alt="image" src="https://user-images.githubusercontent.com/1991296/197356445-311c8643-9397-4e5e-b46e-0b4b4daa2530.png">
 
 ## Controlling the length of the generated text segments (experimental)
