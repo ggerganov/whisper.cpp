@@ -1260,12 +1260,10 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                 break;
             }
 
-            int64_t nelements = 1;
-            int64_t ne[3] = { 1, 1, 1 };
+            int32_t nelements = 1;
+            int32_t ne[3] = { 1, 1, 1 };
             for (int i = 0; i < n_dims; ++i) {
-                int32_t ne_cur;
-                read_safe(loader, ne_cur);
-                ne[i] = ne_cur;
+                read_safe(loader, ne[i]);
                 nelements *= ne[i];
             }
 
@@ -1286,15 +1284,15 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             }
 
             if (tensor->ne[0] != ne[0] || tensor->ne[1] != ne[1] || tensor->ne[2] != ne[2]) {
-                fprintf(stderr, "%s: tensor '%s' has wrong shape in model file: got [%lld, %lld, %lld], expected [%lld, %lld, %lld]\n",
-                        __func__, name.data(), tensor->ne[0], tensor->ne[1], tensor->ne[2], ne[0], ne[1], ne[2]);
+                fprintf(stderr, "%s: tensor '%s' has wrong shape in model file: got [%d, %d, %d], expected [%d, %d, %d]\n",
+                        __func__, name.data(), (int) tensor->ne[0], (int) tensor->ne[1], (int) tensor->ne[2], ne[0], ne[1], ne[2]);
                 return false;
             }
 
             const size_t bpe = (ftype == 0) ? sizeof(float) : sizeof(ggml_fp16_t);
 
             if (nelements*bpe != ggml_nbytes(tensor)) {
-                fprintf(stderr, "%s: tensor '%s' has wrong size in model file: got %zu, expected %llu\n",
+                fprintf(stderr, "%s: tensor '%s' has wrong size in model file: got %zu, expected %zu\n",
                         __func__, name.data(), ggml_nbytes(tensor), nelements*bpe);
                 return false;
             }
@@ -3819,22 +3817,26 @@ int whisper_full_with_state(
         prompt_past.clear();
     }
 
-    // initial prompt
-    if (!params.prompt_tokens && params.initial_prompt) {
+    // prepare prompt
+    {
         std::vector<whisper_token> prompt_tokens;
-        prompt_tokens.resize(1024);
-        prompt_tokens.resize(whisper_tokenize(ctx, params.initial_prompt, prompt_tokens.data(), prompt_tokens.size()));
-        params.prompt_tokens = prompt_tokens.data();
-        params.prompt_n_tokens = prompt_tokens.size();
-    }
 
-    // prepend the prompt tokens to the prompt_past
-    if (params.prompt_tokens && params.prompt_n_tokens > 0) {
-        // parse tokens from the pointer
-        for (int i = 0; i < params.prompt_n_tokens; i++) {
-            prompt_past.push_back(params.prompt_tokens[i]);
+        // initial prompt
+        if (!params.prompt_tokens && params.initial_prompt) {
+            prompt_tokens.resize(1024);
+            prompt_tokens.resize(whisper_tokenize(ctx, params.initial_prompt, prompt_tokens.data(), prompt_tokens.size()));
+            params.prompt_tokens   = prompt_tokens.data();
+            params.prompt_n_tokens = prompt_tokens.size();
         }
-        std::rotate(prompt_past.begin(), prompt_past.end() - params.prompt_n_tokens, prompt_past.end());
+
+        // prepend the prompt tokens to the prompt_past
+        if (params.prompt_tokens && params.prompt_n_tokens > 0) {
+            // parse tokens from the pointer
+            for (int i = 0; i < params.prompt_n_tokens; i++) {
+                prompt_past.push_back(params.prompt_tokens[i]);
+            }
+            std::rotate(prompt_past.begin(), prompt_past.end() - params.prompt_n_tokens, prompt_past.end());
+        }
     }
 
     // overwrite audio_ctx, max allowed is hparams.n_audio_ctx

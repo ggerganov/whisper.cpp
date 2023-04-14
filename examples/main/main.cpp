@@ -208,8 +208,8 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
 
     std::string speaker = "";
 
-    int64_t t0;
-    int64_t t1;
+    int64_t t0 = 0;
+    int64_t t1 = 0;
 
     // print the last n_new segments
     const int s0 = n_segments - n_new;
