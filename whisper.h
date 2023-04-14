@@ -226,7 +226,7 @@ extern "C" {
     // Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first
     // Returns the top language id or negative on failure
     // If not null, fills the lang_probs array with the probabilities of all languages
-    // The array must be whispe_lang_max_id() + 1 in size
+    // The array must be whisper_lang_max_id() + 1 in size
     // ref: https://github.com/openai/whisper/blob/main/whisper/decoding.py#L18-L69
     WHISPER_API int whisper_lang_auto_detect(
             struct whisper_context * ctx,
@@ -297,7 +297,7 @@ extern "C" {
 
     // Available sampling strategies
     enum whisper_sampling_strategy {
-        WHISPER_SAMPLING_GREEDY,      // similar to OpenAI's GreefyDecoder
+        WHISPER_SAMPLING_GREEDY,      // similar to OpenAI's GreedyDecoder
         WHISPER_SAMPLING_BEAM_SEARCH, // similar to OpenAI's BeamSearchDecoder
     };
 
