@@ -356,7 +356,7 @@ func (ctx *Context) Whisper_full_get_token_id(segment int, token int) Token {
 
 // Get token data for the specified token in the specified segment.
 // This contains probabilities, timestamps, etc.
-func (ctx *Context) whisper_full_get_token_data(segment int, token int) TokenData {
+func (ctx *Context) Whisper_full_get_token_data(segment int, token int) TokenData {
 	return TokenData(C.whisper_full_get_token_data((*C.struct_whisper_context)(ctx), C.int(segment), C.int(token)))
 }
 
@@ -406,4 +406,12 @@ func callEncoderBegin(user_data unsafe.Pointer) C.bool {
 		}
 	}
 	return true
+}
+
+func (t TokenData) T0() int64 {
+	return int64(t.t0)
+}
+
+func (t TokenData) T1() int64 {
+	return int64(t.t1)
 }

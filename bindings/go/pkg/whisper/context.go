@@ -111,6 +111,11 @@ func (context *context) SetMaxSegmentLength(n uint) {
 	context.params.SetMaxSegmentLength(int(n))
 }
 
+// Set token timestamps flag
+func (context *context) SetTokenTimestamps(b bool) {
+	context.params.SetTokenTimestamps(b)
+}
+
 // Set max tokens per segment (0 = no limit)
 func (context *context) SetMaxTokensPerSegment(n uint) {
 	context.params.SetMaxTokensPerSegment(int(n))
@@ -280,10 +285,14 @@ func toSegment(ctx *whisper.Context, n int) Segment {
 func toTokens(ctx *whisper.Context, n int) []Token {
 	result := make([]Token, ctx.Whisper_full_n_tokens(n))
 	for i := 0; i < len(result); i++ {
+		data := ctx.Whisper_full_get_token_data(n, i)
+
 		result[i] = Token{
-			Id:   int(ctx.Whisper_full_get_token_id(n, i)),
-			Text: strings.TrimSpace(ctx.Whisper_full_get_token_text(n, i)),
-			P:    ctx.Whisper_full_get_token_p(n, i),
+			Id:    int(ctx.Whisper_full_get_token_id(n, i)),
+			Text:  ctx.Whisper_full_get_token_text(n, i),
+			P:     ctx.Whisper_full_get_token_p(n, i),
+			Start: time.Duration(data.T0()) * time.Millisecond * 10,
+			End:   time.Duration(data.T1()) * time.Millisecond * 10,
 		}
 	}
 	return result
