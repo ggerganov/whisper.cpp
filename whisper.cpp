@@ -2449,25 +2449,20 @@ static std::vector<whisper_vocab::id> tokenize(const whisper_vocab & vocab, cons
         int n = word.size();
         while (i < n) {
             int j = n;
+            bool found = false;
             while (j > i) {
-                auto it = vocab.token_to_id.find(word.substr(i, j-i));
+                auto sub = word.substr(i, j-i);
+                auto it = vocab.token_to_id.find(sub);
                 if (it != vocab.token_to_id.end()) {
                     tokens.push_back(it->second);
                     i = j;
+                    found = true;
                     break;
                 }
                 --j;
             }
-            if (i == n) {
-                break;
-            }
-            if (j == i) {
-                auto sub = word.substr(i, 1);
-                if (vocab.token_to_id.find(sub) != vocab.token_to_id.end()) {
-                    tokens.push_back(vocab.token_to_id.at(sub));
-                } else {
-                    fprintf(stderr, "%s: unknown token '%s'\n", __func__, sub.data());
-                }
+            if (!found) {
+                fprintf(stderr, "unknown token \n");
                 ++i;
             }
         }
