@@ -75,6 +75,7 @@ struct whisper_params {
     bool output_wts     = false;
     bool output_csv     = false;
     bool output_jsn     = false;
+    bool output_lrc     = false;
     bool print_special  = false;
     bool print_colors   = false;
     bool print_progress = false;
@@ -130,6 +131,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-ovtt" || arg == "--output-vtt")     { params.output_vtt     = true; }
         else if (arg == "-osrt" || arg == "--output-srt")     { params.output_srt     = true; }
         else if (arg == "-owts" || arg == "--output-words")   { params.output_wts     = true; }
+        else if (arg == "-olrc" || arg == "--output-lrc")     { params.output_lrc     = true; }
         else if (arg == "-fp"   || arg == "--font-path")      { params.font_path      = argv[++i]; }
         else if (arg == "-ocsv" || arg == "--output-csv")     { params.output_csv     = true; }
         else if (arg == "-oj"   || arg == "--output-json")    { params.output_jsn     = true; }
@@ -178,6 +180,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -otxt,     --output-txt        [%-7s] output result in a text file\n",                   params.output_txt ? "true" : "false");
     fprintf(stderr, "  -ovtt,     --output-vtt        [%-7s] output result in a vtt file\n",                    params.output_vtt ? "true" : "false");
     fprintf(stderr, "  -osrt,     --output-srt        [%-7s] output result in a srt file\n",                    params.output_srt ? "true" : "false");
+    fprintf(stderr, "  -olrc,     --output-lrc        [%-7s] output result in a lrc file\n",                    params.output_lrc ? "true" : "false");
     fprintf(stderr, "  -owts,     --output-words      [%-7s] output script for generating karaoke video\n",     params.output_wts ? "true" : "false");
     fprintf(stderr, "  -fp,       --font-path         [%-7s] path to a monospace font for karaoke video\n",     params.font_path.c_str());
     fprintf(stderr, "  -ocsv,     --output-csv        [%-7s] output result in a CSV file\n",                    params.output_csv ? "true" : "false");
@@ -647,6 +650,39 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
     return true;
 }
 
+bool output_lrc(struct whisper_context * ctx, const char * fname) {
+
+    std::ofstream fout(fname);
+    if (!fout.is_open()) {
+        fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
+        return false;
+    }
+
+    fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
+
+    fout << "[by:whisper.cpp]\n";
+
+    const int n_segments = whisper_full_n_segments(ctx);
+    for (int i = 0; i < n_segments; ++i) {
+        const char * text = whisper_full_get_segment_text(ctx, i);
+        const int64_t t = whisper_full_get_segment_t0(ctx, i);
+
+        int64_t msec = t * 10;
+        int64_t min = msec / (1000 * 60);
+        msec = msec - min * (1000 * 60);
+        int64_t sec = msec / 1000;
+        msec = msec - sec * 1000;
+
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%02d:%02d.%02d", (int) min, (int) sec, (int) ( msec / 10));
+        std::string timestamp_lrc = std::string(buf);
+
+        fout <<  '[' << timestamp_lrc << ']' << text << "\n";
+    }
+
+    return true;
+}
+
 int main(int argc, char ** argv) {
     whisper_params params;
 
@@ -812,6 +848,12 @@ int main(int argc, char ** argv) {
             if (params.output_jsn) {
                 const auto fname_jsn = fname_out + ".json";
                 output_json(ctx, fname_jsn.c_str(), params);
+            }
+
+            // output to LRC file
+            if (params.output_lrc) {
+                const auto fname_lrc = fname_out + ".lrc";
+                output_lrc(ctx, fname_lrc.c_str());
             }
         }
     }
