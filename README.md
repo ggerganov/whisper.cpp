@@ -493,6 +493,7 @@ in [models](models).
   - [stlukey/whispercpp.py](https://github.com/stlukey/whispercpp.py) (Cython)
   - [aarnphm/whispercpp](https://github.com/aarnphm/whispercpp) (Pybind11)
 - [X] R: [bnosac/audio.whisper](https://github.com/bnosac/audio.whisper)
+- [X] Unity: [macoron/whisper.unity](https://github.com/Macoron/whisper.unity)
 
 ## Examples
 
