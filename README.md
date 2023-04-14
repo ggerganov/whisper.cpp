@@ -58,7 +58,9 @@ the Accelerate framework utilizes the special-purpose AMX coprocessor available 
 
 ## Quick start
 
-First, download one of the Whisper models converted in [ggml format](models). For example:
+First clone the repository.
+
+Then, download one of the Whisper models converted in [ggml format](models). For example:
 
 ```bash
 bash ./models/download-ggml-model.sh base.en
