@@ -1,6 +1,7 @@
 *.o
 *.a
 .cache/
+.test/
 .vs/
 .vscode/
 .DS_Store
