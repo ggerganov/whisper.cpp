@@ -9,7 +9,7 @@ Stable: [v1.2.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.2.1) /
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
 - Plain C/C++ implementation without dependencies
-- Apple silicon first-class citizen - optimized via Arm Neon and Accelerate framework
+- Apple silicon first-class citizen - optimized via ARM NEON, Accelerate framework and [Core ML](https://github.com/ggerganov/whisper.cpp/edit/master/README.md#core-ml-support)
 - AVX intrinsics support for x86 architectures
 - VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
@@ -225,6 +225,60 @@ make large
 | medium | 1.5 GB | ~1.7 GB | `fd9727b6e1217c2f614f9b698455c4ffd82463b4` |
 | large  | 2.9 GB | ~3.3 GB | `0f4c8e34f21cf1a914c59d8b3ce882345ad349d6` |
 
+## Core ML support
+
+On Apple Silicon devices, the Encoder inference can be executed on the Apple Neural Engine (ANE) via Core ML. This can result in significant
+speed-up - more than x3 faster compared with CPU-only execution. Here are the instructions for generating a Core ML model and using it with `whisper.cpp`:
+
+- Install Python dependencies needed for the creation of the Core ML model:
+
+  ```bash
+  pip install ane_transformers
+  pip install openai-whisper
+  pip install coremltools
+  ```
+
+- Generate a Core ML model. For example, to generate a `base.en` model, use:
+
+  ```bash
+  ./models/generate-coreml-model.sh base.en
+  ```
+
+  This will generate the folder `models/ggml-base.en-encoder.mlmodelc`
+
+- Build `whisper.cpp` with Core ML support:
+
+  ```bash
+  # using Makefile
+  make clean
+  WHISPER_COREML=1 make -j
+  
+  # using CMake
+  cd build
+  cmake -DWHISPER_COREML=1 ..
+  ```
+
+- Run the examples as usual. For example:
+
+  ```bash
+  ./main -m models/ggml-base.en.bin -f samples/jfk.wav
+
+  ...
+
+  whisper_init_state: loading Core ML model from 'models/ggml-base.en-encoder.mlmodelc'
+  whisper_init_state: first run on a device may take a while ...
+  whisper_init_state: Core ML model loaded
+
+  system_info: n_threads = 4 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | FMA = 0 | NEON = 1 | ARM_FMA = 1 | F16C = 0 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 0 | VSX = 0 | COREML = 1 | 
+
+  ...
+  ```
+
+  The first run on a device is slow, since the ANE service compiles the Core ML model to some device-specific format.
+  Next runs are faster.
+  
+For more information about the Core ML implementation please refer to PR [#566](https://github.com/ggerganov/whisper.cpp/pull/566).
+  
 ## Limitations
 
 - Inference only
