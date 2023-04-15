@@ -2901,7 +2901,7 @@ int whisper_lang_id(const char *lang) {
     if (!g_lang.count(lang)) {
         auto fd = std::find_if(g_lang.cbegin(), g_lang.cend(),
                                [=](it x) { return x.second.second == lang; });
-        if (fd == g_lang.end()) {
+        if (fd == g_lang.cend()) {
             fprintf(stderr, "%s: unknown language '%s'\n", __func__, lang);
             return -1;
         }
@@ -3301,8 +3301,8 @@ static void whisper_exp_compute_token_level_timestamps(
 
 // trim from start (in place)
 static inline void ltrim(std::string &s) {
-    s.erase(s.begin(),
-            std::find_if_not(s.begin(), s.end(), [](decltype(*s.begin()) ch) {
+    s.erase(s.cbegin(),
+            std::find_if_not(s.cbegin(), s.cend(), [](decltype(*s.cbegin()) ch) {
               return std::isspace(ch);
             }));
 }
@@ -3310,10 +3310,10 @@ static inline void ltrim(std::string &s) {
 // trim from end (in place)
 static inline void rtrim(std::string &s) {
     s.erase(std::find_if_not(
-                s.rbegin(), s.rend(),
-                [](decltype(*s.rbegin()) ch) { return std::isspace(ch); })
+                s.crbegin(), s.crend(),
+                [](decltype(*s.crbegin()) ch) { return std::isspace(ch); })
                 .base(),
-            s.end());
+            s.cend());
 }
 
 // trim from both ends (in place)
@@ -3422,7 +3422,8 @@ static void whisper_process_logits(
         memcpy(logits.data(), state.logits.data() + (state.logits.size() - n_logits), n_logits*sizeof(float));
 
         if (temperature > 0.0f) {
-            std::transform(logits.begin(), logits.end(), logits.begin(),
+            std::transform(logits.cbegin(), logits.cbegin() + n_logits,
+                           logits.begin(),
                            [=](float x) { return x / temperature; });
         }
 
@@ -3518,7 +3519,7 @@ static void whisper_process_logits(
 
         // populate the logprobs array (log_softmax)
         {
-            const float logit_max = *std::max_element(logits.begin(), logits.end());
+            const float logit_max = *std::max_element(logits.cbegin(), logits.cend());
             float logsumexp = 0.0f;
             for (int i = 0; i < n_logits; ++i) {
                 if (logits[i] > -INFINITY) {
@@ -3543,7 +3544,7 @@ static void whisper_process_logits(
             float timestamp_logprob = -INFINITY;
             {
                 float logsumexp = 0.0f;
-                const float logprob_max = *std::max_element(logprobs.begin() + vocab.token_beg, logprobs.end());
+                const float logprob_max = *std::max_element(logprobs.cbegin() + vocab.token_beg, logprobs.cend());
                 for (int i = vocab.token_beg; i < n_logits; ++i) {
                     if (logprobs[i] > -INFINITY) {
                         logsumexp += expf(logprobs[i] - logprob_max);
@@ -3554,7 +3555,7 @@ static void whisper_process_logits(
                 }
             }
 
-            const float max_text_token_logprob = *std::max_element(logprobs.begin(), logprobs.begin() + vocab.token_beg);
+            const float max_text_token_logprob = *std::max_element(logprobs.cbegin(), logprobs.cbegin() + vocab.token_beg);
 
             //fprintf(stderr, "timestamp_logprob=%f max_text_token_logprob=%f\n", timestamp_logprob, max_text_token_logprob);
 
