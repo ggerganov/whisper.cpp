@@ -3501,9 +3501,8 @@ static void whisper_process_logits(
         // the initial timestamp cannot be larger than max_initial_ts
         // ref: https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L426-L429
         if (is_initial && params.max_initial_ts > 0.0f) {
-            const float precision =
-                float(WHISPER_CHUNK_SIZE) / ctx.model.hparams.n_audio_ctx;
-            const int tid0 = std::round(params.max_initial_ts / precision);
+            const float precision = float(WHISPER_CHUNK_SIZE)/ctx.model.hparams.n_audio_ctx;
+            const int   tid0      = std::round(params.max_initial_ts/precision);
 
             std::fill(logits.begin() + vocab.token_beg + tid0 + 1,
                       logits.begin() + n_logits, -INFINITY);
@@ -3521,10 +3520,9 @@ static void whisper_process_logits(
         {
             const float logit_max = *std::max_element(logits.begin(), logits.end());
             float logsumexp = 0.0f;
-
-            for (auto &&i : logits) {
-                if (i > -INFINITY) {
-                    logsumexp += expf(i - logit_max);
+            for (int i = 0; i < n_logits; ++i) {
+                if (logits[i] > -INFINITY) {
+                    logsumexp += expf(logits[i] - logit_max);
                 }
             }
             logsumexp = logf(logsumexp) + logit_max;
