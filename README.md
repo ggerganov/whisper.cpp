@@ -9,7 +9,7 @@ Stable: [v1.2.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.2.1) /
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
 - Plain C/C++ implementation without dependencies
-- Apple silicon first-class citizen - optimized via ARM NEON, Accelerate framework and [Core ML](https://github.com/ggerganov/whisper.cpp/edit/master/README.md#core-ml-support)
+- Apple silicon first-class citizen - optimized via ARM NEON, Accelerate framework and [Core ML](https://github.com/ggerganov/whisper.cpp#core-ml-support)
 - AVX intrinsics support for x86 architectures
 - VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
