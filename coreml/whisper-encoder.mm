@@ -18,7 +18,7 @@ struct whisper_coreml_context * whisper_coreml_init(const char * path_model) {
 
     NSURL * url_model = [NSURL fileURLWithPath: path_model_str];
 
-    const void * data = CFBridgingRetain([[CoremlEncoder alloc] initWithContentsOfURL:url_model error:nil]);
+    const void * data = CFBridgingRetain([[whisper_encoder_impl alloc] initWithContentsOfURL:url_model error:nil]);
 
     if (data == NULL) {
         return NULL;
@@ -49,9 +49,15 @@ void whisper_coreml_encode(
                                            error: nil
     ];
 
-    CoremlEncoderOutput * outCoreML = [(__bridge id) ctx->data predictionFromMelSegment:inMultiArray error:nil];
+    whisper_encoder_implOutput * outCoreML = [(__bridge id) ctx->data predictionFromLogmel_data:inMultiArray error:nil];
 
     MLMultiArray * outMA = outCoreML.output;
+
+    //NSArray<NSNumber *> * shape = outMA.shape;
+    //NSArray<NSNumber *> * strides = outMA.strides;
+
+    //printf("shape:   %ld %ld %ld %ld\n", [shape[0] longValue], [shape[1] longValue], [shape[2] longValue], [shape[3] longValue]);
+    //printf("strides: %ld %ld %ld %ld\n", [strides[0] longValue], [strides[1] longValue], [strides[2] longValue], [strides[3] longValue]);
 
     memcpy(out, outMA.dataPointer, outMA.count * sizeof(float));
 }

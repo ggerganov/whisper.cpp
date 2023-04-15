@@ -2492,14 +2492,14 @@ static std::vector<whisper_vocab::id> tokenize(const whisper_vocab & vocab, cons
 //
 
 #ifdef WHISPER_USE_COREML
-// replace .bin with .mlmodelc
-static std::string whisper_get_coreml_path(std::string path_bin) {
+// replace .bin with -encoder.mlmodelc
+static std::string whisper_get_coreml_path_encoder(std::string path_bin) {
     auto pos = path_bin.rfind('.');
     if (pos != std::string::npos) {
         path_bin = path_bin.substr(0, pos);
     }
 
-    path_bin += ".mlmodelc";
+    path_bin += "-encoder.mlmodelc";
 
     return path_bin;
 }
@@ -2533,7 +2533,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     }
 
 #ifdef WHISPER_USE_COREML
-    const auto path_coreml = whisper_get_coreml_path(ctx->path_model);
+    const auto path_coreml = whisper_get_coreml_path_encoder(ctx->path_model);
 
     fprintf(stderr, "%s: loading Core ML model from '%s'\n", __func__, path_coreml.c_str());
     fprintf(stderr, "%s: first run on a device may take a while ...\n", __func__);
@@ -3140,6 +3140,14 @@ void whisper_reset_timings(struct whisper_context * ctx) {
     }
 }
 
+static int whisper_has_coreml(void) {
+#ifdef WHISPER_USE_COREML
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 const char * whisper_print_system_info(void) {
     static std::string s;
 
@@ -3156,6 +3164,7 @@ const char * whisper_print_system_info(void) {
     s += "BLAS = "      + std::to_string(ggml_cpu_has_blas())      + " | ";
     s += "SSE3 = "      + std::to_string(ggml_cpu_has_sse3())      + " | ";
     s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
+    s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
 
     return s.c_str();
 }
