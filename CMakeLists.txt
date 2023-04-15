@@ -58,6 +58,8 @@ if (APPLE)
     option(WHISPER_NO_AVX              "whisper: disable AVX" OFF)
     option(WHISPER_NO_AVX2             "whisper: disable AVX2" OFF)
     option(WHISPER_NO_FMA              "whisper: disable FMA" OFF)
+
+    option(WHISPER_COREML              "whisper: enable Core ML framework" OFF)
 else()
     option(WHISPER_SUPPORT_OPENBLAS    "whisper: support for OpenBLAS" OFF)
 endif()
@@ -90,16 +92,33 @@ endif()
 
 find_package(Threads REQUIRED)
 
-# on APPLE - include Accelerate framework
-if (APPLE AND NOT WHISPER_NO_ACCELERATE)
-    find_library(ACCELERATE_FRAMEWORK Accelerate)
-    if (ACCELERATE_FRAMEWORK)
-        message(STATUS "Accelerate framework found")
+# on APPLE
+if (APPLE)
+    # include Accelerate framework
+    if (NOT WHISPER_NO_ACCELERATE)
+        find_library(ACCELERATE_FRAMEWORK Accelerate)
 
-        set(WHISPER_EXTRA_LIBS  ${WHISPER_EXTRA_LIBS}  ${ACCELERATE_FRAMEWORK})
-        set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_ACCELERATE)
-    else()
-        message(WARNING "Accelerate framework not found")
+        if (ACCELERATE_FRAMEWORK)
+            message(STATUS "Accelerate framework found")
+
+            set(WHISPER_EXTRA_LIBS  ${WHISPER_EXTRA_LIBS}  ${ACCELERATE_FRAMEWORK})
+            set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_ACCELERATE)
+        else()
+            message(WARNING "Accelerate framework not found")
+        endif()
+    endif()
+
+    if (WHISPER_COREML)
+        find_library(FOUNDATION_FRAMEWORK Foundation)
+        find_library(COREML_FRAMEWORK CoreML)
+
+        if (COREML_FRAMEWORK)
+            message(STATUS "CoreML framework found")
+
+            set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_USE_COREML)
+        else()
+            message(WARNING "CoreML framework not found")
+        endif()
     endif()
 endif()
 
@@ -188,6 +207,33 @@ if (WHISPER_PERF)
 endif()
 
 #
+# whisper.coreml - Core ML support
+#
+
+if (WHISPER_COREML)
+    set(TARGET whisper.coreml)
+
+    add_library(${TARGET}
+        coreml/whisper-encoder.h
+        coreml/whisper-encoder.mm
+        coreml/whisper-encoder-impl.h
+        coreml/whisper-encoder-impl.m
+        )
+
+    include(DefaultTargetOptions)
+
+    target_include_directories(${TARGET} PUBLIC
+        .
+        )
+
+    target_link_libraries(${TARGET} PRIVATE ${FOUNDATION_FRAMEWORK} ${COREML_FRAMEWORK})
+
+    set_target_properties(${TARGET} PROPERTIES
+        COMPILE_FLAGS "-fobjc-arc"
+        )
+endif()
+
+#
 # whisper - this is the main library of the project
 #
 
@@ -205,6 +251,10 @@ include(DefaultTargetOptions)
 target_include_directories(${TARGET} PUBLIC
     .
     )
+
+if (WHISPER_COREML)
+    target_link_libraries(${TARGET} PRIVATE whisper.coreml)
+endif()
 
 if (MSVC)
     target_link_libraries(${TARGET} PRIVATE ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})

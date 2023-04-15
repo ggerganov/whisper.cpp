@@ -1,6 +1,7 @@
 *.o
 *.a
 .cache/
+.coreml/
 .test/
 .vs/
 .vscode/
@@ -35,4 +36,6 @@ examples/whisper.objc/whisper.objc.xcodeproj/project.xcworkspace/xcuserdata
 
 extra/bench-gg.txt
 
-*.mlmodel*
+models/*.mlmodel
+models/*.mlmodelc
+models/*.mlpackage
