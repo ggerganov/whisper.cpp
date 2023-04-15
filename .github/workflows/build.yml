@@ -265,3 +265,44 @@ jobs:
           popd
           emcmake cmake . -DCMAKE_BUILD_TYPE=${{ matrix.build }}
           make
+
+  ios:
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        build: [Release]
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v1
+
+      - name: Configure
+        run: cp models/for-tests-ggml-base.en.bin models/ggml-base.en.bin
+
+      - name: Build objc example
+        run: xcodebuild -project examples/whisper.objc/whisper.objc.xcodeproj -scheme whisper.objc -configuration ${{ matrix.build }} -sdk iphonesimulator build
+      
+      - name: Build swiftui example
+        run: xcodebuild -project examples/whisper.swiftui/whisper.swiftui.xcodeproj -scheme WhisperCppDemo -configuration ${{ matrix.build }} -sdk iphonesimulator build
+
+  android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v1
+
+      - name: Install Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: zulu
+          java-version: 17
+      
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Build
+        run: |
+          cd examples/whisper.android
+          ./gradlew assembleRelease --no-daemon
