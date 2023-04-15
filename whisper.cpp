@@ -3220,7 +3220,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.max_initial_ts   =*/  1.0f,
         /*.length_penalty   =*/ -1.0f,
 
-        /*.temperature_inc  =*/  0.0f, // TODO: temporary disabled until improve performance
+        /*.temperature_inc  =*/  0.4f,
         /*.entropy_thold    =*/  2.4f,
         /*.logprob_thold    =*/ -1.0f,
         /*.no_speech_thold  =*/  0.6f,
@@ -3252,13 +3252,13 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         case WHISPER_SAMPLING_GREEDY:
             {
                 result.greedy = {
-                    /*.best_of   =*/ 1,
+                    /*.best_of   =*/ 2, // TODO: increase to 5 when we speed-up batch decoding
                 };
             } break;
         case WHISPER_SAMPLING_BEAM_SEARCH:
             {
                 result.beam_search = {
-                    /*.beam_size =*/ 5,
+                    /*.beam_size =*/ 2, // TODO: increase to 5 when we speed-up batch decoding
 
                     /*.patience  =*/ -1.0f,
                 };
