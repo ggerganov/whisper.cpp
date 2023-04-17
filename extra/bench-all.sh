@@ -64,6 +64,10 @@ for model in "${models[@]}"; do
         config="$config BLAS"
     fi
 
+    if [[ $system_info == *"COREML = 1"* ]]; then
+        config="$config COREML"
+    fi
+
     commit=$(git rev-parse --short HEAD)
 
     printf "| <todo> | <todo> | $config | $model | $n_threads | $load_time | $encode_time | $commit |\n"

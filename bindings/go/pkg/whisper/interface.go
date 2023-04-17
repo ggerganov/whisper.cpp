@@ -41,6 +41,7 @@ type Context interface {
 	SetTokenThreshold(float32)    // Set timestamp token probability threshold
 	SetTokenSumThreshold(float32) // Set timestamp token sum probability threshold
 	SetMaxSegmentLength(uint)     // Set max segment length in characters
+	SetTokenTimestamps(bool)      // Set token timestamps flag
 	SetMaxTokensPerSegment(uint)  // Set max tokens per segment (0 = no limit)
 
 	// Process mono audio data and return any errors.
@@ -85,7 +86,8 @@ type Segment struct {
 
 // Token is a text or special token
 type Token struct {
-	Id   int
-	Text string
-	P    float32
+	Id         int
+	Text       string
+	P          float32
+	Start, End time.Duration
 }

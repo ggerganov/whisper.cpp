@@ -841,6 +841,7 @@ struct gpt2_context * gpt2_init(const char * path_model) {
 
         if (!gpt2_model_load(path_model, ctx->model, ctx->vocab)) {
             fprintf(stderr, "%s: failed to load model from '%s'\n", __func__, "gpt-2.bin");
+            delete ctx;
             return nullptr;
         }
 
