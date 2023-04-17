@@ -375,7 +375,7 @@ bool output_csv(struct whisper_context * ctx, const char * fname) {
     return true;
 }
 
-char *escape_double_quotes(const char *str) {
+char *escape_double_quotes_and_backslashes(const char *str) {
     if (str == NULL) {
         return NULL;
     }
@@ -383,7 +383,7 @@ char *escape_double_quotes(const char *str) {
     size_t escaped_length = strlen(str) + 1;
 
     for (size_t i = 0; str[i] != '\0'; i++) {
-        if (str[i] == '"') {
+        if (str[i] == '"' || str[i] == '\\') {
             escaped_length++;
         }
     }
@@ -395,12 +395,10 @@ char *escape_double_quotes(const char *str) {
 
     size_t pos = 0;
     for (size_t i = 0; str[i] != '\0'; i++) {
-        if (str[i] == '"') {
+        if (str[i] == '"' || str[i] == '\\') {
             escaped[pos++] = '\\';
-            escaped[pos++] = '"';
-        } else {
-            escaped[pos++] = str[i];
         }
+        escaped[pos++] = str[i];
     }
 
     // no need to set zero due to calloc() being used prior
@@ -451,7 +449,7 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
 
     auto value_s = [&](const char *name, const char *val, bool end = false) {
         start_value(name);
-        char * val_escaped = escape_double_quotes(val);
+        char * val_escaped = escape_double_quotes_and_backslashes(val);
         fout << "\"" << val_escaped << (end ? "\"\n" : "\",\n");
         free(val_escaped);
     };
