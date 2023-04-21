@@ -785,6 +785,9 @@ int main(int argc, char ** argv) {
 
             whisper_print_user_data user_data = { &params, &pcmf32s };
 
+            if (wparams.speed_up)
+		wparams.duration_ms /= 2;
+
             // this callback is called on each new segment
             if (!wparams.print_realtime) {
                 wparams.new_segment_callback           = whisper_print_segment_callback;
