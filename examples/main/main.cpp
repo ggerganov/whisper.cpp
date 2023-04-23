@@ -352,29 +352,6 @@ bool output_srt(struct whisper_context * ctx, const char * fname, const whisper_
     return true;
 }
 
-bool output_csv(struct whisper_context * ctx, const char * fname) {
-    std::ofstream fout(fname);
-    if (!fout.is_open()) {
-        fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
-        return false;
-    }
-
-    fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
-
-    const int n_segments = whisper_full_n_segments(ctx);
-    fout << "start,end,text\n";
-    for (int i = 0; i < n_segments; ++i) {
-        const char * text = whisper_full_get_segment_text(ctx, i);
-        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-
-        //need to multiply times returned from whisper_full_get_segment_t{0,1}() by 10 to get milliseconds.
-        fout << 10 * t0 << "," << 10 * t1 << ",\"" << text    << "\"\n";
-    }
-
-    return true;
-}
-
 char *escape_double_quotes_and_backslashes(const char *str) {
     if (str == NULL) {
         return NULL;
@@ -404,6 +381,30 @@ char *escape_double_quotes_and_backslashes(const char *str) {
     // no need to set zero due to calloc() being used prior
 
     return escaped;
+}
+
+bool output_csv(struct whisper_context * ctx, const char * fname) {
+    std::ofstream fout(fname);
+    if (!fout.is_open()) {
+        fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
+        return false;
+    }
+
+    fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
+
+    const int n_segments = whisper_full_n_segments(ctx);
+    fout << "start,end,text\n";
+    for (int i = 0; i < n_segments; ++i) {
+        const char * text = whisper_full_get_segment_text(ctx, i);
+        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+        char * text_escaped = escape_double_quotes_and_backslashes(text);
+
+        //need to multiply times returned from whisper_full_get_segment_t{0,1}() by 10 to get milliseconds.
+        fout << 10 * t0 << "," << 10 * t1 << ",\"" << text_escaped    << "\"\n";
+    }
+
+    return true;
 }
 
 bool output_json(struct whisper_context * ctx, const char * fname, const whisper_params & params) {
