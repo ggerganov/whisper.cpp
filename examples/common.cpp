@@ -6,6 +6,7 @@
 #include "dr_wav.h"
 
 #include <cmath>
+#include <cstdint>
 #include <regex>
 
 #ifndef M_PI
