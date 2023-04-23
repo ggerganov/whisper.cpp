@@ -2902,9 +2902,9 @@ int whisper_lang_max_id() {
     return max_id;
 }
 
-int whisper_lang_id(const char *lang) {
+int whisper_lang_id(const char * lang) {
     if (!g_lang.count(lang)) {
-        for (const auto &kv : g_lang) {
+        for (const auto & kv : g_lang) {
             if (kv.second.second == lang) {
                 return kv.second.first;
             }
