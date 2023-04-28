@@ -27,7 +27,10 @@ arm_neon.h
 sync.sh
 libwhisper.a
 libwhisper.so
+bench.exe
+whisper.dll
 compile_commands.json
+CMakeSettings.json
 
 examples/arm_neon.h
 examples/whisper.objc/whisper.objc.xcodeproj/xcshareddata

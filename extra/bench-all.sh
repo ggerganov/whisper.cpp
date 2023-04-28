@@ -2,7 +2,7 @@
 
 # Helper script to run the bench tool on all models and print the results in share-able format
 
-printf "Usage: ./bench.sh [n_threads]\n"
+printf "Usage: ./bench-all.sh [n_threads]\n"
 
 if [ -z "$1" ]; then
     n_threads=4
