@@ -2356,11 +2356,7 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
                 sum += fft_out[k] * filters.data[j * n_fft + k];
             }
 
-            if (sum < 1e-10) {
-                sum = 1e-10;
-            }
-
-            sum = log10(sum);
+            sum = log10(std::max(sum, 1e-10));
 
             mel.data[j * mel.n_len + i] = sum;
         }
@@ -2602,7 +2598,6 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 }
 
 struct whisper_context * whisper_init_from_file_no_state(const char * path_model) {
-    whisper_model_loader loader = {};
 
     fprintf(stderr, "%s: loading model from '%s'\n", __func__, path_model);
 
@@ -2612,22 +2607,27 @@ struct whisper_context * whisper_init_from_file_no_state(const char * path_model
         return nullptr;
     }
 
-    loader.context = &fin;
+    whisper_model_loader loader = {
+        .context = &fin,
 
-    loader.read = [](void * ctx, void * output, size_t read_size) {
-        std::ifstream * fin = (std::ifstream*)ctx;
-        fin->read((char *)output, read_size);
-        return read_size;
-    };
+        .read =
+            [](void *ctx, void *output, size_t read_size) {
+              std::ifstream *fin = (std::ifstream *)ctx;
+              fin->read((char *)output, read_size);
+              return read_size;
+            },
 
-    loader.eof = [](void * ctx) {
-        std::ifstream * fin = (std::ifstream*)ctx;
-        return fin->eof();
-    };
+        .eof =
+            [](void *ctx) {
+              std::ifstream *fin = (std::ifstream *)ctx;
+              return fin->eof();
+            },
 
-    loader.close = [](void * ctx) {
-        std::ifstream * fin = (std::ifstream*)ctx;
-        fin->close();
+        .close =
+            [](void *ctx) {
+              std::ifstream *fin = (std::ifstream *)ctx;
+              fin->close();
+            }
     };
 
     auto ctx = whisper_init_no_state(&loader);
@@ -2647,30 +2647,34 @@ struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t
     };
 
     buf_context ctx = { reinterpret_cast<uint8_t*>(buffer), buffer_size, 0 };
-    whisper_model_loader loader = {};
 
     fprintf(stderr, "%s: loading model from buffer\n", __func__);
 
-    loader.context = &ctx;
+    whisper_model_loader loader = {
+        .context = &ctx,
 
-    loader.read = [](void * ctx, void * output, size_t read_size) {
-        buf_context * buf = reinterpret_cast<buf_context *>(ctx);
+        .read =
+            [](void *ctx, void *output, size_t read_size) {
+              buf_context *buf = reinterpret_cast<buf_context *>(ctx);
 
-        size_t size_to_copy = buf->current_offset + read_size < buf->size ? read_size : buf->size - buf->current_offset;
+              size_t size_to_copy = buf->current_offset + read_size < buf->size
+                                        ? read_size
+                                        : buf->size - buf->current_offset;
 
-        memcpy(output, buf->buffer + buf->current_offset, size_to_copy);
-        buf->current_offset += size_to_copy;
+              memcpy(output, buf->buffer + buf->current_offset, size_to_copy);
+              buf->current_offset += size_to_copy;
 
-        return size_to_copy;
-    };
+              return size_to_copy;
+            },
 
-    loader.eof = [](void * ctx) {
-        buf_context * buf = reinterpret_cast<buf_context *>(ctx);
+        .eof =
+            [](void *ctx) {
+              buf_context *buf = reinterpret_cast<buf_context *>(ctx);
 
-        return buf->current_offset >= buf->size;
-    };
+              return buf->current_offset >= buf->size;
+            },
 
-    loader.close = [](void * /*ctx*/) { };
+        .close = [](void * /*ctx*/) {}};
 
     return whisper_init_no_state(&loader);
 }
@@ -2909,7 +2913,6 @@ int whisper_lang_id(const char * lang) {
         fprintf(stderr, "%s: unknown language '%s'\n", __func__, lang);
         return -1;
     }
-
     return g_lang.at(lang).first;
 }
 
@@ -3303,15 +3306,15 @@ static void whisper_exp_compute_token_level_timestamps(
 
 // trim from start (in place)
 static inline void ltrim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
-        return !std::isspace(ch);
+    s.erase(s.begin(), std::find_if_not(s.begin(), s.end(), [](unsigned char ch) {
+        return std::isspace(ch);
     }));
 }
 
 // trim from end (in place)
 static inline void rtrim(std::string &s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
-        return !std::isspace(ch);
+    s.erase(std::find_if_not(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return std::isspace(ch);
     }).base(), s.end());
 }
 
