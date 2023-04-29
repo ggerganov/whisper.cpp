@@ -2607,27 +2607,22 @@ struct whisper_context * whisper_init_from_file_no_state(const char * path_model
         return nullptr;
     }
 
-    whisper_model_loader loader = {
-        .context = &fin,
+    whisper_model_loader loader = {};
 
-        .read =
-            [](void *ctx, void *output, size_t read_size) {
-              std::ifstream *fin = (std::ifstream *)ctx;
-              fin->read((char *)output, read_size);
-              return read_size;
-            },
+    loader.read = [](void * ctx, void * output, size_t read_size) {
+        std::ifstream * fin = (std::ifstream*)ctx;
+        fin->read((char *)output, read_size);
+        return read_size;
+    };
 
-        .eof =
-            [](void *ctx) {
-              std::ifstream *fin = (std::ifstream *)ctx;
-              return fin->eof();
-            },
+    loader.eof = [](void * ctx) {
+        std::ifstream * fin = (std::ifstream*)ctx;
+        return fin->eof();
+    };
 
-        .close =
-            [](void *ctx) {
-              std::ifstream *fin = (std::ifstream *)ctx;
-              fin->close();
-            }
+    loader.close = [](void * ctx) {
+        std::ifstream * fin = (std::ifstream*)ctx;
+        fin->close();
     };
 
     auto ctx = whisper_init_no_state(&loader);
@@ -2650,31 +2645,30 @@ struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t
 
     fprintf(stderr, "%s: loading model from buffer\n", __func__);
 
-    whisper_model_loader loader = {
-        .context = &ctx,
+    whisper_model_loader loader = {};
 
-        .read =
-            [](void *ctx, void *output, size_t read_size) {
-              buf_context *buf = reinterpret_cast<buf_context *>(ctx);
+    fprintf(stderr, "%s: loading model from buffer\n", __func__);
 
-              size_t size_to_copy = buf->current_offset + read_size < buf->size
-                                        ? read_size
-                                        : buf->size - buf->current_offset;
+    loader.context = &ctx;
 
-              memcpy(output, buf->buffer + buf->current_offset, size_to_copy);
-              buf->current_offset += size_to_copy;
+    loader.read = [](void * ctx, void * output, size_t read_size) {
+        buf_context * buf = reinterpret_cast<buf_context *>(ctx);
 
-              return size_to_copy;
-            },
+        size_t size_to_copy = buf->current_offset + read_size < buf->size ? read_size : buf->size - buf->current_offset;
 
-        .eof =
-            [](void *ctx) {
-              buf_context *buf = reinterpret_cast<buf_context *>(ctx);
+        memcpy(output, buf->buffer + buf->current_offset, size_to_copy);
+        buf->current_offset += size_to_copy;
 
-              return buf->current_offset >= buf->size;
-            },
+        return size_to_copy;
+    };
 
-        .close = [](void * /*ctx*/) {}};
+    loader.eof = [](void * ctx) {
+        buf_context * buf = reinterpret_cast<buf_context *>(ctx);
+
+        return buf->current_offset >= buf->size;
+    };
+
+    loader.close = [](void * /*ctx*/) { };
 
     return whisper_init_no_state(&loader);
 }
