@@ -157,6 +157,17 @@ ifdef WHISPER_OPENBLAS
 	LDFLAGS += -lopenblas
 endif
 
+ifdef WHISPER_CUBLAS
+	CFLAGS    += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/x86_64-linux/include
+	CXXFLAGS  += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/x86_64-linux/include
+	LDFLAGS   += -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/x86_64-linux/lib
+	OBJS      += ggml-cuda.o
+	NVCC      = nvcc
+	NVCCFLAGS = --forward-unknown-to-host-compiler -arch=native
+ggml-cuda.o: ggml-cuda.cu ggml-cuda.h
+	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
+endif
+
 ifdef WHISPER_GPROF
 	CFLAGS   += -pg
 	CXXFLAGS += -pg
@@ -206,11 +217,11 @@ default: main bench
 # Build library
 #
 
-ggml.o: ggml.c ggml.h
-	$(CC)  $(CFLAGS)   -c ggml.c -o ggml.o
+ggml.o: ggml.c ggml.h ggml-cuda.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
 
-whisper.o: whisper.cpp whisper.h ggml.h
-	$(CXX) $(CXXFLAGS) -c whisper.cpp -o whisper.o
+whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 ifndef WHISPER_COREML
 WHISPER_OBJ = whisper.o
