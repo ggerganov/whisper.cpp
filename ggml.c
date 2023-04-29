@@ -1087,7 +1087,7 @@ static void quantize_row_q4_0(const float * restrict x, void * restrict vy, int 
             const v128_t v  = wasm_f32x4_mul(srcv[l], wasm_f32x4_splat(id));
             const v128_t vf = wasm_f32x4_add(v, wasm_f32x4_splat(8.5f));
             const v128_t vi = wasm_i32x4_trunc_sat_f32x4(vf);
-            const v128_t vc = wasm_i32x4_min_u(vi, wasm_i32x4_splat(15));
+            const v128_t vc = wasm_i32x4_min(vi, wasm_i32x4_splat(15));
 
             y[i].qs[2*l + 0] = wasm_i32x4_extract_lane(vc, 0) | (wasm_i32x4_extract_lane(vc, 1) << 4);
             y[i].qs[2*l + 1] = wasm_i32x4_extract_lane(vc, 2) | (wasm_i32x4_extract_lane(vc, 3) << 4);
