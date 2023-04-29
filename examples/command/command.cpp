@@ -175,7 +175,7 @@ float similarity(const std::string & s0, const std::string & s1) {
         prevCol[i] = i;
     }
 
-    for (size_t i = 0; i < len0; i++) {
+    for (size_t i = 1; i < len0; i++) {
         col[0] = i;
         for (size_t j = 1; j < len1; j++) {
             col[j] = std::min(std::min(1 + col[j - 1], 1 + prevCol[j]), prevCol[j - 1] + (s0[i - 1] == s1[j - 1] ? 0 : 1));
