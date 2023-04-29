@@ -39,32 +39,33 @@ endif()
 
 # options
 
-option(BUILD_SHARED_LIBS               "whisper: build shared libs" ${BUILD_SHARED_LIBS_DEFAULT})
+option(BUILD_SHARED_LIBS              "whisper: build shared libs" ${BUILD_SHARED_LIBS_DEFAULT})
 
-option(WHISPER_ALL_WARNINGS            "whisper: enable all compiler warnings"                   ON)
-option(WHISPER_ALL_WARNINGS_3RD_PARTY  "whisper: enable all compiler warnings in 3rd party libs" OFF)
+option(WHISPER_ALL_WARNINGS           "whisper: enable all compiler warnings"                   ON)
+option(WHISPER_ALL_WARNINGS_3RD_PARTY "whisper: enable all compiler warnings in 3rd party libs" OFF)
 
-option(WHISPER_SANITIZE_THREAD         "whisper: enable thread sanitizer"    OFF)
-option(WHISPER_SANITIZE_ADDRESS        "whisper: enable address sanitizer"   OFF)
-option(WHISPER_SANITIZE_UNDEFINED      "whisper: enable undefined sanitizer" OFF)
+option(WHISPER_SANITIZE_THREAD        "whisper: enable thread sanitizer"    OFF)
+option(WHISPER_SANITIZE_ADDRESS       "whisper: enable address sanitizer"   OFF)
+option(WHISPER_SANITIZE_UNDEFINED     "whisper: enable undefined sanitizer" OFF)
 
-option(WHISPER_BUILD_TESTS             "whisper: build tests"    ${WHISPER_STANDALONE})
-option(WHISPER_BUILD_EXAMPLES          "whisper: build examples" ${WHISPER_STANDALONE})
+option(WHISPER_BUILD_TESTS            "whisper: build tests"    ${WHISPER_STANDALONE})
+option(WHISPER_BUILD_EXAMPLES         "whisper: build examples" ${WHISPER_STANDALONE})
 
-option(WHISPER_SUPPORT_SDL2            "whisper: support for libSDL2" OFF)
+option(WHISPER_SUPPORT_SDL2           "whisper: support for libSDL2" OFF)
 
 if (APPLE)
-    option(WHISPER_NO_ACCELERATE       "whisper: disable Accelerate framework" OFF)
-    option(WHISPER_NO_AVX              "whisper: disable AVX" OFF)
-    option(WHISPER_NO_AVX2             "whisper: disable AVX2" OFF)
-    option(WHISPER_NO_FMA              "whisper: disable FMA" OFF)
+    option(WHISPER_NO_ACCELERATE         "whisper: disable Accelerate framework" OFF)
+    option(WHISPER_NO_AVX                "whisper: disable AVX" OFF)
+    option(WHISPER_NO_AVX2               "whisper: disable AVX2" OFF)
+    option(WHISPER_NO_FMA                "whisper: disable FMA" OFF)
 
-    option(WHISPER_COREML              "whisper: enable Core ML framework" OFF)
+    option(WHISPER_COREML                "whisper: enable Core ML framework" OFF)
+    option(WHISPER_COREML_ALLOW_FALLBACK "whisper: allow non-CoreML fallback" OFF)
 else()
-    option(WHISPER_SUPPORT_OPENBLAS    "whisper: support for OpenBLAS" OFF)
+    option(WHISPER_SUPPORT_OPENBLAS      "whisper: support for OpenBLAS" OFF)
 endif()
 
-option(WHISPER_PERF                    "whisper: enable perf timings" OFF)
+option(WHISPER_PERF "whisper: enable perf timings" OFF)
 
 # sanitizers
 
@@ -118,6 +119,10 @@ if (APPLE)
             set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_USE_COREML)
         else()
             message(WARNING "CoreML framework not found")
+        endif()
+
+        if (WHISPER_COREML_ALLOW_FALLBACK)
+            set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_USE_COREML_ALLOW_FALLBACK)
         endif()
     endif()
 endif()

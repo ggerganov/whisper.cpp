@@ -1393,18 +1393,17 @@ static bool whisper_encode_internal(
     const bool use_coreml = wstate.ctx_coreml != nullptr;
 #endif
 
-    if (!use_coreml)
-    {
+    if (!use_coreml) {
         // convolution + gelu
         {
             wstate.use_buf(ctx0, 1);
 
             cur = ggml_conv_1d_1s(ctx0, model.e_conv_1_w, mel);
             cur = ggml_add(ctx0,
-                ggml_repeat(ctx0,
-                    model.e_conv_1_b,
-                    cur),
-                cur);
+                    ggml_repeat(ctx0,
+                        model.e_conv_1_b,
+                        cur),
+                    cur);
 
             cur = ggml_gelu(ctx0, cur);
 
@@ -1412,10 +1411,10 @@ static bool whisper_encode_internal(
 
             cur = ggml_conv_1d_2s(ctx0, model.e_conv_2_w, cur);
             cur = ggml_add(ctx0,
-                ggml_repeat(ctx0,
-                    model.e_conv_2_b,
-                    cur),
-                cur);
+                    ggml_repeat(ctx0,
+                        model.e_conv_2_b,
+                        cur),
+                    cur);
 
             cur = ggml_gelu(ctx0, cur);
         }
@@ -1461,10 +1460,10 @@ static bool whisper_encode_internal(
 
                 // cur = ln_0_w*cur + ln_0_b
                 cur = ggml_add(ctx0,
-                    ggml_mul(ctx0,
-                        ggml_repeat(ctx0, layer.attn_ln_0_w, cur),
-                        cur),
-                    ggml_repeat(ctx0, layer.attn_ln_0_b, cur));
+                        ggml_mul(ctx0,
+                            ggml_repeat(ctx0, layer.attn_ln_0_w, cur),
+                            cur),
+                        ggml_repeat(ctx0, layer.attn_ln_0_b, cur));
             }
 
             // self-attention
@@ -1472,39 +1471,39 @@ static bool whisper_encode_internal(
                 wstate.use_buf(ctx0, 1);
 
                 struct ggml_tensor * Qcur = ggml_mul_mat(ctx0,
-                    layer.attn_q_w,
-                    cur);
+                        layer.attn_q_w,
+                        cur);
 
                 Qcur = ggml_add(ctx0,
-                    ggml_repeat(ctx0,
-                        layer.attn_q_b,
-                        Qcur),
-                    Qcur);
+                        ggml_repeat(ctx0,
+                            layer.attn_q_b,
+                            Qcur),
+                        Qcur);
 
                 //Qcur = ggml_scale(ctx0, Qcur, ggml_new_f32(ctx0, pow(float(n_state)/n_head, -0.25)));
 
                 // note: no bias for Key
                 struct ggml_tensor * Kcur = ggml_mul_mat(ctx0,
-                    layer.attn_k_w,
-                    cur);
+                        layer.attn_k_w,
+                        cur);
 
                 //Kcur = ggml_scale(ctx0, Kcur, ggml_new_f32(ctx0, pow(float(n_state)/n_head, -0.25)));
 
                 struct ggml_tensor * Vcur = ggml_mul_mat(ctx0,
-                    layer.attn_v_w,
-                    cur);
+                        layer.attn_v_w,
+                        cur);
 
                 Vcur = ggml_add(ctx0,
-                    ggml_repeat(ctx0,
-                        layer.attn_v_b,
-                        Vcur),
-                    Vcur);
+                        ggml_repeat(ctx0,
+                            layer.attn_v_b,
+                            Vcur),
+                        Vcur);
 
                 // ------
 
                 wstate.use_buf(ctx0, 0);
 
-    #ifdef WHISPER_USE_FLASH_ATTN
+#ifdef WHISPER_USE_FLASH_ATTN
                 struct ggml_tensor * Q =
                     ggml_permute(ctx0,
                             ggml_cpy(ctx0,
@@ -1529,7 +1528,7 @@ static bool whisper_encode_internal(
                             ggml_new_tensor_3d(ctx0, wctx.wtype, n_ctx, n_state/n_head, n_head));
 
                 struct ggml_tensor * KQV = ggml_flash_attn(ctx0, Q, K, V, false);
-    #else
+#else
                 struct ggml_tensor * Q =
                     ggml_permute(ctx0,
                             ggml_cpy(ctx0,
@@ -1575,14 +1574,14 @@ static bool whisper_encode_internal(
                             );
 
                 struct ggml_tensor * KQV = ggml_mul_mat(ctx0, ggml_transpose(ctx0, V), KQ_soft_max);
-    #endif
+#endif
                 struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
 
                 wstate.use_buf(ctx0, 1);
 
                 cur = ggml_cpy(ctx0,
-                    KQV_merged,
-                    ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx));
+                        KQV_merged,
+                        ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx));
             }
 
             // projection
@@ -1590,14 +1589,14 @@ static bool whisper_encode_internal(
                 wstate.use_buf(ctx0, 0);
 
                 cur = ggml_mul_mat(ctx0,
-                    layer.attn_ln_1_w,
-                    cur);
+                        layer.attn_ln_1_w,
+                        cur);
 
                 wstate.use_buf(ctx0, 1);
 
                 cur = ggml_add(ctx0,
-                    ggml_repeat(ctx0, layer.attn_ln_1_b, cur),
-                    cur);
+                        ggml_repeat(ctx0, layer.attn_ln_1_b, cur),
+                        cur);
             }
 
             wstate.use_buf(ctx0, 2);
@@ -1619,31 +1618,31 @@ static bool whisper_encode_internal(
 
                     // cur = mlp_ln_w*cur + mlp_ln_b
                     cur = ggml_add(ctx0,
-                        ggml_mul(ctx0,
-                            ggml_repeat(ctx0, layer.mlp_ln_w, cur),
-                            cur),
-                        ggml_repeat(ctx0, layer.mlp_ln_b, cur));
+                            ggml_mul(ctx0,
+                                ggml_repeat(ctx0, layer.mlp_ln_w, cur),
+                                cur),
+                            ggml_repeat(ctx0, layer.mlp_ln_b, cur));
                 }
 
-    #ifdef WHISPER_USE_FLASH_FF
+#ifdef WHISPER_USE_FLASH_FF
                 wstate.use_buf(ctx0, 0);
 
                 cur = ggml_flash_ff(ctx0,
-                    ggml_cpy(ctx0, cur, ggml_new_tensor_2d(ctx0, wstate.wtype, n_state, n_ctx)),
-                    layer.mlp_0_w, layer.mlp_0_b, layer.mlp_1_w, layer.mlp_1_b);
-    #else
+                        ggml_cpy(ctx0, cur, ggml_new_tensor_2d(ctx0, wstate.wtype, n_state, n_ctx)),
+                        layer.mlp_0_w, layer.mlp_0_b, layer.mlp_1_w, layer.mlp_1_b);
+#else
                 wstate.use_buf(ctx0, 0);
 
                 // fully connected
                 cur = ggml_mul_mat(ctx0,
-                    layer.mlp_0_w,
-                    cur);
+                        layer.mlp_0_w,
+                        cur);
 
                 wstate.use_buf(ctx0, 1);
 
                 cur = ggml_add(ctx0,
-                    ggml_repeat(ctx0, layer.mlp_0_b, cur),
-                    cur);
+                        ggml_repeat(ctx0, layer.mlp_0_b, cur),
+                        cur);
 
                 wstate.use_buf(ctx0, 0);
 
@@ -1654,15 +1653,15 @@ static bool whisper_encode_internal(
 
                 // projection
                 cur = ggml_mul_mat(ctx0,
-                    layer.mlp_1_w,
-                    cur);
+                        layer.mlp_1_w,
+                        cur);
 
                 wstate.use_buf(ctx0, 0);
 
                 cur = ggml_add(ctx0,
-                    ggml_repeat(ctx0, layer.mlp_1_b, cur),
-                    cur);
-    #endif
+                        ggml_repeat(ctx0, layer.mlp_1_b, cur),
+                        cur);
+#endif
             }
 
             wstate.use_buf(ctx0, 3);
@@ -1682,10 +1681,10 @@ static bool whisper_encode_internal(
 
             // cur = ln_f_g*cur + ln_f_b
             cur = ggml_add(ctx0,
-                ggml_mul(ctx0,
-                    ggml_repeat(ctx0, model.e_ln_w, cur),
-                    cur),
-                ggml_repeat(ctx0, model.e_ln_b, cur));
+                    ggml_mul(ctx0,
+                        ggml_repeat(ctx0, model.e_ln_w, cur),
+                        cur),
+                    ggml_repeat(ctx0, model.e_ln_b, cur));
         }
 
         wstate.use_buf(ctx0, -1);
@@ -2580,11 +2579,11 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     state->ctx_coreml = whisper_coreml_init(path_coreml.c_str());
     if (!state->ctx_coreml) {
         fprintf(stderr, "%s: failed to load Core ML model from '%s'\n", __func__, path_coreml.c_str());
-#ifndef WHISPER_COREML_ALLOW_FALLBACK        
+#ifndef WHISPER_COREML_ALLOW_FALLBACK
         return nullptr;
 #endif
     } else {
-        fprintf(stderr, "%s: Core ML model loaded\n", __func__);        
+        fprintf(stderr, "%s: Core ML model loaded\n", __func__);
     }
 #endif
 
