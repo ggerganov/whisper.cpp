@@ -13,7 +13,7 @@
 #
 # Usage:
 #
-#   ./tests/run-tests.sh <model_name>
+#   ./tests/run-tests.sh <model_name> [threads]
 #
 
 cd `dirname $0`
@@ -32,7 +32,7 @@ function list_models {
 }
 
 if [ $# -eq 0 ]; then
-    printf "Usage: $0 [model]\n\n"
+    printf "Usage: $0 [model] [threads]\n\n"
     printf "No model specified. Aborting\n"
     list_models
     exit 1
@@ -40,6 +40,11 @@ fi
 
 model=$1
 main="../main"
+
+threads=""
+if [ $# -eq 2 ]; then
+    threads="-t $2"
+fi
 
 if [ ! -f ../models/ggml-$model.bin ]; then
     printf "Model $model not found. Aborting\n"
@@ -105,7 +110,7 @@ function run_lang() {
             fi
         fi
 
-        $main -m ../models/ggml-$model.bin -f $fname_dst -l $lang -otxt 2> /dev/null
+        $main -m ../models/ggml-$model.bin $threads -f $fname_dst -l $lang -otxt 2> /dev/null
 
         git diff --no-index --word-diff=color --word-diff-regex=. $lang-$i-ref.txt $fname_dst.txt
 
