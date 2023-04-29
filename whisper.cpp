@@ -3855,7 +3855,7 @@ int whisper_full_with_state(
     }
 
     const int seek_start = params.offset_ms/10;
-    const int seek_end = seek_start + (params.duration_ms == 0 ? whisper_n_len_from_state(state) : params.duration_ms/10);
+    const int seek_end = params.duration_ms == 0 ? whisper_n_len_from_state(state) : seek_start + params.duration_ms/10;
 
     // if length of spectrogram is less than 1s (100 samples), then return
     // basically don't process anything that is less than 1s
