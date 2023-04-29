@@ -2609,6 +2609,8 @@ struct whisper_context * whisper_init_from_file_no_state(const char * path_model
 
     whisper_model_loader loader = {};
 
+    loader.context = &fin;
+
     loader.read = [](void * ctx, void * output, size_t read_size) {
         std::ifstream * fin = (std::ifstream*)ctx;
         fin->read((char *)output, read_size);
@@ -2646,8 +2648,6 @@ struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t
     fprintf(stderr, "%s: loading model from buffer\n", __func__);
 
     whisper_model_loader loader = {};
-
-    fprintf(stderr, "%s: loading model from buffer\n", __func__);
 
     loader.context = &ctx;
 
