@@ -685,7 +685,14 @@ uint8x16_t vzip2q_u8(uint8x16_t a, uint8x16_t b) {
 }
 
 int32x4_t vcvtnq_s32_f32(float32x4_t v) {
-    return vcombine_s32(vcvtn_s32_f32(vget_low_f32(v)), vcvtn_s32_f32(vget_high_f32(v)));
+    int32x4_t res;
+
+    res[0] = roundf(vgetq_lane_f32(v, 0));
+    res[1] = roundf(vgetq_lane_f32(v, 1));
+    res[2] = roundf(vgetq_lane_f32(v, 2));
+    res[3] = roundf(vgetq_lane_f32(v, 3));
+
+    return res;
 }
 
 #endif
