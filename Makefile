@@ -1,3 +1,5 @@
+default: main bench
+
 ifndef UNAME_S
 UNAME_S := $(shell uname -s)
 endif
@@ -158,12 +160,13 @@ ifdef WHISPER_OPENBLAS
 endif
 
 ifdef WHISPER_CUBLAS
-	CFLAGS    += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/x86_64-linux/include
-	CXXFLAGS  += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/x86_64-linux/include
-	LDFLAGS   += -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/x86_64-linux/lib
-	OBJS      += ggml-cuda.o
-	NVCC      = nvcc
-	NVCCFLAGS = --forward-unknown-to-host-compiler -arch=native
+	CFLAGS      += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/x86_64-linux/include
+	CXXFLAGS    += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/x86_64-linux/include
+	LDFLAGS     += -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/x86_64-linux/lib
+	WHISPER_OBJ += ggml-cuda.o
+	NVCC        = nvcc
+	NVCCFLAGS   = --forward-unknown-to-host-compiler -arch=native
+
 ggml-cuda.o: ggml-cuda.cu ggml-cuda.h
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
 endif
@@ -211,8 +214,6 @@ $(info I CC:       $(CCV))
 $(info I CXX:      $(CXXV))
 $(info )
 
-default: main bench
-
 #
 # Build library
 #
@@ -224,7 +225,7 @@ whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 ifndef WHISPER_COREML
-WHISPER_OBJ = whisper.o
+WHISPER_OBJ += whisper.o
 else
 whisper-encoder.o: coreml/whisper-encoder.mm coreml/whisper-encoder.h
 	$(CXX) -O3 -I . -c coreml/whisper-encoder.mm -o whisper-encoder.o
@@ -232,7 +233,7 @@ whisper-encoder.o: coreml/whisper-encoder.mm coreml/whisper-encoder.h
 whisper-encoder-impl.o: coreml/whisper-encoder-impl.m coreml/whisper-encoder-impl.h
 	$(CXX) -O3 -I . -fobjc-arc -c coreml/whisper-encoder-impl.m -o whisper-encoder-impl.o
 
-WHISPER_OBJ = whisper.o whisper-encoder.o whisper-encoder-impl.o
+WHISPER_OBJ += whisper.o whisper-encoder.o whisper-encoder-impl.o
 endif
 
 libwhisper.a: ggml.o $(WHISPER_OBJ)
