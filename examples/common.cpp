@@ -479,3 +479,27 @@ bool vad_simple(std::vector<float> & pcmf32, int sample_rate, int last_ms, float
 
     return true;
 }
+
+float similarity(const std::string & s0, const std::string & s1) {
+    const size_t len0 = s0.size() + 1;
+    const size_t len1 = s1.size() + 1;
+
+    std::vector<int> col(len1, 0);
+    std::vector<int> prevCol(len1, 0);
+
+    for (size_t i = 0; i < len1; i++) {
+        prevCol[i] = i;
+    }
+
+    for (size_t i = 0; i < len0; i++) {
+        col[0] = i;
+        for (size_t j = 1; j < len1; j++) {
+            col[j] = std::min(std::min(1 + col[j - 1], 1 + prevCol[j]), prevCol[j - 1] + (i > 0 && s0[i - 1] == s1[j - 1] ? 0 : 1));
+        }
+        col.swap(prevCol);
+    }
+
+    const float dist = prevCol[len1 - 1];
+
+    return 1.0f - (dist / std::max(s0.size(), s1.size()));
+}

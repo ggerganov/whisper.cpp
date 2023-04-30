@@ -118,3 +118,5 @@ bool vad_simple(
         float freq_thold,
         bool  verbose);
 
+// compute similarity between two strings using Levenshtein distance
+float similarity(const std::string & s0, const std::string & s1);
