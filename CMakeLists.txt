@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
 
-project(whisper.cpp VERSION 1.4.0)
+project(whisper.cpp VERSION 1.4.1)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     add_compile_options(/utf-8)
