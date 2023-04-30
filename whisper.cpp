@@ -1352,6 +1352,8 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             auto tensor = model.tensors[name.data()];
             if (ggml_nelements(tensor) != nelements) {
                 fprintf(stderr, "%s: tensor '%s' has wrong size in model file\n", __func__, name.data());
+                fprintf(stderr, "%s: shape: [%d, %d, %d], expected: [%d, %d, %d]\n",
+                        __func__, ne[0], ne[1], ne[2], (int) tensor->ne[0], (int) tensor->ne[1], (int) tensor->ne[2]);
                 return false;
             }
 
@@ -1372,7 +1374,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             loader->read(loader->context, tensor->data, ggml_nbytes(tensor));
             BYTESWAP_TENSOR(tensor);
 
-            //printf("%48s - [%5d, %5d, %5d], type = %6s, %6.2f MB\n", name.data(), ne[0], ne[1], ne[2], ggml_type_name((ggml_type) ttype), ggml_nbytes(tensor)/1024.0/1024.0);
+            printf("%48s - [%5d, %5d, %5d], type = %6s, %6.2f MB\n", name.data(), ne[0], ne[1], ne[2], ggml_type_name((ggml_type) ttype), ggml_nbytes(tensor)/1024.0/1024.0);
             total_size += ggml_nbytes(tensor);
             model.n_loaded++;
         }
