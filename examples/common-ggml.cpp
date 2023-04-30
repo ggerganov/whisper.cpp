@@ -90,7 +90,7 @@ bool ggml_common_quantize_0(
         }
 
         int32_t nelements = 1;
-        int32_t ne[2] = { 1, 1 };
+        int32_t ne[4] = { 1, 1, 1, 1 };
         for (int i = 0; i < n_dims; ++i) {
             finp.read (reinterpret_cast<char *>(&ne[i]), sizeof(ne[i]));
             nelements *= ne[i];
@@ -99,7 +99,7 @@ bool ggml_common_quantize_0(
         std::string name(length, 0);
         finp.read (&name[0], length);
 
-        printf("%64s - [%5d, %5d], type = %6s ", name.data(), ne[0], ne[1], ggml_type_name((ggml_type) ttype));
+        printf("%64s - [%5d, %5d, %5d], type = %6s ", name.data(), ne[0], ne[1], ne[2], ggml_type_name((ggml_type) ttype));
 
         bool quantize = false;
 

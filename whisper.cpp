@@ -1333,7 +1333,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             }
 
             int32_t nelements = 1;
-            int32_t ne[3] = { 1, 1, 1 };
+            int32_t ne[4] = { 1, 1, 1, 1 };
             for (int i = 0; i < n_dims; ++i) {
                 read_safe(loader, ne[i]);
                 nelements *= ne[i];
@@ -1374,7 +1374,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             loader->read(loader->context, tensor->data, ggml_nbytes(tensor));
             BYTESWAP_TENSOR(tensor);
 
-            printf("%48s - [%5d, %5d, %5d], type = %6s, %6.2f MB\n", name.data(), ne[0], ne[1], ne[2], ggml_type_name((ggml_type) ttype), ggml_nbytes(tensor)/1024.0/1024.0);
+            //printf("%48s - [%5d, %5d, %5d], type = %6s, %6.2f MB\n", name.data(), ne[0], ne[1], ne[2], ggml_type_name((ggml_type) ttype), ggml_nbytes(tensor)/1024.0/1024.0);
             total_size += ggml_nbytes(tensor);
             model.n_loaded++;
         }
