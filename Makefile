@@ -1,4 +1,4 @@
-default: main bench
+default: main bench quantize
 
 ifndef UNAME_S
 UNAME_S := $(shell uname -s)
@@ -243,7 +243,7 @@ libwhisper.so: ggml.o $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o $(WHISPER_OBJ) $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream command talk talk-llama bench libwhisper.a libwhisper.so
+	rm -f *.o main stream command talk talk-llama bench quantize libwhisper.a libwhisper.so
 
 #
 # Examples
@@ -251,7 +251,7 @@ clean:
 
 CC_SDL=`sdl2-config --cflags --libs`
 
-SRC_COMMON = examples/common.cpp
+SRC_COMMON     = examples/common.cpp examples/common-ggml.cpp
 SRC_COMMON_SDL = examples/common-sdl.cpp
 
 main: examples/main/main.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ)
@@ -260,6 +260,9 @@ main: examples/main/main.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ)
 
 bench: examples/bench/bench.cpp ggml.o $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp ggml.o $(WHISPER_OBJ) -o bench $(LDFLAGS)
+
+quantize: examples/quantize/quantize.cpp ggml.o $(WHISPER_OBJ) $(SRC_COMMON)
+	$(CXX) $(CXXFLAGS) examples/quantize/quantize.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ) -o quantize $(LDFLAGS)
 
 stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)

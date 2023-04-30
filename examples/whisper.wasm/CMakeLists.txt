@@ -31,9 +31,9 @@ endif()
 set_target_properties(${TARGET} PROPERTIES LINK_FLAGS " \
     --bind \
     -s USE_PTHREADS=1 \
-    -s PTHREAD_POOL_SIZE=8 \
-    -s INITIAL_MEMORY=1500MB \
-    -s TOTAL_MEMORY=1500MB \
+    -s PTHREAD_POOL_SIZE_STRICT=0 \
+    -s INITIAL_MEMORY=2000MB \
+    -s TOTAL_MEMORY=2000MB \
     -s FORCE_FILESYSTEM=1 \
     -s EXPORTED_RUNTIME_METHODS=\"['print', 'printErr', 'ccall', 'cwrap']\" \
     ${EXTRA_FLAGS} \

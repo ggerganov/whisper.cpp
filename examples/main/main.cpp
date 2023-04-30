@@ -496,7 +496,7 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
                 value_i("layer", whisper_model_n_text_layer(ctx), true);
             end_obj();
             value_i("mels", whisper_model_n_mels(ctx));
-            value_i("f16", whisper_model_f16(ctx), true);
+            value_i("ftype", whisper_model_ftype(ctx), true);
         end_obj();
         start_obj("params");
             value_s("model", params.model.c_str());

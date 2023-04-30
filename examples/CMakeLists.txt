@@ -21,9 +21,13 @@ set(TARGET common)
 add_library(${TARGET} STATIC
     common.h
     common.cpp
+    common-ggml.h
+    common-ggml.cpp
     )
 
 include(DefaultTargetOptions)
+
+target_link_libraries(${TARGET} PRIVATE whisper)
 
 set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -62,6 +66,7 @@ else()
     add_subdirectory(stream)
     add_subdirectory(command)
     add_subdirectory(bench)
+    add_subdirectory(quantize)
     add_subdirectory(talk)
     add_subdirectory(talk-llama)
 endif()

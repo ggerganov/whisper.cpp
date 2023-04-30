@@ -487,11 +487,37 @@ int main(int argc, char ** argv) {
 
                         {
                             auto logits = llama_get_logits(ctx_llama);
+                            auto n_vocab = llama_n_vocab(ctx_llama);
+
                             logits[llama_token_eos()] = 0;
 
-                            id = llama_sample_top_p_top_k(ctx_llama,
+                            std::vector<llama_token_data> candidates;
+                            candidates.reserve(n_vocab);
+                            for (llama_token token_id = 0; token_id < n_vocab; token_id++) {
+                                candidates.emplace_back(llama_token_data{token_id, logits[token_id], 0.0f});
+                            }
+
+                            llama_token_data_array candidates_p = { candidates.data(), candidates.size(), false };
+
+                            // apply repeat penalty
+                            const float nl_logit = logits[llama_token_nl()];
+
+                            llama_sample_repetition_penalty(ctx_llama, &candidates_p,
                                     embd_inp.data() + std::max(0, n_past - repeat_last_n),
-                                    repeat_last_n, top_k, top_p, temp, repeat_penalty);
+                                    repeat_last_n, repeat_penalty);
+
+                            logits[llama_token_nl()] = nl_logit;
+
+                            if (temp <= 0) {
+                                // Greedy sampling
+                                id = llama_sample_token_greedy(ctx_llama, &candidates_p);
+                            } else {
+                                // Temperature sampling
+                                llama_sample_top_k(ctx_llama, &candidates_p, top_k);
+                                llama_sample_top_p(ctx_llama, &candidates_p, top_p);
+                                llama_sample_temperature(ctx_llama, &candidates_p, temp);
+                                id = llama_sample_token(ctx_llama, &candidates_p);
+                            }
                         }
 
                         if (id != llama_token_eos()) {
