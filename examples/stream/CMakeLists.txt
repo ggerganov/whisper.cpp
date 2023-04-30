@@ -1,4 +1,4 @@
-if (WHISPER_SUPPORT_SDL2)
+if (WHISPER_SDL2)
     # stream
     set(TARGET stream)
     add_executable(${TARGET} stream.cpp)

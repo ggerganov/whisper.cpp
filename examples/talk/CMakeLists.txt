@@ -1,4 +1,4 @@
-if (WHISPER_SUPPORT_SDL2)
+if (WHISPER_SDL2)
     # talk
     set(TARGET talk)
     #add_executable(${TARGET} talk.cpp gpt-2.cpp)

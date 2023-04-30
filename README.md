@@ -18,6 +18,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Low memory usage (Flash Attention)
 - Zero memory allocations at runtime
 - Runs on the CPU
+- [Partial GPU support for NVIDIA via cuBLAS](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 
 Supported platforms:
@@ -254,7 +255,7 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
   # using Makefile
   make clean
   WHISPER_COREML=1 make -j
-  
+
   # using CMake
   cd build
   cmake -DWHISPER_COREML=1 ..
@@ -271,20 +272,33 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
   whisper_init_state: first run on a device may take a while ...
   whisper_init_state: Core ML model loaded
 
-  system_info: n_threads = 4 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | FMA = 0 | NEON = 1 | ARM_FMA = 1 | F16C = 0 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 0 | VSX = 0 | COREML = 1 | 
+  system_info: n_threads = 4 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | FMA = 0 | NEON = 1 | ARM_FMA = 1 | F16C = 0 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 0 | VSX = 0 | COREML = 1 |
 
   ...
   ```
 
   The first run on a device is slow, since the ANE service compiles the Core ML model to some device-specific format.
   Next runs are faster.
-  
+
 For more information about the Core ML implementation please refer to PR [#566](https://github.com/ggerganov/whisper.cpp/pull/566).
-  
+
+## NVIDIA GPU support via cuBLAS
+
+With NVIDIA cards, the Encoder processing can be offloaded to the GPU to a large extend through cuBLAS.
+First, make sure you have installed `cuda`: https://developer.nvidia.com/cuda-downloads
+
+Now build `whisper.cpp` with cuBLAS support:
+
+```
+make clean
+WHISPER_CUBLAS=1 make -j
+```
+
+Run all the examples as usual.
+
 ## Limitations
 
 - Inference only
-- No GPU support (yet)
 
 ## Another example
 
@@ -429,7 +443,7 @@ system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1
 
 main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
 
-[00:00:00.000 --> 00:00:00.320]  
+[00:00:00.000 --> 00:00:00.320]
 [00:00:00.320 --> 00:00:00.370]   And
 [00:00:00.370 --> 00:00:00.690]   so
 [00:00:00.690 --> 00:00:00.850]   my

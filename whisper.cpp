@@ -102,7 +102,7 @@ static void byteswap_tensor(ggml_tensor * tensor) {
 #define WHISPER_PRINT_DEBUG(...)
 #endif
 
-#define WHISPER_USE_FLASH_ATTN
+//#define WHISPER_USE_FLASH_ATTN
 //#define WHISPER_USE_FLASH_FF
 #define WHISPER_MAX_DECODERS 16
 
@@ -224,11 +224,11 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
 static const size_t MB = 1ull*1024*1024;
 
 static const std::map<e_model, size_t> MEM_REQ_SCRATCH0 = {
-    { MODEL_TINY,     14ull*MB },
-    { MODEL_BASE,     18ull*MB },
-    { MODEL_SMALL,    28ull*MB },
-    { MODEL_MEDIUM,   36ull*MB },
-    { MODEL_LARGE,    44ull*MB },
+    { MODEL_TINY,     62ull*MB },
+    { MODEL_BASE,     80ull*MB },
+    { MODEL_SMALL,   120ull*MB },
+    { MODEL_MEDIUM,  158ull*MB },
+    { MODEL_LARGE,   198ull*MB },
 };
 
 static const std::map<e_model, size_t> MEM_REQ_SCRATCH1 = {
@@ -280,11 +280,11 @@ static const std::map<e_model, size_t> MEM_REQ_KV_CROSS = {
 };
 
 static const std::map<e_model, size_t> MEM_REQ_ENCODE = {
-    { MODEL_TINY,      6ull*MB },
-    { MODEL_BASE,      8ull*MB },
-    { MODEL_SMALL,    13ull*MB },
-    { MODEL_MEDIUM,   22ull*MB },
-    { MODEL_LARGE,    33ull*MB },
+    { MODEL_TINY,     30ull*MB },
+    { MODEL_BASE,     38ull*MB },
+    { MODEL_SMALL,    56ull*MB },
+    { MODEL_MEDIUM,   74ull*MB },
+    { MODEL_LARGE,    94ull*MB },
 };
 
 static const std::map<e_model, size_t> MEM_REQ_DECODE = {
@@ -1554,26 +1554,17 @@ static bool whisper_encode_internal(
 
                 struct ggml_tensor * KQ_soft_max = ggml_soft_max(ctx0, KQ_scaled);
 
-                //struct ggml_tensor * V_trans =
-                //    ggml_permute(ctx0,
-                //            ggml_cpy(ctx0,
-                //                Vcur,
-                //                ggml_new_tensor_3d(ctx0, wctx.wtype, n_state/n_head, n_head, n_ctx)),
-                //            1, 2, 0, 3);
-
-                //struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V_trans, KQ_soft_max);
-
                 struct ggml_tensor * V =
                     ggml_cpy(ctx0,
                             ggml_permute(ctx0,
                                 ggml_reshape_3d(ctx0,
                                     Vcur,
                                     n_state/n_head, n_head, n_ctx),
-                                0, 2, 1, 3),
-                            ggml_new_tensor_3d(ctx0, wctx.wtype, n_state/n_head, n_ctx, n_head)
+                                1, 2, 0, 3),
+                            ggml_new_tensor_3d(ctx0, wctx.wtype, n_ctx, n_state/n_head, n_head)
                             );
 
-                struct ggml_tensor * KQV = ggml_mul_mat(ctx0, ggml_transpose(ctx0, V), KQ_soft_max);
+                struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V, KQ_soft_max);
 #endif
                 struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
 
