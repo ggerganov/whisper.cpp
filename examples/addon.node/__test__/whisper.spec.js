@@ -14,9 +14,10 @@ const whisperParamsMock = {
 };
 
 describe("Run whisper.node", () => {
-  test("it should receive a non-empty value", async () => {
-    let result = await whisperAsync(whisperParamsMock);
+    test("it should receive a non-empty value", async () => {
+        let result = await whisperAsync(whisperParamsMock);
 
-    expect(result.length).toBeGreaterThan(0);
-  });
+        expect(result.length).toBeGreaterThan(0);
+    }, 10000);
 });
+
