@@ -391,8 +391,8 @@
                 document.getElementById('fetch-whisper-medium-q5_0'   ).style.display = 'none';
                 document.getElementById('fetch-whisper-large-q5_0'    ).style.display = 'none';
 
-                document.getElementById('whisper-file'          ).style.display = 'none';
-                document.getElementById('model-whisper-status'  ).innerHTML = 'loading model: ' + model;
+                document.getElementById('whisper-file'        ).style.display = 'none';
+                document.getElementById('model-whisper-status').innerHTML = 'loading model: ' + model;
 
                 cbProgress = function(p) {
                     let el = document.getElementById('fetch-whisper-progress');
@@ -419,8 +419,8 @@
                     el = document.getElementById('fetch-whisper-medium-q5_0'   ); if (el) el.style.display = 'inline-block';
                     el = document.getElementById('fetch-whisper-large-q5_0'    ); if (el) el.style.display = 'inline-block';
 
-                    el = document.getElementById('whisper-file'          ); if (el) el.style.display = 'inline-block';
-                    el = document.getElementById('model-whisper-status'  ); if (el) el.innerHTML = '';
+                    el = document.getElementById('whisper-file'        ); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('model-whisper-status'); if (el) el.innerHTML = '';
                 };
 
                 loadRemote(url, dst, size_mb, cbProgress, storeFS, cbCancel, printTextarea);
