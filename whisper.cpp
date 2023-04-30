@@ -1,4 +1,3 @@
-#define WHISPER_BUILD
 #include "whisper.h"
 #if WHISPER_USE_COREML
 #include "coreml/whisper-encoder.h"

@@ -303,6 +303,12 @@ if (BUILD_SHARED_LIBS)
 
     target_compile_definitions(${TARGET} PUBLIC
         WHISPER_SHARED
+        GGML_SHARED
+        )
+
+    target_compile_definitions(${TARGET} PRIVATE
+        WHISPER_BUILD
+        GGML_BUILD
         )
 endif()
 
