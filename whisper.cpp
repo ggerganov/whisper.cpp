@@ -879,10 +879,10 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         {
             // this is the total memory required to run the inference
             const size_t mem_required =
-                     MEM_REQ_SCRATCH0.at (model.type) +
-                     MEM_REQ_SCRATCH1.at (model.type) +
-                     MEM_REQ_SCRATCH2.at (model.type) +
-                     MEM_REQ_SCRATCH3.at (model.type) +
+                     MEM_REQ_SCRATCH0.at(model.type) +
+                     MEM_REQ_SCRATCH1.at(model.type) +
+                     MEM_REQ_SCRATCH2.at(model.type) +
+                     MEM_REQ_SCRATCH3.at(model.type) +
                 scale*MEM_REQ_MODEL.at(wctx.wtype).at(model.type) +
                 scale*MEM_REQ_KV_CROSS.at(model.type) +
                 scale*std::max(MEM_REQ_ENCODE.at(model.type), MEM_REQ_DECODE.at(model.type));
