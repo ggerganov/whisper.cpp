@@ -1554,15 +1554,6 @@ static bool whisper_encode_internal(
 
                 struct ggml_tensor * KQ_soft_max = ggml_soft_max(ctx0, KQ_scaled);
 
-                //struct ggml_tensor * V_trans =
-                //    ggml_permute(ctx0,
-                //            ggml_cpy(ctx0,
-                //                Vcur,
-                //                ggml_new_tensor_3d(ctx0, wctx.wtype, n_state/n_head, n_head, n_ctx)),
-                //            1, 2, 0, 3);
-
-                //struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V_trans, KQ_soft_max);
-
                 struct ggml_tensor * V =
                     ggml_cpy(ctx0,
                             ggml_permute(ctx0,
