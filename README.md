@@ -15,6 +15,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - AVX intrinsics support for x86 architectures
 - VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
+- [4-bit and 5-bit integer quantization support](https://github.com/ggerganov/whisper.cpp#quantization)
 - Low memory usage (Flash Attention)
 - Zero memory allocations at runtime
 - Runs on the CPU
@@ -227,6 +228,22 @@ make large
 | small  | 466 MB | ~600 MB | `55356645c2b361a969dfd0ef2c5a50d530afd8d5` |
 | medium | 1.5 GB | ~1.7 GB | `fd9727b6e1217c2f614f9b698455c4ffd82463b4` |
 | large  | 2.9 GB | ~3.3 GB | `0f4c8e34f21cf1a914c59d8b3ce882345ad349d6` |
+
+## Quantization
+
+`whisper.cpp` supports integer quantization of the Whisper `ggml` models.
+Quantized models require less memory and disk space and depending on the hardware can be processed more efficiently.
+
+Here are the steps for creating and using a quantized model:
+
+```bash
+# quantize a model with Q5_0 method
+make quantize
+./quantize models/ggml-base.en.bin models/ggml-base.en-q5_0.bin q5_0
+
+# run the examples as usual, specifying the quantized model file
+./main -m models/ggml-base.en-q5_0.bin ./samples/gb0.wav
+```
 
 ## Core ML support
 
