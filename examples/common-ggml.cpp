@@ -90,7 +90,7 @@ bool ggml_common_quantize_0(
         }
 
         int32_t nelements = 1;
-        int32_t ne[2] = { 1, 1 };
+        int32_t ne[4] = { 1, 1, 1, 1 };
         for (int i = 0; i < n_dims; ++i) {
             finp.read (reinterpret_cast<char *>(&ne[i]), sizeof(ne[i]));
             nelements *= ne[i];
@@ -99,7 +99,7 @@ bool ggml_common_quantize_0(
         std::string name(length, 0);
         finp.read (&name[0], length);
 
-        printf("%64s - [%5d, %5d], type = %6s ", name.data(), ne[0], ne[1], ggml_type_name((ggml_type) ttype));
+        printf("%64s - [%5d, %5d, %5d], type = %6s ", name.data(), ne[0], ne[1], ne[2], ggml_type_name((ggml_type) ttype));
 
         bool quantize = false;
 
@@ -204,11 +204,11 @@ bool ggml_common_quantize_0(
             total_size_new += cur_size;
 
             printf("size = %8.2f MB -> %8.2f MB | hist: ", nelements * sizeof(float)/1024.0/1024.0, cur_size/1024.0/1024.0);
-            for (int i = 0; i < hist_cur.size(); ++i) {
+            for (int i = 0; i < (int) hist_cur.size(); ++i) {
                 hist_all[i] += hist_cur[i];
             }
 
-            for (int i = 0; i < hist_cur.size(); ++i) {
+            for (int i = 0; i < (int) hist_cur.size(); ++i) {
                 printf("%5.3f ", hist_cur[i] / (float)nelements);
             }
             printf("\n");
@@ -226,12 +226,12 @@ bool ggml_common_quantize_0(
 
     {
         int64_t sum_all = 0;
-        for (int i = 0; i < hist_all.size(); ++i) {
+        for (int i = 0; i < (int) hist_all.size(); ++i) {
             sum_all += hist_all[i];
         }
 
         printf("%s: hist: ", __func__);
-        for (int i = 0; i < hist_all.size(); ++i) {
+        for (int i = 0; i < (int) hist_all.size(); ++i) {
             printf("%5.3f ", hist_all[i] / (float)sum_all);
         }
         printf("\n");
