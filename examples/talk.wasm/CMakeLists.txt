@@ -13,6 +13,7 @@ include(DefaultTargetOptions)
 
 target_link_libraries(${TARGET} PRIVATE
     whisper
+    common
     )
 
 unset(EXTRA_FLAGS)

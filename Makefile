@@ -251,7 +251,7 @@ clean:
 
 CC_SDL=`sdl2-config --cflags --libs`
 
-SRC_COMMON = examples/common.cpp
+SRC_COMMON     = examples/common.cpp examples/common-ggml.cpp
 SRC_COMMON_SDL = examples/common-sdl.cpp
 
 main: examples/main/main.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ)
