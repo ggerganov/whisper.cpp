@@ -1,4 +1,4 @@
-if (WHISPER_SUPPORT_SDL2)
+if (WHISPER_SDL2)
     # command
     set(TARGET command)
     add_executable(${TARGET} command.cpp)

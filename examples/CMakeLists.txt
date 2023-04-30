@@ -4,7 +4,7 @@ find_package(Threads REQUIRED)
 
 # third-party
 
-if (WHISPER_SUPPORT_SDL2)
+if (WHISPER_SDL2)
     # SDL2
     find_package(SDL2 REQUIRED)
 
@@ -27,7 +27,7 @@ include(DefaultTargetOptions)
 
 set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if (WHISPER_SUPPORT_SDL2)
+if (WHISPER_SDL2)
     # common-sdl
 
     set(TARGET common-sdl)

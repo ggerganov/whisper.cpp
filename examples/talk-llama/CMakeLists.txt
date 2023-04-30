@@ -1,4 +1,4 @@
-if (WHISPER_SUPPORT_SDL2)
+if (WHISPER_SDL2)
     # talk-llama
     set(TARGET talk-llama)
     #add_executable(${TARGET} talk-llama.cpp llama.cpp)
