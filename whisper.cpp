@@ -256,6 +256,15 @@ static const std::map<e_model, size_t> MEM_REQ_SCRATCH3 = {
 };
 
 static const std::map<ggml_type, std::map<e_model, size_t>> MEM_REQ_MODEL = {
+    { GGML_TYPE_F32,
+        {
+            { MODEL_TINY,     74ull*MB },
+            { MODEL_BASE,    142ull*MB },
+            { MODEL_SMALL,   466ull*MB },
+            { MODEL_MEDIUM, 1464ull*MB },
+            { MODEL_LARGE,  2952ull*MB },
+        },
+    },
     { GGML_TYPE_F16,
         {
             { MODEL_TINY,     74ull*MB },
@@ -982,6 +991,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
     size_t ctx_size = 0;
 
     const ggml_type wtype = wctx.wtype;
+    const ggml_type vtype = wctx.wtype == GGML_TYPE_F32 ? GGML_TYPE_F32 : GGML_TYPE_F16; // conv type
 
     {
         const auto & hparams = model.hparams;
@@ -1002,10 +1012,10 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         {
             ctx_size += n_audio_ctx*n_audio_state*ggml_type_sizef(GGML_TYPE_F32); // e_pe;
 
-            ctx_size += 3*n_mels*n_audio_state*ggml_type_sizef(GGML_TYPE_F16); // e_conv_1_w
+            ctx_size += 3*n_mels*n_audio_state*ggml_type_sizef(vtype);         // e_conv_1_w
             ctx_size +=          n_audio_state*ggml_type_sizef(GGML_TYPE_F32); // e_conv_1_b
 
-            ctx_size += 3*n_audio_state*n_audio_state*ggml_type_sizef(GGML_TYPE_F16); // e_conv_2_w
+            ctx_size += 3*n_audio_state*n_audio_state*ggml_type_sizef(vtype);         // e_conv_2_w
             ctx_size +=                 n_audio_state*ggml_type_sizef(GGML_TYPE_F32); // e_conv_2_b
 
             ctx_size += n_audio_state*ggml_type_sizef(GGML_TYPE_F32); // e_ln_w;
@@ -1133,10 +1143,10 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         {
             model.e_pe       = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, n_audio_state, n_audio_ctx);
 
-            model.e_conv_1_w = ggml_new_tensor_3d(ctx, GGML_TYPE_F16, 3, n_mels, n_audio_state);
+            model.e_conv_1_w = ggml_new_tensor_3d(ctx, vtype,         3, n_mels, n_audio_state);
             model.e_conv_1_b = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 1, n_audio_state);
 
-            model.e_conv_2_w = ggml_new_tensor_3d(ctx, GGML_TYPE_F16, 3, n_audio_state, n_audio_state);
+            model.e_conv_2_w = ggml_new_tensor_3d(ctx, vtype,         3, n_audio_state, n_audio_state);
             model.e_conv_2_b = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 1, n_audio_state);
 
             model.e_ln_w     = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_audio_state);
