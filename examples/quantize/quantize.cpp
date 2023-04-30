@@ -1,6 +1,7 @@
 #include "ggml.h"
 
 #include "common.h"
+#include "common-ggml.h"
 
 #include <cassert>
 #include <cmath>
@@ -169,10 +170,7 @@ bool whisper_model_quantize(const std::string & fname_inp, const std::string & f
 int main(int argc, char ** argv) {
     if (argc != 4) {
         fprintf(stderr, "usage: %s model-f32.bin model-quant.bin type\n", argv[0]);
-        fprintf(stderr, "  type = 2 - q4_0\n");
-        fprintf(stderr, "  type = 3 - q4_1\n");
-        fprintf(stderr, "  type = 5 - q4_2\n");
-        fprintf(stderr, "  type = 6 - q4_3\n");
+        ggml_print_ftypes(stderr);
         return 1;
     }
 
@@ -186,7 +184,7 @@ int main(int argc, char ** argv) {
     const std::string fname_inp = argv[1];
     const std::string fname_out = argv[2];
 
-    const int ftype = atoi(argv[3]);
+    const ggml_ftype ftype = ggml_parse_ftype(argv[3]);
 
     const int64_t t_main_start_us = ggml_time_us();
 

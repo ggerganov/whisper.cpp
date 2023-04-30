@@ -4057,6 +4057,27 @@ bool ggml_is_quantized(enum ggml_type type) {
     return GGML_IS_QUANTIZED[type];
 }
 
+enum ggml_type ggml_ftype_to_ggml_type(enum ggml_ftype ftype) {
+    enum ggml_type wtype = GGML_TYPE_COUNT;
+
+    switch (ftype) {
+        case GGML_FTYPE_ALL_F32:              wtype = GGML_TYPE_F32;   break;
+        case GGML_FTYPE_MOSTLY_F16:           wtype = GGML_TYPE_F16;   break;
+        case GGML_FTYPE_MOSTLY_Q4_0:          wtype = GGML_TYPE_Q4_0;  break;
+        case GGML_FTYPE_MOSTLY_Q4_1:          wtype = GGML_TYPE_Q4_1;  break;
+        case GGML_FTYPE_MOSTLY_Q4_2:          wtype = GGML_TYPE_Q4_2;  break;
+        case GGML_FTYPE_MOSTLY_Q5_0:          wtype = GGML_TYPE_Q5_0;  break;
+        case GGML_FTYPE_MOSTLY_Q5_1:          wtype = GGML_TYPE_Q5_1;  break;
+        case GGML_FTYPE_MOSTLY_Q8_0:          wtype = GGML_TYPE_Q8_0;  break;
+        case GGML_FTYPE_UNKNOWN:              wtype = GGML_TYPE_COUNT; break;
+        case GGML_FTYPE_MOSTLY_Q4_1_SOME_F16: wtype = GGML_TYPE_COUNT; break;
+    }
+
+    GGML_ASSERT(wtype != GGML_TYPE_COUNT);
+
+    return wtype;
+}
+
 static inline bool ggml_is_transposed(const struct ggml_tensor * tensor) {
     return tensor->nb[0] > tensor->nb[1];
 }

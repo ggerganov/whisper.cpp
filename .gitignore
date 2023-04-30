@@ -23,6 +23,7 @@ build-sanitize-thread/
 /talk
 /talk-llama
 /bench
+/quantize
 
 arm_neon.h
 sync.sh

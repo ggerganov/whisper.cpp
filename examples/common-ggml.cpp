@@ -1,6 +1,7 @@
 #include "common-ggml.h"
 
 #include <regex>
+#include <map>
 
 static const std::map<std::string, enum ggml_ftype> GGML_FTYPE_MAP = {
     {"q4_0", GGML_FTYPE_MOSTLY_Q4_0},
@@ -31,29 +32,6 @@ enum ggml_ftype ggml_parse_ftype(const char * str) {
     }
 
     return ftype;
-}
-
-enum ggml_type ggml_ftype_to_ggml_type(const enum ggml_ftype ftype) {
-    ggml_type wtype = GGML_TYPE_COUNT;
-
-    switch (ftype) {
-        case GGML_FTYPE_ALL_F32:              wtype = GGML_TYPE_F32;   break;
-        case GGML_FTYPE_MOSTLY_F16:           wtype = GGML_TYPE_F16;   break;
-        case GGML_FTYPE_MOSTLY_Q4_0:          wtype = GGML_TYPE_Q4_0;  break;
-        case GGML_FTYPE_MOSTLY_Q4_1:          wtype = GGML_TYPE_Q4_1;  break;
-        case GGML_FTYPE_MOSTLY_Q4_2:          wtype = GGML_TYPE_Q4_2;  break;
-        case GGML_FTYPE_MOSTLY_Q5_0:          wtype = GGML_TYPE_Q5_0;  break;
-        case GGML_FTYPE_MOSTLY_Q5_1:          wtype = GGML_TYPE_Q5_1;  break;
-        case GGML_FTYPE_MOSTLY_Q8_0:          wtype = GGML_TYPE_Q8_0;  break;
-        case GGML_FTYPE_UNKNOWN:              wtype = GGML_TYPE_COUNT; break;
-        case GGML_FTYPE_MOSTLY_Q4_1_SOME_F16: wtype = GGML_TYPE_COUNT; break;
-    }
-
-    if (wtype == GGML_TYPE_COUNT) {
-        fprintf(stderr, "%s: invalid model type %d\n", __func__, ftype);
-    }
-
-    return wtype;
 }
 
 bool ggml_common_quantize_0(
