@@ -4827,48 +4827,50 @@ WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
 
     ggml_time_init();
 
-    size_t n    = 50;
-    size_t arr  = n_threads > 0 ? 1024 : n_threads; // trick to avoid compiler optimizations
+    size_t n    = 20;
+    size_t arr  = n_threads > 0 ? 1024llu : n_threads; // trick to avoid compiler optimizations
 
-    // 1 GB array
+    // 1GB MB array
     const size_t size = arr*1024llu*1024llu;
 
-    char * src = (char *) malloc(size);
-    char * dst = (char *) malloc(size);
-
-    for (size_t i = 0; i < size; i++) src[i] = i;
-
-    memcpy(dst, src, size); // heat-up
-
-    double tsum = 0.0;
-
-    for (size_t i = 0; i < n; i++) {
-        const int64_t t0 = ggml_time_us();
-
-        memcpy(dst, src, size);
-
-        const int64_t t1 = ggml_time_us();
-
-        tsum += (t1 - t0)*1e-6;
-
-        src[0] = rand();
-    }
-
-    snprintf(strbuf, sizeof(strbuf), "memcpy: %.2f GB/s\n", (double) (n*size)/(tsum*1024llu*1024llu*1024llu));
-    s += strbuf;
-
-    // needed to prevent the compile from optimizing the memcpy away
+    // single-thread
     {
-        double sum = 0.0;
+        char * src = (char *) malloc(size);
+        char * dst = (char *) malloc(size);
 
-        for (size_t i = 0; i < size; i++) sum += dst[i];
+        for (size_t i = 0; i < size; i++) src[i] = i;
 
-        snprintf(strbuf, sizeof(strbuf), "sum:    %s %f\n", sum == -536870910.00 ? "ok" : "error", sum);
+        memcpy(dst, src, size); // heat-up
+
+        double tsum = 0.0;
+        double sum  = 0.0;
+
+        for (size_t i = 0; i < n; i++) {
+            const int64_t t0 = ggml_time_us();
+
+            memcpy(dst, src, size);
+
+            const int64_t t1 = ggml_time_us();
+
+            tsum += (t1 - t0)*1e-6;
+
+            src[rand() % size] = rand() % 256;
+        }
+
+        snprintf(strbuf, sizeof(strbuf), "memcpy: %.2f GB/s (1 thread)\n", (double) (n*size)/(tsum*1024llu*1024llu*1024llu));
         s += strbuf;
-    }
 
-    free(src);
-    free(dst);
+        // needed to prevent the compiler from optimizing the memcpy away
+        {
+            for (size_t i = 0; i < size; i++) sum += dst[i];
+
+            snprintf(strbuf, sizeof(strbuf), "sum:    %f\n", sum);
+            s += strbuf;
+        }
+
+        free(src);
+        free(dst);
+    }
 
     return s.c_str();
 }
@@ -4905,26 +4907,37 @@ WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads) {
     for (int j = 0; j < (int) sizes.size(); j++) {
         int n_q4_0 = 0;
         int n_q4_1 = 0;
+        int n_q4_2 = 0;
+        int n_q5_0 = 0;
+        int n_q5_1 = 0;
+        int n_q8_0 = 0;
         int n_fp16 = 0;
         int n_fp32 = 0;
 
         // GFLOPS/s
         double s_q4_0 = 0.0;
         double s_q4_1 = 0.0;
+        double s_q4_2 = 0.0;
+        double s_q5_0 = 0.0;
+        double s_q5_1 = 0.0;
+        double s_q8_0 = 0.0;
         double s_fp16 = 0.0;
         double s_fp32 = 0.0;
 
         const size_t N = sizes[j];
 
-        for (int k = 0; k < 4; ++k) {
+        for (int k = 0; k < 8; ++k) {
             const ggml_type wtype =
                 k == 0 ? GGML_TYPE_Q4_0 :
                 k == 1 ? GGML_TYPE_Q4_1 :
-                k == 2 ? GGML_TYPE_F16  :
-                         GGML_TYPE_F32;
+                k == 2 ? GGML_TYPE_Q4_2 :
+                k == 3 ? GGML_TYPE_Q5_0 :
+                k == 4 ? GGML_TYPE_Q5_1 :
+                k == 5 ? GGML_TYPE_Q8_0 :
+                k == 6 ? GGML_TYPE_F16  : GGML_TYPE_F32;
 
-            double & s = k == 0 ? s_q4_0 : k == 1 ? s_q4_1 : k == 2 ? s_fp16 : s_fp32;
-            int    & n = k == 0 ? n_q4_0 : k == 1 ? n_q4_1 : k == 2 ? n_fp16 : n_fp32;
+            double & s = k == 0 ? s_q4_0 : k == 1 ? s_q4_1 : k == 2 ? s_q4_2 : k == 3 ? s_q5_0 : k == 4 ? s_q5_1 : k == 5 ? s_q8_0 : k == 6 ? s_fp16 : /*k == 7*/ s_fp32;
+            int    & n = k == 0 ? n_q4_0 : k == 1 ? n_q4_1 : k == 2 ? n_q4_2 : k == 3 ? n_q5_0 : k == 4 ? n_q5_1 : k == 5 ? n_q8_0 : k == 6 ? n_fp16 : /*k == 7*/ n_fp32;
 
             struct ggml_init_params gparams = {
                 /*.mem_size   =*/ buf.size(),
@@ -4968,8 +4981,19 @@ WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads) {
             s = ((2.0*N*N*N*n)/tsum)*1e-9;
         }
 
-        snprintf(strbuf, sizeof(strbuf), "ggml_mul_mat: %4zu x %4zu: Q4_0 %7.1f GFLOPS (%3d runs) / Q4_1 %7.1f GFLOPS (%3d runs) / F16 %7.1f GFLOPS (%3d runs) / F32 %7.1f GFLOPS (%3d runs)\n",
-                N, N, s_q4_0, n_q4_0, s_q4_1, n_q4_1, s_fp16, n_fp16, s_fp32, n_fp32);
+        // Q4_0 | Q4_1 | Q4_2
+        snprintf(strbuf, sizeof(strbuf), "%4zu x %4zu: Q4_0 %7.1f GFLOPS (%3d runs) | Q4_1 %7.1f GFLOPS (%3d runs) | Q4_2 %7.1f GFLOPS (%3d runs)\n",
+                N, N, s_q4_0, n_q4_0, s_q4_1, n_q4_1, s_q4_2, n_q4_2);
+        s += strbuf;
+
+        // Q5_0 | Q5_1 | Q8_0
+        snprintf(strbuf, sizeof(strbuf), "%4zu x %4zu: Q5_0 %7.1f GFLOPS (%3d runs) | Q5_1 %7.1f GFLOPS (%3d runs) | Q8_0 %7.1f GFLOPS (%3d runs)\n",
+                N, N, s_q5_0, n_q5_0, s_q5_1, n_q5_1, s_q8_0, n_q8_0);
+        s += strbuf;
+
+        // F16 | F32
+        snprintf(strbuf, sizeof(strbuf), "%4zu x %4zu: F16  %7.1f GFLOPS (%3d runs) | F32  %7.1f GFLOPS (%3d runs)\n",
+                N, N, s_fp16, n_fp16, s_fp32, n_fp32);
         s += strbuf;
     }
 
