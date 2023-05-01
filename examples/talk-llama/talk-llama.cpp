@@ -52,6 +52,7 @@ struct whisper_params {
     std::string speak       = "./examples/talk-llama/speak.sh";
     std::string prompt      = "";
     std::string fname_out;
+    std::string path_session = "";       // path to file for saving/loading model eval state
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -78,6 +79,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-pe"  || arg == "--print-energy")  { params.print_energy  = true; }
         else if (arg == "--verbose-prompt")                 { params.verbose_prompt = true; }
         else if (arg == "-p"   || arg == "--person")        { params.person        = argv[++i]; }
+        else if (arg == "--session")                        { params.path_session  = argv[++i];}
         else if (arg == "-l"   || arg == "--language")      { params.language      = argv[++i]; }
         else if (arg == "-mw"  || arg == "--model-whisper") { params.model_wsp     = argv[++i]; }
         else if (arg == "-ml"  || arg == "--model-llama")   { params.model_llama   = argv[++i]; }
@@ -124,6 +126,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  --n-parts-llama N         [%-7d] num parts in llama model file\n",               params.n_parts_llama);
     fprintf(stderr, "  -s FILE,  --speak TEXT    [%-7s] command for TTS\n",                             params.speak.c_str());
     fprintf(stderr, "  --prompt-file FNAME       [%-7s] file with custom prompt to start dialog\n",     "");
+    fprintf(stderr, "  --session FNAME       file to cache model state in (may be large!) (default: none)\n");
     fprintf(stderr, "  --verbose-prompt          [%-7s] print prompt at start\n",                       params.verbose_prompt ? "true" : "false");
     fprintf(stderr, "  -f FNAME, --file FNAME    [%-7s] text output file name\n",                       params.fname_out.c_str());
     fprintf(stderr, "\n");
@@ -348,6 +351,57 @@ int main(int argc, char ** argv) {
         fflush(stdout);
     }
 
+    // init session
+    std::string path_session = params.path_session;
+    std::vector<llama_token> session_tokens;
+
+    if (!path_session.empty()) {
+        fprintf(stderr, "%s: attempting to load saved session from %s\n", __func__, path_session.c_str());
+
+        // fopen to check for existing session
+        FILE * fp = std::fopen(path_session.c_str(), "rb");
+        if (fp != NULL) {
+            std::fclose(fp);
+
+            session_tokens.resize(lparams.n_ctx);
+            size_t n_token_count_out = 0;
+            if (!llama_load_session_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.capacity(), &n_token_count_out)) {
+                fprintf(stderr, "%s: error: failed to load session file '%s'\n", __func__, path_session.c_str());
+                return 1;
+            }
+            session_tokens.resize(n_token_count_out);
+
+            fprintf(stderr, "%s: loaded a session with prompt size of %d tokens\n", __func__, (int) session_tokens.size());
+        } else {
+            fprintf(stderr, "%s: session file does not exist, will create\n", __func__);
+        }
+    }
+
+     // debug message about similarity of saved session, if applicable
+    size_t n_matching_session_tokens = 0;
+    if (session_tokens.size()) {
+        for (llama_token id : session_tokens) {
+            if (n_matching_session_tokens >= embd_inp.size() || id != embd_inp[n_matching_session_tokens]) {
+                break;
+            }
+            n_matching_session_tokens++;
+        }
+        if (n_matching_session_tokens >= embd_inp.size()) {
+            fprintf(stderr, "%s: session file has exact match for prompt!\n", __func__);
+        } else if (n_matching_session_tokens < (embd_inp.size() / 2)) {
+            fprintf(stderr, "%s: warning: session file has low similarity to prompt (%zu / %zu tokens); will mostly be reevaluated\n",
+                __func__, n_matching_session_tokens, embd_inp.size());
+        } else {
+            fprintf(stderr, "%s: session file matches %zu / %zu tokens of prompt\n",
+                __func__, n_matching_session_tokens, embd_inp.size());
+        }
+    }
+
+    // HACK - because session saving incurs a non-negligible delay, for now skip re-saving session
+    // if we loaded a session with at least 75% similarity. It's currently just used to speed up the
+    // initial prompt so it doesn't need to be an exact match.
+    bool need_to_save_session = !path_session.empty() && n_matching_session_tokens < (embd_inp.size() * 3 / 4);
+
     printf("%s : done! start speaking in the microphone\n", __func__);
     printf("\n");
     printf("%s%s", params.person.c_str(), chat_symb.c_str());
@@ -363,6 +417,7 @@ int main(int argc, char ** argv) {
 
     int n_past = n_keep;
     int n_prev = 64; // TODO arg
+    int n_session_consumed = 0;
 
     std::vector<llama_token> embd;
 
@@ -450,7 +505,8 @@ int main(int argc, char ** argv) {
 
                             // insert n_left/2 tokens at the start of embd from last_n_tokens
                             embd.insert(embd.begin(), embd_inp.begin() + embd_inp.size() - n_prev, embd_inp.end());
-
+                            // stop saving session if we run out of context
+                            path_session = "";
                             //printf("\n---\n");
                             //printf("resetting: '");
                             //for (int i = 0; i < (int) embd.size(); i++) {
@@ -458,6 +514,29 @@ int main(int argc, char ** argv) {
                             //}
                             //printf("'\n");
                             //printf("\n---\n");
+                        }
+
+                        // try to reuse a matching prefix from the loaded session instead of re-eval (via n_past)
+                        // REVIEW
+                        if (n_session_consumed < (int) session_tokens.size()) {
+                            size_t i = 0;
+                            for ( ; i < embd.size(); i++) {
+                                if (embd[i] != session_tokens[n_session_consumed]) {
+                                    session_tokens.resize(n_session_consumed);
+                                    break;
+                                }
+
+                                n_past++;
+                                n_session_consumed++;
+
+                                if (n_session_consumed >= (int) session_tokens.size()) {
+                                    i++;
+                                    break;
+                                }
+                            }
+                            if (i > 0) {
+                                embd.erase(embd.begin(), embd.begin() + i);
+                            }
                         }
 
                         if (llama_eval(ctx_llama, embd.data(), embd.size(), n_past, params.n_threads)) {
@@ -470,6 +549,10 @@ int main(int argc, char ** argv) {
 
                     embd_inp.insert(embd_inp.end(), embd.begin(), embd.end());
                     n_past += embd.size();
+                    if (embd.size() > 0 && !path_session.empty()) {
+                        session_tokens.insert(session_tokens.end(), embd.begin(), embd.end());
+                        n_session_consumed = session_tokens.size();
+                    }
                     embd.clear();
 
                     if (done) break;
@@ -482,6 +565,11 @@ int main(int argc, char ** argv) {
                         const float repeat_penalty = 1.1764f;
 
                         const int repeat_last_n    = 256;
+
+                        if (!path_session.empty() && need_to_save_session) {
+                            need_to_save_session = false;
+                            llama_save_session_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.size());
+                        } 
 
                         llama_token id = 0;
 
@@ -542,6 +630,7 @@ int main(int argc, char ** argv) {
                                 done = true;
                                 text_to_speak = ::replace(text_to_speak, antiprompt, "");
                                 fflush(stdout);
+                                need_to_save_session = true;
                                 break;
                             }
                         }
