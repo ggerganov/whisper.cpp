@@ -3312,7 +3312,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.prompt_n_tokens  =*/ 0,
 
         /*.language         =*/ "en",
-        /*.detect_language         =*/ false,
+        /*.detect_language  =*/ false,
 
         /*.suppress_blank   =*/ true,
         /*.suppress_non_speech_tokens =*/ false,
