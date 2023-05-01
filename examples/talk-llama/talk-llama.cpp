@@ -549,6 +549,10 @@ int main(int argc, char ** argv) {
 
                     embd_inp.insert(embd_inp.end(), embd.begin(), embd.end());
                     n_past += embd.size();
+                    if (embd.size() > 0 && !path_session.empty()) {
+                        session_tokens.insert(session_tokens.end(), embd.begin(), embd.end());
+                        n_session_consumed = session_tokens.size();
+                    }
                     embd.clear();
 
                     if (done) break;
