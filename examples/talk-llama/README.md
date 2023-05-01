@@ -24,6 +24,7 @@ make talk-llama
 
 - The `-mw` argument specifies the Whisper model that you would like to use. Recommended `base` or `small` for real-time experience
 - The `-ml` argument specifies the LLaMA model that you would like to use. Read the instructions in https://github.com/ggerganov/llama.cpp for information about how to obtain a `ggml` compatible LLaMA model
+- The `--session` argument specifies a file to save/load the LLaMA model state. When provided, the LLaMA model's state will be saved to the given file after each interaction. This allows for a more coherent and continuous conversation with the LLaMA assistant, as it maintains context from previous interactions. If the file does not exist, it will be created. If the file exists, the model state will be loaded from it, allowing you to resume a previous session.
 
 ## TTS
 
