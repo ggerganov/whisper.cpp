@@ -3312,6 +3312,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.prompt_n_tokens  =*/ 0,
 
         /*.language         =*/ "en",
+        /*.language         =*/ false,
 
         /*.suppress_blank   =*/ true,
         /*.suppress_non_speech_tokens =*/ false,
@@ -3910,6 +3911,9 @@ int whisper_full_with_state(
         params.language = whisper_lang_str(lang_id);
 
         fprintf(stderr, "%s: auto-detected language: %s (p = %f)\n", __func__, params.language, probs[whisper_lang_id(params.language)]);
+        if (params.detectlanguage) {
+            return 0;
+        }
     }
 
     if (params.token_timestamps) {
