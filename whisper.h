@@ -365,6 +365,7 @@ extern "C" {
 
         // for auto-detection, set to nullptr, "" or "auto"
         const char * language;
+        bool detect_language;
 
         // common decoding parameters:
         bool suppress_blank;    // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/decoding.py#L89
