@@ -64,6 +64,7 @@ if (APPLE)
 else()
     option(WHISPER_OPENBLAS              "whisper: support for OpenBLAS" OFF)
     option(WHISPER_CUBLAS                "whisper: support for cuBLAS" OFF)
+    option(WHISPER_CLBLAST               "whisper: use CLBlast" OFF)
 endif()
 
 option(WHISPER_PERF "whisper: enable perf timings" OFF)
@@ -164,6 +165,21 @@ if (WHISPER_CUBLAS)
 
     else()
         message(WARNING "cuBLAS not found")
+    endif()
+endif()
+
+if (WHISPER_CLBLAST)
+    find_package(CLBlast)
+    if (CLBlast_FOUND)
+        message(STATUS "CLBlast found")
+
+        set(GGML_OPENCL_SOURCES ggml-opencl.c ggml-opencl.h)
+
+        add_compile_definitions(GGML_USE_CLBLAST)
+
+        set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} clblast)
+    else()
+        message(WARNING "CLBlast not found")
     endif()
 endif()
 
@@ -274,6 +290,7 @@ add_library(${TARGET}
     ggml.h
     ggml.c
     ${GGML_CUDA_SOURCES}
+    ${GGML_OPENCL_SOURCES}
     whisper.h
     whisper.cpp
     )

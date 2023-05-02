@@ -171,6 +171,15 @@ ggml-cuda.o: ggml-cuda.cu ggml-cuda.h
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
 endif
 
+ifdef WHISPER_CLBLAST
+	CFLAGS 		+= -DGGML_USE_CLBLAST
+	LDFLAGS	 	+= -lclblast -lOpenCL
+	WHISPER_OBJ	+= ggml-opencl.o
+	
+ggml-opencl.o: ggml-opencl.c ggml-opencl.h
+	$(CC) $(CFLAGS) -c $< -o $@
+endif
+
 ifdef WHISPER_GPROF
 	CFLAGS   += -pg
 	CXXFLAGS += -pg
