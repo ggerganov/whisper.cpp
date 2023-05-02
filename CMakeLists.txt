@@ -290,6 +290,7 @@ add_library(${TARGET}
     ggml.h
     ggml.c
     ${GGML_CUDA_SOURCES}
+    ${GGML_OPENCL_SOURCES}
     whisper.h
     whisper.cpp
     )
