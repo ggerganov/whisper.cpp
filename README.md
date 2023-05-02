@@ -331,6 +331,7 @@ cd whisper.cpp ; mkdir build ; cd build
 cmake -DWHISPER_CLBLAST=ON  ..
 make clean
 make -j
+cp bin/* ../ 
 ```
 
 
