@@ -171,13 +171,22 @@ ggml-cuda.o: ggml-cuda.cu ggml-cuda.h
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
 endif
 
+ifdef WHISPER_CLBLAST
+	CFLAGS 		+= -DGGML_USE_CLBLAST
+	LDFLAGS	 	+= -lclblast -lOpenCL
+	WHISPER_OBJ	+= ggml-opencl.o
+	
+ggml-opencl.o: ggml-opencl.c ggml-opencl.h
+	$(CC) $(CFLAGS) -c $< -o $@
+endif
+
 ifdef WHISPER_GPROF
 	CFLAGS   += -pg
 	CXXFLAGS += -pg
 endif
 
 ifneq ($(filter aarch64%,$(UNAME_M)),)
-	CFLAGS += -mcpu=native
+	CFLAGS   += -mcpu=native
 	CXXFLAGS += -mcpu=native
 endif
 
@@ -188,15 +197,18 @@ endif
 
 ifneq ($(filter armv7%,$(UNAME_M)),)
 	# 32-bit ARM, for example on Armbian or possibly raspbian
-	CFLAGS += -mfpu=neon -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations
+	#CFLAGS   += -mfpu=neon -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
+	#CXXFLAGS += -mfpu=neon -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
 
-	# 64-bit ARM, use these (TODO: auto-detect 64-bit)
-	# CFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations
+	# 64-bit ARM on 32-bit OS, use these (TODO: auto-detect 64-bit)
+	CFLAGS   += -mfpu=neon-fp-armv8 -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
+	CXXFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
 endif
 
 ifneq ($(filter armv8%,$(UNAME_M)),)
 	# Raspberry Pi 4
-	CFLAGS += -mfp16-format=ieee -mno-unaligned-access
+	CFLAGS   += -mfpu=neon-fp-armv8 -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
+	CXXFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
 endif
 
 #
