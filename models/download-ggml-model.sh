@@ -62,7 +62,7 @@ if [ -f "ggml-$model.bin" ]; then
 fi
 
 if [ -x "$(command -v wget)" ]; then
-    wget --quiet --show-progress -O ggml-$model.bin $src/$pfx-$model.bin
+    wget --no-config --quiet --show-progress -O ggml-$model.bin $src/$pfx-$model.bin
 elif [ -x "$(command -v curl)" ]; then
     curl -L --output ggml-$model.bin $src/$pfx-$model.bin
 else

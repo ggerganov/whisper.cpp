@@ -1,15 +1,17 @@
 ## Whisper model files in custom ggml format
 
 The [original Whisper PyTorch models provided by OpenAI](https://github.com/openai/whisper/blob/main/whisper/__init__.py#L17-L27)
-have been converted to custom `ggml` format in order to be able to load them in C/C++. The conversion has been performed
-using the [convert-pt-to-ggml.py](convert-pt-to-ggml.py) script. You can either obtain the original models and generate
-the `ggml` files yourself using the conversion script, or you can use the [download-ggml-model.sh](download-ggml-model.sh)
-script to download the already converted models. Currently, they are hosted on the following locations:
+are converted to custom `ggml` format in order to be able to load them in C/C++.
+Conversion is performed using the [convert-pt-to-ggml.py](convert-pt-to-ggml.py) script.
+
+You can either obtain the original models and generate the `ggml` files yourself using the conversion script,
+or you can use the [download-ggml-model.sh](download-ggml-model.sh) script to download the already converted models.
+Currently, they are hosted on the following locations:
 
 - https://huggingface.co/ggerganov/whisper.cpp
 - https://ggml.ggerganov.com
 
-Sample usage:
+Sample download:
 
 ```java
 $ ./download-ggml-model.sh base.en
@@ -19,6 +21,16 @@ Done! Model 'base.en' saved in 'models/ggml-base.en.bin'
 You can now use it like this:
 
   $ ./main -m models/ggml-base.en.bin -f samples/jfk.wav
+```
+
+To convert the files yourself, use the convert-pt-to-ggml.py script. Here is an example usage.
+The original PyTorch files are assumed to have been downloaded into ~/.cache/whisper
+Change `~/path/to/repo/whisper/` to the location for your copy of the Whisper source:
+```
+mkdir models/whisper-medium
+python models/convert-pt-to-ggml.py ~/.cache/whisper/medium.pt ~/path/to/repo/whisper/ ./models/whisper-medium
+mv ./models/whisper-medium/ggml-model.bin models/ggml-medium.bin
+rmdir models/whisper-medium
 ```
 
 A third option to obtain the model files is to download them from Hugging Face:
