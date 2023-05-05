@@ -18,7 +18,9 @@
 #include <vector>
 #include <regex>
 #include <random>
-
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 #if defined(GGML_BIG_ENDIAN)
 #include <bit>
 
@@ -3381,14 +3383,14 @@ static void whisper_exp_compute_token_level_timestamps(
 // trim from start (in place)
 static inline void ltrim(std::string &s) {
     s.erase(s.begin(), std::find_if_not(s.begin(), s.end(), [](unsigned char ch) {
-        return std::isspace(ch);
+        return isspace(ch);
     }));
 }
 
 // trim from end (in place)
 static inline void rtrim(std::string &s) {
     s.erase(std::find_if_not(s.rbegin(), s.rend(), [](unsigned char ch) {
-        return std::isspace(ch);
+        return isspace(ch);
     }).base(), s.end());
 }
 

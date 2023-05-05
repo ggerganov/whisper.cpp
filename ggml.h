@@ -909,12 +909,13 @@ extern "C" {
     // Internal types and functions exposed for tests and benchmarks
     //
 
-#ifdef  __cplusplus
+#if defined(__cplusplus) || (_MSC_VER < 1935)
     // restrict not standard in C++
 #define GGML_RESTRICT
 #else
 #define GGML_RESTRICT restrict
 #endif
+
     typedef void (*dequantize_row_q_t)(const void * GGML_RESTRICT x, float * GGML_RESTRICT y, int k);
     typedef void (*quantize_row_q_t)  (const float * GGML_RESTRICT x, void * GGML_RESTRICT y, int k);
     typedef void (*vec_dot_q_t)       (const int n, float * GGML_RESTRICT s, const void * GGML_RESTRICT x, const void * GGML_RESTRICT y);

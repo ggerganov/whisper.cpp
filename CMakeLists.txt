@@ -206,7 +206,8 @@ if (WHISPER_ALL_WARNINGS)
             -Wcast-qual                     \
         ")
     else()
-        # todo : msvc
+        # todo : msvc https://blog.csdn.net/liangshui999/article/details/128332182
+        add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/source-charset:utf-8>")
     endif()
 endif()
 

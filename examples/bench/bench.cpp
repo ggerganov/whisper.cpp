@@ -1,5 +1,5 @@
 #include "whisper.h"
-
+#include <algorithm>
 #include <cstdio>
 #include <string>
 #include <thread>
