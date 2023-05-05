@@ -1,0 +1,64 @@
+name: release-deb
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure
+        run: |
+          set -x -e
+          VERSION=$(echo $GITHUB_REF | cut --delimiter=/ -f 3)
+          ID="whisper-cpp-small_${VERSION}_amd64"
+          
+          echo "PKG_VERSION=$VERSION"     >> $GITHUB_ENV
+          echo "PKG_ID=$ID"               >> $GITHUB_ENV
+
+      - name: Install deps
+        run: |
+          sudo apt install -y --no-install-recommends intel-mkl
+
+      - name: Build
+        run: |
+          cmake -S . -B build-release -D BUILD_SHARED_LIBS=OFF
+          cd build-release
+          make
+          cd ..
+
+      - name: Create package tree
+        env:
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          export ROOT=$PKG_ID/opt/project/whisper.cpp
+          mkdir -p $ROOT/bin
+          mkdir -p $ROOT/share
+          mkdir -p $PKG_ID/DEBIAN
+          
+          cp build-release/bin/main $ROOT/bin/whisper 
+          cp -r contrib/debian/control $PKG_ID/DEBIAN/
+          
+          echo "Version: $PKG_VERSION"      >> $PKG_ID/DEBIAN/control
+          echo "Git-Repo: $GITHUB_REPO"     >> $PKG_ID/DEBIAN/control
+          echo "Git-Commit: $GITHUB_SHA"    >> $PKG_ID/DEBIAN/control
+          
+          models/download-ggml-model.sh small
+          build-release/bin/quantize models/ggml-small.bin \
+            $ROOT/share/ggml-small-q5_1.bin q5_1
+
+      - name: Create deb package
+        run: |
+          mkdir artifacts
+          dpkg-deb --build --root-owner-group $PKG_ID
+
+      - name: Upload Release Asset
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ github.event.release.id }}
+          file: ${{ env.PKG_ID }}.deb
