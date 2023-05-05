@@ -9,18 +9,6 @@
 src="https://huggingface.co/ggerganov/whisper.cpp"
 pfx="resolve/main/ggml"
 
-# get the path of this script
-function get_script_path() {
-    if [ -x "$(command -v realpath)" ]; then
-        echo "$(dirname "$(realpath "$0")")"
-    else
-        local ret="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)"
-        echo "$ret"
-    fi
-}
-
-models_path="$(get_script_path)"
-
 # Whisper models
 models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large" )
 
@@ -54,8 +42,6 @@ fi
 
 printf "Downloading ggml model $model from '$src' ...\n"
 
-cd $models_path
-
 if [ -f "ggml-$model.bin" ]; then
     printf "Model $model already exists. Skipping download.\n"
     exit 0
@@ -77,7 +63,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-printf "Done! Model '$model' saved in 'models/ggml-$model.bin'\n"
+printf "Done! Model '$model' saved in 'ggml-$model.bin'\n"
 printf "You can now use it like this:\n\n"
-printf "  $ ./main -m models/ggml-$model.bin -f samples/jfk.wav\n"
+printf "  $ whisper-cpp -m ggml-$model.bin -f samples/jfk.wav\n"
 printf "\n"
