@@ -25,8 +25,12 @@ jobs:
 
       - name: Build
         run: |
-          cmake -S . -B build-release -D BUILD_SHARED_LIBS=OFF
-          cd build-release
+          cmake -S . -B build-mkl \
+            -DCMAKE_BUILD_TYPE=Release\
+            -DBUILD_SHARED_LIBS=0\
+            -DWHISPER_BLAS=1\
+            -DWHISPER_BLAS_VENDOR=Intel10_64lp
+          cd build-mkl
           make
           cd ..
 
@@ -39,15 +43,15 @@ jobs:
           mkdir -p $ROOT/share
           mkdir -p $PKG_ID/DEBIAN
           
-          cp build-release/bin/main $ROOT/bin/whisper 
+          cp build-mkl/bin/main $ROOT/bin/whisper 
           cp -r contrib/debian/control $PKG_ID/DEBIAN/
           
-          echo "Version: $PKG_VERSION"      >> $PKG_ID/DEBIAN/control
-          echo "Git-Repo: $GITHUB_REPO"     >> $PKG_ID/DEBIAN/control
-          echo "Git-Commit: $GITHUB_SHA"    >> $PKG_ID/DEBIAN/control
+          echo "Version: $PKG_VERSION"          >> $PKG_ID/DEBIAN/control
+          echo "Vcs-Git: $GITHUB_REPO"          >> $PKG_ID/DEBIAN/control
+          echo "Vcs-Git-Commit: $GITHUB_SHA"    >> $PKG_ID/DEBIAN/control
           
           models/download-ggml-model.sh small
-          build-release/bin/quantize models/ggml-small.bin \
+          build-mkl/bin/quantize models/ggml-small.bin \
             $ROOT/share/ggml-small-q5_1.bin q5_1
 
       - name: Create deb package
