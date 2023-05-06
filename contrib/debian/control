@@ -1,0 +1,5 @@
+Package: whisper-small-cpp
+Architecture: amd64
+Maintainer: Alexey Kharlamov <alexey@kharlamov.biz>
+Description: Whisper Speech to Text Converter
+Depends: libc6 (>= 2.2.1), intel-mkl
