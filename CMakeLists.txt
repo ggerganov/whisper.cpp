@@ -2,10 +2,6 @@ cmake_minimum_required (VERSION 3.0)
 
 project(whisper.cpp VERSION 1.4.1)
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    add_compile_options(/utf-8)
-endif ()
-
 # Add path to modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
@@ -53,18 +49,19 @@ option(WHISPER_BUILD_EXAMPLES         "whisper: build examples" ${WHISPER_STANDA
 
 option(WHISPER_SDL2                   "whisper: support for libSDL2" OFF)
 
+option(WHISPER_NO_AVX                 "whisper: disable AVX"  OFF)
+option(WHISPER_NO_AVX2                "whisper: disable AVX2" OFF)
+option(WHISPER_NO_FMA                 "whisper: disable FMA"  OFF)
+option(WHISPER_NO_F16C                "whisper: disable F16c" OFF)
+
 if (APPLE)
     option(WHISPER_NO_ACCELERATE         "whisper: disable Accelerate framework" OFF)
-    option(WHISPER_NO_AVX                "whisper: disable AVX" OFF)
-    option(WHISPER_NO_AVX2               "whisper: disable AVX2" OFF)
-    option(WHISPER_NO_FMA                "whisper: disable FMA" OFF)
-
-    option(WHISPER_COREML                "whisper: enable Core ML framework" OFF)
-    option(WHISPER_COREML_ALLOW_FALLBACK "whisper: allow non-CoreML fallback" OFF)
+    option(WHISPER_COREML                "whisper: enable Core ML framework"     OFF)
+    option(WHISPER_COREML_ALLOW_FALLBACK "whisper: allow non-CoreML fallback"    OFF)
 else()
     option(WHISPER_OPENBLAS              "whisper: support for OpenBLAS" OFF)
-    option(WHISPER_CUBLAS                "whisper: support for cuBLAS" OFF)
-    option(WHISPER_CLBLAST               "whisper: use CLBlast" OFF)
+    option(WHISPER_CUBLAS                "whisper: support for cuBLAS"   OFF)
+    option(WHISPER_CLBLAST               "whisper: use CLBlast"          OFF)
 endif()
 
 option(WHISPER_PERF "whisper: enable perf timings" OFF)
