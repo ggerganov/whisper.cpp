@@ -5,7 +5,7 @@
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"
 
-#include <stdint.h>
+#include <cstdint>
 #include <cmath>
 #include <fstream>
 #include <regex>
