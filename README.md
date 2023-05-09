@@ -71,6 +71,8 @@ Then, download one of the Whisper models converted in [ggml format](models). For
 bash ./models/download-ggml-model.sh base.en
 ```
 
+If you wish to convert the Whisper models to ggml format yourself, instructions are in [models/README.md](models/README.md).
+
 Now build the [main](examples/main) example and transcribe an audio file like this:
 
 ```bash
