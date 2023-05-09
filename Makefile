@@ -180,11 +180,6 @@ ggml-opencl.o: ggml-opencl.c ggml-opencl.h
 	$(CC) $(CFLAGS) -c $< -o $@
 endif
 
-ifdef WHISPER_CLBLAST_NETLIB
-	CFLAGS  += -DGGML_USE_CLBLASTNETLIB
-	LDFLAGS += -lclblast -lOpenCL
-endif
-
 ifdef WHISPER_GPROF
 	CFLAGS   += -pg
 	CXXFLAGS += -pg

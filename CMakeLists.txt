@@ -59,10 +59,9 @@ if (APPLE)
     option(WHISPER_COREML                "whisper: enable Core ML framework"     OFF)
     option(WHISPER_COREML_ALLOW_FALLBACK "whisper: allow non-CoreML fallback"    OFF)
 else()
-    option(WHISPER_OPENBLAS              "whisper: support for OpenBLAS"            OFF)
-    option(WHISPER_CUBLAS                "whisper: support for cuBLAS"              OFF)
-    option(WHISPER_CLBLAST               "whisper: support for CLBlast"             OFF)
-    option(WHISPER_CLBLAST_NETLIB        "whisper: support for CLBlast Netlib API"  OFF)    
+    option(WHISPER_OPENBLAS              "whisper: support for OpenBLAS" OFF)
+    option(WHISPER_CUBLAS                "whisper: support for cuBLAS"   OFF)
+    option(WHISPER_CLBLAST               "whisper: use CLBlast"          OFF)
 endif()
 
 option(WHISPER_PERF "whisper: enable perf timings" OFF)
@@ -174,19 +173,6 @@ if (WHISPER_CLBLAST)
         set(GGML_OPENCL_SOURCES ggml-opencl.c ggml-opencl.h)
 
         add_compile_definitions(GGML_USE_CLBLAST)
-
-        set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} clblast)
-    else()
-        message(WARNING "CLBlast not found")
-    endif()
-endif()
-
-if (WHISPER_CLBLAST_NETLIB)
-    find_package(CLBlast)
-    if (CLBlast_FOUND)
-        message(STATUS "CLBlast found")
-
-        add_compile_definitions(GGML_USE_CLBLASTNETLIB)
 
         set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} clblast)
     else()
