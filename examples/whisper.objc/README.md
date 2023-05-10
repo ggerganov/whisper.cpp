@@ -14,6 +14,9 @@ https://user-images.githubusercontent.com/1991296/204126266-ce4177c6-6eca-4bd9-b
 ```java
 git clone https://github.com/ggerganov/whisper.cpp
 open whisper.cpp/examples/whisper.objc/whisper.objc.xcodeproj/
+
+// If you don't want to convert a Core ML model, you can skip this step by create dummy model
+mkdir models/ggml-base.en-encoder.mlmodelc
 ```
 
 Make sure to build the project in `Release`:
