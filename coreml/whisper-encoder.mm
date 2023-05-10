@@ -1,5 +1,5 @@
-#import "coreml/whisper-encoder.h"
-#import "coreml/whisper-encoder-impl.h"
+#import "whisper-encoder.h"
+#import "whisper-encoder-impl.h"
 
 #import <CoreML/CoreML.h>
 
