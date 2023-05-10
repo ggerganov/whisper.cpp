@@ -240,7 +240,7 @@ ifndef WHISPER_COREML
 WHISPER_OBJ += whisper.o
 else
 whisper-encoder.o: coreml/whisper-encoder.mm coreml/whisper-encoder.h
-	$(CXX) -O3 -I . -c coreml/whisper-encoder.mm -o whisper-encoder.o
+	$(CXX) -O3 -I . -fobjc-arc -c coreml/whisper-encoder.mm -o whisper-encoder.o
 
 whisper-encoder-impl.o: coreml/whisper-encoder-impl.m coreml/whisper-encoder-impl.h
 	$(CXX) -O3 -I . -fobjc-arc -c coreml/whisper-encoder-impl.m -o whisper-encoder-impl.o
