@@ -239,7 +239,7 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
 
     fprintf(stderr, "%s: allowed commands [ tokens ]:\n", __func__);
     fprintf(stderr, "\n");
-    for (int i = 0; i < (int) allowed_commands.size(); ++i) {
+    for (size_t i = 0; i < allowed_commands.size(); ++i) {
         fprintf(stderr, "  - \033[1m%-*s\033[0m = [", max_len, allowed_commands[i].c_str());
         for (const auto & token : allowed_tokens[i]) {
             fprintf(stderr, " %5d", token);
@@ -248,7 +248,7 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
     }
 
     std::string  k_prompt = "select one from the available words: ";
-    for (int i = 0; i < (int) allowed_commands.size(); ++i) {
+    for (size_t i = 0; i < allowed_commands.size(); ++i) {
         if (i > 0) {
             k_prompt += ", ";
         }
@@ -335,17 +335,17 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
                 // compute probs from logits via softmax
                 {
                     float max = -1e9;
-                    for (int i = 0; i < (int) probs.size(); ++i) {
+                    for (size_t i = 0; i < probs.size(); ++i) {
                         max = std::max(max, logits[i]);
                     }
 
                     float sum = 0.0f;
-                    for (int i = 0; i < (int) probs.size(); ++i) {
+                    for (size_t i = 0; i < probs.size(); ++i) {
                         probs[i] = expf(logits[i] - max);
                         sum += probs[i];
                     }
 
-                    for (int i = 0; i < (int) probs.size(); ++i) {
+                    for (size_t i = 0; i < probs.size(); ++i) {
                         probs[i] /= sum;
                     }
                 }
@@ -353,9 +353,9 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
                 std::vector<std::pair<float, int>> probs_id;
 
                 double psum = 0.0;
-                for (int i = 0; i < (int) allowed_commands.size(); ++i) {
+                for (size_t i = 0; i < allowed_commands.size(); ++i) {
                     probs_id.emplace_back(probs[allowed_tokens[i][0]], i);
-                    for (int j = 1; j < (int) allowed_tokens[i].size(); ++j) {
+                    for (size_t j = 1; j < allowed_tokens[i].size(); ++j) {
                         probs_id.back().first += probs[allowed_tokens[i][j]];
                     }
                     probs_id.back().first /= allowed_tokens[i].size();
@@ -460,7 +460,7 @@ int always_prompt_transcription(struct whisper_context * ctx, audio_async & audi
                 std::string prompt;
                 std::string command;
 
-                for (int i = 0; i < (int) words.size(); ++i) {
+                for (size_t i = 0; i < words.size(); ++i) {
                     if (i < k_prompt_length) {
                         prompt += words[i] + " ";
                     } else {

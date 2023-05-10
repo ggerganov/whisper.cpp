@@ -516,7 +516,7 @@ int main(int argc, char ** argv) {
                             path_session = "";
                             //printf("\n---\n");
                             //printf("resetting: '");
-                            //for (int i = 0; i < (int) embd.size(); i++) {
+                            //for (size_t i = 0; i < embd.size(); i++) {
                             //    printf("%s", llama_token_to_str(ctx_llama, embd[i]));
                             //}
                             //printf("'\n");

@@ -772,7 +772,7 @@ std::string gpt2_gen_text(gpt2_context * ctx, const char * text, int max_tokens)
 
     std::string result;
 
-    for (int i = embd.size(); i < (int) embd_inp.size() + n_predict; i++) {
+    for (size_t i = embd.size(); i < embd_inp.size() + n_predict; i++) {
         // predict
         if (!embd.empty()) {
             if (!gpt2_eval(ctx->model, ctx->n_threads, n_past, embd, embd_w, mem_per_token)) {

@@ -204,11 +204,11 @@ bool ggml_common_quantize_0(
             total_size_new += cur_size;
 
             printf("size = %8.2f MB -> %8.2f MB | hist: ", nelements * sizeof(float)/1024.0/1024.0, cur_size/1024.0/1024.0);
-            for (int i = 0; i < (int) hist_cur.size(); ++i) {
+            for (size_t i = 0; i < hist_cur.size(); ++i) {
                 hist_all[i] += hist_cur[i];
             }
 
-            for (int i = 0; i < (int) hist_cur.size(); ++i) {
+            for (size_t i = 0; i < hist_cur.size(); ++i) {
                 printf("%5.3f ", hist_cur[i] / (float)nelements);
             }
             printf("\n");
@@ -226,12 +226,12 @@ bool ggml_common_quantize_0(
 
     {
         int64_t sum_all = 0;
-        for (int i = 0; i < (int) hist_all.size(); ++i) {
+        for (size_t i = 0; i < hist_all.size(); ++i) {
             sum_all += hist_all[i];
         }
 
         printf("%s: hist: ", __func__);
-        for (int i = 0; i < (int) hist_all.size(); ++i) {
+        for (size_t i = 0; i < hist_all.size(); ++i) {
             printf("%5.3f ", hist_all[i] / (float)sum_all);
         }
         printf("\n");

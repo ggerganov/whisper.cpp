@@ -329,13 +329,13 @@ gpt_vocab::id gpt_sample_top_k_top_p(
         }
 
         cumsum = 1.0/cumsum;
-        for (int i = 0; i < (int) probs.size(); i++) {
+        for (size_t i = 0; i < probs.size(); i++) {
             probs[i] *= cumsum;
         }
     }
 
     //printf("\n");
-    //for (int i = 0; i < (int) probs.size(); i++) {
+    //for (size_t i = 0; i < probs.size(); i++) {
     //    printf("%d: '%s' %f\n", i, vocab.id_to_token.at(logits_id[i].second).c_str(), probs[i]);
     //}
     //exit(0);
