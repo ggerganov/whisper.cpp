@@ -2598,6 +2598,15 @@ static std::string whisper_get_coreml_path_encoder(std::string path_bin) {
         path_bin = path_bin.substr(0, pos);
     }
 
+    // match "-qx_x"
+    pos = path_bin.rfind('-');
+    if (pos != std::string::npos) {
+        auto sub = path_bin.substr(pos);
+        if (sub.size() == 5 && sub[1] == 'q' && sub[3] == '_') {
+            path_bin = path_bin.substr(0, pos);
+        }
+    }
+
     path_bin += "-encoder.mlmodelc";
 
     return path_bin;
