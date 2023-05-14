@@ -1,5 +1,9 @@
-#import "coreml/whisper-encoder.h"
-#import "coreml/whisper-encoder-impl.h"
+#if !__has_feature(objc_arc)
+#error This file must be compiled with automatic reference counting enabled (-fobjc-arc)
+#endif
+
+#import "whisper-encoder.h"
+#import "whisper-encoder-impl.h"
 
 #import <CoreML/CoreML.h>
 
@@ -52,8 +56,6 @@ void whisper_coreml_encode(
     whisper_encoder_implOutput * outCoreML = [(__bridge id) ctx->data predictionFromLogmel_data:inMultiArray error:nil];
 
     memcpy(out, outCoreML.output.dataPointer, outCoreML.output.count * sizeof(float));
-
-    [inMultiArray release];
 }
 
 #if __cplusplus
