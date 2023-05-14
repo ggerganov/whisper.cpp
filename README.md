@@ -261,6 +261,12 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
   pip install coremltools
   ```
 
+  - To ensure `coremltools` operates correctly, please confirm that [Xcode](https://developer.apple.com/xcode/) is installed and execute `xcode-select --install` to install the command-line tools.
+  - Python 3.10 is recommended.
+  - [OPTIONAL] It is recommended to utilize a Python version management system, such as [Miniconda](https://docs.conda.io/en/latest/miniconda.html)  for this step:
+    - To create an environment, use: `conda create -n py310-whisper python=3.10 -y`
+    - To activate the environment, use: `conda activate py310-whisper`
+
 - Generate a Core ML model. For example, to generate a `base.en` model, use:
 
   ```bash
