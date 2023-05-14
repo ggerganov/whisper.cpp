@@ -53,7 +53,6 @@ void whisper_coreml_encode(
 
     memcpy(out, outCoreML.output.dataPointer, outCoreML.output.count * sizeof(float));
 
-    [outCoreML release];
     [inMultiArray release];
 }
 
