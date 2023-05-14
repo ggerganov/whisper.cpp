@@ -560,7 +560,7 @@ int main(int argc, char ** argv) {
 
                     embd_inp.insert(embd_inp.end(), embd.begin(), embd.end());
                     n_past += embd.size();
-                    
+
                     embd.clear();
 
                     if (done) break;
@@ -577,7 +577,7 @@ int main(int argc, char ** argv) {
                         if (!path_session.empty() && need_to_save_session) {
                             need_to_save_session = false;
                             llama_save_session_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.size());
-                        } 
+                        }
 
                         llama_token id = 0;
 
@@ -609,8 +609,8 @@ int main(int argc, char ** argv) {
                                 id = llama_sample_token_greedy(ctx_llama, &candidates_p);
                             } else {
                                 // Temperature sampling
-                                llama_sample_top_k(ctx_llama, &candidates_p, top_k);
-                                llama_sample_top_p(ctx_llama, &candidates_p, top_p);
+                                llama_sample_top_k(ctx_llama, &candidates_p, top_k, 1);
+                                llama_sample_top_p(ctx_llama, &candidates_p, top_p, 1);
                                 llama_sample_temperature(ctx_llama, &candidates_p, temp);
                                 id = llama_sample_token(ctx_llama, &candidates_p);
                             }

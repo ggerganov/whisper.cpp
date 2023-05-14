@@ -19,7 +19,7 @@
 #    define LLAMA_API
 #endif
 
-#define LLAMA_FILE_VERSION           1
+#define LLAMA_FILE_VERSION           2
 #define LLAMA_FILE_MAGIC             'ggjt'
 #define LLAMA_FILE_MAGIC_UNVERSIONED 'ggml'
 #define LLAMA_SESSION_MAGIC          'ggsn'
@@ -54,9 +54,10 @@ extern "C" {
     typedef void (*llama_progress_callback)(float progress, void *ctx);
 
     struct llama_context_params {
-        int n_ctx;   // text context
-        int n_parts; // -1 for default
-        int seed;    // RNG seed, 0 for random
+        int n_ctx;        // text context
+        int n_parts;      // -1 for default
+        int n_gpu_layers; // number of layers to store in VRAM
+        int seed;         // RNG seed, -1 for random
 
         bool f16_kv;     // use fp16 for KV cache
         bool logits_all; // the llama_eval() call computes all logits, not just the last one
@@ -78,7 +79,7 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_Q4_0 = 2,  // except 1d tensors
         LLAMA_FTYPE_MOSTLY_Q4_1 = 3,  // except 1d tensors
         LLAMA_FTYPE_MOSTLY_Q4_1_SOME_F16 = 4, // tok_embeddings.weight and output.weight are F16
-        LLAMA_FTYPE_MOSTLY_Q4_2 = 5,  // except 1d tensors
+        // LLAMA_FTYPE_MOSTLY_Q4_2 = 5,  // support has been removed
         // LLAMA_FTYPE_MOSTLY_Q4_3 (6) support has been removed
         LLAMA_FTYPE_MOSTLY_Q8_0 = 7,  // except 1d tensors
         LLAMA_FTYPE_MOSTLY_Q5_0 = 8,  // except 1d tensors
@@ -122,19 +123,19 @@ extern "C" {
                              int   n_threads);
 
     // Returns the number of tokens in the KV cache
-    LLAMA_API int llama_get_kv_cache_token_count(struct llama_context * ctx);
+    LLAMA_API int llama_get_kv_cache_token_count(const struct llama_context * ctx);
 
     // Sets the current rng seed.
     LLAMA_API void llama_set_rng_seed(struct llama_context * ctx, int seed);
 
     // Returns the maximum size in bytes of the state (rng, logits, embedding
     // and kv_cache) - will often be smaller after compacting tokens
-    LLAMA_API size_t llama_get_state_size(struct llama_context * ctx);
+    LLAMA_API size_t llama_get_state_size(const struct llama_context * ctx);
 
     // Copies the state to the specified destination address.
     // Destination needs to have allocated enough memory.
     // Returns the number of bytes copied
-    LLAMA_API size_t llama_copy_state_data(struct llama_context * ctx, uint8_t * dest);
+    LLAMA_API size_t llama_copy_state_data(struct llama_context * ctx, uint8_t * dst);
 
     // Set the state reading from the specified address
     // Returns the number of bytes read
@@ -143,6 +144,7 @@ extern "C" {
     // Save/load session file
     LLAMA_API bool llama_load_session_file(struct llama_context * ctx, const char * path_session, llama_token * tokens_out, size_t n_token_capacity, size_t * n_token_count_out);
     LLAMA_API bool llama_save_session_file(struct llama_context * ctx, const char * path_session, const llama_token * tokens, size_t n_token_count);
+
     // Run the llama inference to obtain the logits and probabilities for the next token.
     // tokens + n_tokens is the provided batch of new tokens to process
     // n_past is the number of tokens to use from previous eval calls
@@ -166,9 +168,9 @@ extern "C" {
                              int   n_max_tokens,
                             bool   add_bos);
 
-    LLAMA_API int llama_n_vocab(struct llama_context * ctx);
-    LLAMA_API int llama_n_ctx  (struct llama_context * ctx);
-    LLAMA_API int llama_n_embd (struct llama_context * ctx);
+    LLAMA_API int llama_n_vocab(const struct llama_context * ctx);
+    LLAMA_API int llama_n_ctx  (const struct llama_context * ctx);
+    LLAMA_API int llama_n_embd (const struct llama_context * ctx);
 
     // Token logits obtained from the last call to llama_eval()
     // The logits for the last token are stored in the last row
@@ -182,7 +184,7 @@ extern "C" {
     LLAMA_API float * llama_get_embeddings(struct llama_context * ctx);
 
     // Token Id -> String. Uses the vocabulary in the provided context
-    LLAMA_API const char * llama_token_to_str(struct llama_context * ctx, llama_token token);
+    LLAMA_API const char * llama_token_to_str(const struct llama_context * ctx, llama_token token);
 
     // Special tokens
     LLAMA_API llama_token llama_token_bos();
@@ -192,25 +194,25 @@ extern "C" {
     // Sampling functions
 
     /// @details Repetition penalty described in CTRL academic paper https://arxiv.org/abs/1909.05858, with negative logit fix.
-    LLAMA_API void llama_sample_repetition_penalty(struct llama_context * ctx, llama_token_data_array * candidates, llama_token * last_tokens, size_t last_tokens_size, float penalty);
+    LLAMA_API void llama_sample_repetition_penalty(struct llama_context * ctx, llama_token_data_array * candidates, const llama_token * last_tokens, size_t last_tokens_size, float penalty);
 
     /// @details Frequency and presence penalties described in OpenAI API https://platform.openai.com/docs/api-reference/parameter-details.
-    LLAMA_API void llama_sample_frequency_and_presence_penalties(struct llama_context * ctx, llama_token_data_array * candidates, llama_token * last_tokens, size_t last_tokens_size, float alpha_frequency, float alpha_presence);
+    LLAMA_API void llama_sample_frequency_and_presence_penalties(struct llama_context * ctx, llama_token_data_array * candidates, const llama_token * last_tokens, size_t last_tokens_size, float alpha_frequency, float alpha_presence);
 
     /// @details Sorts candidate tokens by their logits in descending order and calculate probabilities based on logits.
     LLAMA_API void llama_sample_softmax(struct llama_context * ctx, llama_token_data_array * candidates);
 
     /// @details Top-K sampling described in academic paper "The Curious Case of Neural Text Degeneration" https://arxiv.org/abs/1904.09751
-    LLAMA_API void llama_sample_top_k(struct llama_context * ctx, llama_token_data_array * candidates, int k, size_t min_keep = 1);
+    LLAMA_API void llama_sample_top_k(struct llama_context * ctx, llama_token_data_array * candidates, int k, size_t min_keep);
 
     /// @details Nucleus sampling described in academic paper "The Curious Case of Neural Text Degeneration" https://arxiv.org/abs/1904.09751
-    LLAMA_API void llama_sample_top_p(struct llama_context * ctx, llama_token_data_array * candidates, float p, size_t min_keep = 1);
+    LLAMA_API void llama_sample_top_p(struct llama_context * ctx, llama_token_data_array * candidates, float p, size_t min_keep);
 
     /// @details Tail Free Sampling described in https://www.trentonbricken.com/Tail-Free-Sampling/.
-    LLAMA_API void llama_sample_tail_free(struct llama_context * ctx, llama_token_data_array * candidates, float z, size_t min_keep = 1);
+    LLAMA_API void llama_sample_tail_free(struct llama_context * ctx, llama_token_data_array * candidates, float z, size_t min_keep);
 
     /// @details Locally Typical Sampling implementation described in the paper https://arxiv.org/abs/2202.00666.
-    LLAMA_API void llama_sample_typical(struct llama_context * ctx, llama_token_data_array * candidates, float p, size_t min_keep = 1);
+    LLAMA_API void llama_sample_typical(struct llama_context * ctx, llama_token_data_array * candidates, float p, size_t min_keep);
     LLAMA_API void llama_sample_temperature(struct llama_context * ctx, llama_token_data_array * candidates, float temp);
 
     /// @details Mirostat 1.0 algorithm described in the paper https://arxiv.org/abs/2007.14966. Uses tokens instead of words.
