@@ -38,6 +38,20 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
         } else if (arg == "-h" || arg == "--help") {
             gpt_print_usage(argc, argv, params);
             exit(0);
+        } else if (arg == "-f" || arg == "--file") {
+            if (++i > argc) {
+                fprintf(stderr, "Invalid file param");
+                break;
+            }
+            std::ifstream file(argv[i]);
+            if (!file) {
+                fprintf(stderr, "error: failed to open file '%s'\n", argv[i]);
+                break;
+            }
+            std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), back_inserter(params.prompt));
+            if (params.prompt.back() == '\n') {
+                params.prompt.pop_back();
+            }
         } else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             gpt_print_usage(argc, argv, params);
@@ -57,6 +71,8 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     fprintf(stderr, "  -t N, --threads N     number of threads to use during computation (default: %d)\n", params.n_threads);
     fprintf(stderr, "  -p PROMPT, --prompt PROMPT\n");
     fprintf(stderr, "                        prompt to start generation with (default: random)\n");
+    fprintf(stderr, "  -f FNAME, --file FNAME\n");
+    fprintf(stderr, "                        load prompt from a file\n");
     fprintf(stderr, "  -n N, --n_predict N   number of tokens to predict (default: %d)\n", params.n_predict);
     fprintf(stderr, "  --top_k N             top-k sampling (default: %d)\n", params.top_k);
     fprintf(stderr, "  --top_p N             top-p sampling (default: %.1f)\n", params.top_p);
@@ -192,6 +208,10 @@ std::map<std::string, int32_t> json_parse(const std::string & fname) {
     return result;
 }
 
+void gpt_vocab::add_special_token(const std::string & token) {
+    special_tokens.push_back(token);
+}
+
 std::vector<gpt_vocab::id> gpt_tokenize(const gpt_vocab & vocab, const std::string & text) {
     std::vector<std::string> words;
 
@@ -199,6 +219,20 @@ std::vector<gpt_vocab::id> gpt_tokenize(const gpt_vocab & vocab, const std::stri
     {
         std::string str = text;
         std::string pat = R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[:alpha:][:digit:]]+|\s+(?!\S)|\s+)";
+
+        // Generate the subpattern from the special_tokens vector if it's not empty
+        if (!vocab.special_tokens.empty()) {
+            std::string special_tokens_subpattern;
+            for (const auto & token : vocab.special_tokens) {
+                if (!special_tokens_subpattern.empty()) {
+                    special_tokens_subpattern += "|";
+                }
+                special_tokens_subpattern += token;
+            }
+
+            // Modify the regex pattern with the generated special tokens subpattern
+            pat = special_tokens_subpattern + "|" + pat;
+        }
 
         std::regex re(pat);
         std::smatch m;
