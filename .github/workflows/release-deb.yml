@@ -38,7 +38,7 @@ jobs:
         env:
           GITHUB_REPO: ${{ github.repository }}
         run: |
-          export ROOT=$PKG_ID/opt/project/whisper.cpp
+          export ROOT=$PKG_ID/opt/whisper.cpp
           mkdir -p $ROOT/bin
           mkdir -p $ROOT/share
           mkdir -p $PKG_ID/DEBIAN
