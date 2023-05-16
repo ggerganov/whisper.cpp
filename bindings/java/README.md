@@ -12,24 +12,25 @@ import io.github.ggerganov.whispercpp.Whisper;
 
 public class Example {
      static {
-          System.loadLibrary("whisper");
+         Native.register(WhisperJNI.class, "whispercpp");
      }
 
      public static void main(String[] args) {
           String modelpath;
-          double[] samples;
-
-
-          try (Model model = new Whisper(modelpath)) {
-               val context = model.createContext();
-               context.process(samples);
-
-               for (val segement in context.nextSegment()){
-                    System.out.println(segment.getText());
-               }
-
-          } catch (Exeception e) {
-               model.close();
+          WhisperJNI whisper = WhisperJNI.getInstance();
+          double[] samples = getAudio();
+          
+          long context = whisper.initContext(modelpath);
+          try {
+              whisper.fullTranscribe(context, samples);
+              
+              int segmentCount = whisper.getTextSegmentCount(context);
+              for (int i = 0; i < segmentCount; i++) {
+                  String text = whisper.getTextSegment(context, i);
+                  System.out.println(segment.getText());
+              }
+          } finally {
+               whisper.freeContext(context);
           }
      }
 }
@@ -44,14 +45,6 @@ git clone https://github.com/ggerganov/whisper.cpp.git
 cd whisper.cpp/bindings/java
 ./gradlew build
 ```
-
-Or `javac -h src/main/cpp -d build/classes/java/main src/main/java/io/github/ggerganov/whispercpp/WhisperJNI.java`
-
-This will create/update [io_github_ggerganov_whispercpp_WhisperJNI.h](build/generated/sources/headers/java/main/io_github_ggerganov_whispercpp_WhisperJNI.h).
-
-
-
-
 
 
 ## License
