@@ -7,7 +7,18 @@ import java.util.List;
 
 public class WhisperJNI {
     static {
+        System.setProperty("java.library.path",
+                System.getProperty("java.library.path")
+                        + ":" + System.getProperty("user.dir") + "/build/libs/whispercpp/shared"
+//                        + ":" + System.getProperty("user.dir") + "/build/libs/whispercpp/static"
+        );
+
+        System.out.println("System.getProperty(\"java.library.path\"): " + System.getProperty("java.library.path"));
+
+        // java.lang.UnsatisfiedLinkError: no whispercpp in java.library.path
 //        System.loadLibrary("whispercpp");
+
+        // java.lang.UnsatisfiedLinkError: Error looking up function 'getSystemInfo': /whisper.cpp/bindings/java/build/libs/whispercpp/shared/libwhispercpp.so: undefined symbol: getSystemInfo
         Native.register(WhisperJNI.class, "whispercpp");
     }
 
@@ -23,6 +34,9 @@ public class WhisperJNI {
         return instance;
     }
 
+
+
+    // Note: Running `./gradlew compileJava` will generate the `...WhisperJNI.h` file
     public native long initContextFromInputStream(InputStream inputStream);
 //    public native long initContextFromAsset(AssetManager assetManager, String assetPath)l
     public native long initContext(String modelPath);

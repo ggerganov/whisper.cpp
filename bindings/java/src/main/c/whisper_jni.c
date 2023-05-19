@@ -4,8 +4,10 @@
 #include <stdlib.h>
 #include <sys/sysinfo.h>
 #include <string.h>
-#include "whisper.h"
-#include "ggml.h"
+#include <whisper.h>
+#include <ggml.h>
+//#include "../../../../whisper.h"
+//#include "../../../../ggml.h"
 
 #define TAG "JNI"
 

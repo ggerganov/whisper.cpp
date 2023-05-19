@@ -46,6 +46,10 @@ cd whisper.cpp/bindings/java
 ./gradlew build
 ```
 
+These are some of the tasks that are executed and can also be invoked directly: 
+- `./gradlew compileJava`: also generates `build/generated/.../io_...WhisperJNI.h`
+- `./gradlew whispercppSharedLibrary`: generate `build/libs/whispercpp/shared/libwhispercpp.so`
+
 
 ## License
 

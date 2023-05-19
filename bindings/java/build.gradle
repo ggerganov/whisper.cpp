@@ -56,128 +56,99 @@ println "Using JNI lib directory: " + JNI_LIB_DIR
     }
 }*/
 
-model {
-    platforms {
-        /*x86 {
-            if (operatingSystem.macOsX) {
-                architecture "x64"
-            } else {
-                architecture "x86"
-            }
-        }*/
-        x64 {
-            architecture "x86_64"
-        }
-    }
 
-    components {
-        // TODO: rename "whispercpp"?
-        whispercpp(NativeLibrarySpec) {
-            targetPlatform "x64"
-//            binaries.all {
-//                def jvmHome = Jvm.current().javaHome
-//                if (targetPlatform.operatingSystem.macOsX) {
-//                    cCompiler.args '-I', "${jvmHome}/include"
-//                    cCompiler.args '-I', "${jvmHome}/include/darwin"
-//                    cCompiler.args '-mmacosx-version-min=10.4'
-//                    linker.args '-mmacosx-version-min=10.4'
-//                } else if (targetPlatform.operatingSystem.linux) {
-//                    cCompiler.args '-I', "${jvmHome}/include"
-//                    cCompiler.args '-I', "${jvmHome}/include/linux"
-//                    cCompiler.args '-D_FILE_OFFSET_BITS=64'
-//                } else if (targetPlatform.operatingSystem.windows) {
-//                    cCompiler.args "-I${jvmHome}/include"
-//                    cCompiler.args "-I${jvmHome}/include/win32"
-//                } else if (targetPlatform.operatingSystem.freeBSD) {
-//                    cCompiler.args '-I', "${jvmHome}/include"
-//                    cCompiler.args '-I', "${jvmHome}/include/freebsd"
+//model {
+//    platforms {
+//        /*x86 {
+//            if (operatingSystem.macOsX) {
+//                architecture "x64"
+//            } else {
+//                architecture "x86"
+//            }
+//        }*/
+//        x64 {
+//            architecture "x86_64"
+//        }
+//    }
+
+//    components {
+//        // TODO: rename "whispercpp"?
+//        whispercpp(NativeLibrarySpec) {
+//            targetPlatform "x64"
+////            binaries.all {
+////                def jvmHome = Jvm.current().javaHome
+////                if (targetPlatform.operatingSystem.macOsX) {
+////                    cCompiler.args '-I', "${jvmHome}/include"
+////                    cCompiler.args '-I', "${jvmHome}/include/darwin"
+////                    cCompiler.args '-mmacosx-version-min=10.4'
+////                    linker.args '-mmacosx-version-min=10.4'
+////                } else if (targetPlatform.operatingSystem.linux) {
+////                    cCompiler.args '-I', "${jvmHome}/include"
+////                    cCompiler.args '-I', "${jvmHome}/include/linux"
+////                    cCompiler.args '-D_FILE_OFFSET_BITS=64'
+////                } else if (targetPlatform.operatingSystem.windows) {
+////                    cCompiler.args "-I${jvmHome}/include"
+////                    cCompiler.args "-I${jvmHome}/include/win32"
+////                } else if (targetPlatform.operatingSystem.freeBSD) {
+////                    cCompiler.args '-I', "${jvmHome}/include"
+////                    cCompiler.args '-I', "${jvmHome}/include/freebsd"
+////                }
+////            }
+//            sources {
+//                cpp {
+//                    source {
+//                        srcDir 'src/main/c'
+//                        include '**/*.c'
+//                    }
+//
+//                    exportedHeaders {
+//
+//                        srcDirs 'build/generated/sources/headers/java/main'
+//                    }
+////                    cppCompiler.args '-Isrc/main/cpp'
 //                }
 //            }
-            sources {
-                cpp {
-                    source {
-                        srcDir 'src/main/c'
-                        include '**/*.c'
-                    }
-                    exportedHeaders {
-                        srcDirs 'build/generated/sources/headers/java/main'
-                    }
-//                    cppCompiler.args '-Isrc/main/cpp'
-                }
-            }
-        }
-    }
-
-    binaries {
-        all {
-//            cppCompiler.args '-I../..'
-//            cppCompiler.args '../../whisper.o' // Link the external object file
-//            sharedLibraryFile = file("$buildDir/libs/whispercpp/shared/libwhispercpp.so")
-//            if (OperatingSystem.current().isLinux()) {
-//                cCompiler.args "-L../../", "-lwhisper"
-//            } else if (OperatingSystem.current().isMacOsX()) {
-//                cCompiler.args "-Wl,-rpath,@loader_path/../../", "-L../../", "-lwhisper"
-//            }
-        }
-
-//        all {
-//            cppCompiler.define "NDEBUG"
-//
-//            if (toolChain in Gcc) {
-//                cppCompiler.args "-O2", "-fno-access-control"
-//                linker.args "-Xlinker", "-S"
-//            }
-//            if (toolChain in VisualCpp) {
-////                cppCompiler.args "/Zi"
-////                linker.args "/DEBUG"
-//            }
 //        }
-    }
-    toolChains {
-//        visualCpp(VisualCpp) {}
-        gcc(Gcc) {
-            eachPlatform {
-                if (System.properties['os.name'].equals('Windows')) {
-                    cppCompiler.withArguments { args ->
-                        args << "-I" + JNI_INCLUDE_DIR
-                    }
-                } else if (System.properties['os.name'].equals('Mac OS X')) {
-                    cppCompiler.withArguments { args ->
-                        args << "-O2"
-                        args << "-I" + SYS_INCLUDE_DIR
-                        args << "-I" + SYS_LOCAL_INCLUDE_DIR
-                        args << "-I" + JNI_INCLUDE_DIR
-                        args << "-I" + JNI_INCLUDE_DIR + "/darwin"
-                        args << "-std=c++11"
-                    }
-                    linker.withArguments { args ->
-                        args << "-O2"
-                        args << "-lc++"
-                    }
-                } else {
-//                    path "/opt/rh/devtoolset-2/root/usr/bin/gcc"
-                    cppCompiler.withArguments { args ->
-                        args << "-O2"
-                        args << "-I" + SYS_INCLUDE_DIR
-                        args << "-I" + SYS_LOCAL_INCLUDE_DIR
-                        args << "-I" + JNI_INCLUDE_DIR
-                        args << "-I" + JNI_INCLUDE_DIR + "/linux"
-                        args << "-std=c++11"
-                    }
-                    linker.withArguments { args ->
-                        args << "-O2"
-                        args << "-lstdc++"
-                    }
-                }
-            }
-        }
-        clang(Clang) {
-//            eachPlatform {
-//                if (System.properties['os.name'].equals('Windows')) {
+//    }
 //
+//    binaries {
+//        all {
+////            cppCompiler.args '-I../..'
+////            cppCompiler.args '../../whisper.o' // Link the external object file
+////            sharedLibraryFile = file("$buildDir/libs/whispercpp/shared/libwhispercpp.so")
+////            if (OperatingSystem.current().isLinux()) {
+////                cCompiler.args "-L../../", "-lwhisper"
+////            } else if (OperatingSystem.current().isMacOsX()) {
+////                cCompiler.args "-Wl,-rpath,@loader_path/../../", "-L../../", "-lwhisper"
+////            }
+//        }
+//
+////        all {
+////            cppCompiler.define "NDEBUG"
+////
+////            if (toolChain in Gcc) {
+////                cppCompiler.args "-O2", "-fno-access-control"
+////                linker.args "-Xlinker", "-S"
+////            }
+////            if (toolChain in VisualCpp) {
+//////                cppCompiler.args "/Zi"
+//////                linker.args "/DEBUG"
+////            }
+////        }
+//    }
+//    toolChains {
+////        visualCpp(VisualCpp) {}
+//        gcc(Gcc) {
+//            eachPlatform {
+//                if (System.properties['os.name'].startsWith('Windows')) {
+//                    throw new Exception("Build on Windows is not implemented")
+////                    cppCompiler.withArguments { args ->
+////                        args << "-I" + JNI_INCLUDE_DIR
+////                    }
 //                } else if (System.properties['os.name'].equals('Mac OS X')) {
 //                    cppCompiler.withArguments { args ->
 //                        args << "-O2"
+//                        args << "-I${rootDir}/../.."
 //                        args << "-I" + SYS_INCLUDE_DIR
 //                        args << "-I" + SYS_LOCAL_INCLUDE_DIR
 //                        args << "-I" + JNI_INCLUDE_DIR
@@ -189,8 +160,10 @@ model {
 //                        args << "-lc++"
 //                    }
 //                } else {
+////                    path "/opt/rh/devtoolset-2/root/usr/bin/gcc"
 //                    cppCompiler.withArguments { args ->
 //                        args << "-O2"
+//                        args << "-I${rootDir}/../.."
 //                        args << "-I" + SYS_INCLUDE_DIR
 //                        args << "-I" + SYS_LOCAL_INCLUDE_DIR
 //                        args << "-I" + JNI_INCLUDE_DIR
@@ -203,9 +176,42 @@ model {
 //                    }
 //                }
 //            }
-        }
-    }
-}
+//        }
+//        clang(Clang) {
+////            eachPlatform {
+////                if (System.properties['os.name'].equals('Windows')) {
+////
+////                } else if (System.properties['os.name'].equals('Mac OS X')) {
+////                    cppCompiler.withArguments { args ->
+////                        args << "-O2"
+////                        args << "-I" + SYS_INCLUDE_DIR
+////                        args << "-I" + SYS_LOCAL_INCLUDE_DIR
+////                        args << "-I" + JNI_INCLUDE_DIR
+////                        args << "-I" + JNI_INCLUDE_DIR + "/darwin"
+////                        args << "-std=c++11"
+////                    }
+////                    linker.withArguments { args ->
+////                        args << "-O2"
+////                        args << "-lc++"
+////                    }
+////                } else {
+////                    cppCompiler.withArguments { args ->
+////                        args << "-O2"
+////                        args << "-I" + SYS_INCLUDE_DIR
+////                        args << "-I" + SYS_LOCAL_INCLUDE_DIR
+////                        args << "-I" + JNI_INCLUDE_DIR
+////                        args << "-I" + JNI_INCLUDE_DIR + "/linux"
+////                        args << "-std=c++11"
+////                    }
+////                    linker.withArguments { args ->
+////                        args << "-O2"
+////                        args << "-lstdc++"
+////                    }
+////                }
+////            }
+//        }
+//    }
+//}
 
 /*task copyLibBridge(type: Copy) {
     if (System.properties['os.name'].equals('Mac OS X')) {
