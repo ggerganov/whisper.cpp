@@ -333,7 +333,9 @@ jobs:
         uses: actions/checkout@v1
 
       - name: Configure
-        run: cp models/for-tests-ggml-base.en.bin models/ggml-base.en.bin
+        run: |
+          cp models/for-tests-ggml-base.en.bin models/ggml-base.en.bin
+          mkdir models/ggml-base.en-encoder.mlmodelc
 
       - name: Build objc example
         run: xcodebuild -project examples/whisper.objc/whisper.objc.xcodeproj -scheme whisper.objc -configuration ${{ matrix.build }} -sdk iphonesimulator build

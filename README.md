@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![npm](https://img.shields.io/npm/v/whisper.cpp.svg)](https://www.npmjs.com/package/whisper.cpp/)
 
-Beta: [v1.4.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.4.1) / Stable: [v1.2.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.2.1) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
+Beta: [v1.4.2](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.4.2) / Stable: [v1.2.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.2.1) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
 
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
@@ -28,6 +28,7 @@ Supported platforms:
 - [x] Mac OS (Intel and Arm)
 - [x] [iOS](examples/whisper.objc)
 - [x] [Android](examples/whisper.android)
+- [x] [Java](bindings/java/README.md)
 - [x] Linux / [FreeBSD](https://github.com/ggerganov/whisper.cpp/issues/56#issuecomment-1350920264)
 - [x] [WebAssembly](examples/whisper.wasm)
 - [x] Windows ([MSVC](https://github.com/ggerganov/whisper.cpp/blob/master/.github/workflows/build.yml#L117-L144) and [MinGW](https://github.com/ggerganov/whisper.cpp/issues/168)]
@@ -70,6 +71,8 @@ Then, download one of the Whisper models converted in [ggml format](models). For
 ```bash
 bash ./models/download-ggml-model.sh base.en
 ```
+
+If you wish to convert the Whisper models to ggml format yourself, instructions are in [models/README.md](models/README.md).
 
 Now build the [main](examples/main) example and transcribe an audio file like this:
 
@@ -258,6 +261,12 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
   pip install openai-whisper
   pip install coremltools
   ```
+
+  - To ensure `coremltools` operates correctly, please confirm that [Xcode](https://developer.apple.com/xcode/) is installed and execute `xcode-select --install` to install the command-line tools.
+  - Python 3.10 is recommended.
+  - [OPTIONAL] It is recommended to utilize a Python version management system, such as [Miniconda](https://docs.conda.io/en/latest/miniconda.html)  for this step:
+    - To create an environment, use: `conda create -n py310-whisper python=3.10 -y`
+    - To activate the environment, use: `conda activate py310-whisper`
 
 - Generate a Core ML model. For example, to generate a `base.en` model, use:
 
