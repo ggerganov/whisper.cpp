@@ -3,6 +3,7 @@ package io.github.ggerganov.whispercpp.callbacks;
 import com.sun.jna.Callback;
 import com.sun.jna.Pointer;
 import io.github.ggerganov.whispercpp.WhisperContext;
+import io.github.ggerganov.whispercpp.model.WhisperState;
 
 /**
  * Callback for the text segment.

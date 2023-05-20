@@ -5,33 +5,36 @@ This package provides Java JNI bindings for whisper.cpp. They have been tested o
   * <strike>Darwin (OS X) 12.6 on x64_64</strike>
   * Windows on x86_64
 
-The "low level" bindings are in the `bindings/java` directory. The most simple usage is as follows:
+The "low level" bindings are in `WhisperCppJnaLibrary` and `WhisperJavaJnaLibrary` which caches `whisper_full_params` and `whisper_context` in `whisper_java.cpp`. 
+
+There are a lot of classes in the `callbacks`, `ggml`, `model` and `params` directories but most of them have not been tested. 
+
+The most simple usage is as follows:
 
 ```java
-import io.github.ggerganov.whispercpp.Whisper;
+import io.github.ggerganov.whispercpp.WhisperCpp;
 
 public class Example {
-     static {
-         Native.register(WhisperJNI.class, "whispercpp");
-     }
 
-     public static void main(String[] args) {
-          String modelpath;
-          WhisperJNI whisper = WhisperJNI.getInstance();
-          double[] samples = getAudio();
-          
-          long context = whisper.initContext(modelpath);
-          try {
-              whisper.fullTranscribe(context, samples);
-              
-              int segmentCount = whisper.getTextSegmentCount(context);
-              for (int i = 0; i < segmentCount; i++) {
-                  String text = whisper.getTextSegment(context, i);
-                  System.out.println(segment.getText());
-              }
-          } finally {
-               whisper.freeContext(context);
-          }
+    public static void main(String[] args) {
+        String modelpath;
+        WhisperCpp whisper = new WhisperCpp();
+        // By default, models are loaded from ~/.cache/whisper/ and are usually named "ggml-${name}.bin"
+        // or you can provide the absolute path to the model file.
+        whisper.initContext("base.en"); 
+        
+        long context = whisper.initContext(modelpath);
+        try {
+            whisper.fullTranscribe(context, samples);
+            
+            int segmentCount = whisper.getTextSegmentCount(context);
+            for (int i = 0; i < segmentCount; i++) {
+                String text = whisper.getTextSegment(context, i);
+                System.out.println(segment.getText());
+            }
+        } finally {
+             whisper.freeContext(context);
+        }
      }
 }
 ```
@@ -43,13 +46,15 @@ In order to build, you need to have the JDK 8 or higher installed. Run the tests
 ```bash
 git clone https://github.com/ggerganov/whisper.cpp.git
 cd whisper.cpp/bindings/java
+
+mkdir build
+pushd build
+cmake ..
+cmake --build .
+popd
+
 ./gradlew build
 ```
-
-These are some of the tasks that are executed and can also be invoked directly: 
-- `./gradlew compileJava`: also generates `build/generated/.../io_...WhisperJNI.h`
-- `./gradlew whispercppSharedLibrary`: generate `build/libs/whispercpp/shared/libwhispercpp.so`
-
 
 ## License
 

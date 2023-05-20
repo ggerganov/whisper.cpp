@@ -39,7 +39,7 @@ public class WhisperFullParams extends Structure {
     /** Flag to force single segment output (useful for streaming). */
     public boolean single_segment;
 
-    /** Flag to print special tokens (e.g., <SOT>, <EOT>, <BEG>, etc.). */
+    /** Flag to print special tokens (e.g., &lt;SOT>, &lt;EOT>, &lt;BEG>, etc.). */
     public boolean print_special;
 
     /** Flag to print progress information. */
