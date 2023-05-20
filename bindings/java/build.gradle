@@ -1,0 +1,104 @@
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'maven-publish'
+}
+
+archivesBaseName = 'whispercpp'
+group = 'io.github.ggerganov'
+version = '1.4.0'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+sourceSets {
+    main {
+        resources {
+            srcDirs = ['src/main/resources', 'build/generated/resources/main']
+        }
+    }
+    test {
+        runtimeClasspath += files('build/generated/resources/main')
+    }
+}
+
+tasks.register('copyLibwhisperSo', Copy) {
+    from '../../build'
+    include 'libwhisper.so'
+    into 'build/generated/resources/main/linux-x86-64'
+}
+
+tasks.register('copyWhisperDll', Copy) {
+    from '../../build/Release'
+    include 'whisper.dll'
+    into 'build/generated/resources/main/windows-x86-64'
+}
+
+tasks.build.dependsOn copyLibwhisperSo, copyWhisperDll
+
+test {
+    systemProperty 'jna.library.path', project.file('build/generated/resources/main').absolutePath
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+jar {
+    exclude '**/whisper_java.exp', '**/whisper_java.lib'
+}
+
+javadoc {
+    options.addStringOption('Xdoclint:none', '-quiet')
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}
+
+dependencies {
+    implementation "net.java.dev.jna:jna:5.13.0"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.9.2"
+    testImplementation "org.assertj:assertj-core:3.24.2"
+}
+
+repositories {
+    mavenCentral()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'whispercpp'
+            from components.java
+            pom {
+                name = 'whispercpp'
+                description = "Java JNA bindings for OpenAI's Whisper model, implemented in C/C++"
+                url = 'https://github.com/ggerganov/whisper.cpp'
+                licenses {
+                    license {
+                        name = 'MIT licence'
+                        url = 'https://raw.githubusercontent.com/ggerganov/whisper.cpp/master/LICENSE'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'ggerganov'
+                        name = 'Georgi Gerganov'
+                        email = 'ggerganov@gmail.com'
+                    }
+                    developer {
+                        id = 'nalbion'
+                        name = 'Nicholas Albion'
+                        email = 'nalbion@yahoo.com'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/ggerganov/whisper.cpp.git'
+                    url = 'https://github.com/ggerganov/whisper.cpp'
+                }
+            }
+        }
+    }
+}
