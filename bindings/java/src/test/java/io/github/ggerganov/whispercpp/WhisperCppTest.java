@@ -19,7 +19,7 @@ class WhisperCppTest {
     static void init() throws FileNotFoundException {
         // By default, models are loaded from ~/.cache/whisper/ and are usually named "ggml-${name}.bin"
         // or you can provide the absolute path to the model file.
-        String modelName = "base.enx";
+        String modelName = "base.en";
         try {
             whisper.initContext(modelName);
             whisper.getDefaultJavaParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
@@ -33,7 +33,7 @@ class WhisperCppTest {
     @Test
     void testGetDefaultJavaParams() {
         // When
-        WhisperJavaParams params = whisper.getDefaultJavaParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
+        whisper.getDefaultJavaParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
 
         // Then if it doesn't throw we've connected to whisper.cpp
     }
@@ -64,6 +64,7 @@ class WhisperCppTest {
             String result = whisper.fullTranscribe(/*params,*/ floats);
 
             // Then
+            System.out.println(result);
             assertEquals("And so my fellow Americans, ask not what your country can do for you, " +
                     "ask what you can do for your country.",
                     result);

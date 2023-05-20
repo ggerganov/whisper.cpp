@@ -3,6 +3,7 @@
 This package provides Java JNI bindings for whisper.cpp. They have been tested on:
 
   * <strike>Darwin (OS X) 12.6 on x64_64</strike>
+  * Ubuntu on x86_64
   * Windows on x86_64
 
 The "low level" bindings are in `WhisperCppJnaLibrary` and `WhisperJavaJnaLibrary` which caches `whisper_full_params` and `whisper_context` in `whisper_java.cpp`. 

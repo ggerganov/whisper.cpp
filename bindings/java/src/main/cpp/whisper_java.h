@@ -8,7 +8,7 @@ extern "C" {
 struct whisper_java_params {
 };
 
-WHISPER_API struct whisper_java_params whisper_java_default_params(enum whisper_sampling_strategy strategy);
+WHISPER_API void whisper_java_default_params(enum whisper_sampling_strategy strategy);
 
 WHISPER_API void whisper_java_init_from_file(const char * path_model);
 

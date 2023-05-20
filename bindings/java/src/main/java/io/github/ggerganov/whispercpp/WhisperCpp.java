@@ -54,8 +54,8 @@ public class WhisperCpp implements AutoCloseable {
      * Initialises `whisper_full_params` internally in whisper_java.cpp so JNA doesn't have to map everything.
      * `whisper_java_init_from_file()` calls `whisper_java_default_params(WHISPER_SAMPLING_GREEDY)` for convenience.
      */
-    public WhisperJavaParams getDefaultJavaParams(WhisperSamplingStrategy strategy) {
-        return javaLib.whisper_java_default_params(strategy.ordinal());
+    public void getDefaultJavaParams(WhisperSamplingStrategy strategy) {
+        javaLib.whisper_java_default_params(strategy.ordinal());
 //        return lib.whisper_full_default_params(strategy.value)
     }
 

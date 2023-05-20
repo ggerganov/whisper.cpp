@@ -22,6 +22,20 @@ sourceSets {
     }
 }
 
+tasks.register('copyLibwhisperSo', Copy) {
+    from '../../build'
+    include 'libwhisper.so'
+    into 'build/generated/resources/main/linux-x86-64'
+}
+
+tasks.register('copyWhisperDll', Copy) {
+    from '../../build/Release'
+    include 'whisper.dll'
+    into 'build/generated/resources/main/windows-x86-64'
+}
+
+tasks.build.dependsOn copyLibwhisperSo, copyWhisperDll
+
 test {
     systemProperty 'jna.library.path', project.file('build/generated/resources/main').absolutePath
 }

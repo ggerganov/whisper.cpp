@@ -8,7 +8,7 @@ import io.github.ggerganov.whispercpp.params.WhisperJavaParams;
 interface WhisperJavaJnaLibrary extends Library {
     WhisperJavaJnaLibrary instance = Native.load("whisper_java", WhisperJavaJnaLibrary.class);
 
-    WhisperJavaParams whisper_java_default_params(int strategy);
+    void whisper_java_default_params(int strategy);
 
     void whisper_java_free();
 

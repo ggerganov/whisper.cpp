@@ -4,11 +4,12 @@
 struct whisper_full_params default_params;
 struct whisper_context * whisper_ctx = nullptr;
 
-struct whisper_java_params whisper_java_default_params(enum whisper_sampling_strategy strategy) {
+struct void whisper_java_default_params(enum whisper_sampling_strategy strategy) {
     default_params = whisper_full_default_params(strategy);
 
-    struct whisper_java_params result = {};
-    return result;
+//    struct whisper_java_params result = {};
+//    return result;
+    return;
 }
 
 void whisper_java_init_from_file(const char * path_model) {
