@@ -159,7 +159,7 @@ if (WHISPER_CUBLAS)
 
     if (CUDAToolkit_FOUND)
         message(STATUS "cuBLAS found")
-        set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
+
         enable_language(CUDA)
 
         set(GGML_CUDA_SOURCES ggml-cuda.cu ggml-cuda.h)
