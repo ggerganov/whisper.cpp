@@ -363,3 +363,31 @@ jobs:
         run: |
           cd examples/whisper.android
           ./gradlew assembleRelease --no-daemon
+
+  java:
+    needs: [ 'macOS-latest', 'ubuntu-latest', 'windows' ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 17
+
+      - name: Build
+        run: cd bindings/java && ./gradlew copyLibs build
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v1
+        with:
+          name: whispercpp.jar
+          path: build/libs
+
+      - name: Publish package
+        uses: gradle/gradle-build-action@749f47bda3e44aa060e82d7b3ef7e40d953bd629
+        with:
+          arguments: publish
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}

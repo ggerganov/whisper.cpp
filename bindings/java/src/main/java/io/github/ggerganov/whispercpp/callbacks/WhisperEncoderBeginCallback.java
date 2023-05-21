@@ -20,5 +20,5 @@ public interface WhisperEncoderBeginCallback extends Callback {
      * @param user_data  User data.
      * @return True if the computation should proceed, false otherwise.
      */
-    boolean callback(WhisperContext ctx, WhisperState state, Pointer user_data);
+    boolean callback(Pointer ctx, Pointer state, Pointer user_data);
 }

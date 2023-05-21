@@ -22,6 +22,12 @@ sourceSets {
     }
 }
 
+tasks.register('copyLibwhisperDynlib', Copy) {
+    from '../../build'
+    include 'libwhisper.dynlib'
+    into 'build/generated/resources/main/darwin'
+}
+
 tasks.register('copyLibwhisperSo', Copy) {
     from '../../build'
     include 'libwhisper.so'
@@ -34,7 +40,9 @@ tasks.register('copyWhisperDll', Copy) {
     into 'build/generated/resources/main/windows-x86-64'
 }
 
-tasks.build.dependsOn copyLibwhisperSo, copyWhisperDll
+tasks.register('copyLibs') {
+    dependsOn copyLibwhisperDynlib, copyLibwhisperSo, copyWhisperDll
+}
 
 test {
     systemProperty 'jna.library.path', project.file('build/generated/resources/main').absolutePath

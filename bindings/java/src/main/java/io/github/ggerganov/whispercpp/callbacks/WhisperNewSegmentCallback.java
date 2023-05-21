@@ -20,5 +20,5 @@ public interface WhisperNewSegmentCallback extends Callback {
      * @param n_new      The number of newly generated text segments.
      * @param user_data  User data.
      */
-    void callback(WhisperContext ctx, WhisperState state, int n_new, Pointer user_data);
+    void callback(Pointer ctx, Pointer state, int n_new, Pointer user_data);
 }

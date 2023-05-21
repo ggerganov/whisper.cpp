@@ -1,12 +1,13 @@
 package io.github.ggerganov.whispercpp.params;
 
-import com.sun.jna.Callback;
-import com.sun.jna.Pointer;
-import com.sun.jna.Structure;
+import com.sun.jna.*;
 import io.github.ggerganov.whispercpp.callbacks.WhisperEncoderBeginCallback;
 import io.github.ggerganov.whispercpp.callbacks.WhisperLogitsFilterCallback;
 import io.github.ggerganov.whispercpp.callbacks.WhisperNewSegmentCallback;
 import io.github.ggerganov.whispercpp.callbacks.WhisperProgressCallback;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Parameters for the whisper_full() function.
@@ -15,62 +16,68 @@ import io.github.ggerganov.whispercpp.callbacks.WhisperProgressCallback;
  */
 public class WhisperFullParams extends Structure {
 
+    public WhisperFullParams(Pointer p) {
+        super(p);
+//        super(p, ALIGN_MSVC);
+//        super(p, ALIGN_GNUC);
+    }
+
     /** Sampling strategy for whisper_full() function. */
     public int strategy;
 
-    /** Number of threads. */
+    /** Number of threads. (default = 4) */
     public int n_threads;
 
-    /** Maximum tokens to use from past text as a prompt for the decoder. */
+    /** Maximum tokens to use from past text as a prompt for the decoder. (default = 16384) */
     public int n_max_text_ctx;
 
-    /** Start offset in milliseconds. */
+    /** Start offset in milliseconds. (default = 0) */
     public int offset_ms;
 
-    /** Audio duration to process in milliseconds. */
+    /** Audio duration to process in milliseconds. (default = 0) */
     public int duration_ms;
 
-    /** Translate flag. */
-    public boolean translate;
+    /** Translate flag. (default = false) */
+    public CBool translate;
 
-    /** Flag to indicate whether to use past transcription (if any) as an initial prompt for the decoder. */
-    public boolean no_context;
+    /** Flag to indicate whether to use past transcription (if any) as an initial prompt for the decoder. (default = true) */
+    public CBool no_context;
 
-    /** Flag to force single segment output (useful for streaming). */
-    public boolean single_segment;
+    /** Flag to force single segment output (useful for streaming). (default = false) */
+    public CBool single_segment;
 
-    /** Flag to print special tokens (e.g., &lt;SOT>, &lt;EOT>, &lt;BEG>, etc.). */
-    public boolean print_special;
+    /** Flag to print special tokens (e.g., &lt;SOT>, &lt;EOT>, &lt;BEG>, etc.). (default = false) */
+    public CBool print_special;
 
-    /** Flag to print progress information. */
-    public boolean print_progress;
+    /** Flag to print progress information. (default = true) */
+    public CBool print_progress;
 
-    /** Flag to print results from within whisper.cpp (avoid it, use callback instead). */
-    public boolean print_realtime;
+    /** Flag to print results from within whisper.cpp (avoid it, use callback instead). (default = true) */
+    public CBool print_realtime;
 
-    /** Flag to print timestamps for each text segment when printing realtime. */
-    public boolean print_timestamps;
+    /** Flag to print timestamps for each text segment when printing realtime. (default = true) */
+    public CBool print_timestamps;
 
-    /** [EXPERIMENTAL] Flag to enable token-level timestamps. */
-    public boolean token_timestamps;
+    /** [EXPERIMENTAL] Flag to enable token-level timestamps. (default = false) */
+    public CBool token_timestamps;
 
-    /** [EXPERIMENTAL] Timestamp token probability threshold (~0.01). */
+    /** [EXPERIMENTAL] Timestamp token probability threshold (~0.01). (default = 0.01) */
     public float thold_pt;
 
     /** [EXPERIMENTAL] Timestamp token sum probability threshold (~0.01). */
     public float thold_ptsum;
 
-    /** Maximum segment length in characters. */
+    /** Maximum segment length in characters. (default = 0) */
     public int max_len;
 
-    /** Flag to split on word rather than on token (when used with max_len). */
-    public boolean split_on_word;
+    /** Flag to split on word rather than on token (when used with max_len). (default = false) */
+    public CBool split_on_word;
 
-    /** Maximum tokens per segment (0 = no limit). */
+    /** Maximum tokens per segment (0, default = no limit) */
     public int max_tokens;
 
-    /** Flag to speed up the audio by 2x using Phase Vocoder. */
-    public boolean speed_up;
+    /** Flag to speed up the audio by 2x using Phase Vocoder. (default = false) */
+    public CBool speed_up;
 
     /** Overwrite the audio context size (0 = use default). */
     public int audio_ctx;
@@ -79,8 +86,14 @@ public class WhisperFullParams extends Structure {
      * These are prepended to any existing text context from a previous call. */
     public String initial_prompt;
 
-    /** Prompt tokens. */
+    /** Prompt tokens. (int*) */
     public Pointer prompt_tokens;
+
+    public void setPromptTokens(int[] tokens) {
+        Memory mem = new Memory(tokens.length * 4L);
+        mem.write(0, tokens, 0, tokens.length);
+        prompt_tokens = mem;
+    }
 
     /** Number of prompt tokens. */
     public int prompt_n_tokens;
@@ -90,15 +103,15 @@ public class WhisperFullParams extends Structure {
     public String language;
 
     /** Flag to indicate whether to detect language automatically. */
-    public boolean detect_language;
+    public CBool detect_language;
 
-    /** Common decoding parameters. */
+    // Common decoding parameters.
 
     /** Flag to suppress blank tokens. */
-    public boolean suppress_blank;
+    public CBool suppress_blank;
 
     /** Flag to suppress non-speech tokens. */
-    public boolean suppress_non_speech_tokens;
+    public CBool suppress_non_speech_tokens;
 
     /** Initial decoding temperature. */
     public float temperature;
@@ -109,7 +122,7 @@ public class WhisperFullParams extends Structure {
     /** Length penalty. */
     public float length_penalty;
 
-    /** Fallback parameters. */
+    // Fallback parameters.
 
     /** Temperature increment. */
     public float temperature_inc;
@@ -123,21 +136,8 @@ public class WhisperFullParams extends Structure {
     /** No speech threshold. */
     public float no_speech_thold;
 
-    class GreedyParams extends Structure {
-        /** https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/transcribe.py#L264 */
-        public int best_of;
-    }
-
     /** Greedy decoding parameters. */
     public GreedyParams greedy;
-
-    class BeamSearchParams extends Structure {
-        /** ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/transcribe.py#L265 */
-        int beam_size;
-
-        /** ref: https://arxiv.org/pdf/2204.05424.pdf */
-        float patience;
-    }
 
     /**
      * Beam search decoding parameters.
@@ -146,8 +146,9 @@ public class WhisperFullParams extends Structure {
 
     /**
      * Callback for every newly generated text segment.
+     * WhisperNewSegmentCallback
      */
-    public WhisperNewSegmentCallback new_segment_callback;
+    public Pointer new_segment_callback;
 
     /**
      * User data for the new_segment_callback.
@@ -156,8 +157,9 @@ public class WhisperFullParams extends Structure {
 
     /**
      * Callback on each progress update.
+     * WhisperProgressCallback
      */
-    public WhisperProgressCallback progress_callback;
+    public Pointer progress_callback;
 
     /**
      * User data for the progress_callback.
@@ -166,8 +168,9 @@ public class WhisperFullParams extends Structure {
 
     /**
      * Callback each time before the encoder starts.
+     * WhisperEncoderBeginCallback
      */
-    public WhisperEncoderBeginCallback encoder_begin_callback;
+    public Pointer encoder_begin_callback;
 
     /**
      * User data for the encoder_begin_callback.
@@ -176,12 +179,44 @@ public class WhisperFullParams extends Structure {
 
     /**
      * Callback by each decoder to filter obtained logits.
+     * WhisperLogitsFilterCallback
      */
-    public WhisperLogitsFilterCallback logits_filter_callback;
+    public Pointer logits_filter_callback;
 
     /**
      * User data for the logits_filter_callback.
      */
     public Pointer logits_filter_callback_user_data;
-}
 
+
+    public void setNewSegmentCallback(WhisperNewSegmentCallback callback) {
+        new_segment_callback = CallbackReference.getFunctionPointer(callback);
+    }
+
+    public void setProgressCallback(WhisperProgressCallback callback) {
+        progress_callback = CallbackReference.getFunctionPointer(callback);
+    }
+
+    public void setEncoderBeginCallbackeginCallbackCallback(WhisperEncoderBeginCallback callback) {
+        encoder_begin_callback = CallbackReference.getFunctionPointer(callback);
+    }
+
+    public void setLogitsFilterCallback(WhisperLogitsFilterCallback callback) {
+        logits_filter_callback = CallbackReference.getFunctionPointer(callback);
+    }
+
+    @Override
+    protected List<String> getFieldOrder() {
+        return Arrays.asList("strategy", "n_threads", "n_max_text_ctx", "offset_ms", "duration_ms", "translate",
+                "no_context", "single_segment",
+                "print_special", "print_progress", "print_realtime", "print_timestamps",  "token_timestamps",
+                "thold_pt", "thold_ptsum", "max_len", "split_on_word", "max_tokens", "speed_up", "audio_ctx",
+                "initial_prompt", "prompt_tokens", "prompt_n_tokens", "language", "detect_language",
+                "suppress_blank", "suppress_non_speech_tokens", "temperature", "max_initial_ts", "length_penalty",
+                "temperature_inc", "entropy_thold", "logprob_thold", "no_speech_thold", "greedy", "beam_search",
+                "new_segment_callback", "new_segment_callback_user_data",
+                "progress_callback", "progress_callback_user_data",
+                "encoder_begin_callback", "encoder_begin_callback_user_data",
+                "logits_filter_callback", "logits_filter_callback_user_data");
+    }
+}

@@ -231,10 +231,21 @@ public interface WhisperCppJnaLibrary extends Library {
     void whisper_print_timings(Pointer ctx);
     void whisper_reset_timings(Pointer ctx);
 
+    // Note: Even if `whisper_full_params is stripped back to just 4 ints, JNA throws "Invalid memory access"
+    //       when `whisper_full_default_params()` tries to return a struct.
+    // WhisperFullParams whisper_full_default_params(int strategy);
+
     /**
+     * Provides default params which can be used with `whisper_full()` etc.
+     * Because this function allocates memory for the params, the caller must call either:
+     * - call `whisper_free_params()`
+     * - `Native.free(Pointer.nativeValue(pointer));`
+     *
      * @param strategy - WhisperSamplingStrategy.value
      */
-    WhisperFullParams whisper_full_default_params(int strategy);
+    Pointer whisper_full_default_params_by_ref(int strategy);
+
+    void whisper_free_params(Pointer params);
 
     /**
      * Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text
