@@ -15,7 +15,7 @@ if(WIN32)
 elseif(UNIX AND NOT APPLE)
     set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/resources/main/linux-x86-64)
 elseif(APPLE)
-    set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/resources/main/macos-x86-64)
+    set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/resources/main/darwin)
 endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
