@@ -139,7 +139,7 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
     { "hi",  { 17,  "hindi",          } },
     { "fi",  { 18,  "finnish",        } },
     { "vi",  { 19,  "vietnamese",     } },
-    { "iw",  { 20,  "hebrew",         } },
+    { "he",  { 20,  "hebrew",         } },
     { "uk",  { 21,  "ukrainian",      } },
     { "el",  { 22,  "greek",          } },
     { "ms",  { 23,  "malay",          } },
