@@ -27,9 +27,8 @@ public class WhisperCpp implements AutoCloseable {
 
     /**
      * @param modelPath - absolute path, or just the name (eg: "base", "base-en" or "base.en")
-     * @return a Pointer to the WhisperContext
      */
-    void initContext(String modelPath) throws FileNotFoundException {
+    public void initContext(String modelPath) throws FileNotFoundException {
         if (ctx != null) {
             lib.whisper_free(ctx);
         }
