@@ -19,13 +19,6 @@ jobs:
         run: |
           make
           make stream
-          ls -al
-
-      - name: Upload lib
-        uses: actions/upload-artifact@v3
-        with:
-          name: linux-x86-64_libwhisper.so
-          path: build/libwhisper.so
 
   macOS-latest:
     runs-on: macOS-latest
@@ -43,13 +36,6 @@ jobs:
         run: |
           make
           make stream
-          ls -al
-
-      - name: Upload lib
-        uses: actions/upload-artifact@v3
-        with:
-          name: darwin-x86-64_libwhisper.dynlib
-          path: build/libwhisper.so
 
   ubuntu-latest-gcc:
     runs-on: ubuntu-latest
@@ -387,7 +373,7 @@ jobs:
           ./gradlew assembleRelease --no-daemon
 
   java:
-    needs: [ 'macOS-latest', 'ubuntu-latest', 'windows' ]
+    needs: [ 'windows' ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
@@ -397,18 +383,6 @@ jobs:
         with:
           java-version: 17
 
-      - name: Download Linux lib
-        uses: actions/download-artifact@v2
-        with:
-          name: linux-x86-64_libwhisper.so
-          path: bindings/java/build/generated/resources/main/linux-x86-64
-
-      - name: Download Mac OS lib
-        uses: actions/download-artifact@v2
-        with:
-          name: darwin-x86-64_libwhisper.dynlib
-          path: bindings/java/build/generated/resources/main/darwin-x86-64
-
       - name: Download Windows lib
         uses: actions/download-artifact@v2
         with:
@@ -417,8 +391,6 @@ jobs:
 
       - name: Build
         run: |
-          ls -al bindings/java/build/generated/resources/main/linux-x86-64
-          ls -al bindings/java/build/generated/resources/main/darwin-x86-64
           ls -al bindings/java/build/generated/resources/main/windows-x86-64
           cd bindings/java
           chmod +x ./gradlew
