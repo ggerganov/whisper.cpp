@@ -23,7 +23,7 @@ jobs:
       - name: Upload lib
         uses: actions/upload-artifact@v3
         with:
-          name: linux-x86-64/libwhisper.so
+          name: linux-x86-64_libwhisper.so
           path: build/libwhisper.so
 
   macOS-latest:
@@ -42,12 +42,12 @@ jobs:
         run: |
           make
           make stream
-          ls -al build
+          ls -al
 
       - name: Upload lib
         uses: actions/upload-artifact@v3
         with:
-          name: darwin-x86-64/libwhisper.dynlib
+          name: darwin-x86-64_libwhisper.dynlib
           path: build/libwhisper.so
 
   ubuntu-latest-gcc:
@@ -177,7 +177,7 @@ jobs:
       - name: Upload dll
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.jnaPath }}/whisper.dll
+          name: ${{ matrix.jnaPath }}_whisper.dll
           path: build/bin/${{ matrix.build }}/whisper.dll
 
       - name: Upload binaries
@@ -399,19 +399,19 @@ jobs:
       - name: Download Linux lib
         uses: actions/download-artifact@v2
         with:
-          name: linux-x86-64/libwhisper.so
+          name: linux-x86-64_libwhisper.so
           path: bindings/java/build/generated/resources/main/linux-x86-64
 
       - name: Download Mac OS lib
         uses: actions/download-artifact@v2
         with:
-          name: darwin-x86-64/libwhisper.dynlib
+          name: darwin-x86-64_libwhisper.dynlib
           path: bindings/java/build/generated/resources/main/darwin-x86-64
 
       - name: Download Windows lib
         uses: actions/download-artifact@v2
         with:
-          name: windows-x86-64/whisper.dll
+          name: windows-x86-64_whisper.dll
           path: bindings/java/build/generated/resources/main/windows-x86-64
 
       - name: Build
