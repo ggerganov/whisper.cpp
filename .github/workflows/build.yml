@@ -177,7 +177,7 @@ jobs:
       - name: Upload dll
         uses: actions/upload-artifact@v3
         with:
-          name: ${{jnaPath}}/whisper.dll
+          name: ${{ matrix.jnaPath }}/whisper.dll
           path: build/bin/${{ matrix.build }}/whisper.dll
 
       - name: Upload binaries
@@ -430,7 +430,8 @@ jobs:
           path: build/libs
 
       - name: Publish package
-        uses: gradle/gradle-build-action@749f47bda3e44aa060e82d7b3ef7e40d953bd629
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: gradle/gradle-build-action@v2
         with:
           arguments: publish
         env:
