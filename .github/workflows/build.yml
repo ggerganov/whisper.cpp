@@ -20,6 +20,12 @@ jobs:
           make
           make stream
 
+      - name: Upload lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-x86-64/libwhisper.so
+          path: build/libwhisper.so
+
   macOS-latest:
     runs-on: macOS-latest
 
@@ -36,6 +42,13 @@ jobs:
         run: |
           make
           make stream
+          ls -al build
+
+      - name: Upload lib
+        uses: actions/upload-artifact@v3
+        with:
+          name: darwin-x86-64/libwhisper.dynlib
+          path: build/libwhisper.so
 
   ubuntu-latest-gcc:
     runs-on: ubuntu-latest
@@ -125,8 +138,10 @@ jobs:
         include:
           - arch: Win32
             s2arc: x86
+            jnaPath: win32-x86
           - arch: x64
             s2arc: x64
+            jnaPath: win32-x86-64
           - sdl2: ON
             s2ver: 2.26.0
 
@@ -158,6 +173,12 @@ jobs:
       - name: Copy SDL2.dll
         if: matrix.sdl2 == 'ON'
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
+
+      - name: Upload dll
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{jnaPath}}/whisper.dll
+          path: build/bin/${{ matrix.build }}/whisper.dll
 
       - name: Upload binaries
         if: matrix.sdl2 == 'ON'
@@ -375,11 +396,31 @@ jobs:
         with:
           java-version: 17
 
+      - name: Download Linux lib
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x86-64/libwhisper.so
+          path: bindings/java/build/generated/resources/main/linux-x86-64
+
+      - name: Download Mac OS lib
+        uses: actions/download-artifact@v2
+        with:
+          name: darwin-x86-64/libwhisper.dynlib
+          path: bindings/java/build/generated/resources/main/darwin-x86-64
+
+      - name: Download Windows lib
+        uses: actions/download-artifact@v2
+        with:
+          name: windows-x86-64/whisper.dll
+          path: bindings/java/build/generated/resources/main/windows-x86-64
+
       - name: Build
         run: |
+          ls -al bindings/java/build/generated/resources/main/linux-x86-64
+          ls -al bindings/java/build/generated/resources/main/darwin-x86-64
+          ls -al bindings/java/build/generated/resources/main/windows-x86-64
           cd bindings/java
           chmod +x ./gradlew
-          ./gradlew copyLibs
           ./gradlew build
 
       - name: Upload jar
