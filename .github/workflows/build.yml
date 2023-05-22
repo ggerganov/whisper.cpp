@@ -376,7 +376,11 @@ jobs:
           java-version: 17
 
       - name: Build
-        run: cd bindings/java && chmod +x ./gradlew && ./gradlew copyLibs build
+        run: |
+          cd bindings/java
+          chmod +x ./gradlew
+          ./gradlew copyLibs
+          ./gradlew build
 
       - name: Upload jar
         uses: actions/upload-artifact@v1
