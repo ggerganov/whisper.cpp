@@ -40,26 +40,71 @@ public class WhisperFullParams extends Structure {
     /** Translate flag. (default = false) */
     public CBool translate;
 
+    /** The compliment of translateMode() */
+    public void transcribeMode() {
+        translate = CBool.FALSE;
+    }
+
+    /** The compliment of transcribeMode() */
+    public void translateMode() {
+        translate = CBool.TRUE;
+    }
+
     /** Flag to indicate whether to use past transcription (if any) as an initial prompt for the decoder. (default = true) */
     public CBool no_context;
+
+    /** Flag to indicate whether to use past transcription (if any) as an initial prompt for the decoder. (default = true) */
+    public void enableContext(boolean enable) {
+        no_context = enable ? CBool.FALSE : CBool.TRUE;
+    }
 
     /** Flag to force single segment output (useful for streaming). (default = false) */
     public CBool single_segment;
 
+    /** Flag to force single segment output (useful for streaming). (default = false) */
+    public void singleSegment(boolean single) {
+        single_segment = single ? CBool.TRUE : CBool.FALSE;
+    }
+
     /** Flag to print special tokens (e.g., &lt;SOT>, &lt;EOT>, &lt;BEG>, etc.). (default = false) */
     public CBool print_special;
+
+    /** Flag to print special tokens (e.g., &lt;SOT>, &lt;EOT>, &lt;BEG>, etc.). (default = false) */
+    public void printSpecial(boolean enable) {
+        print_special = enable ? CBool.TRUE : CBool.FALSE;
+    }
 
     /** Flag to print progress information. (default = true) */
     public CBool print_progress;
 
+    /** Flag to print progress information. (default = true) */
+    public void printProgress(boolean enable) {
+        print_progress = enable ? CBool.TRUE : CBool.FALSE;
+    }
+
     /** Flag to print results from within whisper.cpp (avoid it, use callback instead). (default = true) */
     public CBool print_realtime;
+
+    /** Flag to print results from within whisper.cpp (avoid it, use callback instead). (default = true) */
+    public void printRealtime(boolean enable) {
+        print_realtime = enable ? CBool.TRUE : CBool.FALSE;
+    }
 
     /** Flag to print timestamps for each text segment when printing realtime. (default = true) */
     public CBool print_timestamps;
 
+    /** Flag to print timestamps for each text segment when printing realtime. (default = true) */
+    public void printTimestamps(boolean enable) {
+        print_timestamps = enable ? CBool.TRUE : CBool.FALSE;
+    }
+
     /** [EXPERIMENTAL] Flag to enable token-level timestamps. (default = false) */
     public CBool token_timestamps;
+
+    /** [EXPERIMENTAL] Flag to enable token-level timestamps. (default = false) */
+    public void tokenTimestamps(boolean enable) {
+        token_timestamps = enable ? CBool.TRUE : CBool.FALSE;
+    }
 
     /** [EXPERIMENTAL] Timestamp token probability threshold (~0.01). (default = 0.01) */
     public float thold_pt;
@@ -73,11 +118,21 @@ public class WhisperFullParams extends Structure {
     /** Flag to split on word rather than on token (when used with max_len). (default = false) */
     public CBool split_on_word;
 
+    /** Flag to split on word rather than on token (when used with max_len). (default = false) */
+    public void splitOnWord(boolean enable) {
+        split_on_word = enable ? CBool.TRUE : CBool.FALSE;
+    }
+
     /** Maximum tokens per segment (0, default = no limit) */
     public int max_tokens;
 
     /** Flag to speed up the audio by 2x using Phase Vocoder. (default = false) */
     public CBool speed_up;
+
+    /** Flag to speed up the audio by 2x using Phase Vocoder. (default = false) */
+    public void speedUp(boolean enable) {
+        speed_up = enable ? CBool.TRUE : CBool.FALSE;
+    }
 
     /** Overwrite the audio context size (0 = use default). */
     public int audio_ctx;
@@ -105,13 +160,27 @@ public class WhisperFullParams extends Structure {
     /** Flag to indicate whether to detect language automatically. */
     public CBool detect_language;
 
+    /** Flag to indicate whether to detect language automatically. */
+    public void detectLanguage(boolean enable) {
+        detect_language = enable ? CBool.TRUE : CBool.FALSE;
+    }
+
     // Common decoding parameters.
 
     /** Flag to suppress blank tokens. */
     public CBool suppress_blank;
 
+    public void suppressBlanks(boolean enable) {
+        suppress_blank = enable ? CBool.TRUE : CBool.FALSE;
+    }
+
     /** Flag to suppress non-speech tokens. */
     public CBool suppress_non_speech_tokens;
+
+    /** Flag to suppress non-speech tokens. */
+    public void suppressNonSpeechTokens(boolean enable) {
+        suppress_non_speech_tokens = enable ? CBool.TRUE : CBool.FALSE;
+    }
 
     /** Initial decoding temperature. */
     public float temperature;
@@ -143,6 +212,28 @@ public class WhisperFullParams extends Structure {
      * Beam search decoding parameters.
      */
     public BeamSearchParams beam_search;
+
+    public void setBestOf(int bestOf) {
+        if (greedy == null) {
+            greedy = new GreedyParams();
+        }
+        greedy.best_of = bestOf;
+    }
+
+    public void setBeamSizeAndPatience(int beamSize) {
+        if (beam_search == null) {
+            beam_search = new BeamSearchParams();
+        }
+        beam_search.beam_size = beamSize;
+    }
+
+    public void setBeamSizeAndPatience(int beamSize, float patience) {
+        if (beam_search == null) {
+            beam_search = new BeamSearchParams();
+        }
+        beam_search.beam_size = beamSize;
+        beam_search.patience = patience;
+    }
 
     /**
      * Callback for every newly generated text segment.
