@@ -19,6 +19,7 @@ jobs:
         run: |
           make
           make stream
+          ls -al
 
       - name: Upload lib
         uses: actions/upload-artifact@v3
