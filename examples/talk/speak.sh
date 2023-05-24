@@ -13,8 +13,11 @@
 say "$2"
 
 # Eleven Labs
-# To use it, install the elevenlabs module from pip (pip install elevenlabs), register to https://beta.elevenlabs.io to get an api key and paste it in /examples/talk/eleven-labs.py 
+# To use it, install the elevenlabs module from pip (pip install elevenlabs)
+# It's possible to use the API for free with limited number of characters. To increase this limit register to https://beta.elevenlabs.io to get an api key and paste it after 'ELEVEN_API_KEY='
+#Keep the line commented to use the free version whitout api key
 #
+#export ELEVEN_API_KEY=your_api_key
 #wd=$(dirname $0)
 #script=$wd/eleven-labs.py
 #python3 $script $1 "$2"
