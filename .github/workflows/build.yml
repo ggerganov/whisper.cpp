@@ -384,9 +384,9 @@ jobs:
           java-version: 17
 
       - name: Download Windows lib
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
-          name: windows-x86-64_whisper.dll
+          name: win32-x86-64_whisper.dll
           path: bindings/java/build/generated/resources/main/windows-x86-64
 
       - name: Build
