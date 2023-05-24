@@ -391,15 +391,19 @@ jobs:
 
       - name: Build
         run: |
-          cd bindings/java
+          models\download-ggml-model.cmd tiny.en
+          cd ../bindings/java
           chmod +x ./gradlew
           ./gradlew build
+          ls -al build/libs
 
       - name: Upload jar
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         with:
           name: whispercpp.jar
-          path: build/libs
+          path: |
+            build/libs/whispercpp-*.jar
+            !build/libs/whispercpp-*-*.jar
 
       - name: Publish package
         if: ${{ github.ref == 'refs/heads/master' }}

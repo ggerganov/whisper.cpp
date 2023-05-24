@@ -20,7 +20,7 @@ class WhisperCppTest {
     static void init() throws FileNotFoundException {
         // By default, models are loaded from ~/.cache/whisper/ and are usually named "ggml-${name}.bin"
         // or you can provide the absolute path to the model file.
-        String modelName = "base.en";
+        String modelName = "../../models/ggml-tiny.en.bin";
         try {
             whisper.initContext(modelName);
 //            whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
