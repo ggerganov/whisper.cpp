@@ -387,11 +387,10 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: win32-x86-64_whisper.dll
-          path: bindings/java/build/generated/resources/main/windows-x86-64
+          path: bindings/java/build/generated/resources/main/win32-x86-64
 
       - name: Build
         run: |
-          ls -al bindings/java/build/generated/resources/main/windows-x86-64
           cd bindings/java
           chmod +x ./gradlew
           ./gradlew build
