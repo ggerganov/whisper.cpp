@@ -392,7 +392,7 @@ jobs:
       - name: Build
         run: |
           models\download-ggml-model.cmd tiny.en
-          cd ../bindings/java
+          cd bindings/java
           chmod +x ./gradlew
           ./gradlew build
           ls -al build/libs
