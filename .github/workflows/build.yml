@@ -395,7 +395,7 @@ jobs:
           cd bindings/java
           chmod +x ./gradlew
           ./gradlew build
-          ls -al build/libs
+          dir build/libs
 
       - name: Upload jar
         uses: actions/upload-artifact@v3
