@@ -400,9 +400,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: whispercpp.jar
-          path: |
-            build/libs/whispercpp-*.jar
-            !build/libs/whispercpp-*-*.jar
+          path: bindings/java/build/libs/whispercpp-*.jar
 
       - name: Publish package
         if: ${{ github.ref == 'refs/heads/master' }}
