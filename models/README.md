@@ -70,7 +70,7 @@ git clone https://github.com/openai/whisper
 git clone https://github.com/ggerganov/whisper.cpp
 
 # clone HF fine-tuned model (this is just an example)
-git clone https://huggingface.co/openai/whisper-base.en
+git clone https://huggingface.co/openai/whisper-medium
 
 # convert the model to ggml
 python3 ./whisper.cpp/models/convert-h5-to-ggml.py ./whisper-medium/ ./whisper .
