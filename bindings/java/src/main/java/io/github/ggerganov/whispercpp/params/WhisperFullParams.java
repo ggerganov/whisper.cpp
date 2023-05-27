@@ -220,7 +220,7 @@ public class WhisperFullParams extends Structure {
         greedy.best_of = bestOf;
     }
 
-    public void setBeamSizeAndPatience(int beamSize) {
+    public void setBeamSize(int beamSize) {
         if (beam_search == null) {
             beam_search = new BeamSearchParams();
         }

@@ -402,11 +402,11 @@ jobs:
           name: whispercpp.jar
           path: bindings/java/build/libs/whispercpp-*.jar
 
-      - name: Publish package
-        if: ${{ github.ref == 'refs/heads/master' }}
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: publish
-        env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+#      - name: Publish package
+#        if: ${{ github.ref == 'refs/heads/master' }}
+#        uses: gradle/gradle-build-action@v2
+#        with:
+#          arguments: publish
+#        env:
+#          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+#          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
