@@ -1,7 +1,8 @@
 package io.github.ggerganov.whispercpp;
 
+import com.sun.jna.Native;
 import com.sun.jna.Pointer;
-import io.github.ggerganov.whispercpp.params.WhisperJavaParams;
+import io.github.ggerganov.whispercpp.params.WhisperFullParams;
 import io.github.ggerganov.whispercpp.params.WhisperSamplingStrategy;
 
 import java.io.File;
@@ -13,8 +14,9 @@ import java.io.IOException;
  */
 public class WhisperCpp implements AutoCloseable {
     private WhisperCppJnaLibrary lib = WhisperCppJnaLibrary.instance;
-    private WhisperJavaJnaLibrary javaLib = WhisperJavaJnaLibrary.instance;
     private Pointer ctx = null;
+    private Pointer greedyPointer = null;
+    private Pointer beamPointer = null;
 
     public File modelDir() {
         String modelDirPath = System.getenv("XDG_CACHE_HOME");
@@ -27,9 +29,8 @@ public class WhisperCpp implements AutoCloseable {
 
     /**
      * @param modelPath - absolute path, or just the name (eg: "base", "base-en" or "base.en")
-     * @return a Pointer to the WhisperContext
      */
-    void initContext(String modelPath) throws FileNotFoundException {
+    public void initContext(String modelPath) throws FileNotFoundException {
         if (ctx != null) {
             lib.whisper_free(ctx);
         }
@@ -42,7 +43,6 @@ public class WhisperCpp implements AutoCloseable {
             modelPath = new File(modelDir(), modelPath).getAbsolutePath();
         }
 
-        javaLib.whisper_java_init_from_file(modelPath);
         ctx = lib.whisper_init_from_file(modelPath);
 
         if (ctx == null) {
@@ -51,22 +51,38 @@ public class WhisperCpp implements AutoCloseable {
     }
 
     /**
-     * Initialises `whisper_full_params` internally in whisper_java.cpp so JNA doesn't have to map everything.
-     * `whisper_java_init_from_file()` calls `whisper_java_default_params(WHISPER_SAMPLING_GREEDY)` for convenience.
+     * Provides default params which can be used with `whisper_full()` etc.
+     * Because this function allocates memory for the params, the caller must call either:
+     * - call `whisper_free_params()`
+     * - `Native.free(Pointer.nativeValue(pointer));`
+     *
+     * @param strategy - GREEDY
      */
-    public void getDefaultJavaParams(WhisperSamplingStrategy strategy) {
-        javaLib.whisper_java_default_params(strategy.ordinal());
-//        return lib.whisper_full_default_params(strategy.value)
-    }
+    public WhisperFullParams getFullDefaultParams(WhisperSamplingStrategy strategy) {
+        Pointer pointer;
 
-// whisper_full_default_params was too hard to integrate with, so for now we use javaLib.whisper_java_default_params
-//    fun getDefaultParams(strategy: WhisperSamplingStrategy): WhisperFullParams {
-//        return lib.whisper_full_default_params(strategy.value)
-//    }
+        // whisper_full_default_params_by_ref allocates memory which we need to delete, so only create max 1 pointer for each strategy.
+        if (strategy == WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY) {
+            if (greedyPointer == null) {
+                greedyPointer = lib.whisper_full_default_params_by_ref(strategy.ordinal());
+            }
+            pointer = greedyPointer;
+        } else {
+            if (beamPointer == null) {
+                beamPointer = lib.whisper_full_default_params_by_ref(strategy.ordinal());
+            }
+            pointer = beamPointer;
+        }
+
+        WhisperFullParams params = new WhisperFullParams(pointer);
+        params.read();
+        return params;
+    }
 
     @Override
     public void close() {
         freeContext();
+        freeParams();
         System.out.println("Whisper closed");
     }
 
@@ -76,17 +92,28 @@ public class WhisperCpp implements AutoCloseable {
         }
     }
 
+    private void freeParams() {
+        if (greedyPointer != null) {
+            Native.free(Pointer.nativeValue(greedyPointer));
+            greedyPointer = null;
+        }
+        if (beamPointer != null) {
+            Native.free(Pointer.nativeValue(beamPointer));
+            beamPointer = null;
+        }
+    }
+
     /**
      * Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text.
      * Not thread safe for same context
      * Uses the specified decoding strategy to obtain the text.
      */
-    public String fullTranscribe(/*WhisperJavaParams whisperParams,*/ float[] audioData) throws IOException {
+    public String fullTranscribe(WhisperFullParams whisperParams, float[] audioData) throws IOException {
         if (ctx == null) {
             throw new IllegalStateException("Model not initialised");
         }
 
-        if (javaLib.whisper_java_full(ctx, /*whisperParams,*/ audioData, audioData.length) != 0) {
+        if (lib.whisper_full(ctx, whisperParams, audioData, audioData.length) != 0) {
             throw new IOException("Failed to process audio");
         }
 

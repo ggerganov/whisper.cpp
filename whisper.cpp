@@ -2852,6 +2852,12 @@ void whisper_free(struct whisper_context * ctx) {
     }
 }
 
+void whisper_free_params(struct whisper_full_params * params) {
+    if (params) {
+        delete params;
+    }
+}
+
 int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
     if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, WHISPER_N_FFT, WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, false, state->mel)) {
         fprintf(stderr, "%s: failed to compute mel spectrogram\n", __func__);
@@ -3284,6 +3290,14 @@ const char * whisper_print_system_info(void) {
 }
 
 ////////////////////////////////////////////////////////////////////////////
+
+struct whisper_full_params * whisper_full_default_params_by_ref(enum whisper_sampling_strategy strategy) {
+    struct whisper_full_params params = whisper_full_default_params(strategy);
+
+    struct whisper_full_params* result = new whisper_full_params();
+    *result = params;
+    return result;
+}
 
 struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy) {
     struct whisper_full_params result = {

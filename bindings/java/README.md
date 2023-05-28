@@ -6,11 +6,7 @@ This package provides Java JNI bindings for whisper.cpp. They have been tested o
   * Ubuntu on x86_64
   * Windows on x86_64
 
-The "low level" bindings are in `WhisperCppJnaLibrary` and `WhisperJavaJnaLibrary` which caches `whisper_full_params` and `whisper_context` in `whisper_java.cpp`. 
-
-There are a lot of classes in the `callbacks`, `ggml`, `model` and `params` directories but most of them have not been tested. 
-
-The most simple usage is as follows:
+The "low level" bindings are in `WhisperCppJnaLibrary`. The most simple usage is as follows:
 
 ```java
 import io.github.ggerganov.whispercpp.WhisperCpp;
@@ -47,12 +43,6 @@ In order to build, you need to have the JDK 8 or higher installed. Run the tests
 ```bash
 git clone https://github.com/ggerganov/whisper.cpp.git
 cd whisper.cpp/bindings/java
-
-mkdir build
-pushd build
-cmake ..
-cmake --build .
-popd
 
 ./gradlew build
 ```

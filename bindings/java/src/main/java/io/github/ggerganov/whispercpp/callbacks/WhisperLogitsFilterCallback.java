@@ -1,11 +1,8 @@
 package io.github.ggerganov.whispercpp.callbacks;
 
+import com.sun.jna.Callback;
 import com.sun.jna.Pointer;
-import io.github.ggerganov.whispercpp.WhisperContext;
-import io.github.ggerganov.whispercpp.model.WhisperState;
 import io.github.ggerganov.whispercpp.model.WhisperTokenData;
-
-import javax.security.auth.callback.Callback;
 
 /**
  * Callback to filter logits.
@@ -24,5 +21,5 @@ public interface WhisperLogitsFilterCallback extends Callback {
      * @param logits     The array of logits.
      * @param user_data  User data.
      */
-    void callback(WhisperContext ctx, WhisperState state, WhisperTokenData[] tokens, int n_tokens, float[] logits, Pointer user_data);
+    void callback(Pointer ctx, Pointer state, WhisperTokenData[] tokens, int n_tokens, float[] logits, Pointer user_data);
 }

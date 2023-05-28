@@ -125,8 +125,10 @@ jobs:
         include:
           - arch: Win32
             s2arc: x86
+            jnaPath: win32-x86
           - arch: x64
             s2arc: x64
+            jnaPath: win32-x86-64
           - sdl2: ON
             s2ver: 2.26.0
 
@@ -158,6 +160,12 @@ jobs:
       - name: Copy SDL2.dll
         if: matrix.sdl2 == 'ON'
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
+
+      - name: Upload dll
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.jnaPath }}_whisper.dll
+          path: build/bin/${{ matrix.build }}/whisper.dll
 
       - name: Upload binaries
         if: matrix.sdl2 == 'ON'
@@ -363,3 +371,42 @@ jobs:
         run: |
           cd examples/whisper.android
           ./gradlew assembleRelease --no-daemon
+
+  java:
+    needs: [ 'windows' ]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 17
+
+      - name: Download Windows lib
+        uses: actions/download-artifact@v3
+        with:
+          name: win32-x86-64_whisper.dll
+          path: bindings/java/build/generated/resources/main/win32-x86-64
+
+      - name: Build
+        run: |
+          models\download-ggml-model.cmd tiny.en
+          cd bindings/java
+          chmod +x ./gradlew
+          ./gradlew build
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v3
+        with:
+          name: whispercpp.jar
+          path: bindings/java/build/libs/whispercpp-*.jar
+
+#      - name: Publish package
+#        if: ${{ github.ref == 'refs/heads/master' }}
+#        uses: gradle/gradle-build-action@v2
+#        with:
+#          arguments: publish
+#        env:
+#          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+#          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}

@@ -2,7 +2,8 @@ package io.github.ggerganov.whispercpp;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import io.github.ggerganov.whispercpp.params.WhisperJavaParams;
+import io.github.ggerganov.whispercpp.params.CBool;
+import io.github.ggerganov.whispercpp.params.WhisperFullParams;
 import io.github.ggerganov.whispercpp.params.WhisperSamplingStrategy;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -19,11 +20,11 @@ class WhisperCppTest {
     static void init() throws FileNotFoundException {
         // By default, models are loaded from ~/.cache/whisper/ and are usually named "ggml-${name}.bin"
         // or you can provide the absolute path to the model file.
-        String modelName = "base.en";
+        String modelName = "../../models/ggml-tiny.en.bin";
         try {
             whisper.initContext(modelName);
-            whisper.getDefaultJavaParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
-//            whisper.getDefaultJavaParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
+//            whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
+//            whisper.getJavaDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
             modelInitialised = true;
         } catch (FileNotFoundException ex) {
             System.out.println("Model " + modelName + " not found");
@@ -31,11 +32,30 @@ class WhisperCppTest {
     }
 
     @Test
-    void testGetDefaultJavaParams() {
+    void testGetDefaultFullParams_BeamSearch() {
         // When
-        whisper.getDefaultJavaParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
+        WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
 
-        // Then if it doesn't throw we've connected to whisper.cpp
+        // Then
+        assertEquals(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH.ordinal(), params.strategy);
+        assertNotEquals(0, params.n_threads);
+        assertEquals(16384, params.n_max_text_ctx);
+        assertFalse(params.translate);
+        assertEquals(0.01f, params.thold_pt);
+        assertEquals(2, params.beam_search.beam_size);
+        assertEquals(-1.0f, params.beam_search.patience);
+    }
+
+    @Test
+    void testGetDefaultFullParams_Greedy() {
+        // When
+        WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
+
+        // Then
+        assertEquals(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY.ordinal(), params.strategy);
+        assertNotEquals(0, params.n_threads);
+        assertEquals(16384, params.n_max_text_ctx);
+        assertEquals(2, params.greedy.best_of);
     }
 
     @Test
@@ -52,6 +72,13 @@ class WhisperCppTest {
         byte[] b = new byte[audioInputStream.available()];
         float[] floats = new float[b.length / 2];
 
+//        WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
+        WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
+        params.setProgressCallback((ctx, state, progress, user_data) -> System.out.println("progress: " + progress));
+        params.print_progress = CBool.FALSE;
+//        params.initial_prompt = "and so my fellow Americans um, like";
+
+
         try {
             audioInputStream.read(b);
 
@@ -61,13 +88,13 @@ class WhisperCppTest {
             }
 
             // When
-            String result = whisper.fullTranscribe(/*params,*/ floats);
+            String result = whisper.fullTranscribe(params, floats);
 
             // Then
-            System.out.println(result);
-            assertEquals("And so my fellow Americans, ask not what your country can do for you, " +
+            System.err.println(result);
+            assertEquals("And so my fellow Americans ask not what your country can do for you " +
                     "ask what you can do for your country.",
-                    result);
+                    result.replace(",", ""));
         } finally {
             audioInputStream.close();
         }
