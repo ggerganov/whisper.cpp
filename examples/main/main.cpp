@@ -434,6 +434,7 @@ bool output_csv(struct whisper_context * ctx, const char * fname, const bool out
 
         //need to multiply times returned from whisper_full_get_segment_t{0,1}() by 10 to get milliseconds.
         fout << 10 * t0 << "," << 10 * t1 << ",\"" << text_escaped << "\"\n";
+        free(text_escaped);
         continue;
       }
       for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
@@ -448,6 +449,7 @@ bool output_csv(struct whisper_context * ctx, const char * fname, const bool out
         const float conf   = std::pow(p, 3) * 100;
         char * ttext_escaped = escape_double_quotes_and_backslashes(ttext);
         fout << 10 * t0 << "," << 10 * t1 << ",\"" << ttext_escaped << "\"," << conf << "\n";
+        free(ttext_escaped);
       }
       fout << "\n";
     }
