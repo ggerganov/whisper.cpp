@@ -9,6 +9,7 @@
 #include <thread>
 #include <vector>
 #include <cstring>
+#include <iomanip>
 
 // Terminal color map. 10 colors grouped in ranges [0.0, 0.1, ..., 0.9]
 // Lowest is red, middle is yellow, highest is green.
@@ -77,6 +78,7 @@ struct whisper_params {
     bool output_csv     = false;
     bool output_jsn     = false;
     bool output_lrc     = false;
+    bool output_confidence = false;
     bool print_special  = false;
     bool print_colors   = false;
     bool print_progress = false;
@@ -137,6 +139,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-ocsv" || arg == "--output-csv")     { params.output_csv     = true; }
         else if (arg == "-oj"   || arg == "--output-json")    { params.output_jsn     = true; }
         else if (arg == "-of"   || arg == "--output-file")    { params.fname_out.emplace_back(argv[++i]); }
+        else if (arg == "-oc"   || arg == "--output-confidence") { params.output_confidence = true; }
         else if (arg == "-ps"   || arg == "--print-special")  { params.print_special  = true; }
         else if (arg == "-pc"   || arg == "--print-colors")   { params.print_colors   = true; }
         else if (arg == "-pp"   || arg == "--print-progress") { params.print_progress = true; }
@@ -188,6 +191,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -ocsv,     --output-csv        [%-7s] output result in a CSV file\n",                    params.output_csv ? "true" : "false");
     fprintf(stderr, "  -oj,       --output-json       [%-7s] output result in a JSON file\n",                   params.output_jsn ? "true" : "false");
     fprintf(stderr, "  -of FNAME, --output-file FNAME [%-7s] output file path (without file extension)\n",      "");
+    fprintf(stderr, "  -oc,       --ouput-confidence  [%-7s] output confidence in txt/csv/json file\n",         params.output_confidence ? "true" : "false");
     fprintf(stderr, "  -ps,       --print-special     [%-7s] print special tokens\n",                           params.print_special ? "true" : "false");
     fprintf(stderr, "  -pc,       --print-colors      [%-7s] print colors\n",                                   params.print_colors ? "true" : "false");
     fprintf(stderr, "  -pp,       --print-progress    [%-7s] print progress\n",                                 params.print_progress ? "true" : "false");
@@ -290,8 +294,10 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
     }
 }
 
-bool output_txt(struct whisper_context * ctx, const char * fname) {
+bool output_txt(struct whisper_context * ctx, const char * fname, const bool output_confidence) {
     std::ofstream fout(fname);
+    fout << std::fixed;
+    fout << std::setprecision(1);
     if (!fout.is_open()) {
         fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
         return false;
@@ -301,10 +307,25 @@ bool output_txt(struct whisper_context * ctx, const char * fname) {
 
     const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
-        const char * text = whisper_full_get_segment_text(ctx, i);
-        fout << text << "\n";
-    }
+      if (!output_confidence) {
+        const char * stext = whisper_full_get_segment_text(ctx, i);
+        fout << stext << "\n";
+        continue;
+      }
+      for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
+        const whisper_token id = whisper_full_get_token_id(ctx, i, j);
+        if (id >= whisper_token_eot(ctx)) {
+          continue;
+        }
+        const char * ttext = whisper_full_get_token_text(ctx, i, j);
 
+        // Get the probability of the specified token in the specified segment
+        const float  p     = whisper_full_get_token_p   (ctx, i, j);
+        const float conf = std::pow(p, 3) * 100;
+        fout << ttext << " (" << conf << "%) ";
+      }
+      fout << "\n";
+    }
     return true;
 }
 
@@ -386,8 +407,11 @@ char *escape_double_quotes_and_backslashes(const char *str) {
     return escaped;
 }
 
-bool output_csv(struct whisper_context * ctx, const char * fname) {
+bool output_csv(struct whisper_context * ctx, const char * fname, const bool output_confidence) {
     std::ofstream fout(fname);
+    fout << std::fixed;
+    fout << std::setprecision(1);
+
     if (!fout.is_open()) {
         fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
         return false;
@@ -396,15 +420,36 @@ bool output_csv(struct whisper_context * ctx, const char * fname) {
     fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
 
     const int n_segments = whisper_full_n_segments(ctx);
-    fout << "start,end,text\n";
+    if (output_confidence)
+      fout << "start,end,text,confidence\n";
+    else
+      fout << "start,end,text\n";
+
     for (int i = 0; i < n_segments; ++i) {
+      if (!output_confidence) {
         const char * text = whisper_full_get_segment_text(ctx, i);
         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
         char * text_escaped = escape_double_quotes_and_backslashes(text);
 
         //need to multiply times returned from whisper_full_get_segment_t{0,1}() by 10 to get milliseconds.
-        fout << 10 * t0 << "," << 10 * t1 << ",\"" << text_escaped    << "\"\n";
+        fout << 10 * t0 << "," << 10 * t1 << ",\"" << text_escaped << "\"\n";
+        continue;
+      }
+      for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
+        const whisper_token id = whisper_full_get_token_id(ctx, i, j);
+        if (id >= whisper_token_eot(ctx)) {
+          continue;
+        }
+        const char * ttext = whisper_full_get_token_text(ctx, i, j);
+        const int64_t t0   = whisper_full_get_segment_t0(ctx, i);  // TODO does there exist
+        const int64_t t1   = whisper_full_get_segment_t1(ctx, i);  // TODO a (ctx, i, j) version?
+        const float  p     = whisper_full_get_token_p   (ctx, i, j); // probability of the specified token
+        const float conf   = std::pow(p, 3) * 100;
+        char * ttext_escaped = escape_double_quotes_and_backslashes(ttext);
+        fout << 10 * t0 << "," << 10 * t1 << ",\"" << ttext_escaped << "\"," << conf << "\n";
+      }
+      fout << "\n";
     }
 
     return true;
@@ -823,7 +868,7 @@ int main(int argc, char ** argv) {
             // output to text file
             if (params.output_txt) {
                 const auto fname_txt = fname_out + ".txt";
-                output_txt(ctx, fname_txt.c_str());
+                output_txt(ctx, fname_txt.c_str(), params.output_confidence);
             }
 
             // output to VTT file
@@ -847,7 +892,7 @@ int main(int argc, char ** argv) {
             // output to CSV file
             if (params.output_csv) {
                 const auto fname_csv = fname_out + ".csv";
-                output_csv(ctx, fname_csv.c_str());
+                output_csv(ctx, fname_csv.c_str(), params.output_confidence);
             }
 
             // output to JSON file
