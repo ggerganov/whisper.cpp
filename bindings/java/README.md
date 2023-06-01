@@ -14,13 +14,10 @@ import io.github.ggerganov.whispercpp.WhisperCpp;
 public class Example {
 
     public static void main(String[] args) {
-        String modelpath;
         WhisperCpp whisper = new WhisperCpp();
         // By default, models are loaded from ~/.cache/whisper/ and are usually named "ggml-${name}.bin"
         // or you can provide the absolute path to the model file.
-        whisper.initContext("base.en"); 
-        
-        long context = whisper.initContext(modelpath);
+        long context = whisper.initContext("base.en");
         try {
             whisper.fullTranscribe(context, samples);
             
@@ -46,6 +43,13 @@ cd whisper.cpp/bindings/java
 
 ./gradlew build
 ```
+
+You need to have the `whisper` library in your [JNA library path](https://java-native-access.github.io/jna/4.2.1/com/sun/jna/NativeLibrary.html). On Windows the dll is included in the jar and you can update it:
+
+```bash
+copy /y ..\..\build\bin\Release\whisper.dll build\generated\resources\main\win32-x86-64\whisper.dll
+```
+
 
 ## License
 
