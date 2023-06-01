@@ -47,7 +47,7 @@ struct whisper_params {
     std::string language    = "en";
     std::string model_wsp   = "models/ggml-base.en.bin";
     std::string model_llama = "models/ggml-llama-7B.bin";
-    std::string speak       = "./examples/talk-llama/speak.sh";
+    std::string speak       = "./examples/talk-llama/speak";
     std::string prompt      = "";
     std::string fname_out;
     std::string path_session = "";       // path to file for saving/loading model eval state
