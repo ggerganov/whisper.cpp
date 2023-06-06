@@ -8,6 +8,15 @@ This package provides Java JNI bindings for whisper.cpp. They have been tested o
 
 The "low level" bindings are in `WhisperCppJnaLibrary`. The most simple usage is as follows:
 
+JNA will attempt to load the `whispercpp` shared library from:
+
+- jna.library.path
+- jna.platform.library
+- ~/Library/Frameworks
+- /Library/Frameworks
+- /System/Library/Frameworks
+- classpath
+
 ```java
 import io.github.ggerganov.whispercpp.WhisperCpp;
 
@@ -19,7 +28,12 @@ public class Example {
         // or you can provide the absolute path to the model file.
         long context = whisper.initContext("base.en");
         try {
-            whisper.fullTranscribe(context, samples);
+            var whisperParams = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
+            // custom configuration if required
+            whisperParams.temperature_inc = 0f;
+            
+            var samples = readAudio(); // divide each value by 32767.0f
+            whisper.fullTranscribe(whisperParams, samples);
             
             int segmentCount = whisper.getTextSegmentCount(context);
             for (int i = 0; i < segmentCount; i++) {
