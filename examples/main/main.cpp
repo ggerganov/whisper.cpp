@@ -108,8 +108,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         }
 
         if (arg == "-h" || arg == "--help") {
-            whisper_print_usage(argc, argv, params);
-            exit(0);
+            return false;
         }
         else if (arg == "-t"    || arg == "--threads")        { params.n_threads      = std::stoi(argv[++i]); }
         else if (arg == "-p"    || arg == "--processors")     { params.n_processors   = std::stoi(argv[++i]); }
@@ -148,8 +147,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-f"    || arg == "--file")           { params.fname_inp.emplace_back(argv[++i]); }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
-            whisper_print_usage(argc, argv, params);
-            exit(0);
+            return false;
         }
     }
 
@@ -689,6 +687,7 @@ int main(int argc, char ** argv) {
     whisper_params params;
 
     if (whisper_params_parse(argc, argv, params) == false) {
+        whisper_print_usage(argc, argv, params);
         return 1;
     }
 
