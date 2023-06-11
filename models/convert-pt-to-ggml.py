@@ -235,7 +235,7 @@ if not tokenizer.is_file():
     tokenizer = dir_whisper / "whisper" / "assets" / (multilingual and "multilingual" or "gpt2") / "vocab.json"
     tokenizer_type = "hf_transformers"
     if not tokenizer.is_file():
-        print("Error: failed to find either tiktoken of hf_transformers tokenizer file:", tokenizer)
+        print("Error: failed to find either tiktoken or hf_transformers tokenizer file:", tokenizer)
         sys.exit(1)
 
 byte_encoder = bytes_to_unicode()
