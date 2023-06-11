@@ -108,7 +108,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         }
 
         if (arg == "-h" || arg == "--help") {
-            return false;
+            whisper_print_usage(argc, argv, params);
+            exit(0);
         }
         else if (arg == "-t"    || arg == "--threads")        { params.n_threads      = std::stoi(argv[++i]); }
         else if (arg == "-p"    || arg == "--processors")     { params.n_processors   = std::stoi(argv[++i]); }
