@@ -33,8 +33,6 @@ struct whisper_params {
     int32_t max_tokens = 32;
     int32_t audio_ctx  = 0;
 
-    int32_t n_parts_llama = -1;
-
     float vad_thold    = 0.6f;
     float freq_thold   = 100.0f;
 
@@ -49,7 +47,7 @@ struct whisper_params {
     std::string language    = "en";
     std::string model_wsp   = "models/ggml-base.en.bin";
     std::string model_llama = "models/ggml-llama-7B.bin";
-    std::string speak       = "./examples/talk-llama/speak.sh";
+    std::string speak       = "./examples/talk-llama/speak";
     std::string prompt      = "";
     std::string fname_out;
     std::string path_session = "";       // path to file for saving/loading model eval state
@@ -72,7 +70,6 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-ac"  || arg == "--audio-ctx")     { params.audio_ctx     = std::stoi(argv[++i]); }
         else if (arg == "-vth" || arg == "--vad-thold")     { params.vad_thold     = std::stof(argv[++i]); }
         else if (arg == "-fth" || arg == "--freq-thold")    { params.freq_thold    = std::stof(argv[++i]); }
-        else if (arg == "--n-parts-llama")                  { params.n_parts_llama = std::stoi(argv[++i]); }
         else if (arg == "-su"  || arg == "--speed-up")      { params.speed_up      = true; }
         else if (arg == "-tr"  || arg == "--translate")     { params.translate     = true; }
         else if (arg == "-ps"  || arg == "--print-special") { params.print_special = true; }
@@ -123,7 +120,6 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -l LANG,  --language LANG [%-7s] spoken language\n",                             params.language.c_str());
     fprintf(stderr, "  -mw FILE, --model-whisper [%-7s] whisper model file\n",                          params.model_wsp.c_str());
     fprintf(stderr, "  -ml FILE, --model-llama   [%-7s] llama model file\n",                            params.model_llama.c_str());
-    fprintf(stderr, "  --n-parts-llama N         [%-7d] num parts in llama model file\n",               params.n_parts_llama);
     fprintf(stderr, "  -s FILE,  --speak TEXT    [%-7s] command for TTS\n",                             params.speak.c_str());
     fprintf(stderr, "  --prompt-file FNAME       [%-7s] file with custom prompt to start dialog\n",     "");
     fprintf(stderr, "  --session FNAME       file to cache model state in (may be large!) (default: none)\n");
@@ -239,13 +235,14 @@ int main(int argc, char ** argv) {
 
     // llama init
 
+    llama_init_backend();
+
     auto lparams = llama_context_default_params();
 
     // tune these to your liking
     lparams.n_ctx      = 2048;
     lparams.seed       = 1;
     lparams.f16_kv     = true;
-    lparams.n_parts    = params.n_parts_llama;
 
     struct llama_context * ctx_llama = llama_init_from_file(params.model_llama.c_str(), lparams);
 
@@ -560,7 +557,7 @@ int main(int argc, char ** argv) {
 
                     embd_inp.insert(embd_inp.end(), embd.begin(), embd.end());
                     n_past += embd.size();
-                    
+
                     embd.clear();
 
                     if (done) break;
@@ -577,7 +574,7 @@ int main(int argc, char ** argv) {
                         if (!path_session.empty() && need_to_save_session) {
                             need_to_save_session = false;
                             llama_save_session_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.size());
-                        } 
+                        }
 
                         llama_token id = 0;
 
@@ -609,8 +606,8 @@ int main(int argc, char ** argv) {
                                 id = llama_sample_token_greedy(ctx_llama, &candidates_p);
                             } else {
                                 // Temperature sampling
-                                llama_sample_top_k(ctx_llama, &candidates_p, top_k);
-                                llama_sample_top_p(ctx_llama, &candidates_p, top_p);
+                                llama_sample_top_k(ctx_llama, &candidates_p, top_k, 1);
+                                llama_sample_top_p(ctx_llama, &candidates_p, top_p, 1);
                                 llama_sample_temperature(ctx_llama, &candidates_p, temp);
                                 id = llama_sample_token(ctx_llama, &candidates_p);
                             }

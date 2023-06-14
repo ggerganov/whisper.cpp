@@ -42,8 +42,8 @@ Example usage:
 ## TTS
 
 For best experience, this example needs a TTS tool to convert the generated text responses to voice.
-You can use any TTS engine that you would like - simply edit the [speak.sh](speak.sh) script to your needs.
-By default, it is configured to use MacOS's `say`, but you can use whatever you wish.
+You can use any TTS engine that you would like - simply edit the [speak](speak) script to your needs.
+By default, it is configured to use MacOS's `say` or Windows SpeechSynthesizer, but you can use whatever you wish.
 
 ## Discussion
 
