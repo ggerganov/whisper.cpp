@@ -154,6 +154,11 @@ ifdef WHISPER_COREML_ALLOW_FALLBACK
 endif
 endif
 
+ifdef WHISPER_ASAHI
+	CXXFLAGS += -DWHISPER_USE_ASAHI -I/usr/include/libane
+	LDFLAGS  += /usr/lib/libane.a
+endif
+
 ifdef WHISPER_OPENBLAS
 	CFLAGS  += -DGGML_USE_OPENBLAS -I/usr/local/include/openblas
 	LDFLAGS += -lopenblas
@@ -236,6 +241,8 @@ ggml.o: ggml.c ggml.h ggml-cuda.h
 whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+
+ifndef WHISPER_ASAHI
 ifndef WHISPER_COREML
 WHISPER_OBJ += whisper.o
 else
@@ -247,6 +254,15 @@ whisper-encoder-impl.o: coreml/whisper-encoder-impl.m coreml/whisper-encoder-imp
 
 WHISPER_OBJ += whisper.o whisper-encoder.o whisper-encoder-impl.o
 endif
+endif
+
+ifdef WHISPER_ASAHI
+whisper-encoder.o: asahi/whisper-encoder.c asahi/whisper-encoder.h
+	$(CC) -I/usr/include/libane -O3 -I . -c asahi/whisper-encoder.c -o whisper-encoder.o -lane
+
+WHISPER_OBJ += whisper.o whisper-encoder.o /home/eileen/whisper.cpp/asahi/data/coreml_encoder_tiny.anec.o
+endif
+
 
 libwhisper.a: ggml.o $(WHISPER_OBJ)
 	$(AR) rcs libwhisper.a ggml.o $(WHISPER_OBJ)
