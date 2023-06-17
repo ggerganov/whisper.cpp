@@ -152,7 +152,11 @@ func (context *context) WhisperLangAutoDetect(offset_ms int, n_threads int) ([]f
 }
 
 // Process new sample data and return any errors
-func (context *context) Process(data []float32, cb SegmentCallback) error {
+func (context *context) Process(
+	data []float32,
+	callNewSegment SegmentCallback,
+	callProgress ProgressCallback,
+) error {
 	if context.model.ctx == nil {
 		return ErrInternalAppError
 	}
@@ -165,23 +169,27 @@ func (context *context) Process(data []float32, cb SegmentCallback) error {
 	processors := 0
 	if processors > 1 {
 		if err := context.model.ctx.Whisper_full_parallel(context.params, data, processors, nil, func(new int) {
-			if cb != nil {
+			if callNewSegment != nil {
 				num_segments := context.model.ctx.Whisper_full_n_segments()
 				s0 := num_segments - new
 				for i := s0; i < num_segments; i++ {
-					cb(toSegment(context.model.ctx, i))
+					callNewSegment(toSegment(context.model.ctx, i))
 				}
 			}
 		}); err != nil {
 			return err
 		}
 	} else if err := context.model.ctx.Whisper_full(context.params, data, nil, func(new int) {
-		if cb != nil {
+		if callNewSegment != nil {
 			num_segments := context.model.ctx.Whisper_full_n_segments()
 			s0 := num_segments - new
 			for i := s0; i < num_segments; i++ {
-				cb(toSegment(context.model.ctx, i))
+				callNewSegment(toSegment(context.model.ctx, i))
 			}
+		}
+	}, func(progress int) {
+		if callProgress != nil {
+			callProgress(progress)
 		}
 	}); err != nil {
 		return err
