@@ -427,3 +427,7 @@ func (t TokenData) T0() int64 {
 func (t TokenData) T1() int64 {
 	return int64(t.t1)
 }
+
+func (t TokenData) Id() Token {
+	return Token(t.id)
+}
