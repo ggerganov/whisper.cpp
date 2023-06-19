@@ -224,8 +224,8 @@ public interface WhisperCppJnaLibrary extends Library {
     int whisper_token_lang(Pointer ctx, int lang_id);
 
     // Task tokens
-    int whisper_token_translate();
-    int whisper_token_transcribe();
+    int whisper_token_translate (Pointer ctx);
+    int whisper_token_transcribe(Pointer ctx);
 
     // Performance information from the default state.
     void whisper_print_timings(Pointer ctx);
