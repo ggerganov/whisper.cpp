@@ -382,14 +382,14 @@ struct whisper_vocab {
 
     id token_eot  = 50256;
     id token_sot  = 50257;
+    id token_solm = 50359; // ??  TODO@Akash - rename appropriately
     id token_prev = 50360;
-    id token_solm = 50361; // ??
     id token_not  = 50362; // no timestamps
-    id token_beg  = 50363;
+    id token_beg  = 50363; // begin timestamps
 
     // available tasks
-    static const id token_translate  = 50358;
-    static const id token_transcribe = 50359;
+    static const id token_translate  = 50358;  // TODO@Akash - technically it's 50357 for .en models
+    static const id token_transcribe = 50359;  // TODO@Akash - technically it's 50358 for .en models
 
     bool is_multilingual() const {
         return n_vocab == 51865;
@@ -3521,7 +3521,7 @@ static void whisper_process_logits(
 
         // suppress sot and solm tokens
         logits[vocab.token_sot]  = -INFINITY;
-        logits[vocab.token_solm] = -INFINITY;
+        // logits[vocab.token_solm] = -INFINITY;
 
         // suppress task tokens
         logits[vocab.token_translate]  = -INFINITY;
@@ -4500,7 +4500,6 @@ int whisper_full_with_state(
                 prompt_past.push_back(tokens_cur[i].id);
             }
 
-            // store the text from this iteration
             if (!tokens_cur.empty() && ctx->model.n_loaded > 0) {
                 int  i0 = 0;
                 auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
@@ -4516,6 +4515,10 @@ int whisper_full_with_state(
                     } else {
                         text += whisper_token_to_str(ctx, tokens_cur[i].id);
                     }
+
+                    if (tokens_cur[i].id == whisper_token_solm(ctx)){
+                        text += " [SPEAKER TURN]";
+                    };
 
                     if (tokens_cur[i].id > whisper_token_beg(ctx) && !params.single_segment) {
                         const auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
