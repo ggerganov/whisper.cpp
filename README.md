@@ -21,7 +21,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Runs on the CPU
 - [Partial GPU support for NVIDIA via cuBLAS](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
 - [Partial OpenCL GPU support via CLBlast](https://github.com/ggerganov/whisper.cpp#opencl-gpu-support-via-clblast)
-- [BLAS CPU support via OpenBLAS]((https://github.com/ggerganov/whisper.cpp#blas-cpu-support-via-openblas)
+- [BLAS CPU support via OpenBLAS](https://github.com/ggerganov/whisper.cpp#blas-cpu-support-via-openblas)
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 
 Supported platforms:
