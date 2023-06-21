@@ -447,7 +447,7 @@ whisper_print_timings:    total time = 32733.52 ms
 
 ## Real-time audio input example
 
-This is a naive example of performing real-time inference on audio from your microphone.
+This is a native example of performing real-time inference on audio from your microphone.
 The [stream](examples/stream) tool samples the audio every half a second and runs the transcription continuously.
 More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
