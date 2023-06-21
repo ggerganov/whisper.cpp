@@ -54,6 +54,8 @@ option(WHISPER_NO_AVX2                "whisper: disable AVX2" OFF)
 option(WHISPER_NO_FMA                 "whisper: disable FMA"  OFF)
 option(WHISPER_NO_F16C                "whisper: disable F16c" OFF)
 
+option(WHISPER_OPENVINO               "whisper: support for OpenVINO" OFF)
+
 if (APPLE)
     option(WHISPER_NO_ACCELERATE         "whisper: disable Accelerate framework" OFF)
     option(WHISPER_COREML                "whisper: enable Core ML framework"     OFF)
@@ -192,6 +194,10 @@ if (WHISPER_CLBLAST)
     endif()
 endif()
 
+if( WHISPER_OPENVINO )
+    find_package(OpenVINO REQUIRED COMPONENTS Runtime)
+endif()
+
 # compiler flags
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -297,6 +303,11 @@ if (WHISPER_COREML)
         )
 endif()
 
+if (WHISPER_OPENVINO)
+    set( OpenVINO_SOURCES openvino/whisper-openvino-encoder.h openvino/whisper-openvino-encoder.cpp )
+    set( WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_USE_OPENVINO)
+endif()
+
 #
 # whisper - this is the main library of the project
 #
@@ -310,6 +321,7 @@ add_library(${TARGET}
     ${GGML_OPENCL_SOURCES}
     whisper.h
     whisper.cpp
+    ${OpenVINO_SOURCES}
     )
 
 include(DefaultTargetOptions)
@@ -320,6 +332,10 @@ target_include_directories(${TARGET} PUBLIC
 
 if (WHISPER_COREML)
     target_link_libraries(${TARGET} PRIVATE whisper.coreml)
+endif()
+
+if (WHISPER_OPENVINO)
+    target_link_libraries(${TARGET} PRIVATE openvino::runtime)
 endif()
 
 if (MSVC)
