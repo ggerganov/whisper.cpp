@@ -2733,6 +2733,10 @@ int whisper_ctx_init_openvino_encoder(struct whisper_context* ctx,
     const char* openvino_cache_dir)
 {
 #ifndef WHISPER_USE_OPENVINO
+    (void)(ctx);
+    (void)(openvino_model_path);
+    (void)(openvino_device);
+    (void)(openvino_cache_dir);
     return 0;
 #else
     if (!openvino_model_path && ctx->path_model.empty())
