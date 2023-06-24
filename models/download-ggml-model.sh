@@ -54,7 +54,7 @@ fi
 
 printf "Downloading ggml model $model from '$src' ...\n"
 
-cd $models_path
+cd "$models_path"
 
 if [ -f "ggml-$model.bin" ]; then
     printf "Model $model already exists. Skipping download.\n"
