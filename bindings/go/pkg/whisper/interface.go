@@ -12,6 +12,10 @@ import (
 // time. It is called during the Process function
 type SegmentCallback func(Segment)
 
+// ProgressCallback is the callback function for reporting progress during
+// processing. It is called during the Process function
+type ProgressCallback func(int)
+
 // Model is the interface to a whisper model. Create a new model with the
 // function whisper.New(string)
 type Model interface {
@@ -47,7 +51,7 @@ type Context interface {
 	// Process mono audio data and return any errors.
 	// If defined, newly generated segments are passed to the
 	// callback function during processing.
-	Process([]float32, SegmentCallback) error
+	Process([]float32, SegmentCallback, ProgressCallback) error
 
 	// After process is called, return segments until the end of the stream
 	// is reached, when io.EOF is returned.

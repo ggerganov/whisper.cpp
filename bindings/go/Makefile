@@ -32,7 +32,7 @@ mkdir:
 modtidy:
 	@go mod tidy
 
-clean: 
+clean:
 	@echo Clean
 	@rm -fr $(BUILD_DIR)
 	@go clean
