@@ -148,8 +148,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-f"    || arg == "--file")           { params.fname_inp.emplace_back(argv[++i]); }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
-            whisper_print_usage(argc, argv, params);
-            exit(0);
+            return false;
         }
     }
 
@@ -689,6 +688,7 @@ int main(int argc, char ** argv) {
     whisper_params params;
 
     if (whisper_params_parse(argc, argv, params) == false) {
+        whisper_print_usage(argc, argv, params);
         return 1;
     }
 
