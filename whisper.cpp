@@ -19,6 +19,10 @@
 #include <regex>
 #include <random>
 
+#if defined(_MSC_VER)
+#pragma warning(disable: 4244 4267) // possible loss of data
+#endif
+
 #if defined(GGML_BIG_ENDIAN)
 #include <bit>
 
@@ -1468,7 +1472,7 @@ static bool whisper_encode_internal(
         {
             wstate.use_buf(ctx0, 1);
 
-            cur = ggml_conv_1d_1s(ctx0, model.e_conv_1_w, mel);
+            cur = ggml_conv_1d_s1_ph(ctx0, model.e_conv_1_w, mel);
             cur = ggml_add(ctx0,
                     ggml_repeat(ctx0,
                         model.e_conv_1_b,
@@ -1479,7 +1483,7 @@ static bool whisper_encode_internal(
 
             wstate.use_buf(ctx0, 0);
 
-            cur = ggml_conv_1d_2s(ctx0, model.e_conv_2_w, cur);
+            cur = ggml_conv_1d_s2_ph(ctx0, model.e_conv_2_w, cur);
             cur = ggml_add(ctx0,
                     ggml_repeat(ctx0,
                         model.e_conv_2_b,

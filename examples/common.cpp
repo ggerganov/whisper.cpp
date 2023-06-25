@@ -6,11 +6,19 @@
 #include "dr_wav.h"
 
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <regex>
+#include <locale>
+#include <codecvt>
+#include <sstream>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
+#endif
+
+#if defined(_MSC_VER)
+#pragma warning(disable: 4244 4267) // possible loss of data
 #endif
 
 bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
@@ -52,7 +60,10 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
             if (params.prompt.back() == '\n') {
                 params.prompt.pop_back();
             }
-        } else {
+        } else if (arg == "-tt" || arg == "--token_test") {
+            params.token_test = argv[++i];
+        }
+        else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             gpt_print_usage(argc, argv, params);
             exit(0);
@@ -73,6 +84,8 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     fprintf(stderr, "                        prompt to start generation with (default: random)\n");
     fprintf(stderr, "  -f FNAME, --file FNAME\n");
     fprintf(stderr, "                        load prompt from a file\n");
+    fprintf(stderr, "  -tt TOKEN_TEST, --token_test TOKEN_TEST\n");
+    fprintf(stderr, "                        test tokenization\n");
     fprintf(stderr, "  -n N, --n_predict N   number of tokens to predict (default: %d)\n", params.n_predict);
     fprintf(stderr, "  --top_k N             top-k sampling (default: %d)\n", params.top_k);
     fprintf(stderr, "  --top_p N             top-p sampling (default: %.1f)\n", params.top_p);
@@ -115,6 +128,10 @@ std::string replace(const std::string & s, const std::string & from, const std::
         pos += to.length();
     }
     return result;
+}
+
+void gpt_vocab::add_special_token(const std::string & token) {
+    special_tokens.push_back(token);
 }
 
 std::map<std::string, int32_t> json_parse(const std::string & fname) {
@@ -208,8 +225,28 @@ std::map<std::string, int32_t> json_parse(const std::string & fname) {
     return result;
 }
 
-void gpt_vocab::add_special_token(const std::string & token) {
-    special_tokens.push_back(token);
+std::string convert_to_utf8(const std::wstring & input) {
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    return converter.to_bytes(input);
+}
+
+
+std::wstring convert_to_wstring(const std::string & input) {
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    return converter.from_bytes(input);
+}
+
+void gpt_split_words(std::string str, std::vector<std::string>& words) {
+    const std::string pattern = R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[:alpha:][:digit:]]+|\s+(?!\S)|\s+)";
+    const std::regex re(pattern);
+    std::smatch m;
+
+    while (std::regex_search(str, m, re)) {
+        for (auto x : m) {
+            words.push_back(x);
+        }
+        str = m.suffix();
+    }
 }
 
 std::vector<gpt_vocab::id> gpt_tokenize(const gpt_vocab & vocab, const std::string & text) {
@@ -218,68 +255,121 @@ std::vector<gpt_vocab::id> gpt_tokenize(const gpt_vocab & vocab, const std::stri
     // first split the text into words
     {
         std::string str = text;
-        std::string pat = R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[:alpha:][:digit:]]+|\s+(?!\S)|\s+)";
 
         // Generate the subpattern from the special_tokens vector if it's not empty
         if (!vocab.special_tokens.empty()) {
+            const std::regex escape(R"([\[\\\^\$\.\|\?\*\+\(\)\{\}])");
             std::string special_tokens_subpattern;
             for (const auto & token : vocab.special_tokens) {
                 if (!special_tokens_subpattern.empty()) {
                     special_tokens_subpattern += "|";
                 }
-                special_tokens_subpattern += token;
+                special_tokens_subpattern += std::regex_replace(token, escape, R"(\$&)");
             }
 
-            // Modify the regex pattern with the generated special tokens subpattern
-            pat = special_tokens_subpattern + "|" + pat;
-        }
-
-        std::regex re(pat);
-        std::smatch m;
-
-        while (std::regex_search(str, m, re)) {
-            for (auto x : m) {
-                words.push_back(x);
+            std::regex re(special_tokens_subpattern);
+            std::smatch m;
+            // Split the text by special tokens.
+            while (std::regex_search(str, m, re)) {
+                // Split the substrings in-between special tokens into words.
+                gpt_split_words(m.prefix(), words);
+                // Add matched special tokens as words.
+                for (auto x : m) {
+                    words.push_back(x);
+                }
+                str = m.suffix();
             }
-            str = m.suffix();
+            // Remaining text without special tokens will be handled below.
         }
+
+        gpt_split_words(str, words);
     }
 
-    // find the longest tokens that form the words:
+    // find the longest token that forms each word in words:
     std::vector<gpt_vocab::id> tokens;
     for (const auto & word : words) {
-        if (word.size() == 0) continue;
-
-        int i = 0;
-        int n = word.size();
-        while (i < n) {
-            int j = n;
-            while (j > i) {
-                auto it = vocab.token_to_id.find(word.substr(i, j-i));
-                if (it != vocab.token_to_id.end()) {
+        for (int i = 0; i < (int) word.size(); ){
+            for (int j = word.size() - 1; j >= i; j--){
+                auto cand = word.substr(i, j-i+1);
+                auto it = vocab.token_to_id.find(cand);
+                if (it != vocab.token_to_id.end()){ // word.substr(i, j-i+1) in vocab
                     tokens.push_back(it->second);
-                    i = j;
-                    j = n;
+                    i = j + 1;
                     break;
                 }
-                --j;
-            }
-            if (i == n) {
-                break;
-            }
-            if (j == i) {
-                auto sub = word.substr(i, 1);
-                if (vocab.token_to_id.find(sub) != vocab.token_to_id.end()) {
-                    tokens.push_back(vocab.token_to_id.at(sub));
-                } else {
-                    fprintf(stderr, "%s: unknown token '%s'\n", __func__, sub.data());
+                else if (j == i){ // word.substr(i, 1) has no matching
+                    fprintf(stderr, "%s: unknown token '%s'\n", __func__, word.substr(i, 1).data());
+                    i++;
                 }
-                ++i;
             }
         }
     }
 
     return tokens;
+}
+
+std::vector<gpt_vocab::id> parse_tokens_from_string(const std::string& input, char delimiter) {
+    std::vector<gpt_vocab::id> output;
+    std::stringstream ss(input);
+    std::string token;
+
+    while (std::getline(ss, token, delimiter)) {
+        output.push_back(std::stoi(token));
+    }
+
+    return output;
+}
+
+std::map<std::string, std::vector<gpt_vocab::id>> extract_tests_from_file(const std::string & fpath_test){
+    if (fpath_test.empty()){
+        fprintf(stderr, "%s : No test file found.\n", __func__);
+        return std::map<std::string, std::vector<gpt_vocab::id>>();
+    }
+
+    std::map<std::string, std::vector<gpt_vocab::id>> tests;
+
+    auto fin = std::ifstream(fpath_test, std::ios_base::in);
+    const char * delimeter = " => ";
+    const char del_tok = ',';
+    std::string line;
+    while (std::getline(fin, line)) {
+        size_t delimiterPos = line.find(delimeter);
+        if (delimiterPos != std::string::npos) {
+            std::string text = line.substr(0, delimiterPos);
+            std::string s_tokens = line.substr(delimiterPos + std::strlen(delimeter));
+            tests[text] = parse_tokens_from_string(s_tokens, del_tok);
+        }
+    }
+    return tests;
+}
+
+void test_gpt_tokenizer(gpt_vocab & vocab, const std::string & fpath_test){
+    std::map<std::string, std::vector<gpt_vocab::id>> tests = extract_tests_from_file(fpath_test);
+
+    size_t n_fails = 0;
+
+    for (const auto & test : tests) {
+        std::vector<gpt_vocab::id> tokens = gpt_tokenize(vocab, test.first);
+
+        if (tokens != test.second){
+            n_fails++;
+
+            // print out failure cases
+            fprintf(stderr, "%s : failed test: '%s'\n", __func__, test.first.c_str());
+            fprintf(stderr, "%s : tokens in hf:   ", __func__);
+            for (const auto & t : test.second) {
+                fprintf(stderr, "%s(%d), ", vocab.id_to_token[t].c_str(), t);
+            }
+            fprintf(stderr, "\n");
+            fprintf(stderr, "%s : tokens in ggml: ", __func__);
+            for (const auto & t : tokens) {
+                fprintf(stderr, "%s(%d), ", vocab.id_to_token[t].c_str(), t);
+            }
+            fprintf(stderr, "\n");
+        }
+    }
+
+    fprintf(stderr, "%s : %zu tests failed out of %zu tests.\n", __func__, n_fails, tests.size());
 }
 
 bool gpt_vocab_init(const std::string & fname, gpt_vocab & vocab) {
@@ -379,6 +469,122 @@ gpt_vocab::id gpt_sample_top_k_top_p(
     int idx = dist(rng);
 
     return logits_id[idx].second;
+}
+
+gpt_vocab::id gpt_sample_top_k_top_p_repeat(
+        const gpt_vocab & vocab,
+        const float * logits,
+        const int32_t * last_n_tokens_data,
+        size_t last_n_tokens_data_size,
+        int    top_k,
+        double top_p,
+        double temp,
+        int repeat_last_n,
+        float repeat_penalty,
+        std::mt19937 & rng) {
+
+    int n_logits = vocab.id_to_token.size();
+
+    const auto * plogits = logits;
+
+    const auto last_n_tokens = std::vector<int32_t>(last_n_tokens_data, last_n_tokens_data + last_n_tokens_data_size);
+
+    if (temp <= 0) {
+        // select the token with the highest logit directly
+        float max_logit = plogits[0];
+        gpt_vocab::id max_id = 0;
+
+        for (int i = 1; i < n_logits; ++i) {
+            if (plogits[i] > max_logit) {
+                max_logit = plogits[i];
+                max_id = i;
+            }
+        }
+        return max_id;
+    }
+
+
+    std::vector<std::pair<double, gpt_vocab::id>> logits_id;
+    logits_id.reserve(n_logits);
+
+    {
+        const float scale = 1.0f/temp;
+        for (int i = 0; i < n_logits; ++i) {
+            // repetition penalty from ctrl paper (https://arxiv.org/abs/1909.05858)
+            // credit https://github.com/facebookresearch/llama/compare/main...shawwn:llama:main
+            if (repeat_last_n > 0 && std::find(last_n_tokens.end()-repeat_last_n, last_n_tokens.end(), i) != last_n_tokens.end()) {
+                // if score < 0 then repetition penalty has to multiplied to reduce the previous token probability
+                if (plogits[i] < 0.0f) {
+                    logits_id.push_back(std::make_pair(plogits[i]*scale*repeat_penalty, i));
+                } else {
+                    logits_id.push_back(std::make_pair(plogits[i]*scale/repeat_penalty, i));
+                }
+            } else {
+                logits_id.push_back(std::make_pair(plogits[i]*scale, i));
+            }
+        }
+    }
+
+    // find the top K tokens
+    std::partial_sort(
+            logits_id.begin(),
+            logits_id.begin() + top_k, logits_id.end(),
+            [](const std::pair<double, gpt_vocab::id> & a, const std::pair<double, gpt_vocab::id> & b) {
+        return a.first > b.first;
+    });
+
+    logits_id.resize(top_k);
+
+    double maxl = -INFINITY;
+    for (const auto & kv : logits_id) {
+        maxl = std::max(maxl, kv.first);
+    }
+
+    // compute probs for the top K tokens
+    std::vector<double> probs;
+    probs.reserve(logits_id.size());
+
+    double sum = 0.0;
+    for (const auto & kv : logits_id) {
+        double p = exp(kv.first - maxl);
+        probs.push_back(p);
+        sum += p;
+    }
+
+    // normalize the probs
+    for (auto & p : probs) {
+        p /= sum;
+    }
+
+    if (top_p < 1.0f) {
+        double cumsum = 0.0f;
+        for (int i = 0; i < top_k; i++) {
+            cumsum += probs[i];
+            if (cumsum >= top_p) {
+                top_k = i + 1;
+                probs.resize(top_k);
+                logits_id.resize(top_k);
+                break;
+            }
+        }
+
+        cumsum = 1.0/cumsum;
+        for (int i = 0; i < (int) probs.size(); i++) {
+            probs[i] *= cumsum;
+        }
+    }
+
+//    printf("\n");
+//    for (int i = 0; i < (int) probs.size(); i++) {
+//    for (int i = 0; i < 10; i++) {
+//        printf("%d: '%s' %f\n", i, vocab.id_to_token.at(logits_id[i].second).c_str(), probs[i]);
+//    }
+
+    std::discrete_distribution<> dist(probs.begin(), probs.end());
+    int idx = dist(rng);
+
+    return logits_id[idx].second;
+
 }
 
 bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector<std::vector<float>>& pcmf32s, bool stereo) {
