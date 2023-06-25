@@ -175,8 +175,8 @@ ifdef WHISPER_CLBLAST
 	CFLAGS 		+= -DGGML_USE_CLBLAST
 	LDFLAGS	 	+= -lclblast -lOpenCL
 	WHISPER_OBJ	+= ggml-opencl.o
-	
-ggml-opencl.o: ggml-opencl.c ggml-opencl.h
+
+ggml-opencl.o: ggml-opencl.cpp ggml-opencl.h
 	$(CC) $(CFLAGS) -c $< -o $@
 endif
 
