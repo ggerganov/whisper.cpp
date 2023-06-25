@@ -6,8 +6,8 @@
 // ref: https://github.com/ggerganov/whisper.cpp/issues/171
 //
 
-#include "common.h"
 #include "common-sdl.h"
+#include "common.h"
 #include "whisper.h"
 
 #include <sstream>

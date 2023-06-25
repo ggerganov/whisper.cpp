@@ -1,8 +1,8 @@
 // Talk with AI
 //
 
-#include "common.h"
 #include "common-sdl.h"
+#include "common.h"
 #include "whisper.h"
 #include "gpt-2.h"
 
