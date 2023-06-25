@@ -99,17 +99,17 @@ bool whisper_model_quantize(const std::string & fname_inp, const std::string & f
         fprintf(stderr, "%s: ftype (dst)   = %d\n", __func__, ftype_dst);
         fprintf(stderr, "%s: qntvr (dst)   = %d\n", __func__, GGML_QNT_VERSION);
 
-        fout.write((char *) &hparams.n_vocab,       sizeof(hparams.n_vocab));
-        fout.write((char *) &hparams.n_audio_ctx,   sizeof(hparams.n_audio_ctx));
-        fout.write((char *) &hparams.n_audio_state, sizeof(hparams.n_audio_state));
-        fout.write((char *) &hparams.n_audio_head,  sizeof(hparams.n_audio_head));
-        fout.write((char *) &hparams.n_audio_layer, sizeof(hparams.n_audio_layer));
-        fout.write((char *) &hparams.n_text_ctx,    sizeof(hparams.n_text_ctx));
-        fout.write((char *) &hparams.n_text_state,  sizeof(hparams.n_text_state));
-        fout.write((char *) &hparams.n_text_head,   sizeof(hparams.n_text_head));
-        fout.write((char *) &hparams.n_text_layer,  sizeof(hparams.n_text_layer));
-        fout.write((char *) &hparams.n_mels,        sizeof(hparams.n_mels));
-        fout.write((char *) &ftype_dst,             sizeof(hparams.ftype));
+        fout.write((const char *) &hparams.n_vocab,       sizeof(hparams.n_vocab));
+        fout.write((const char *) &hparams.n_audio_ctx,   sizeof(hparams.n_audio_ctx));
+        fout.write((const char *) &hparams.n_audio_state, sizeof(hparams.n_audio_state));
+        fout.write((const char *) &hparams.n_audio_head,  sizeof(hparams.n_audio_head));
+        fout.write((const char *) &hparams.n_audio_layer, sizeof(hparams.n_audio_layer));
+        fout.write((const char *) &hparams.n_text_ctx,    sizeof(hparams.n_text_ctx));
+        fout.write((const char *) &hparams.n_text_state,  sizeof(hparams.n_text_state));
+        fout.write((const char *) &hparams.n_text_head,   sizeof(hparams.n_text_head));
+        fout.write((const char *) &hparams.n_text_layer,  sizeof(hparams.n_text_layer));
+        fout.write((const char *) &hparams.n_mels,        sizeof(hparams.n_mels));
+        fout.write((const char *) &ftype_dst,             sizeof(hparams.ftype));
     }
 
     // load mel filters
@@ -138,15 +138,17 @@ bool whisper_model_quantize(const std::string & fname_inp, const std::string & f
         //    return false;
         //}
 
-        std::string word;
+        char word[128];
+
         for (int i = 0; i < n_vocab; i++) {
             uint32_t len;
             finp.read ((char *) &len, sizeof(len));
             fout.write((char *) &len, sizeof(len));
 
-            word.resize(len);
-            finp.read ((char *) word.data(), len);
-            fout.write((char *) word.data(), len);
+            word[len] = '\0';
+
+            finp.read ((char *) word, len);
+            fout.write((char *) word, len);
 
             vocab.token_to_id[word] = i;
             vocab.id_to_token[i] = word;

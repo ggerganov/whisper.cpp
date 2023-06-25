@@ -21,7 +21,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Runs on the CPU
 - [Partial GPU support for NVIDIA via cuBLAS](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
 - [Partial OpenCL GPU support via CLBlast](https://github.com/ggerganov/whisper.cpp#opencl-gpu-support-via-clblast)
-- [BLAS CPU support via OpenBLAS]((https://github.com/ggerganov/whisper.cpp#blas-cpu-support-via-openblas)
+- [BLAS CPU support via OpenBLAS](https://github.com/ggerganov/whisper.cpp#blas-cpu-support-via-openblas)
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 
 Supported platforms:
@@ -617,6 +617,8 @@ in [models](models).
 - [X] Javascript: [bindings/javascript](bindings/javascript) | [#309](https://github.com/ggerganov/whisper.cpp/discussions/309)
   - React Native (iOS / Android): [whisper.rn](https://github.com/mybigday/whisper.rn)
 - [X] Go: [bindings/go](bindings/go) | [#312](https://github.com/ggerganov/whisper.cpp/discussions/312)
+- [X] Java:
+  - [GiviMAD/whisper-jni](https://github.com/GiviMAD/whisper-jni)
 - [X] Ruby: [bindings/ruby](bindings/ruby) | [#507](https://github.com/ggerganov/whisper.cpp/discussions/507)
 - [X] Objective-C / Swift: [ggerganov/whisper.spm](https://github.com/ggerganov/whisper.spm) | [#313](https://github.com/ggerganov/whisper.cpp/discussions/313)
   - [exPHAT/SwiftWhisper](https://github.com/exPHAT/SwiftWhisper)
