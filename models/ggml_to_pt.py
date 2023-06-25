@@ -58,7 +58,6 @@ with open(fname_inp, "rb") as f:
 
     for _ in range(num_tokens):
         token_len = struct.unpack("i", f.read(4))[0]
-        # print(f"Token length: {token_len}")
         token = f.read(token_len)
         tokens[token] = {}
     
@@ -70,13 +69,19 @@ with open(fname_inp, "rb") as f:
         except struct.error:
             break  # End of file
         dims = [struct.unpack("i", f.read(4))[0] for _ in range(n_dims)]
+        dims = dims[::-1]
         name = f.read(name_length).decode("utf-8")
-        
         if ftype == 1:  # f16
             data = np.fromfile(f, dtype=np.float16, count=np.prod(dims)).reshape(dims)
         else:  # f32
             data = np.fromfile(f, dtype=np.float32, count=np.prod(dims)).reshape(dims)
+
+            
+        if name in  ["encoder.conv1.bias", "encoder.conv2.bias"]:
+            
+            data = data[:, 0]
         
+            
         model_state_dict[name] = torch.from_numpy(data)
     
 # Now you have the model's state_dict stored in model_state_dict
