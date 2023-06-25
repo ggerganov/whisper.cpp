@@ -338,6 +338,18 @@ func (ctx *Context) Whisper_full_parallel(params Params, samples []float32, proc
 	}
 }
 
+// Return the id of the autodetected language, returns -1 if not found
+// Added to whisper.cpp in
+// https://github.com/ggerganov/whisper.cpp/commit/a1c1583cc7cd8b75222857afc936f0638c5683d6
+//
+// Examples:
+//
+//	"de" -> 2
+//	"german" -> 2
+func (ctx *Context) Whisper_full_lang_id() int {
+	return int(C.whisper_full_lang_id((*C.struct_whisper_context)(ctx)))
+}
+
 // Number of generated text segments.
 // A segment can be a few words, a sentence, or even a paragraph.
 func (ctx *Context) Whisper_full_n_segments() int {
@@ -450,4 +462,8 @@ func (t TokenData) T0() int64 {
 
 func (t TokenData) T1() int64 {
 	return int64(t.t1)
+}
+
+func (t TokenData) Id() Token {
+	return Token(t.id)
 }
