@@ -32,7 +32,7 @@ model="base.en"
 
 # export the path to the whisper.cpp repo in the WHISPER_CPP_HOME env variable
 # https://github.com/ggerganov/whisper.cpp
-cd ${WHISPER_CPP_HOME}
+cd "${WHISPER_CPP_HOME}"
 
 if [ ! -f ./stream ] ; then
     echo "whisper.nvim: the 'stream' executable was not found! WHISPER_CPP_HOME=${WHISPER_CPP_HOME}" > /tmp/whisper.nvim
