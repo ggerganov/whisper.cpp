@@ -36,11 +36,12 @@ CFLAGS   = -I.              -O3 -DNDEBUG -std=c11   -fPIC
 CXXFLAGS = -I. -I./examples -O3 -DNDEBUG -std=c++11 -fPIC
 LDFLAGS  =
 
-# ref: https://github.com/ggerganov/whisper.cpp/issues/37
-ifneq ($(wildcard /usr/include/musl/*),)
-	CFLAGS += -D_POSIX_SOURCE -D_GNU_SOURCE
-	CXXFLAGS += -D_POSIX_SOURCE -D_GNU_SOURCE
-endif
+# clock_gettime came in POSIX.1b (1993)
+# CLOCK_MONOTONIC came in POSIX.1-2001 / SUSv3 as optional
+# posix_memalign came in POSIX.1-2001 / SUSv3
+# M_PI is an XSI extension since POSIX.1-2001 / SUSv3, came in XPG1 (1985)
+CFLAGS   += -D_XOPEN_SOURCE=600
+CXXFLAGS += -D_XOPEN_SOURCE=600
 
 # OS specific
 # TODO: support Windows
