@@ -161,7 +161,7 @@ func (context *context) Process(
 		return ErrInternalAppError
 	}
 	// If the callback is defined then we force on single_segment mode
-	if cb != nil {
+	if callNewSegment != nil {
 		context.params.SetSingleSegment(true)
 	}
 
