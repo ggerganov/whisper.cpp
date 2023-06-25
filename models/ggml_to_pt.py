@@ -11,7 +11,7 @@ if len(sys.argv) < 3:
     sys.exit(1)
 
 fname_inp = Path(sys.argv[1])
-dir_out = Path(sys.argv[3])
+dir_out = Path(sys.argv[2])
 fname_out = dir_out / "torch-model.pt"
 
 
