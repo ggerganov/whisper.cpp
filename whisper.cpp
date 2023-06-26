@@ -984,6 +984,8 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                     word = "[_EOT_]";
                 } else if (i == vocab.token_sot) {
                     word = "[_SOT_]";
+                } else if (i == vocab.token_solm) {  // TODO@Akash make this configurable
+                    word = " [SPEAKER TURN]";
                 } else if (i == vocab.token_prev) {
                     word = "[_PREV_]";
                 } else if (i == vocab.token_not) {
@@ -4514,14 +4516,11 @@ int whisper_full_with_state(
                     //        ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].p,
                     //        ctx->vocab.id_to_token[tokens_cur[i].tid].c_str(), tokens_cur[i].pt);
 
-                    if (params.print_special == false && tokens_cur[i].id >= whisper_token_eot(ctx)) {
+                    if (params.print_special == false && tokens_cur[i].id >= whisper_token_eot(ctx) &&
+                        tokens_cur[i].id != whisper_token_solm(ctx)) {
                     } else {
                         text += whisper_token_to_str(ctx, tokens_cur[i].id);
                     }
-
-                    if (tokens_cur[i].id == whisper_token_solm(ctx)){
-                        text += " [SPEAKER TURN]";
-                    };
 
                     if (tokens_cur[i].id > whisper_token_beg(ctx) && !params.single_segment) {
                         const auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
