@@ -404,6 +404,8 @@ struct whisper_segment {
     std::string text;
 
     std::vector<whisper_token_data> tokens;
+
+    bool speaker_turn_next;
 };
 
 // medium
@@ -4510,6 +4512,7 @@ int whisper_full_with_state(
                 auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
 
                 std::string text;
+                bool speaker_turn_next;
 
                 for (int i = 0; i < (int) tokens_cur.size(); i++) {
                     //printf("%s: %18s %6.3f %18s %6.3f\n", __func__,
@@ -4517,9 +4520,14 @@ int whisper_full_with_state(
                     //        ctx->vocab.id_to_token[tokens_cur[i].tid].c_str(), tokens_cur[i].pt);
 
                     if (params.print_special == false && tokens_cur[i].id >= whisper_token_eot(ctx) &&
-                        tokens_cur[i].id != whisper_token_solm(ctx)) {
+                        tokens_cur[i].id != whisper_token_solm(ctx)) {  // TODO@Akash - make configurable with flag (may not want it in text)
                     } else {
                         text += whisper_token_to_str(ctx, tokens_cur[i].id);
+                    }
+
+                    // record if speaker turn was predicted after current segment
+                    if (tokens_cur[i].id == whisper_token_solm(ctx)){
+                        speaker_turn_next = true;
                     }
 
                     if (tokens_cur[i].id > whisper_token_beg(ctx) && !params.single_segment) {
@@ -4540,7 +4548,7 @@ int whisper_full_with_state(
 
                             //printf("tt0 = %d, tt1 = %d, text = %s, token = %s, token_id = %d, tid = %d\n", tt0, tt1, text.c_str(), ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].id, tokens_cur[i].tid);
 
-                            result_all.push_back({ tt0, tt1, text, {} });
+                            result_all.push_back({ tt0, tt1, text, {} , speaker_turn_next });
                             for (int j = i0; j <= i; j++) {
                                 result_all.back().tokens.push_back(tokens_cur[j]);
                             }
@@ -4566,6 +4574,7 @@ int whisper_full_with_state(
                         i--;
                         t0 = t1;
                         i0 = i + 1;
+                        speaker_turn_next = false;
                     }
                 }
 
@@ -4584,7 +4593,7 @@ int whisper_full_with_state(
                         }
                     }
 
-                    result_all.push_back({ tt0, tt1, text, {} });
+                    result_all.push_back({ tt0, tt1, text, {} , speaker_turn_next });
                     for (int j = i0; j < (int) tokens_cur.size(); j++) {
                         result_all.back().tokens.push_back(tokens_cur[j]);
                     }
@@ -4762,6 +4771,10 @@ int64_t whisper_full_get_segment_t1_from_state(struct whisper_state * state, int
 
 int64_t whisper_full_get_segment_t1(struct whisper_context * ctx, int i_segment) {
     return ctx->state->result_all[i_segment].t1;
+}
+
+bool whisper_full_get_segment_speaker_turn_next(struct whisper_context * ctx, int i_segment) {
+    return ctx->state->result_all[i_segment].speaker_turn_next;
 }
 
 const char * whisper_full_get_segment_text_from_state(struct whisper_state * state, int i_segment) {

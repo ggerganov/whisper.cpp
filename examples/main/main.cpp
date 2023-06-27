@@ -566,6 +566,7 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
                 const char * text = whisper_full_get_segment_text(ctx, i);
                 const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
                 const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                const bool speaker_turn_next = whisper_full_get_segment_speaker_turn_next(ctx, i);
 
                 start_obj(nullptr);
                     start_obj("timestamps");
@@ -576,11 +577,13 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
                         value_i("from", t0 * 10, false);
                         value_i("to", t1 * 10, true);
                     end_obj(false);
-                    value_s("text", text, !params.diarize);
+                    value_s("text", text, !params.diarize); // TODO@Akash - make configurable with flag
 
                     if (params.diarize && pcmf32s.size() == 2) {
                         value_s("speaker", estimate_diarization_speaker(pcmf32s, t0, t1, true).c_str(), true);
                     }
+                    // TODO@Akash - make configurable with flag
+                    value_b("speaker_turn_next", speaker_turn_next, true);
                 end_obj(i == (n_segments - 1));
             }
 
