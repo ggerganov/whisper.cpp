@@ -279,7 +279,7 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
             for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
                 if (params.print_special == false) {
                     const whisper_token id = whisper_full_get_token_id(ctx, i, j);
-                    if (id >= whisper_token_eot(ctx) and id != whisper_token_solm(ctx)) {  // TODO@Akash - make configurable?
+                    if (id >= whisper_token_eot(ctx) && id != whisper_token_solm(ctx)) {  // TODO@Akash - make configurable?
                         continue;
                     }
                 }
