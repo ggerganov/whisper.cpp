@@ -2639,25 +2639,27 @@ static std::string whisper_get_coreml_path_encoder(std::string path_bin) {
 #ifdef WHISPER_USE_OPENVINO
 // replace .bin with-encoder-openvino.xml
 static std::string whisper_get_openvino_path_encoder(const std::string & path_bin) {
+    std::string openvino_path_encoder;
     auto pos = path_bin.rfind('.');
     if (pos != std::string::npos) {
-        path_bin = path_bin.substr(0, pos);
+        openvino_path_encoder = path_bin.substr(0, pos);
     }
 
-    path_bin += "-encoder-openvino.xml";
+    openvino_path_encoder += "-encoder-openvino.xml";
 
-    return path_bin;
+    return openvino_path_encoder;
 }
 
 static std::string whisper_get_openvino_path_cache(const std::string & path_bin) {
+    std::string openvino_path_cache;
     auto pos = path_bin.rfind('.');
     if (pos != std::string::npos) {
-        path_bin = path_bin.substr(0, pos);
+        openvino_path_cache = path_bin.substr(0, pos);
     }
 
-    path_bin += "-encoder-openvino-cache";
+    openvino_path_cache += "-encoder-openvino-cache";
 
-    return path_bin;
+    return openvino_path_cache;
 }
 #endif
 
