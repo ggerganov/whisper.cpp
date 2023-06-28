@@ -1785,7 +1785,7 @@ static bool whisper_encode_internal(
     }
 #endif
 #ifdef WHISPER_USE_OPENVINO
-    else if(use_openvino) {
+    else if (use_openvino) {
         wstate.use_buf(ctx0, -1);
 
         cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
@@ -2638,7 +2638,7 @@ static std::string whisper_get_coreml_path_encoder(std::string path_bin) {
 
 #ifdef WHISPER_USE_OPENVINO
 // replace .bin with-encoder-openvino.xml
-static std::string whisper_get_openvino_path_encoder(std::string path_bin) {
+static std::string whisper_get_openvino_path_encoder(const std::string & path_bin) {
     auto pos = path_bin.rfind('.');
     if (pos != std::string::npos) {
         path_bin = path_bin.substr(0, pos);
@@ -2649,7 +2649,7 @@ static std::string whisper_get_openvino_path_encoder(std::string path_bin) {
     return path_bin;
 }
 
-static std::string whisper_get_openvino_path_cache(std::string path_bin) {
+static std::string whisper_get_openvino_path_cache(const std::string & path_bin) {
     auto pos = path_bin.rfind('.');
     if (pos != std::string::npos) {
         path_bin = path_bin.substr(0, pos);
