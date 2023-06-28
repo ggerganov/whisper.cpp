@@ -304,8 +304,21 @@ if (WHISPER_COREML)
 endif()
 
 if (WHISPER_OPENVINO)
-    set( OpenVINO_SOURCES openvino/whisper-openvino-encoder.h openvino/whisper-openvino-encoder.cpp )
+    set(TARGET whisper.openvino)
+
+    add_library(${TARGET} OBJECT
+        openvino/whisper-openvino-encoder.h
+        openvino/whisper-openvino-encoder.cpp
+        )
+
+    target_include_directories(${TARGET} PUBLIC
+        .
+        )
+
+    set_property(TARGET ${TARGET} PROPERTY POSITION_INDEPENDENT_CODE ON)
     set( WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_USE_OPENVINO)
+
+    target_link_libraries(${TARGET} PRIVATE openvino::runtime)
 endif()
 
 #
@@ -321,7 +334,6 @@ add_library(${TARGET}
     ${GGML_OPENCL_SOURCES}
     whisper.h
     whisper.cpp
-    ${OpenVINO_SOURCES}
     )
 
 include(DefaultTargetOptions)
@@ -335,7 +347,7 @@ if (WHISPER_COREML)
 endif()
 
 if (WHISPER_OPENVINO)
-    target_link_libraries(${TARGET} PRIVATE openvino::runtime)
+    target_link_libraries(${TARGET} PRIVATE whisper.openvino)
 endif()
 
 if (MSVC)
