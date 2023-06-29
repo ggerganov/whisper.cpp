@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := context.Process(samples, nil); err != nil {
+	if err := context.Process(samples, nil, nil); err != nil {
 		return err
 	}
 
@@ -71,7 +71,7 @@ The examples are placed in the `build` directory. Once built, you can download a
 And you can then test a model against samples with the following command:
 
 ```bash
-./build/go-whisper -model models/ggml-tiny.en.bin samples/jfk.wav 
+./build/go-whisper -model models/ggml-tiny.en.bin samples/jfk.wav
 ```
 
 ## Using the bindings
