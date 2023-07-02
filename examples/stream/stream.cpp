@@ -3,8 +3,8 @@
 // A very quick-n-dirty implementation serving mainly as a proof of concept.
 //
 
-#include "common-sdl.h"
 #include "common.h"
+#include "common-sdl.h"
 #include "whisper.h"
 
 #include <cassert>
