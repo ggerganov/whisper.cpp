@@ -277,9 +277,9 @@ extern "C" {
     // Special tokens
     WHISPER_API whisper_token whisper_token_eot (struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_sot (struct whisper_context * ctx);
-    WHISPER_API whisper_token whisper_token_tdrz(struct whisper_context * ctx);
-    WHISPER_API whisper_token whisper_token_prev(struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_solm(struct whisper_context * ctx);
+    WHISPER_API whisper_token whisper_token_prev(struct whisper_context * ctx);
+    WHISPER_API whisper_token whisper_token_nosp(struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_not (struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_beg (struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_lang(struct whisper_context * ctx, int lang_id);

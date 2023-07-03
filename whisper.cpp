@@ -387,9 +387,9 @@ struct whisper_vocab {
     id token_translate  = 50357;
     id token_transcribe = 50358;
     // other special tokens
-    id token_tdrz       = 50359; // [TDRZ] used by tinydiarize models to indicate speaker turn
+    id token_solm       = 50359; // [TDRZ] used by tinydiarize models to indicate speaker turn
     id token_prev       = 50360;
-    id token_solm       = 50361; // start of lm ?
+    id token_nosp       = 50361;
     id token_not        = 50362; // no timestamps
     id token_beg        = 50363; // begin timestamps
 
@@ -972,9 +972,9 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             vocab.token_sot++;
             vocab.token_translate++;
             vocab.token_transcribe++;
-            vocab.token_tdrz++;
-            vocab.token_prev++;
             vocab.token_solm++;
+            vocab.token_prev++;
+            vocab.token_nosp++;
             vocab.token_not++;
             vocab.token_beg++;
         }
@@ -988,12 +988,12 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                     word = "[_EOT_]";
                 } else if (i == vocab.token_sot) {
                     word = "[_SOT_]";
-                } else if (i == vocab.token_tdrz) {
-                    word = "[_TDRZ_]";
-                } else if (i == vocab.token_prev) {
-                    word = "[_PREV_]";
                 } else if (i == vocab.token_solm) {
                     word = "[_SOLM_]";
+                } else if (i == vocab.token_prev) {
+                    word = "[_PREV_]";
+                } else if (i == vocab.token_nosp) {
+                    word = "[_NOSP_]";
                 } else if (i == vocab.token_not) {
                     word = "[_NOT_]";
                 } else if (i == vocab.token_beg) {
@@ -3219,16 +3219,16 @@ whisper_token whisper_token_sot(struct whisper_context * ctx) {
     return ctx->vocab.token_sot;
 }
 
-whisper_token whisper_token_tdrz(struct whisper_context * ctx) {
-    return ctx->vocab.token_tdrz;
+whisper_token whisper_token_solm(struct whisper_context * ctx) {
+    return ctx->vocab.token_solm;
 }
 
 whisper_token whisper_token_prev(struct whisper_context * ctx) {
     return ctx->vocab.token_prev;
 }
 
-whisper_token whisper_token_solm(struct whisper_context * ctx) {
-    return ctx->vocab.token_solm;
+whisper_token whisper_token_nosp(struct whisper_context * ctx) {
+    return ctx->vocab.token_nosp;
 }
 
 whisper_token whisper_token_not(struct whisper_context * ctx) {
@@ -3539,13 +3539,13 @@ static void whisper_process_logits(
         // ref: https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L410-L412
         logits[vocab.token_not] = -INFINITY;
 
-        // suppress sot and solm tokens
+        // suppress sot and nosp tokens
         logits[vocab.token_sot]  = -INFINITY;
-        logits[vocab.token_solm] = -INFINITY;
+        logits[vocab.token_nosp] = -INFINITY; // TODO: ignore this token for now
 
-        // [TDRZ] when tinydiarize is disabled, suppress tdrz token
+        // [TDRZ] when tinydiarize is disabled, suppress solm token
         if (params.tdrz_enable == false) {
-            logits[vocab.token_tdrz] = -INFINITY;
+            logits[vocab.token_solm] = -INFINITY;
         }
 
         // suppress task tokens
@@ -4542,7 +4542,7 @@ int whisper_full_with_state(
                     }
 
                     // [TDRZ] record if speaker turn was predicted after current segment
-                    if (params.tdrz_enable && tokens_cur[i].id == whisper_token_tdrz(ctx)) {
+                    if (params.tdrz_enable && tokens_cur[i].id == whisper_token_solm(ctx)) {
                         speaker_turn_next = true;
                     }
 
