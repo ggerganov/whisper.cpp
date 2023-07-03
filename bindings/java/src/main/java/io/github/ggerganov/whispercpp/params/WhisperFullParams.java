@@ -310,7 +310,7 @@ public class WhisperFullParams extends Structure {
                 "no_context", "single_segment",
                 "print_special", "print_progress", "print_realtime", "print_timestamps",  "token_timestamps",
                 "thold_pt", "thold_ptsum", "max_len", "split_on_word", "max_tokens", "speed_up", "audio_ctx",
-                "initial_prompt", "prompt_tokens", "prompt_n_tokens", "language", "detect_language",
+                "tdrz_enable", "initial_prompt", "prompt_tokens", "prompt_n_tokens", "language", "detect_language",
                 "suppress_blank", "suppress_non_speech_tokens", "temperature", "max_initial_ts", "length_penalty",
                 "temperature_inc", "entropy_thold", "logprob_thold", "no_speech_thold", "greedy", "beam_search",
                 "new_segment_callback", "new_segment_callback_user_data",
