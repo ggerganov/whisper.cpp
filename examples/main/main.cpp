@@ -119,42 +119,42 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             whisper_print_usage(argc, argv, params);
             exit(0);
         }
-        else if (arg == "-t"     || arg == "--threads")        { params.n_threads      = std::stoi(argv[++i]); }
-        else if (arg == "-p"     || arg == "--processors")     { params.n_processors   = std::stoi(argv[++i]); }
-        else if (arg == "-ot"    || arg == "--offset-t")       { params.offset_t_ms    = std::stoi(argv[++i]); }
-        else if (arg == "-on"    || arg == "--offset-n")       { params.offset_n       = std::stoi(argv[++i]); }
-        else if (arg == "-d"     || arg == "--duration")       { params.duration_ms    = std::stoi(argv[++i]); }
-        else if (arg == "-mc"    || arg == "--max-context")    { params.max_context    = std::stoi(argv[++i]); }
-        else if (arg == "-ml"    || arg == "--max-len")        { params.max_len        = std::stoi(argv[++i]); }
-        else if (arg == "-bo"    || arg == "--best-of")        { params.best_of        = std::stoi(argv[++i]); }
-        else if (arg == "-bs"    || arg == "--beam-size")      { params.beam_size      = std::stoi(argv[++i]); }
-        else if (arg == "-wt"    || arg == "--word-thold")     { params.word_thold     = std::stof(argv[++i]); }
-        else if (arg == "-et"    || arg == "--entropy-thold")  { params.entropy_thold  = std::stof(argv[++i]); }
-        else if (arg == "-lpt"   || arg == "--logprob-thold")  { params.logprob_thold  = std::stof(argv[++i]); }
-        else if (arg == "-su"    || arg == "--speed-up")       { params.speed_up       = true; }
-        else if (arg == "-tr"    || arg == "--translate")      { params.translate      = true; }
-        else if (arg == "-di"    || arg == "--diarize")        { params.diarize        = true; }
-        else if (arg == "-tdrz"  || arg == "--tinydiarize")    { params.tinydiarize    = true; }
-        else if (arg == "-sow"   || arg == "--split-on-word")  { params.split_on_word  = true; }
-        else if (arg == "-nf"    || arg == "--no-fallback")    { params.no_fallback    = true; }
-        else if (arg == "-otxt"  || arg == "--output-txt")     { params.output_txt     = true; }
-        else if (arg == "-ovtt"  || arg == "--output-vtt")     { params.output_vtt     = true; }
-        else if (arg == "-osrt"  || arg == "--output-srt")     { params.output_srt     = true; }
-        else if (arg == "-owts"  || arg == "--output-words")   { params.output_wts     = true; }
-        else if (arg == "-olrc"  || arg == "--output-lrc")     { params.output_lrc     = true; }
-        else if (arg == "-fp"    || arg == "--font-path")      { params.font_path      = argv[++i]; }
-        else if (arg == "-ocsv"  || arg == "--output-csv")     { params.output_csv     = true; }
-        else if (arg == "-oj"    || arg == "--output-json")    { params.output_jsn     = true; }
-        else if (arg == "-of"    || arg == "--output-file")    { params.fname_out.emplace_back(argv[++i]); }
-        else if (arg == "-ps"    || arg == "--print-special")  { params.print_special  = true; }
-        else if (arg == "-pc"    || arg == "--print-colors")   { params.print_colors   = true; }
-        else if (arg == "-pp"    || arg == "--print-progress") { params.print_progress = true; }
-        else if (arg == "-nt"    || arg == "--no-timestamps")  { params.no_timestamps  = true; }
-        else if (arg == "-l"     || arg == "--language")       { params.language       = argv[++i]; }
-        else if (arg == "-dl"    || arg == "--detect-language"){ params.detect_language= true; }
-        else if (                   arg == "--prompt")         { params.prompt         = argv[++i]; }
-        else if (arg == "-m"     || arg == "--model")          { params.model          = argv[++i]; }
-        else if (arg == "-f"     || arg == "--file")           { params.fname_inp.emplace_back(argv[++i]); }
+        else if (arg == "-t"    || arg == "--threads")         { params.n_threads       = std::stoi(argv[++i]); }
+        else if (arg == "-p"    || arg == "--processors")      { params.n_processors    = std::stoi(argv[++i]); }
+        else if (arg == "-ot"   || arg == "--offset-t")        { params.offset_t_ms     = std::stoi(argv[++i]); }
+        else if (arg == "-on"   || arg == "--offset-n")        { params.offset_n        = std::stoi(argv[++i]); }
+        else if (arg == "-d"    || arg == "--duration")        { params.duration_ms     = std::stoi(argv[++i]); }
+        else if (arg == "-mc"   || arg == "--max-context")     { params.max_context     = std::stoi(argv[++i]); }
+        else if (arg == "-ml"   || arg == "--max-len")         { params.max_len         = std::stoi(argv[++i]); }
+        else if (arg == "-bo"   || arg == "--best-of")         { params.best_of         = std::stoi(argv[++i]); }
+        else if (arg == "-bs"   || arg == "--beam-size")       { params.beam_size       = std::stoi(argv[++i]); }
+        else if (arg == "-wt"   || arg == "--word-thold")      { params.word_thold      = std::stof(argv[++i]); }
+        else if (arg == "-et"   || arg == "--entropy-thold")   { params.entropy_thold   = std::stof(argv[++i]); }
+        else if (arg == "-lpt"  || arg == "--logprob-thold")   { params.logprob_thold   = std::stof(argv[++i]); }
+        else if (arg == "-su"   || arg == "--speed-up")        { params.speed_up        = true; }
+        else if (arg == "-tr"   || arg == "--translate")       { params.translate       = true; }
+        else if (arg == "-di"   || arg == "--diarize")         { params.diarize         = true; }
+        else if (arg == "-tdrz" || arg == "--tinydiarize")     { params.tinydiarize     = true; }
+        else if (arg == "-sow"  || arg == "--split-on-word")   { params.split_on_word   = true; }
+        else if (arg == "-nf"   || arg == "--no-fallback")     { params.no_fallback     = true; }
+        else if (arg == "-otxt" || arg == "--output-txt")      { params.output_txt      = true; }
+        else if (arg == "-ovtt" || arg == "--output-vtt")      { params.output_vtt      = true; }
+        else if (arg == "-osrt" || arg == "--output-srt")      { params.output_srt      = true; }
+        else if (arg == "-owts" || arg == "--output-words")    { params.output_wts      = true; }
+        else if (arg == "-olrc" || arg == "--output-lrc")      { params.output_lrc      = true; }
+        else if (arg == "-fp"   || arg == "--font-path")       { params.font_path       = argv[++i]; }
+        else if (arg == "-ocsv" || arg == "--output-csv")      { params.output_csv      = true; }
+        else if (arg == "-oj"   || arg == "--output-json")     { params.output_jsn      = true; }
+        else if (arg == "-of"   || arg == "--output-file")     { params.fname_out.emplace_back(argv[++i]); }
+        else if (arg == "-ps"   || arg == "--print-special")   { params.print_special   = true; }
+        else if (arg == "-pc"   || arg == "--print-colors")    { params.print_colors    = true; }
+        else if (arg == "-pp"   || arg == "--print-progress")  { params.print_progress  = true; }
+        else if (arg == "-nt"   || arg == "--no-timestamps")   { params.no_timestamps   = true; }
+        else if (arg == "-l"    || arg == "--language")        { params.language        = argv[++i]; }
+        else if (arg == "-dl"   || arg == "--detect-language") { params.detect_language = true; }
+        else if (                  arg == "--prompt")          { params.prompt          = argv[++i]; }
+        else if (arg == "-m"    || arg == "--model")           { params.model           = argv[++i]; }
+        else if (arg == "-f"    || arg == "--file")            { params.fname_inp.emplace_back(argv[++i]); }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -284,7 +284,7 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
             for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
                 if (params.print_special == false) {
                     const whisper_token id = whisper_full_get_token_id(ctx, i, j);
-                    if (id >= whisper_token_eot(ctx) && id != whisper_token_solm(ctx)) {  // TODO@Akash - make configurable?
+                    if (id >= whisper_token_eot(ctx)) {
                         continue;
                     }
                 }
