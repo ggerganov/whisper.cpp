@@ -3447,6 +3447,7 @@ static int whisper_wrap_segment(struct whisper_context & ctx, struct whisper_sta
             state.result_all.back().text = std::move(text);
             state.result_all.back().t1 = token.t0;
             state.result_all.back().tokens.resize(i);
+            state.result_all.back().speaker_turn_next = false;
 
             state.result_all.push_back({});
             state.result_all.back().t0 = token.t0;
@@ -3457,6 +3458,8 @@ static int whisper_wrap_segment(struct whisper_context & ctx, struct whisper_sta
                 state.result_all.back().tokens.end(),
                     segment.tokens.begin() + i,
                     segment.tokens.end());
+
+            state.result_all.back().speaker_turn_next = segment.speaker_turn_next;
 
             acc = 0;
             text = "";
