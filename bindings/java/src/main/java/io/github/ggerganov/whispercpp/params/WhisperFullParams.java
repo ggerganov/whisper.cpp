@@ -137,6 +137,14 @@ public class WhisperFullParams extends Structure {
     /** Overwrite the audio context size (0 = use default). */
     public int audio_ctx;
 
+    /** Enable tinydiarize (default = false) */
+    public CBool tdrz_enable;
+
+    /** Enable tinydiarize (default = false) */
+    public void tdrzEnable(boolean enable) {
+        tdrz_enable = enable ? CBool.TRUE : CBool.FALSE;
+    }
+
     /** Tokens to provide to the whisper decoder as an initial prompt.
      * These are prepended to any existing text context from a previous call. */
     public String initial_prompt;
