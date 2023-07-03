@@ -387,8 +387,9 @@ struct whisper_vocab {
     id token_translate  = 50357;
     id token_transcribe = 50358;
     // other special tokens
-    id token_solm       = 50359; // ??  TODO@Akash - rename appropriately
+    id token_tdrz       = 50359; // [TDRZ] used by tinydiarize models to indicate speaker turn
     id token_prev       = 50360;
+    id token_solm       = 50361; // start of lm ?
     id token_not        = 50362; // no timestamps
     id token_beg        = 50363; // begin timestamps
 
@@ -971,8 +972,9 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             vocab.token_sot++;
             vocab.token_translate++;
             vocab.token_transcribe++;
-            vocab.token_solm++;
+            vocab.token_tdrz++;
             vocab.token_prev++;
+            vocab.token_solm++;
             vocab.token_not++;
             vocab.token_beg++;
         }
@@ -986,10 +988,12 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                     word = "[_EOT_]";
                 } else if (i == vocab.token_sot) {
                     word = "[_SOT_]";
-                } else if (i == vocab.token_solm) {  // TODO@Akash make this configurable
-                    word = " [SPEAKER TURN]";
+                } else if (i == vocab.token_tdrz) {
+                    word = "[_TDRZ_]";
                 } else if (i == vocab.token_prev) {
                     word = "[_PREV_]";
+                } else if (i == vocab.token_solm) {
+                    word = "[_SOLM_]";
                 } else if (i == vocab.token_not) {
                     word = "[_NOT_]";
                 } else if (i == vocab.token_beg) {
@@ -3215,6 +3219,10 @@ whisper_token whisper_token_sot(struct whisper_context * ctx) {
     return ctx->vocab.token_sot;
 }
 
+whisper_token whisper_token_tdrz(struct whisper_context * ctx) {
+    return ctx->vocab.token_tdrz;
+}
+
 whisper_token whisper_token_prev(struct whisper_context * ctx) {
     return ctx->vocab.token_prev;
 }
@@ -3312,51 +3320,53 @@ struct whisper_full_params * whisper_full_default_params_by_ref(enum whisper_sam
 
 struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy) {
     struct whisper_full_params result = {
-        /*.strategy         =*/ strategy,
+        /*.strategy          =*/ strategy,
 
-        /*.n_threads        =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
-        /*.n_max_text_ctx   =*/ 16384,
-        /*.offset_ms        =*/ 0,
-        /*.duration_ms      =*/ 0,
+        /*.n_threads         =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
+        /*.n_max_text_ctx    =*/ 16384,
+        /*.offset_ms         =*/ 0,
+        /*.duration_ms       =*/ 0,
 
-        /*.translate        =*/ false,
-        /*.no_context       =*/ true,
-        /*.single_segment   =*/ false,
-        /*.print_special    =*/ false,
-        /*.print_progress   =*/ true,
-        /*.print_realtime   =*/ false,
-        /*.print_timestamps =*/ true,
+        /*.translate         =*/ false,
+        /*.no_context        =*/ true,
+        /*.single_segment    =*/ false,
+        /*.print_special     =*/ false,
+        /*.print_progress    =*/ true,
+        /*.print_realtime    =*/ false,
+        /*.print_timestamps  =*/ true,
 
-        /*.token_timestamps =*/ false,
-        /*.thold_pt         =*/ 0.01f,
-        /*.thold_ptsum      =*/ 0.01f,
-        /*.max_len          =*/ 0,
-        /*.split_on_word    =*/ false,
-        /*.max_tokens       =*/ 0,
+        /*.token_timestamps  =*/ false,
+        /*.thold_pt          =*/ 0.01f,
+        /*.thold_ptsum       =*/ 0.01f,
+        /*.max_len           =*/ 0,
+        /*.split_on_word     =*/ false,
+        /*.max_tokens        =*/ 0,
 
-        /*.speed_up         =*/ false,
-        /*.audio_ctx        =*/ 0,
+        /*.speed_up          =*/ false,
+        /*.audio_ctx         =*/ 0,
 
-        /*.initial_prompt   =*/ nullptr,
-        /*.prompt_tokens    =*/ nullptr,
-        /*.prompt_n_tokens  =*/ 0,
+        /*.tdrz_enable       =*/ false,
 
-        /*.language         =*/ "en",
-        /*.detect_language  =*/ false,
+        /*.initial_prompt    =*/ nullptr,
+        /*.prompt_tokens     =*/ nullptr,
+        /*.prompt_n_tokens   =*/ 0,
 
-        /*.suppress_blank   =*/ true,
+        /*.language          =*/ "en",
+        /*.detect_language   =*/ false,
+
+        /*.suppress_blank    =*/ true,
         /*.suppress_non_speech_tokens =*/ false,
 
-        /*.temperature      =*/  0.0f,
-        /*.max_initial_ts   =*/  1.0f,
-        /*.length_penalty   =*/ -1.0f,
+        /*.temperature       =*/  0.0f,
+        /*.max_initial_ts    =*/  1.0f,
+        /*.length_penalty    =*/ -1.0f,
 
-        /*.temperature_inc  =*/  0.4f,
-        /*.entropy_thold    =*/  2.4f,
-        /*.logprob_thold    =*/ -1.0f,
-        /*.no_speech_thold  =*/  0.6f,
+        /*.temperature_inc   =*/  0.4f,
+        /*.entropy_thold     =*/  2.4f,
+        /*.logprob_thold     =*/ -1.0f,
+        /*.no_speech_thold   =*/  0.6f,
 
-        /*.greedy           =*/ {
+        /*.greedy            =*/ {
             /*.best_of   =*/ -1,
         },
 
@@ -3528,7 +3538,12 @@ static void whisper_process_logits(
 
         // suppress sot and solm tokens
         logits[vocab.token_sot]  = -INFINITY;
-        // logits[vocab.token_solm] = -INFINITY;
+        logits[vocab.token_solm] = -INFINITY;
+
+        // [TDRZ] when tinydiarize is disabled, suppress tdrz token
+        if (params.tdrz_enable == false) {
+            logits[vocab.token_tdrz] = -INFINITY;
+        }
 
         // suppress task tokens
         logits[vocab.token_translate]  = -INFINITY;
@@ -4512,21 +4527,19 @@ int whisper_full_with_state(
                 auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
 
                 std::string text;
-                bool speaker_turn_next;
+                bool speaker_turn_next = false;
 
                 for (int i = 0; i < (int) tokens_cur.size(); i++) {
                     //printf("%s: %18s %6.3f %18s %6.3f\n", __func__,
                     //        ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].p,
                     //        ctx->vocab.id_to_token[tokens_cur[i].tid].c_str(), tokens_cur[i].pt);
 
-                    if (params.print_special == false && tokens_cur[i].id >= whisper_token_eot(ctx) &&
-                        tokens_cur[i].id != whisper_token_solm(ctx)) {  // TODO@Akash - make configurable with flag (may not want it in text)
-                    } else {
+                    if (params.print_special || tokens_cur[i].id < whisper_token_eot(ctx)) {
                         text += whisper_token_to_str(ctx, tokens_cur[i].id);
                     }
 
-                    // record if speaker turn was predicted after current segment
-                    if (tokens_cur[i].id == whisper_token_solm(ctx)){
+                    // [TDRZ] record if speaker turn was predicted after current segment
+                    if (params.tdrz_enable && tokens_cur[i].id == whisper_token_tdrz(ctx)) {
                         speaker_turn_next = true;
                     }
 
@@ -4548,7 +4561,7 @@ int whisper_full_with_state(
 
                             //printf("tt0 = %d, tt1 = %d, text = %s, token = %s, token_id = %d, tid = %d\n", tt0, tt1, text.c_str(), ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].id, tokens_cur[i].tid);
 
-                            result_all.push_back({ tt0, tt1, text, {} , speaker_turn_next });
+                            result_all.push_back({ tt0, tt1, text, {}, speaker_turn_next });
                             for (int j = i0; j <= i; j++) {
                                 result_all.back().tokens.push_back(tokens_cur[j]);
                             }
