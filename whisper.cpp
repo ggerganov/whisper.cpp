@@ -3,6 +3,10 @@
 #include "coreml/whisper-encoder.h"
 #endif
 
+#if WHISPER_USE_OPENVINO
+#include "openvino/whisper-openvino-encoder.h"
+#endif
+
 #include "ggml.h"
 
 #include <algorithm>
@@ -658,6 +662,10 @@ struct whisper_state {
     std::string path_model; // populated by whisper_init_from_file()
 #ifdef WHISPER_USE_COREML
     whisper_coreml_context * ctx_coreml = nullptr;
+#endif
+
+#ifdef WHISPER_USE_OPENVINO
+    whisper_openvino_context * ctx_openvino = nullptr;
 #endif
 
     // [EXPERIMENTAL] token-level timestamps data
@@ -1478,7 +1486,13 @@ static bool whisper_encode_internal(
     const bool use_coreml = wstate.ctx_coreml != nullptr;
 #endif
 
-    if (!use_coreml) {
+#ifndef WHISPER_USE_OPENVINO
+    const bool use_openvino = false;
+#else
+    const bool use_openvino = wstate.ctx_openvino != nullptr;
+#endif
+
+    if (!use_coreml && !use_openvino) {
         // convolution + gelu
         {
             wstate.use_buf(ctx0, 1);
@@ -1777,13 +1791,23 @@ static bool whisper_encode_internal(
         }
     }
 #ifdef WHISPER_USE_COREML
-    else
-    {
+    else if (use_coreml) {
         wstate.use_buf(ctx0, -1);
 
         cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
 
         whisper_coreml_encode(wstate.ctx_coreml, (float *) mel->data, (float *) cur->data);
+    }
+#endif
+#ifdef WHISPER_USE_OPENVINO
+    else if (use_openvino) {
+        wstate.use_buf(ctx0, -1);
+
+        cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
+
+        if (!whisper_openvino_encode(wstate.ctx_openvino, mel, cur)) {
+            return false;
+        }
     }
 #endif
 
@@ -2628,6 +2652,31 @@ static std::string whisper_get_coreml_path_encoder(std::string path_bin) {
 }
 #endif
 
+#ifdef WHISPER_USE_OPENVINO
+// replace .bin with-encoder-openvino.xml
+static std::string whisper_get_openvino_path_encoder(std::string path_bin) {
+    auto pos = path_bin.rfind('.');
+    if (pos != std::string::npos) {
+        path_bin = path_bin.substr(0, pos);
+    }
+
+    path_bin += "-encoder-openvino.xml";
+
+    return path_bin;
+}
+
+static std::string whisper_get_openvino_path_cache(std::string path_bin) {
+    auto pos = path_bin.rfind('.');
+    if (pos != std::string::npos) {
+        path_bin = path_bin.substr(0, pos);
+    }
+
+    path_bin += "-encoder-openvino-cache";
+
+    return path_bin;
+}
+#endif
+
 struct whisper_state * whisper_init_state(whisper_context * ctx) {
     whisper_state * state = new whisper_state;
 
@@ -2692,6 +2741,58 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     state->rng = std::mt19937(0);
 
     return state;
+}
+
+int whisper_ctx_init_openvino_encoder(struct whisper_context* ctx,
+    const char* openvino_model_path,
+    const char* openvino_device,
+    const char* openvino_cache_dir)
+{
+#ifndef WHISPER_USE_OPENVINO
+    (void)(ctx);
+    (void)(openvino_model_path);
+    (void)(openvino_device);
+    (void)(openvino_cache_dir);
+    return 0;
+#else
+    if (!openvino_model_path && ctx->path_model.empty())
+    {
+        fprintf(stderr, "%s: openvino_model_path is nullptr, and ctx has no model_path set.\n", __func__);
+        return 0;
+    }
+
+    std::string path_openvino;
+    if (!openvino_model_path) {
+        //if openvino_model_path is not set, attempt to find it in the same directory as ggml-<model>.bin model
+        path_openvino = whisper_get_openvino_path_encoder(ctx->path_model);
+    }
+    else {
+        path_openvino = openvino_model_path;
+    }
+
+    std::string path_openvino_cache_dir;
+    if (!openvino_cache_dir) {
+        //if openvino_cache_dir is not set, set it as a dir residing next to ggml-<model>.bin
+        path_openvino_cache_dir = whisper_get_openvino_path_cache(ctx->path_model);
+    }
+    else {
+        path_openvino_cache_dir = openvino_cache_dir;
+    }
+
+    fprintf(stderr, "%s: loading OpenVINO model from '%s'\n", __func__, path_openvino.c_str());
+    fprintf(stderr, "%s: first run on a device may take a while ...\n", __func__);
+
+    ctx->state->ctx_openvino = whisper_openvino_init(path_openvino.c_str(), openvino_device, path_openvino_cache_dir.c_str());
+    if (!ctx->state->ctx_openvino) {
+        fprintf(stderr, "%s: failed to init OpenVINO encoder from '%s'\n", __func__, path_openvino.c_str());
+        return 0;
+    }
+    else {
+        fprintf(stderr, "%s: OpenVINO model loaded\n", __func__);
+    }
+
+    return 1;
+#endif
 }
 
 struct whisper_context * whisper_init_from_file_no_state(const char * path_model) {
@@ -2845,6 +2946,13 @@ void whisper_free_state(struct whisper_state * state)
         if (state->ctx_coreml != nullptr) {
             whisper_coreml_free(state->ctx_coreml);
             state->ctx_coreml = nullptr;
+        }
+#endif
+
+#ifdef WHISPER_USE_OPENVINO
+        if (state->ctx_openvino != nullptr) {
+            whisper_openvino_free(state->ctx_openvino);
+            state->ctx_openvino = nullptr;
         }
 #endif
 
@@ -3287,6 +3395,14 @@ static int whisper_has_coreml(void) {
 #endif
 }
 
+static int whisper_has_openvino(void) {
+#ifdef WHISPER_USE_OPENVINO
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 const char * whisper_print_system_info(void) {
     static std::string s;
 
@@ -3304,6 +3420,7 @@ const char * whisper_print_system_info(void) {
     s += "SSE3 = "      + std::to_string(ggml_cpu_has_sse3())      + " | ";
     s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
     s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
+    s += "OPENVINO = "  + std::to_string(whisper_has_openvino())   + " | ";
 
     return s.c_str();
 }
