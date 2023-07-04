@@ -2654,7 +2654,7 @@ static std::string whisper_get_coreml_path_encoder(std::string path_bin) {
 
 #ifdef WHISPER_USE_OPENVINO
 // replace .bin with-encoder-openvino.xml
-static std::string whisper_get_openvino_path_encoder(std::string path_bin) {
+static std::string whisper_openvino_get_path_encoder(std::string path_bin) {
     auto pos = path_bin.rfind('.');
     if (pos != std::string::npos) {
         path_bin = path_bin.substr(0, pos);
@@ -2665,7 +2665,7 @@ static std::string whisper_get_openvino_path_encoder(std::string path_bin) {
     return path_bin;
 }
 
-static std::string whisper_get_openvino_path_cache(std::string path_bin) {
+static std::string whisper_openvino_get_path_cache(std::string path_bin) {
     auto pos = path_bin.rfind('.');
     if (pos != std::string::npos) {
         path_bin = path_bin.substr(0, pos);
@@ -2743,55 +2743,52 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     return state;
 }
 
-int whisper_ctx_init_openvino_encoder(struct whisper_context* ctx,
-    const char* openvino_model_path,
-    const char* openvino_device,
-    const char* openvino_cache_dir)
-{
+int whisper_ctx_init_openvino_encoder(
+        struct whisper_context * ctx,
+                    const char * model_path,
+                    const char * device,
+                    const char * cache_dir) {
 #ifndef WHISPER_USE_OPENVINO
     (void)(ctx);
-    (void)(openvino_model_path);
-    (void)(openvino_device);
-    (void)(openvino_cache_dir);
-    return 0;
+    (void)(model_path);
+    (void)(device);
+    (void)(cache_dir);
+
+    return 1;
 #else
-    if (!openvino_model_path && ctx->path_model.empty())
-    {
-        fprintf(stderr, "%s: openvino_model_path is nullptr, and ctx has no model_path set.\n", __func__);
-        return 0;
+    if (!model_path && ctx->path_model.empty()) {
+        fprintf(stderr, "%s: model_path is nullptr, and ctx has no model_path set.\n", __func__);
+        return 1;
     }
 
-    std::string path_openvino;
-    if (!openvino_model_path) {
-        //if openvino_model_path is not set, attempt to find it in the same directory as ggml-<model>.bin model
-        path_openvino = whisper_get_openvino_path_encoder(ctx->path_model);
-    }
-    else {
-        path_openvino = openvino_model_path;
-    }
-
-    std::string path_openvino_cache_dir;
-    if (!openvino_cache_dir) {
-        //if openvino_cache_dir is not set, set it as a dir residing next to ggml-<model>.bin
-        path_openvino_cache_dir = whisper_get_openvino_path_cache(ctx->path_model);
-    }
-    else {
-        path_openvino_cache_dir = openvino_cache_dir;
+    std::string path_encoder;
+    if (!model_path) {
+        //if model_path is not set, attempt to find it in the same directory as ggml-<model>.bin model
+        path_encoder = whisper_openvino_get_path_encoder(ctx->path_model);
+    } else {
+        path_encoder = model_path;
     }
 
-    fprintf(stderr, "%s: loading OpenVINO model from '%s'\n", __func__, path_openvino.c_str());
+    std::string path_cache;
+    if (!cache_dir) {
+        //if cache_dir is not set, set it as a dir residing next to ggml-<model>.bin
+        path_cache = whisper_openvino_get_path_cache(ctx->path_model);
+    } else {
+        path_cache = cache_dir;
+    }
+
+    fprintf(stderr, "%s: loading OpenVINO model from '%s'\n", __func__, path_encoder.c_str());
     fprintf(stderr, "%s: first run on a device may take a while ...\n", __func__);
 
-    ctx->state->ctx_openvino = whisper_openvino_init(path_openvino.c_str(), openvino_device, path_openvino_cache_dir.c_str());
+    ctx->state->ctx_openvino = whisper_openvino_init(path_encoder.c_str(), device, path_cache.c_str());
     if (!ctx->state->ctx_openvino) {
-        fprintf(stderr, "%s: failed to init OpenVINO encoder from '%s'\n", __func__, path_openvino.c_str());
-        return 0;
-    }
-    else {
+        fprintf(stderr, "%s: failed to init OpenVINO encoder from '%s'\n", __func__, path_encoder.c_str());
+        return 1;
+    } else {
         fprintf(stderr, "%s: OpenVINO model loaded\n", __func__);
     }
 
-    return 1;
+    return 0;
 #endif
 }
 

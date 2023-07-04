@@ -120,8 +120,7 @@ extern "C" {
     // cache_dir: Optional cache directory that can speed up init time, especially for
     //                     GPU, by caching compiled 'blobs' there.
     //                     Set to nullptr if not used.
-    // Returns 1 on success. If OpenVINO is not enabled in build, this
-    // simply returns 0.
+    // Returns 0 on success. If OpenVINO is not enabled in build, this simply returns 1.
     WHISPER_API int whisper_ctx_init_openvino_encoder(
         struct whisper_context * ctx,
                     const char * model_path,

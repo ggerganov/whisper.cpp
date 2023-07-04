@@ -813,7 +813,7 @@ int main(int argc, char ** argv) {
         return 3;
     }
 
-    // initialize openvino encoder. This has no effect on whisper.cpp builds that don't have OpenVINO configured.
+    // initialize openvino encoder. this has no effect on whisper.cpp builds that don't have OpenVINO configured
     whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
 
     for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
