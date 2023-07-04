@@ -313,7 +313,7 @@ For more information about the Core ML implementation please refer to PR [#566](
 
 ## NVIDIA GPU support via cuBLAS
 
-With NVIDIA cards, the Encoder processing can be offloaded to the GPU to a large extend through cuBLAS.
+With NVIDIA cards the Encoder processing can to a large extent be offloaded to the GPU through cuBLAS.
 First, make sure you have installed `cuda`: https://developer.nvidia.com/cuda-downloads
 
 Now build `whisper.cpp` with cuBLAS support:
@@ -325,7 +325,7 @@ WHISPER_CUBLAS=1 make -j
 
 ## OpenCL GPU support via CLBlast
 
-For cards and integrated GPUs that support OpenCL, the Encoder processing can be largely offloaded to the GPU through CLBlast. This is especially useful for users with AMD APU's or low end devices for up to ~2x speedup.
+For cards and integrated GPUs that support OpenCL, the Encoder processing can be largely offloaded to the GPU through CLBlast. This is especially useful for users with AMD APUs or low end devices for up to ~2x speedup.
 
 First, make sure you have installed `CLBlast` for your OS or Distribution: https://github.com/CNugteren/CLBlast
 
