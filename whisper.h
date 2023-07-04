@@ -277,15 +277,16 @@ extern "C" {
     // Special tokens
     WHISPER_API whisper_token whisper_token_eot (struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_sot (struct whisper_context * ctx);
-    WHISPER_API whisper_token whisper_token_prev(struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_solm(struct whisper_context * ctx);
+    WHISPER_API whisper_token whisper_token_prev(struct whisper_context * ctx);
+    WHISPER_API whisper_token whisper_token_nosp(struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_not (struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_beg (struct whisper_context * ctx);
     WHISPER_API whisper_token whisper_token_lang(struct whisper_context * ctx, int lang_id);
 
     // Task tokens
-    WHISPER_API whisper_token whisper_token_translate (void);
-    WHISPER_API whisper_token whisper_token_transcribe(void);
+    WHISPER_API whisper_token whisper_token_translate (struct whisper_context * ctx);
+    WHISPER_API whisper_token whisper_token_transcribe(struct whisper_context * ctx);
 
     // Performance information from the default state.
     WHISPER_API void whisper_print_timings(struct whisper_context * ctx);
@@ -357,6 +358,9 @@ extern "C" {
         // note: these can significantly reduce the quality of the output
         bool speed_up;          // speed-up the audio by 2x using Phase Vocoder
         int  audio_ctx;         // overwrite the audio context size (0 = use default)
+
+        // [EXPERIMENTAL] [TDRZ] tinydiarize
+        bool tdrz_enable;       // enable tinydiarize speaker turn detection
 
         // tokens to provide to the whisper decoder as initial prompt
         // these are prepended to any existing text context from a previous call
@@ -460,6 +464,9 @@ extern "C" {
     WHISPER_API int64_t whisper_full_get_segment_t1           (struct whisper_context * ctx, int i_segment);
     WHISPER_API int64_t whisper_full_get_segment_t1_from_state(struct whisper_state * state, int i_segment);
 
+    // Get whether the next segment is predicted as a speaker turn
+    WHISPER_API bool whisper_full_get_segment_speaker_turn_next(struct whisper_context * ctx, int i_segment);
+
     // Get the text of the specified segment
     WHISPER_API const char * whisper_full_get_segment_text           (struct whisper_context * ctx, int i_segment);
     WHISPER_API const char * whisper_full_get_segment_text_from_state(struct whisper_state * state, int i_segment);
@@ -488,9 +495,9 @@ extern "C" {
 
     // Temporary helpers needed for exposing ggml interface
 
-    WHISPER_API int whisper_bench_memcpy(int n_threads);
-    WHISPER_API const char * whisper_bench_memcpy_str(int n_threads);
-    WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads);
+    WHISPER_API int          whisper_bench_memcpy          (int n_threads);
+    WHISPER_API const char * whisper_bench_memcpy_str      (int n_threads);
+    WHISPER_API int          whisper_bench_ggml_mul_mat    (int n_threads);
     WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads);
 
 #ifdef __cplusplus
