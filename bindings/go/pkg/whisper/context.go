@@ -93,7 +93,7 @@ func (context *context) SetOffset(v time.Duration) {
 
 // Set duration of audio to process
 func (context *context) SetDuration(v time.Duration) {
-	context.params.SetOffset(int(v.Milliseconds()))
+	context.params.SetDuration(int(v.Milliseconds()))
 }
 
 // Set timestamp token probability threshold (~0.01)
