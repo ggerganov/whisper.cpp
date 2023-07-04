@@ -33,7 +33,7 @@ goto :eof
 :download_model
 echo Downloading ggml model %model%...
 
-cd %models_path%
+cd "%models_path%"
 
 if exist "ggml-%model%.bin" (
   echo Model %model% already exists. Skipping download.

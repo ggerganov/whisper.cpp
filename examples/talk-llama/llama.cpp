@@ -281,13 +281,6 @@ static T checked_mul(T a, T b) {
     return ret;
 }
 
-static size_t checked_div(size_t a, size_t b) {
-    if (b == 0 || a % b != 0) {
-        throw format("error dividing %zu / %zu", a, b);
-    }
-    return a / b;
-}
-
 static std::string llama_format_tensor_shape(const std::vector<uint32_t> & ne) {
     char buf[256];
     snprintf(buf, sizeof(buf), "%5u", ne.at(0));
@@ -1002,7 +995,7 @@ static void llama_model_load_internal(
     }
 
 #ifdef GGML_USE_CUBLAS
-#define LLAMA_BACKEND_OFFLOAD GGML_BACKEND_CUDA
+#define LLAMA_BACKEND_OFFLOAD GGML_BACKEND_GPU
 #else
 #define LLAMA_BACKEND_OFFLOAD GGML_BACKEND_CPU
 #endif
@@ -1054,7 +1047,7 @@ static void llama_model_load_internal(
             layer.w2 = ml->get_tensor(layers_i + ".feed_forward.w2.weight", {  n_ff,   n_embd}, backend);
             layer.w3 = ml->get_tensor(layers_i + ".feed_forward.w3.weight", {n_embd,   n_ff},   backend);
 
-            if (backend == GGML_BACKEND_CUDA) {
+            if (backend == GGML_BACKEND_GPU) {
                 vram_total +=
                     ggml_nbytes(layer.attention_norm) + ggml_nbytes(layer.wq) + ggml_nbytes(layer.wk)             +
                     ggml_nbytes(layer.wv)             + ggml_nbytes(layer.wo) + ggml_nbytes(layer.attention_norm) +
@@ -1115,7 +1108,7 @@ static void llama_model_load_internal(
             }
         }
         for (llama_load_tensor & lt : ml->tensors_map.tensors) {
-            if (lt.ggml_tensor->backend != GGML_BACKEND_CUDA) {
+            if (lt.ggml_tensor->backend != GGML_BACKEND_GPU) {
                 continue;
             }
             if (progress_callback) {
@@ -1237,8 +1230,8 @@ static bool llama_eval_internal(
         // self-attention
         {
             // compute Q and K and RoPE them
-            struct ggml_tensor * Qcur = ggml_rope_inplace(ctx0, ggml_reshape_3d(ctx0, ggml_mul_mat(ctx0, model.layers[il].wq, cur), n_embd/n_head, n_head, N), n_past, n_rot, 0);
-            struct ggml_tensor * Kcur = ggml_rope_inplace(ctx0, ggml_reshape_3d(ctx0, ggml_mul_mat(ctx0, model.layers[il].wk, cur), n_embd/n_head, n_head, N), n_past, n_rot, 0);
+            struct ggml_tensor * Qcur = ggml_rope_inplace(ctx0, ggml_reshape_3d(ctx0, ggml_mul_mat(ctx0, model.layers[il].wq, cur), n_embd/n_head, n_head, N), n_past, n_rot, 0, 0);
+            struct ggml_tensor * Kcur = ggml_rope_inplace(ctx0, ggml_reshape_3d(ctx0, ggml_mul_mat(ctx0, model.layers[il].wk, cur), n_embd/n_head, n_head, N), n_past, n_rot, 0, 0);
             ggml_set_name(Qcur, "Qcur");
             ggml_set_name(Kcur, "Kcur");
 
