@@ -115,6 +115,7 @@ options:
   -lpt N,    --logprob-thold N   [-1.00  ] log probability threshold for decoder fail
   -su,       --speed-up          [false  ] speed up audio by x2 (reduced accuracy)
   -tr,       --translate         [false  ] translate from source language to english
+  -tdrz,     --tinydiarize       [false  ] enable tinydiarize (requires a tdrz model)
   -di,       --diarize           [false  ] stereo audio diarization
   -nf,       --no-fallback       [false  ] do not use temperature fallback while decoding
   -otxt,     --output-txt        [false  ] output result in a text file
@@ -493,7 +494,7 @@ main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 pr
 [00:00:10.020 --> 00:00:11.000]   country.
 ```
 
-## Word-level timestamp
+## Word-level timestamp (experimental)
 
 The `--max-len` argument can be used to obtain word-level timestamps. Simply use `-ml 1`:
 
@@ -532,6 +533,32 @@ main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 pr
 [00:00:09.760 --> 00:00:10.020]   your
 [00:00:10.020 --> 00:00:10.510]   country
 [00:00:10.510 --> 00:00:11.000]  .
+```
+
+## Speaker segmentation via tinydiarize (experimental)
+
+More information about this approach is available here: https://github.com/ggerganov/whisper.cpp/pull/1058
+
+Sample usage:
+
+```py
+# download a tinydiarize compatible model
+./models/download-ggml-model.sh small.en-tdrz
+
+# run as usual, adding the "-tdrz" command-line argument
+./main -f ./samples/a13.wav -m ./models/ggml-small.en-tdrz.bin -tdrz
+...
+main: processing './samples/a13.wav' (480000 samples, 30.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, tdrz = 1, timestamps = 1 ...
+...
+[00:00:00.000 --> 00:00:03.800]   Okay Houston, we've had a problem here. [SPEAKER_TURN]
+[00:00:03.800 --> 00:00:06.200]   This is Houston. Say again please. [SPEAKER_TURN]
+[00:00:06.200 --> 00:00:08.260]   Uh Houston we've had a problem.
+[00:00:08.260 --> 00:00:11.320]   We've had a main beam up on a volt. [SPEAKER_TURN]
+[00:00:11.320 --> 00:00:13.820]   Roger main beam interval. [SPEAKER_TURN]
+[00:00:13.820 --> 00:00:15.100]   Uh uh [SPEAKER_TURN]
+[00:00:15.100 --> 00:00:18.020]   So okay stand, by thirteen we're looking at it. [SPEAKER_TURN]
+[00:00:18.020 --> 00:00:25.740]   Okay uh right now uh Houston the uh voltage is uh is looking good um.
+[00:00:27.620 --> 00:00:29.940]   And we had a a pretty large bank or so.
 ```
 
 ## Karaoke-style movie generation (experimental)
