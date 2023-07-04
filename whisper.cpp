@@ -657,7 +657,7 @@ struct whisper_state {
 #endif
 
 #ifdef WHISPER_USE_OPENVINO
-    whisper_openvino_context* ctx_openvino = nullptr;
+    whisper_openvino_context * ctx_openvino = nullptr;
 #endif
 
     // [EXPERIMENTAL] token-level timestamps data
@@ -1776,7 +1776,7 @@ static bool whisper_encode_internal(
         }
     }
 #ifdef WHISPER_USE_COREML
-    else if(use_coreml) {
+    else if (use_coreml) {
         wstate.use_buf(ctx0, -1);
 
         cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
@@ -1790,8 +1790,9 @@ static bool whisper_encode_internal(
 
         cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
 
-        if (!whisper_openvino_encode(wstate.ctx_openvino, mel, cur))
+        if (!whisper_openvino_encode(wstate.ctx_openvino, mel, cur)) {
             return false;
+        }
     }
 #endif
 
