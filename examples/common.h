@@ -15,20 +15,24 @@
 //
 
 struct gpt_params {
-    int32_t seed      = -1; // RNG seed
+    int32_t seed      = -1;  // RNG seed
     int32_t n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency());
     int32_t n_predict = 200; // new tokens to predict
+    int32_t n_batch   = 8;   // batch size for prompt processing
 
     // sampling parameters
-    int32_t top_k = 40;
-    float   top_p = 0.9f;
-    float   temp  = 0.9f;
-
-    int32_t n_batch = 8; // batch size for prompt processing
+    int32_t top_k          = 40;
+    float   top_p          = 0.9f;
+    float   temp           = 0.9f;
+    int32_t repeat_last_n  = 64;
+    float   repeat_penalty = 1.00f;
 
     std::string model      = "models/gpt-2-117M/ggml-model.bin"; // model path
     std::string prompt     = "";
     std::string token_test = "";
+
+    bool    interactive      = false;
+    int32_t interactive_port = -1;
 };
 
 bool gpt_params_parse(int argc, char ** argv, gpt_params & params);

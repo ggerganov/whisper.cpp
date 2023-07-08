@@ -1,3 +1,11 @@
+// Defines fileno on msys:
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#endif
+
 #include "llama-util.h"
 #include "llama.h"
 
@@ -271,13 +279,6 @@ static T checked_mul(T a, T b) {
                      (unsigned long long) a, (unsigned long long) b);
     }
     return ret;
-}
-
-static size_t checked_div(size_t a, size_t b) {
-    if (b == 0 || a % b != 0) {
-        throw format("error dividing %zu / %zu", a, b);
-    }
-    return a / b;
 }
 
 static std::string llama_format_tensor_shape(const std::vector<uint32_t> & ne) {
@@ -1229,8 +1230,8 @@ static bool llama_eval_internal(
         // self-attention
         {
             // compute Q and K and RoPE them
-            struct ggml_tensor * Qcur = ggml_rope_inplace(ctx0, ggml_reshape_3d(ctx0, ggml_mul_mat(ctx0, model.layers[il].wq, cur), n_embd/n_head, n_head, N), n_past, n_rot, 0);
-            struct ggml_tensor * Kcur = ggml_rope_inplace(ctx0, ggml_reshape_3d(ctx0, ggml_mul_mat(ctx0, model.layers[il].wk, cur), n_embd/n_head, n_head, N), n_past, n_rot, 0);
+            struct ggml_tensor * Qcur = ggml_rope_inplace(ctx0, ggml_reshape_3d(ctx0, ggml_mul_mat(ctx0, model.layers[il].wq, cur), n_embd/n_head, n_head, N), n_past, n_rot, 0, 0);
+            struct ggml_tensor * Kcur = ggml_rope_inplace(ctx0, ggml_reshape_3d(ctx0, ggml_mul_mat(ctx0, model.layers[il].wk, cur), n_embd/n_head, n_head, N), n_past, n_rot, 0, 0);
             ggml_set_name(Qcur, "Qcur");
             ggml_set_name(Kcur, "Kcur");
 

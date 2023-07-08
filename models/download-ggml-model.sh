@@ -22,7 +22,7 @@ function get_script_path() {
 models_path="$(get_script_path)"
 
 # Whisper models
-models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large" )
+models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small.en-tdrz" "small" "medium.en" "medium" "large-v1" "large" )
 
 # list available models
 function list_models {
@@ -48,6 +48,12 @@ if [[ ! " ${models[@]} " =~ " ${model} " ]]; then
     list_models
 
     exit 1
+fi
+
+# check if model contains `tdrz` and update the src and pfx accordingly
+if [[ $model == *"tdrz"* ]]; then
+    src="https://huggingface.co/akashmjn/tinydiarize-whisper.cpp"
+    pfx="resolve/main/ggml"
 fi
 
 # download ggml model

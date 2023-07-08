@@ -3,6 +3,10 @@
 #include "coreml/whisper-encoder.h"
 #endif
 
+#if WHISPER_USE_OPENVINO
+#include "openvino/whisper-openvino-encoder.h"
+#endif
+
 #include "ggml.h"
 
 #include <algorithm>
@@ -425,16 +429,18 @@ struct whisper_vocab {
     std::map<token, id> token_to_id;
     std::map<id, token> id_to_token;
 
-    id token_eot  = 50256;
-    id token_sot  = 50257;
-    id token_prev = 50360;
-    id token_solm = 50361; // ??
-    id token_not  = 50362; // no timestamps
-    id token_beg  = 50363;
-
-    // available tasks
-    static const id token_translate  = 50358;
-    static const id token_transcribe = 50359;
+    // reference: https://github.com/openai/whisper/blob/248b6cb124225dd263bb9bd32d060b6517e067f8/whisper/tokenizer.py#L334-L349
+    id token_eot        = 50256;
+    id token_sot        = 50257;
+    // task tokens (used only for multilingual models)
+    id token_translate  = 50357;
+    id token_transcribe = 50358;
+    // other special tokens
+    id token_solm       = 50359; // [TDRZ] used by tinydiarize models to indicate speaker turn
+    id token_prev       = 50360;
+    id token_nosp       = 50361;
+    id token_not        = 50362; // no timestamps
+    id token_beg        = 50363; // begin timestamps
 
     bool is_multilingual() const {
         return n_vocab == 51865;
@@ -448,6 +454,8 @@ struct whisper_segment {
     std::string text;
 
     std::vector<whisper_token_data> tokens;
+
+    bool speaker_turn_next;
 };
 
 // medium
@@ -701,6 +709,10 @@ struct whisper_state {
     whisper_coreml_context * ctx_coreml = nullptr;
 #endif
 
+#ifdef WHISPER_USE_OPENVINO
+    whisper_openvino_context * ctx_openvino = nullptr;
+#endif
+
     // [EXPERIMENTAL] token-level timestamps data
     int64_t t_beg = 0;
     int64_t t_last = 0;
@@ -857,7 +869,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
     {
         uint32_t magic;
         read_safe(loader, magic);
-        if (magic != 0x67676d6c) {
+        if (magic != GGML_FILE_MAGIC) {
             fprintf(stderr, "%s: invalid model data (bad magic)\n", __func__);
             return false;
         }
@@ -1011,8 +1023,11 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         if (vocab.is_multilingual()) {
             vocab.token_eot++;
             vocab.token_sot++;
-            vocab.token_prev++;
+            vocab.token_translate++;
+            vocab.token_transcribe++;
             vocab.token_solm++;
+            vocab.token_prev++;
+            vocab.token_nosp++;
             vocab.token_not++;
             vocab.token_beg++;
         }
@@ -1026,8 +1041,12 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                     word = "[_EOT_]";
                 } else if (i == vocab.token_sot) {
                     word = "[_SOT_]";
+                } else if (i == vocab.token_solm) {
+                    word = "[_SOLM_]";
                 } else if (i == vocab.token_prev) {
                     word = "[_PREV_]";
+                } else if (i == vocab.token_nosp) {
+                    word = "[_NOSP_]";
                 } else if (i == vocab.token_not) {
                     word = "[_NOT_]";
                 } else if (i == vocab.token_beg) {
@@ -1512,12 +1531,18 @@ static bool whisper_encode_internal(
     const bool use_coreml = wstate.ctx_coreml != nullptr;
 #endif
 
-    if (!use_coreml) {
+#ifndef WHISPER_USE_OPENVINO
+    const bool use_openvino = false;
+#else
+    const bool use_openvino = wstate.ctx_openvino != nullptr;
+#endif
+
+    if (!use_coreml && !use_openvino) {
         // convolution + gelu
         {
             wstate.use_buf(ctx0, 1);
 
-            cur = ggml_conv_1d_s1_ph(ctx0, model.e_conv_1_w, mel);
+            cur = ggml_conv_1d_ph(ctx0, model.e_conv_1_w, mel, 1, 1);
             cur = ggml_add(ctx0,
                     ggml_repeat(ctx0,
                         model.e_conv_1_b,
@@ -1528,7 +1553,7 @@ static bool whisper_encode_internal(
 
             wstate.use_buf(ctx0, 0);
 
-            cur = ggml_conv_1d_s2_ph(ctx0, model.e_conv_2_w, cur);
+            cur = ggml_conv_1d_ph(ctx0, model.e_conv_2_w, cur, 2, 1);
             cur = ggml_add(ctx0,
                     ggml_repeat(ctx0,
                         model.e_conv_2_b,
@@ -1811,13 +1836,23 @@ static bool whisper_encode_internal(
         }
     }
 #ifdef WHISPER_USE_COREML
-    else
-    {
+    else if (use_coreml) {
         wstate.use_buf(ctx0, -1);
 
         cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
 
         whisper_coreml_encode(wstate.ctx_coreml, (float *) mel->data, (float *) cur->data);
+    }
+#endif
+#ifdef WHISPER_USE_OPENVINO
+    else if (use_openvino) {
+        wstate.use_buf(ctx0, -1);
+
+        cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
+
+        if (!whisper_openvino_encode(wstate.ctx_openvino, mel, cur)) {
+            return false;
+        }
     }
 #endif
 
@@ -2662,6 +2697,31 @@ static std::string whisper_get_coreml_path_encoder(std::string path_bin) {
 }
 #endif
 
+#ifdef WHISPER_USE_OPENVINO
+// replace .bin with-encoder-openvino.xml
+static std::string whisper_openvino_get_path_encoder(std::string path_bin) {
+    auto pos = path_bin.rfind('.');
+    if (pos != std::string::npos) {
+        path_bin = path_bin.substr(0, pos);
+    }
+
+    path_bin += "-encoder-openvino.xml";
+
+    return path_bin;
+}
+
+static std::string whisper_openvino_get_path_cache(std::string path_bin) {
+    auto pos = path_bin.rfind('.');
+    if (pos != std::string::npos) {
+        path_bin = path_bin.substr(0, pos);
+    }
+
+    path_bin += "-encoder-openvino-cache";
+
+    return path_bin;
+}
+#endif
+
 struct whisper_state * whisper_init_state(whisper_context * ctx) {
     whisper_state * state = new whisper_state;
 
@@ -2726,6 +2786,55 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     state->rng = std::mt19937(0);
 
     return state;
+}
+
+int whisper_ctx_init_openvino_encoder(
+        struct whisper_context * ctx,
+                    const char * model_path,
+                    const char * device,
+                    const char * cache_dir) {
+#ifndef WHISPER_USE_OPENVINO
+    (void)(ctx);
+    (void)(model_path);
+    (void)(device);
+    (void)(cache_dir);
+
+    return 1;
+#else
+    if (!model_path && ctx->path_model.empty()) {
+        fprintf(stderr, "%s: model_path is nullptr, and ctx has no model_path set.\n", __func__);
+        return 1;
+    }
+
+    std::string path_encoder;
+    if (!model_path) {
+        //if model_path is not set, attempt to find it in the same directory as ggml-<model>.bin model
+        path_encoder = whisper_openvino_get_path_encoder(ctx->path_model);
+    } else {
+        path_encoder = model_path;
+    }
+
+    std::string path_cache;
+    if (!cache_dir) {
+        //if cache_dir is not set, set it as a dir residing next to ggml-<model>.bin
+        path_cache = whisper_openvino_get_path_cache(ctx->path_model);
+    } else {
+        path_cache = cache_dir;
+    }
+
+    fprintf(stderr, "%s: loading OpenVINO model from '%s'\n", __func__, path_encoder.c_str());
+    fprintf(stderr, "%s: first run on a device may take a while ...\n", __func__);
+
+    ctx->state->ctx_openvino = whisper_openvino_init(path_encoder.c_str(), device, path_cache.c_str());
+    if (!ctx->state->ctx_openvino) {
+        fprintf(stderr, "%s: failed to init OpenVINO encoder from '%s'\n", __func__, path_encoder.c_str());
+        return 1;
+    } else {
+        fprintf(stderr, "%s: OpenVINO model loaded\n", __func__);
+    }
+
+    return 0;
+#endif
 }
 
 struct whisper_context * whisper_init_from_file_no_state(const char * path_model) {
@@ -2879,6 +2988,13 @@ void whisper_free_state(struct whisper_state * state)
         if (state->ctx_coreml != nullptr) {
             whisper_coreml_free(state->ctx_coreml);
             state->ctx_coreml = nullptr;
+        }
+#endif
+
+#ifdef WHISPER_USE_OPENVINO
+        if (state->ctx_openvino != nullptr) {
+            whisper_openvino_free(state->ctx_openvino);
+            state->ctx_openvino = nullptr;
         }
 #endif
 
@@ -3253,12 +3369,16 @@ whisper_token whisper_token_sot(struct whisper_context * ctx) {
     return ctx->vocab.token_sot;
 }
 
+whisper_token whisper_token_solm(struct whisper_context * ctx) {
+    return ctx->vocab.token_solm;
+}
+
 whisper_token whisper_token_prev(struct whisper_context * ctx) {
     return ctx->vocab.token_prev;
 }
 
-whisper_token whisper_token_solm(struct whisper_context * ctx) {
-    return ctx->vocab.token_solm;
+whisper_token whisper_token_nosp(struct whisper_context * ctx) {
+    return ctx->vocab.token_nosp;
 }
 
 whisper_token whisper_token_not(struct whisper_context * ctx) {
@@ -3273,12 +3393,12 @@ whisper_token whisper_token_lang(struct whisper_context * ctx, int lang_id) {
     return whisper_token_sot(ctx) + 1 + lang_id;
 }
 
-whisper_token whisper_token_translate(void) {
-    return whisper_vocab::token_translate;
+whisper_token whisper_token_translate(struct whisper_context * ctx) {
+    return ctx->vocab.token_translate;
 }
 
-whisper_token whisper_token_transcribe(void) {
-    return whisper_vocab::token_transcribe;
+whisper_token whisper_token_transcribe(struct whisper_context * ctx) {
+    return ctx->vocab.token_transcribe;
 }
 
 void whisper_print_timings(struct whisper_context * ctx) {
@@ -3317,6 +3437,14 @@ static int whisper_has_coreml(void) {
 #endif
 }
 
+static int whisper_has_openvino(void) {
+#ifdef WHISPER_USE_OPENVINO
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 const char * whisper_print_system_info(void) {
     static std::string s;
 
@@ -3334,6 +3462,7 @@ const char * whisper_print_system_info(void) {
     s += "SSE3 = "      + std::to_string(ggml_cpu_has_sse3())      + " | ";
     s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
     s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
+    s += "OPENVINO = "  + std::to_string(whisper_has_openvino())   + " | ";
 
     return s.c_str();
 }
@@ -3350,51 +3479,53 @@ struct whisper_full_params * whisper_full_default_params_by_ref(enum whisper_sam
 
 struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy) {
     struct whisper_full_params result = {
-        /*.strategy         =*/ strategy,
+        /*.strategy          =*/ strategy,
 
-        /*.n_threads        =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
-        /*.n_max_text_ctx   =*/ 16384,
-        /*.offset_ms        =*/ 0,
-        /*.duration_ms      =*/ 0,
+        /*.n_threads         =*/ std::min(4, (int32_t) std::thread::hardware_concurrency()),
+        /*.n_max_text_ctx    =*/ 16384,
+        /*.offset_ms         =*/ 0,
+        /*.duration_ms       =*/ 0,
 
-        /*.translate        =*/ false,
-        /*.no_context       =*/ true,
-        /*.single_segment   =*/ false,
-        /*.print_special    =*/ false,
-        /*.print_progress   =*/ true,
-        /*.print_realtime   =*/ false,
-        /*.print_timestamps =*/ true,
+        /*.translate         =*/ false,
+        /*.no_context        =*/ true,
+        /*.single_segment    =*/ false,
+        /*.print_special     =*/ false,
+        /*.print_progress    =*/ true,
+        /*.print_realtime    =*/ false,
+        /*.print_timestamps  =*/ true,
 
-        /*.token_timestamps =*/ false,
-        /*.thold_pt         =*/ 0.01f,
-        /*.thold_ptsum      =*/ 0.01f,
-        /*.max_len          =*/ 0,
-        /*.split_on_word    =*/ false,
-        /*.max_tokens       =*/ 0,
+        /*.token_timestamps  =*/ false,
+        /*.thold_pt          =*/ 0.01f,
+        /*.thold_ptsum       =*/ 0.01f,
+        /*.max_len           =*/ 0,
+        /*.split_on_word     =*/ false,
+        /*.max_tokens        =*/ 0,
 
-        /*.speed_up         =*/ false,
-        /*.audio_ctx        =*/ 0,
+        /*.speed_up          =*/ false,
+        /*.audio_ctx         =*/ 0,
 
-        /*.initial_prompt   =*/ nullptr,
-        /*.prompt_tokens    =*/ nullptr,
-        /*.prompt_n_tokens  =*/ 0,
+        /*.tdrz_enable       =*/ false,
 
-        /*.language         =*/ "en",
-        /*.detect_language  =*/ false,
+        /*.initial_prompt    =*/ nullptr,
+        /*.prompt_tokens     =*/ nullptr,
+        /*.prompt_n_tokens   =*/ 0,
 
-        /*.suppress_blank   =*/ true,
+        /*.language          =*/ "en",
+        /*.detect_language   =*/ false,
+
+        /*.suppress_blank    =*/ true,
         /*.suppress_non_speech_tokens =*/ false,
 
-        /*.temperature      =*/  0.0f,
-        /*.max_initial_ts   =*/  1.0f,
-        /*.length_penalty   =*/ -1.0f,
+        /*.temperature       =*/  0.0f,
+        /*.max_initial_ts    =*/  1.0f,
+        /*.length_penalty    =*/ -1.0f,
 
-        /*.temperature_inc  =*/  0.4f,
-        /*.entropy_thold    =*/  2.4f,
-        /*.logprob_thold    =*/ -1.0f,
-        /*.no_speech_thold  =*/  0.6f,
+        /*.temperature_inc   =*/  0.4f,
+        /*.entropy_thold     =*/  2.4f,
+        /*.logprob_thold     =*/ -1.0f,
+        /*.no_speech_thold   =*/  0.6f,
 
-        /*.greedy           =*/ {
+        /*.greedy            =*/ {
             /*.best_of   =*/ -1,
         },
 
@@ -3475,6 +3606,7 @@ static int whisper_wrap_segment(struct whisper_context & ctx, struct whisper_sta
             state.result_all.back().text = std::move(text);
             state.result_all.back().t1 = token.t0;
             state.result_all.back().tokens.resize(i);
+            state.result_all.back().speaker_turn_next = false;
 
             state.result_all.push_back({});
             state.result_all.back().t0 = token.t0;
@@ -3485,6 +3617,8 @@ static int whisper_wrap_segment(struct whisper_context & ctx, struct whisper_sta
                 state.result_all.back().tokens.end(),
                     segment.tokens.begin() + i,
                     segment.tokens.end());
+
+            state.result_all.back().speaker_turn_next = segment.speaker_turn_next;
 
             acc = 0;
             text = "";
@@ -3564,9 +3698,14 @@ static void whisper_process_logits(
         // ref: https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L410-L412
         logits[vocab.token_not] = -INFINITY;
 
-        // suppress sot and solm tokens
+        // suppress sot and nosp tokens
         logits[vocab.token_sot]  = -INFINITY;
-        logits[vocab.token_solm] = -INFINITY;
+        logits[vocab.token_nosp] = -INFINITY; // TODO: ignore this token for now
+
+        // [TDRZ] when tinydiarize is disabled, suppress solm token
+        if (params.tdrz_enable == false) {
+            logits[vocab.token_solm] = -INFINITY;
+        }
 
         // suppress task tokens
         logits[vocab.token_translate]  = -INFINITY;
@@ -4063,9 +4202,9 @@ int whisper_full_with_state(
         state->lang_id = lang_id;
         prompt_init.push_back(whisper_token_lang(ctx, lang_id));
         if (params.translate) {
-            prompt_init.push_back(whisper_token_translate());
+            prompt_init.push_back(whisper_token_translate(ctx));
         } else {
-            prompt_init.push_back(whisper_token_transcribe());
+            prompt_init.push_back(whisper_token_transcribe(ctx));
         }
     }
 
@@ -4545,21 +4684,25 @@ int whisper_full_with_state(
                 prompt_past.push_back(tokens_cur[i].id);
             }
 
-            // store the text from this iteration
             if (!tokens_cur.empty() && ctx->model.n_loaded > 0) {
                 int  i0 = 0;
                 auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
 
                 std::string text;
+                bool speaker_turn_next = false;
 
                 for (int i = 0; i < (int) tokens_cur.size(); i++) {
                     //printf("%s: %18s %6.3f %18s %6.3f\n", __func__,
                     //        ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].p,
                     //        ctx->vocab.id_to_token[tokens_cur[i].tid].c_str(), tokens_cur[i].pt);
 
-                    if (params.print_special == false && tokens_cur[i].id >= whisper_token_eot(ctx)) {
-                    } else {
+                    if (params.print_special || tokens_cur[i].id < whisper_token_eot(ctx)) {
                         text += whisper_token_to_str(ctx, tokens_cur[i].id);
+                    }
+
+                    // [TDRZ] record if speaker turn was predicted after current segment
+                    if (params.tdrz_enable && tokens_cur[i].id == whisper_token_solm(ctx)) {
+                        speaker_turn_next = true;
                     }
 
                     if (tokens_cur[i].id > whisper_token_beg(ctx) && !params.single_segment) {
@@ -4580,7 +4723,7 @@ int whisper_full_with_state(
 
                             //printf("tt0 = %d, tt1 = %d, text = %s, token = %s, token_id = %d, tid = %d\n", tt0, tt1, text.c_str(), ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].id, tokens_cur[i].tid);
 
-                            result_all.push_back({ tt0, tt1, text, {} });
+                            result_all.push_back({ tt0, tt1, text, {}, speaker_turn_next });
                             for (int j = i0; j <= i; j++) {
                                 result_all.back().tokens.push_back(tokens_cur[j]);
                             }
@@ -4606,6 +4749,7 @@ int whisper_full_with_state(
                         i--;
                         t0 = t1;
                         i0 = i + 1;
+                        speaker_turn_next = false;
                     }
                 }
 
@@ -4624,7 +4768,7 @@ int whisper_full_with_state(
                         }
                     }
 
-                    result_all.push_back({ tt0, tt1, text, {} });
+                    result_all.push_back({ tt0, tt1, text, {} , speaker_turn_next });
                     for (int j = i0; j < (int) tokens_cur.size(); j++) {
                         result_all.back().tokens.push_back(tokens_cur[j]);
                     }
@@ -4802,6 +4946,10 @@ int64_t whisper_full_get_segment_t1_from_state(struct whisper_state * state, int
 
 int64_t whisper_full_get_segment_t1(struct whisper_context * ctx, int i_segment) {
     return ctx->state->result_all[i_segment].t1;
+}
+
+bool whisper_full_get_segment_speaker_turn_next(struct whisper_context * ctx, int i_segment) {
+    return ctx->state->result_all[i_segment].speaker_turn_next;
 }
 
 const char * whisper_full_get_segment_text_from_state(struct whisper_state * state, int i_segment) {
