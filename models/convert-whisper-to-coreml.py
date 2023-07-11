@@ -7,7 +7,6 @@ from torch import Tensor
 from torch import nn
 from typing import Dict
 from typing import Optional
-from ane_transformers.reference.layer_norm import LayerNormANE as LayerNormANEBase
 from coremltools.models.neural_network.quantization_utils import quantize_weights
 from whisper.model import Whisper, AudioEncoder, TextDecoder, ResidualAttentionBlock, MultiHeadAttention, ModelDimensions
 from whisper import load_model
@@ -32,12 +31,12 @@ def correct_for_bias_scale_order_inversion(state_dict, prefix, local_metadata,
     state_dict[prefix + 'bias'] = state_dict[prefix + 'bias'] / state_dict[prefix + 'weight']
     return state_dict
 
-class LayerNormANE(LayerNormANEBase):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._register_load_state_dict_pre_hook(
-            correct_for_bias_scale_order_inversion)
+class LayerNorm(nn.LayerNorm):
+    def forward(self, x: Tensor) -> Tensor:
+        x = x.transpose(1,3)
+        x = super().forward(x)
+        x = x.transpose(1,3)
+        return x
 
 class MultiHeadAttentionANE(MultiHeadAttention):
     def __init__(self, n_state: int, n_head: int):
@@ -104,9 +103,9 @@ class ResidualAttentionBlockANE(ResidualAttentionBlock):
     def __init__(self, n_state: int, n_head: int, cross_attention: bool = False):
         super().__init__(n_state, n_head, cross_attention)
         self.attn =  MultiHeadAttentionANE(n_state, n_head)
-        self.attn_ln = LayerNormANE(n_state)
+        self.attn_ln = LayerNorm(n_state)
         self.cross_attn =  MultiHeadAttentionANE(n_state, n_head) if cross_attention else None
-        self.cross_attn_ln =  LayerNormANE(n_state) if cross_attention else None
+        self.cross_attn_ln =  LayerNorm(n_state) if cross_attention else None
 
         n_mlp = n_state * 4
         self.mlp =  nn.Sequential(
@@ -114,7 +113,7 @@ class ResidualAttentionBlockANE(ResidualAttentionBlock):
             nn.GELU(),
             nn.Conv2d(n_mlp, n_state, kernel_size=1)
         )
-        self.mlp_ln = LayerNormANE(n_state)
+        self.mlp_ln = LayerNorm(n_state)
 
 
 class AudioEncoderANE(AudioEncoder):
@@ -124,7 +123,7 @@ class AudioEncoderANE(AudioEncoder):
         self.blocks = nn.ModuleList(
             [ResidualAttentionBlockANE(n_state, n_head) for _ in range(n_layer)]
         )
-        self.ln_post = LayerNormANE(n_state)
+        self.ln_post = LayerNorm(n_state)
 
     def forward(self, x: Tensor):
         """
@@ -168,7 +167,7 @@ class TextDecoderANE(TextDecoder):
         self.blocks= nn.ModuleList(
             [ResidualAttentionBlockANE(n_state, n_head, cross_attention=True) for _ in range(n_layer)]
         )
-        self.ln= LayerNormANE(n_state)
+        self.ln= LayerNorm(n_state)
 
     def forward(self, x: Tensor, xa: Tensor, kv_cache: Optional[dict] = None):
         """
