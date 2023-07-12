@@ -4,21 +4,34 @@ on: [push, pull_request]
 jobs:
   ubuntu-latest:
     runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            variant: v8
+          - arch: amd64
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
 
-      - name: Dependencies
+      - name: Build ${{ matrix.arch }}
         run: |
-          sudo apt-get update
-          sudo apt-get install build-essential
-          sudo apt-get install libsdl2-dev
+          docker run --platform ${{ matrix.arch }} --rm -v ${{ github.workspace }}:/workspace -w /workspace bin/sh -c \
+          " apt update &&\
+            apt install -y \
+            build-essential
+            libsdl2-dev &&\
+            make && make stream"
 
-      - name: Build
-        run: |
-          make
-          make stream
+      # - name: Build
+      #   run: |
+      #     make
+      #     make stream
 
   macOS-latest:
     runs-on: macOS-latest
