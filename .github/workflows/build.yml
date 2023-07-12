@@ -21,7 +21,7 @@ jobs:
 
       - name: Build ${{ matrix.arch }}
         run: |
-          docker run --platform ${{ matrix.arch }} --rm -v ${{ github.workspace }}:/workspace -w /workspace ubuntu:22.04 bin/sh -c \
+          docker run --platform ${{ matrix.arch }} --rm -v ${{ github.workspace }}:/workspace -w /workspace ubuntu:22.04 /bin/sh -c \
           " apt update &&\
             apt install -y \
             build-essential
