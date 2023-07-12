@@ -1,6 +1,9 @@
 name: CI
 on: [push, pull_request]
 
+env:
+  ubuntu_image: "ubuntu:22.04"
+
 jobs:
   ubuntu-latest:
     runs-on: ubuntu-latest
@@ -10,6 +13,13 @@ jobs:
         include:
           - arch: linux/amd64
           - arch: linux/arm64
+          - arch: linux/arm/v7      
+          - arch: linux/ppc64le
+          - arch: linux/riscv64
+          - arch: linux/s390x
+          - arch: linux/386
+          - arch: linux/mips64le
+          - arch: linux/mips64
 
     steps:
       - name: Clone
@@ -20,17 +30,12 @@ jobs:
 
       - name: Build ${{ matrix.arch }}
         run: |
-          docker run --platform ${{ matrix.arch }} --rm -v ${{ github.workspace }}:/workspace -w /workspace ubuntu:22.04 /bin/sh -c \
+          docker run --platform ${{ matrix.arch }} --rm -v ${{ github.workspace }}:/workspace -w /workspace ${{ env.ubuntu_image }} /bin/sh -c \
           " apt update &&\
             apt install -y \
             build-essential \
             libsdl2-dev &&\
             make && make stream"
-
-      # - name: Build
-      #   run: |
-      #     make
-      #     make stream
 
   macOS-latest:
     runs-on: macOS-latest
