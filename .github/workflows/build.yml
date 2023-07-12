@@ -15,7 +15,6 @@ jobs:
           - arch: linux/arm64
           - arch: linux/arm/v7      
           - arch: linux/ppc64le
-          - arch: linux/s390x
 
     steps:
       - name: Clone
