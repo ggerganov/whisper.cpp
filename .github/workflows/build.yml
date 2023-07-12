@@ -13,7 +13,6 @@ jobs:
         include:
           - arch: linux/amd64
           - arch: linux/arm64
-          - arch: linux/arm/v6
           - arch: linux/arm/v7    
           - arch: linux/ppc64le
 
