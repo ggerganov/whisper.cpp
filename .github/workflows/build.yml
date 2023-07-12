@@ -8,9 +8,8 @@ jobs:
     strategy:
       matrix:
         include:
-          # - arch: arm64
-          #   variant: v8
           - arch: linux/amd64
+          - arch: linux/arm64
 
     steps:
       - name: Clone
@@ -24,7 +23,7 @@ jobs:
           docker run --platform ${{ matrix.arch }} --rm -v ${{ github.workspace }}:/workspace -w /workspace ubuntu:22.04 /bin/sh -c \
           " apt update &&\
             apt install -y \
-            build-essential
+            build-essential \
             libsdl2-dev &&\
             make && make stream"
 
