@@ -13,7 +13,8 @@ jobs:
         include:
           - arch: linux/amd64
           - arch: linux/arm64
-          - arch: linux/arm/v7      
+          - arch: linux/arm/v6
+          - arch: linux/arm/v7    
           - arch: linux/ppc64le
 
     steps:
@@ -25,12 +26,13 @@ jobs:
 
       - name: Build ${{ matrix.arch }}
         run: |
-          docker run --platform ${{ matrix.arch }} --rm -v ${{ github.workspace }}:/workspace -w /workspace ${{ env.ubuntu_image }} /bin/sh -c \
-          " apt update &&\
-            apt install -y \
-            build-essential \
-            libsdl2-dev &&\
-            make && make stream"
+          docker run --platform ${{ matrix.arch }} --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            apt update
+            apt install -y build-essential libsdl2-dev
+            make
+            make stream'
 
   macOS-latest:
     runs-on: macOS-latest
