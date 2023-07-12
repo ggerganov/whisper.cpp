@@ -318,7 +318,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup emsdk
-        uses: mymindstorm/setup-emsdk@v11
+        uses: mymindstorm/setup-emsdk@v12
 
       - name: Verify
         run: emcc -v
