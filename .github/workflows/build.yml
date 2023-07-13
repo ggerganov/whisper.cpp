@@ -60,8 +60,8 @@ jobs:
           operating_system: freebsd
           version: '13.2'
           run: |
-            pkg update
-            pkg install -y gmake sdl2
+            sudo pkg update
+            sudo pkg install -y gmake sdl2
             gmake
             gmake stream
 
