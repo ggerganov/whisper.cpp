@@ -46,6 +46,24 @@ jobs:
         run: |
           make
           make stream
+  
+  freeBSD-latest:
+
+    runs-on: macos-12
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+
+      - name: Build
+        uses: cross-platform-actions/action@v0.15.0
+        with:
+          operating_system: freebsd
+          version: '13.2'
+          run: |
+            pkg update
+            pkg install -y gmake sdl2
+            gmake
+            gmake stream
 
   ubuntu-latest-gcc:
     runs-on: ubuntu-latest
