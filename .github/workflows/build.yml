@@ -48,8 +48,8 @@ jobs:
           make stream
   
   freeBSD-latest:
-
     runs-on: macos-12
+    
     steps:
       - name: Clone
         uses: actions/checkout@v3
