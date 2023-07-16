@@ -1,31 +1,41 @@
 name: CI
 on: [push, pull_request]
 
+env:
+  ubuntu_image: "ubuntu:22.04"
+
 jobs:
   ubuntu-latest:
     runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
 
-      - name: Dependencies
+      - name: Build ${{ matrix.arch }}
         run: |
-          sudo apt-get update
-          sudo apt-get install build-essential
-          sudo apt-get install libsdl2-dev
-
-      - name: Build
-        run: |
-          make
-          make stream
+          docker run --platform ${{ matrix.arch }} --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            apt update
+            apt install -y build-essential libsdl2-dev
+            make
+            make stream'
 
   macOS-latest:
     runs-on: macOS-latest
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Dependencies
         run: |
@@ -36,83 +46,105 @@ jobs:
         run: |
           make
           make stream
+  
+  freeBSD-latest:
+    runs-on: macos-12
+    
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+
+      - name: Build
+        uses: cross-platform-actions/action@v0.15.0
+        with:
+          operating_system: freebsd
+          version: '13.2'
+          run: |
+            sudo pkg update
+            sudo pkg install -y gmake sdl2
+            gmake
+            gmake stream
 
   ubuntu-latest-gcc:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         build: [Debug, Release]
+        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
-      - name: Dependencies
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Build ${{ matrix.arch }}
         run: |
-          sudo apt-get update
-          sudo apt-get install build-essential
-          sudo apt-get install cmake
-          sudo apt-get install libsdl2-dev
-
-      - name: Configure
-        run: cmake . -DWHISPER_SUPPORT_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-
-      - name: Build
-        run: |
-          make
-          ctest -L gh --output-on-failure
+          docker run --platform ${{ matrix.arch }} --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            apt update
+            apt install -y build-essential cmake libsdl2-dev
+            cmake . -DWHISPER_SUPPORT_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+            make
+            ctest -L gh --output-on-failure'
 
   ubuntu-latest-clang:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         build: [Debug, Release]
+        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
-      - name: Dependencies
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Build ${{ matrix.arch }}
         run: |
-          sudo apt-get update
-          sudo apt-get install build-essential
-          sudo apt-get install cmake
-          sudo apt-get install libsdl2-dev
-
-      - name: Configure
-        run: cmake . -DWHISPER_SUPPORT_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
-
-      - name: Build
-        run: |
-          make
-          ctest -L gh --output-on-failure
+          docker run --platform ${{ matrix.arch }} --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            apt update
+            apt install -y build-essential cmake libsdl2-dev
+            cmake . -DWHISPER_SUPPORT_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
+            make
+            ctest -L gh --output-on-failure'
 
   ubuntu-latest-gcc-sanitized:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         sanitizer: [ADDRESS, THREAD, UNDEFINED]
+        arch: [linux/amd64]
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
-
-      - name: Dependencies
+        uses: actions/checkout@v3
+        
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      
+      - name: Build ${{ matrix.arch }}
         run: |
-          sudo apt-get update
-          sudo apt-get install build-essential
-          sudo apt-get install cmake
-
-      - name: Configure
-        run: cmake . -DCMAKE_BUILD_TYPE=Debug -DWHISPER_SANITIZE_${{ matrix.sanitizer }}=ON
-
-      - name: Build
-        run: |
-          make
-          ctest -L gh --output-on-failure
+          docker run --platform ${{ matrix.arch }} --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            apt update
+            apt install -y build-essential cmake
+            cmake . -DCMAKE_BUILD_TYPE=Debug -DWHISPER_SANITIZE_${{ matrix.sanitizer }}=ON
+            make
+            ctest -L gh --output-on-failure'
 
   windows:
     runs-on: windows-latest
@@ -134,7 +166,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1
@@ -195,7 +227,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1
@@ -261,7 +293,7 @@ jobs:
             
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1
@@ -308,24 +340,16 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
-      - name: Dependencies
-        run: |
-          wget -q https://github.com/emscripten-core/emsdk/archive/master.tar.gz
-          tar -xvf master.tar.gz
-          emsdk-master/emsdk update
-          emsdk-master/emsdk install latest
-          emsdk-master/emsdk activate latest
+      - name: Setup emsdk
+        uses: mymindstorm/setup-emsdk@v12
 
-      - name: Configure
-        run: echo "tmp"
+      - name: Verify
+        run: emcc -v
 
       - name: Build
         run: |
-          pushd emsdk-master
-          source ./emsdk_env.sh
-          popd
           emcmake cmake . -DCMAKE_BUILD_TYPE=${{ matrix.build }}
           make
 
@@ -338,7 +362,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Configure
         run: |
@@ -356,7 +380,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
 
       - name: Install Java
         uses: actions/setup-java@v3
@@ -376,7 +400,7 @@ jobs:
     needs: [ 'windows' ]
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
 
       - name: Install Java
         uses: actions/setup-java@v1
