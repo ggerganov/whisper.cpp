@@ -19,6 +19,10 @@ func (p *Params) SetTranslate(v bool) {
 	p.translate = toBool(v)
 }
 
+func (p *Params) SetSplitOnWord(v bool) {
+	p.split_on_word = toBool(v)
+}
+
 func (p *Params) SetNoContext(v bool) {
 	p.no_context = toBool(v)
 }
