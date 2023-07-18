@@ -2565,6 +2565,87 @@ static bool log_mel_spectrogram(
     return true;
 }
 
+// merge algo for byte pair encoding
+//
+// ref: https://github.com/openai/tiktoken/blob/5d970c1100d3210b42497203d6b5c1e30cfda6cb/src/lib.rs#L14-L98
+// 
+std::vector<int> _byte_pair_merge_string(
+    const std::string& piece,
+    const std::map<std::string, size_t>& ranks,
+    const std::function<int(std::vector<int>)>& f
+) {
+    std::vector<std::pair<size_t, size_t>> parts;
+    for (size_t i = 0; i < piece.size() + 1; i++) {
+        parts.emplace_back(i, std::numeric_limits<size_t>::max());
+    }
+
+    auto get_rank = [&](const std::vector<std::pair<size_t, size_t>>& parts, size_t start_idx, size_t skip) -> size_t {
+        if ((start_idx + skip + 2) < parts.size()) {
+            const auto& slice = std::string(piece.begin() + parts[start_idx].first, piece.begin() + parts[start_idx + skip + 2].first);
+            auto rank_it = ranks.find(slice);
+            if (rank_it != ranks.end()) {
+                return rank_it->second;
+            }
+        }
+        return std::numeric_limits<size_t>::max();
+    };
+
+    for (size_t i = 0; i < parts.size() - 2; ++i) {
+        auto rank = get_rank(parts, i, 0);
+        if (rank != std::numeric_limits<size_t>::max()) {
+            parts[i].second = rank;
+        }
+    }
+
+    while (parts.size() > 1) {
+        std::pair<size_t, size_t> min_rank = std::make_pair(std::numeric_limits<size_t>::max(), 0);
+        for (size_t i = 0; i < parts.size() - 1; ++i) {
+            if (parts[i].second < min_rank.first) {
+                min_rank = std::make_pair(parts[i].second, i);
+            }
+        }
+
+        if (min_rank.first != std::numeric_limits<size_t>::max()) {
+            size_t i = min_rank.second;
+            parts[i].second = get_rank(parts, i, 1);
+            if (i > 0) {
+                parts[i - 1].second = get_rank(parts, i - 1, 1);
+            }
+
+            parts.erase(parts.begin() + i + 1);
+        } else {
+            break;
+        }
+    }
+
+    std::vector<int> out;
+    out.reserve(parts.size() - 1);
+    for (size_t i = 0; i < parts.size() - 1; ++i) {
+        const auto& range = std::vector<int>(piece.begin() + parts[i].first, piece.begin() + parts[i + 1].first);
+        out.push_back(f(range));
+    }
+    return out;
+}
+
+static std::vector<int> _tokenize(const whisper_vocab& vocab, const std::string& piece) {
+
+    // convert std::map<std::string, int> token_to_id to ranks
+    std::map<std::string, size_t> ranks;
+    for (const auto& it : vocab.token_to_id) {
+        ranks[it.first] = it.second;
+    }
+
+    // apply BPE tokenization
+    std::function<int(std::vector<int>)> f = [&piece, &vocab](const std::vector<int>& range) {
+        auto it = vocab.token_to_id.find(std::string(range.begin(), range.end()));
+        if (it != vocab.token_to_id.end()) {
+            return it->second;
+        }
+        return -1;
+    };
+    return _byte_pair_merge_string(piece, ranks, f);
+}
+
 // split text into tokens
 //
 // ref: https://github.com/openai/gpt-2/blob/a74da5d99abaaba920de8131d64da2862a8f213b/src/encoder.py#L53
@@ -2594,32 +2675,11 @@ static std::vector<whisper_vocab::id> tokenize(const whisper_vocab & vocab, cons
         }
     }
 
-    // find the longest tokens that form the words:
+    // tokenize each piece
     std::vector<whisper_vocab::id> tokens;
-    for (const auto & word : words) {
-        if (word.empty()) continue;
-
-        int i = 0;
-        int n = word.size();
-        while (i < n) {
-            int j = n;
-            bool found = false;
-            while (j > i) {
-                auto sub = word.substr(i, j-i);
-                auto it = vocab.token_to_id.find(sub);
-                if (it != vocab.token_to_id.end()) {
-                    tokens.push_back(it->second);
-                    i = j;
-                    found = true;
-                    break;
-                }
-                --j;
-            }
-            if (!found) {
-                fprintf(stderr, "unknown token \n");
-                ++i;
-            }
-        }
+    for (const auto& word : words) {
+        auto ids = _tokenize(vocab, word);
+        tokens.insert(tokens.end(), ids.begin(), ids.end());
     }
 
     return tokens;
