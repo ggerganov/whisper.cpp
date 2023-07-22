@@ -3073,7 +3073,6 @@ int whisper_decode(struct whisper_context * ctx, const whisper_token * tokens, i
         return false;
     }
 
-
     if (!whisper_decode_internal(*ctx, *ctx->state, ctx->state->decoders[selected_decoder_id], tokens, n_tokens, n_past, n_threads)) {
         fprintf(stderr, "%s: failed to eval\n", __func__);
         return 1;
@@ -3306,7 +3305,6 @@ int whisper_is_multilingual(struct whisper_context * ctx) {
 float * whisper_get_logits(struct whisper_context * ctx) {
     return ctx->state->logits.data();
 }
-
 
 float * whisper_get_logits_from_state(struct whisper_state * state) {
     return state->logits.data();
@@ -4019,16 +4017,18 @@ int whisper_full_with_state(
 
     result_all.clear();
 
-    // compute log mel spectrogram
-    if (params.speed_up) {
-        if (whisper_pcm_to_mel_phase_vocoder_with_state(ctx, state, samples, n_samples, params.n_threads) != 0) {
-            fprintf(stderr, "%s: failed to compute log mel spectrogram\n", __func__);
-            return -1;
-        }
-    } else {
-        if (whisper_pcm_to_mel_with_state(ctx, state, samples, n_samples, params.n_threads) != 0) {
-            fprintf(stderr, "%s: failed to compute log mel spectrogram\n", __func__);
-            return -2;
+    if (n_samples > 0) {
+        // compute log mel spectrogram
+        if (params.speed_up) {
+            if (whisper_pcm_to_mel_phase_vocoder_with_state(ctx, state, samples, n_samples, params.n_threads) != 0) {
+                fprintf(stderr, "%s: failed to compute log mel spectrogram\n", __func__);
+                return -1;
+            }
+        } else {
+            if (whisper_pcm_to_mel_with_state(ctx, state, samples, n_samples, params.n_threads) != 0) {
+                fprintf(stderr, "%s: failed to compute log mel spectrogram\n", __func__);
+                return -2;
+            }
         }
     }
 
@@ -4054,7 +4054,9 @@ int whisper_full_with_state(
         state->t_beg    = 0;
         state->t_last   = 0;
         state->tid_last = 0;
-        state->energy = get_signal_energy(samples, n_samples, 32);
+        if (n_samples > 0) {
+            state->energy = get_signal_energy(samples, n_samples, 32);
+        }
     }
 
     const int seek_start = params.offset_ms/10;
@@ -4754,7 +4756,6 @@ int whisper_full_with_state(
     return 0;
 }
 
-
 int whisper_full(
         struct whisper_context * ctx,
     struct whisper_full_params   params,
@@ -4830,7 +4831,6 @@ int whisper_full_parallel(
             // correct the segment timestamp taking into account the offset
             result.t0 += 100 * ((i + 1) * n_samples_per_processor) / WHISPER_SAMPLE_RATE + offset_t;
             result.t1 += 100 * ((i + 1) * n_samples_per_processor) / WHISPER_SAMPLE_RATE + offset_t;
-
 
             // make sure that segments are not overlapping
             if (!ctx->state->result_all.empty()) {
