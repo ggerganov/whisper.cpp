@@ -21,6 +21,7 @@
 "
 " For now though, a simple proof of concept shall suffice.
 if !exists("g:whisper_dir")
+<<<<<<< HEAD
    let g:whisper_dir = expand($WHISPER_CPP_HOME)
    if g:whisper_dir == ""
       echoerr "Please provide a path to the whisper.cpp repo in either the $WHISPER_CPP_HOME environment variable, or g:whisper_dir"
@@ -39,6 +40,7 @@ if !exists("g:whisper_stream_path")
    endif
 endif
 if !exists("g:whisper_model_path")
+<<<<<<< HEAD
    " TODO: allow paths relative the repo dir
    let g:whisper_model_path = g:whisper_dir .. "models/ggml-base.en.bin"
    if !filereadable(g:whisper_model_path)
