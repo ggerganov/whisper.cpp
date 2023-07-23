@@ -21,7 +21,10 @@
 "
 " For now though, a simple proof of concept shall suffice.
 if !exists("g:whisper_dir")
-   let g:whisper_dir = expand("~/whisper.cpp/")
+   let g:whisper_dir = expand($WHISPER_CPP_HOME)
+   if g:whisper_dir == ""
+      echoerr "Please provide a path to the whisper.cpp repo in either the $WHISPER_CPP_HOME environment variable, or g:whisper_dir"
+   endif
 endif
 if !exists("g:whisper_stream_path")
    if executable("stream")
@@ -36,7 +39,12 @@ if !exists("g:whisper_stream_path")
    endif
 endif
 if !exists("g:whisper_model_path")
+   " TODO: allow paths relative the repo dir
    let g:whisper_model_path = g:whisper_dir .. "models/ggml-base.en.bin"
+   if !filereadable(g:whisper_model_path)
+      echoerr "Could not find model at: " .. g:whisper_model_path
+      throw "Model not found"
+   endif
 endif
 let s:streaming_command = [g:whisper_stream_path,"-m",g:whisper_model_path,"-t","8","--step","0","--length","5000","-vth","0.6"]
 
