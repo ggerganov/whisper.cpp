@@ -517,6 +517,11 @@ extern "C" {
     WHISPER_API int          whisper_bench_ggml_mul_mat    (int n_threads);
     WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads);
 
+    // Control logging output; default behavior is to print to stderr
+
+    typedef void (*whisper_log_callback)(const char * line);
+    WHISPER_API void whisper_set_log_callback(whisper_log_callback callback);
+
 #ifdef __cplusplus
 }
 #endif
