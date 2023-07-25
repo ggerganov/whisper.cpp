@@ -67,6 +67,7 @@ extern "C" {
 
     struct whisper_context;
     struct whisper_state;
+    struct whisper_full_params;
 
     typedef int whisper_token;
 
