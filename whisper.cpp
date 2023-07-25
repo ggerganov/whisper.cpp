@@ -4163,9 +4163,6 @@ int whisper_full_with_state(
         }
     }
 
-    int progress_prev = 0;
-    int progress_step = 5;
-
     int seek = seek_start;
 
     std::vector<whisper_token> prompt;
@@ -4193,15 +4190,9 @@ int whisper_full_with_state(
     // main loop
     while (true) {
         const int progress_cur = (100*(seek - seek_start))/(seek_end - seek_start);
-        while (progress_cur >= progress_prev + progress_step) {
-            progress_prev += progress_step;
-            if (params.print_progress) {
-                fprintf(stderr, "%s: progress = %3d%%\n", __func__, progress_prev);
-            }
-        }
         if (params.progress_callback) {
             params.progress_callback(
-                ctx, ctx->state, progress_prev, params.progress_callback_user_data);
+                ctx, ctx->state, progress_cur, params.progress_callback_user_data);
         }
 
         // of only 1 second left, then stop
