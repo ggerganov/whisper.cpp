@@ -362,4 +362,4 @@ tiny.en tiny base.en base small.en small medium.en medium large-v1 large: main
 
 .PHONY: tests
 tests:
-	bash ./tests/run-tests.sh
+	bash ./tests/run-tests.sh $(word 2, $(MAKECMDGOALS))
