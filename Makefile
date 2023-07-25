@@ -192,11 +192,17 @@ endif
 
 ifdef WHISPER_CLBLAST
 	CFLAGS 		+= -DGGML_USE_CLBLAST
-	LDFLAGS	 	+= -lclblast -lOpenCL
+	CXXFLAGS 	+= -DGGML_USE_CLBLAST
+	LDFLAGS	 	+= -lclblast
+	ifeq ($(UNAME_S),Darwin)
+		LDFLAGS	 	+= -framework OpenCL
+	else
+		LDFLAGS	    += -lOpenCL
+	endif
 	WHISPER_OBJ	+= ggml-opencl.o
 
 ggml-opencl.o: ggml-opencl.cpp ggml-opencl.h
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 endif
 
 ifdef WHISPER_GPROF
