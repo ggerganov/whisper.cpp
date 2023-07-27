@@ -1,21 +1,28 @@
 # whisper.cpp
 
+![whisper.cpp](https://user-images.githubusercontent.com/1991296/235238348-05d0f6a4-da44-4900-a1de-d0707e75b763.jpeg)
+
 [![Actions Status](https://github.com/ggerganov/whisper.cpp/workflows/CI/badge.svg)](https://github.com/ggerganov/whisper.cpp/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![npm](https://img.shields.io/npm/v/whisper.cpp.svg)](https://www.npmjs.com/package/whisper.cpp/)
 
-Stable: [v1.2.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.2.1) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
+Beta: [v1.4.2](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.4.2) / Stable: [v1.2.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.2.1) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
 
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
 - Plain C/C++ implementation without dependencies
-- Apple silicon first-class citizen - optimized via Arm Neon and Accelerate framework
+- Apple silicon first-class citizen - optimized via ARM NEON, Accelerate framework and [Core ML](https://github.com/ggerganov/whisper.cpp#core-ml-support)
 - AVX intrinsics support for x86 architectures
 - VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
+- [4-bit and 5-bit integer quantization support](https://github.com/ggerganov/whisper.cpp#quantization)
 - Low memory usage (Flash Attention)
 - Zero memory allocations at runtime
 - Runs on the CPU
+- [Partial GPU support for NVIDIA via cuBLAS](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
+- [Partial OpenCL GPU support via CLBlast](https://github.com/ggerganov/whisper.cpp#opencl-gpu-support-via-clblast)
+- [BLAS CPU support via OpenBLAS](https://github.com/ggerganov/whisper.cpp#blas-cpu-support-via-openblas)
+- [OpenVINO Support](https://github.com/ggerganov/whisper.cpp#openvino-support)
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 
 Supported platforms:
@@ -23,6 +30,7 @@ Supported platforms:
 - [x] Mac OS (Intel and Arm)
 - [x] [iOS](examples/whisper.objc)
 - [x] [Android](examples/whisper.android)
+- [x] [Java](bindings/java/README.md)
 - [x] Linux / [FreeBSD](https://github.com/ggerganov/whisper.cpp/issues/56#issuecomment-1350920264)
 - [x] [WebAssembly](examples/whisper.wasm)
 - [x] Windows ([MSVC](https://github.com/ggerganov/whisper.cpp/blob/master/.github/workflows/build.yml#L117-L144) and [MinGW](https://github.com/ggerganov/whisper.cpp/issues/168)]
@@ -58,11 +66,15 @@ the Accelerate framework utilizes the special-purpose AMX coprocessor available 
 
 ## Quick start
 
-First, download one of the Whisper models converted in [ggml format](models). For example:
+First clone the repository.
+
+Then, download one of the Whisper models converted in [ggml format](models). For example:
 
 ```bash
 bash ./models/download-ggml-model.sh base.en
 ```
+
+If you wish to convert the Whisper models to ggml format yourself, instructions are in [models/README.md](models/README.md).
 
 Now build the [main](examples/main) example and transcribe an audio file like this:
 
@@ -104,6 +116,7 @@ options:
   -lpt N,    --logprob-thold N   [-1.00  ] log probability threshold for decoder fail
   -su,       --speed-up          [false  ] speed up audio by x2 (reduced accuracy)
   -tr,       --translate         [false  ] translate from source language to english
+  -tdrz,     --tinydiarize       [false  ] enable tinydiarize (requires a tdrz model)
   -di,       --diarize           [false  ] stereo audio diarization
   -nf,       --no-fallback       [false  ] do not use temperature fallback while decoding
   -otxt,     --output-txt        [false  ] output result in a text file
@@ -223,10 +236,213 @@ make large
 | medium | 1.5 GB | ~1.7 GB | `fd9727b6e1217c2f614f9b698455c4ffd82463b4` |
 | large  | 2.9 GB | ~3.3 GB | `0f4c8e34f21cf1a914c59d8b3ce882345ad349d6` |
 
+## Quantization
+
+`whisper.cpp` supports integer quantization of the Whisper `ggml` models.
+Quantized models require less memory and disk space and depending on the hardware can be processed more efficiently.
+
+Here are the steps for creating and using a quantized model:
+
+```bash
+# quantize a model with Q5_0 method
+make quantize
+./quantize models/ggml-base.en.bin models/ggml-base.en-q5_0.bin q5_0
+
+# run the examples as usual, specifying the quantized model file
+./main -m models/ggml-base.en-q5_0.bin ./samples/gb0.wav
+```
+
+## Core ML support
+
+On Apple Silicon devices, the Encoder inference can be executed on the Apple Neural Engine (ANE) via Core ML. This can result in significant
+speed-up - more than x3 faster compared with CPU-only execution. Here are the instructions for generating a Core ML model and using it with `whisper.cpp`:
+
+- Install Python dependencies needed for the creation of the Core ML model:
+
+  ```bash
+  pip install ane_transformers
+  pip install openai-whisper
+  pip install coremltools
+  ```
+
+  - To ensure `coremltools` operates correctly, please confirm that [Xcode](https://developer.apple.com/xcode/) is installed and execute `xcode-select --install` to install the command-line tools.
+  - Python 3.10 is recommended.
+  - [OPTIONAL] It is recommended to utilize a Python version management system, such as [Miniconda](https://docs.conda.io/en/latest/miniconda.html)  for this step:
+    - To create an environment, use: `conda create -n py310-whisper python=3.10 -y`
+    - To activate the environment, use: `conda activate py310-whisper`
+
+- Generate a Core ML model. For example, to generate a `base.en` model, use:
+
+  ```bash
+  ./models/generate-coreml-model.sh base.en
+  ```
+
+  This will generate the folder `models/ggml-base.en-encoder.mlmodelc`
+
+- Build `whisper.cpp` with Core ML support:
+
+  ```bash
+  # using Makefile
+  make clean
+  WHISPER_COREML=1 make -j
+
+  # using CMake
+  cd build
+  cmake -DWHISPER_COREML=1 ..
+  ```
+
+- Run the examples as usual. For example:
+
+  ```bash
+  ./main -m models/ggml-base.en.bin -f samples/jfk.wav
+
+  ...
+
+  whisper_init_state: loading Core ML model from 'models/ggml-base.en-encoder.mlmodelc'
+  whisper_init_state: first run on a device may take a while ...
+  whisper_init_state: Core ML model loaded
+
+  system_info: n_threads = 4 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | FMA = 0 | NEON = 1 | ARM_FMA = 1 | F16C = 0 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 0 | VSX = 0 | COREML = 1 |
+
+  ...
+  ```
+
+  The first run on a device is slow, since the ANE service compiles the Core ML model to some device-specific format.
+  Next runs are faster.
+
+For more information about the Core ML implementation please refer to PR [#566](https://github.com/ggerganov/whisper.cpp/pull/566).
+
+## OpenVINO support
+
+On platforms that support [OpenVINO](https://github.com/openvinotoolkit/openvino), the Encoder inference can be executed
+on OpenVINO-supported devices including x86 CPUs and Intel GPUs (integrated & discrete).
+
+This can result in significant speedup in encoder performance. Here are the instructions for generating the OpenVINO model and using it with `whisper.cpp`:
+
+- First, setup python virtual env. and install python dependencies. Python 3.10 is recommended.
+
+  Windows:
+  ```
+  cd models
+  python -m venv openvino_conv_env
+  openvino_conv_env\Scripts\activate
+  python -m pip install --upgrade pip
+  pip install -r openvino-conversion-requirements.txt
+  ```
+
+  Linux and macOS:
+  ```
+  cd models
+  python3 -m venv openvino_conv_env
+  source openvino_conv_env/bin/activate
+  python -m pip install --upgrade pip
+  pip install -r openvino-conversion-requirements.txt
+  ```
+
+- Generate an OpenVINO encoder model. For example, to generate a `base.en` model, use:
+
+  ```
+  python convert-whisper-to-openvino.py --model base.en
+  ```
+
+  This will produce ggml-base.en-encoder-openvino.xml/.bin IR model files. It's recommended to relocate these to the same folder as ggml models, as that
+  is the default location that the OpenVINO extension will search at runtime.
+
+- Build `whisper.cpp` with OpenVINO support:
+
+  Download OpenVINO package from [release page](https://github.com/openvinotoolkit/openvino/releases). The recommended version to use is [2023.0.0](https://github.com/openvinotoolkit/openvino/releases/tag/2023.0.0).
+
+  After downloading & extracting package onto your development system, set up required environment by sourcing setupvars script. For example:
+
+  Linux:
+  ```bash
+  source /path/to/l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64/setupvars.sh
+  ```
+
+  Windows (cmd):
+  ```
+  C:\Path\To\w_openvino_toolkit_windows_2023.0.0.10926.b4452d56304_x86_64\setupvars.bat
+  ```
+
+  And then build the project using cmake:
+  ```bash
+  cd build
+  cmake -DWHISPER_OPENVINO=1 ..
+  ```
+
+- Run the examples as usual. For example:
+  ```bash
+  ./main -m models/ggml-base.en.bin -f samples/jfk.wav
+
+  ...
+
+  whisper_ctx_init_openvino_encoder: loading OpenVINO model from 'models/ggml-base.en-encoder-openvino.xml'
+  whisper_ctx_init_openvino_encoder: first run on a device may take a while ...
+  whisper_openvino_init: path_model = models/ggml-base.en-encoder-openvino.xml, device = GPU, cache_dir = models/ggml-base.en-encoder-openvino-cache
+  whisper_ctx_init_openvino_encoder: OpenVINO model loaded
+
+  system_info: n_threads = 4 / 8 | AVX = 1 | AVX2 = 1 | AVX512 = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 0 | SSE3 = 1 | VSX = 0 | COREML = 0 | OPENVINO = 1 |
+
+  ...
+  ```
+
+  The first time run on an OpenVINO device is slow, since the OpenVINO framework will compile the IR (Intermediate Representation) model to a device-specific 'blob'. This device-specific blob will get
+  cached for the next run.
+  
+For more information about the Core ML implementation please refer to PR [#1037](https://github.com/ggerganov/whisper.cpp/pull/1037).
+
+## NVIDIA GPU support via cuBLAS
+
+With NVIDIA cards the Encoder processing can to a large extent be offloaded to the GPU through cuBLAS.
+First, make sure you have installed `cuda`: https://developer.nvidia.com/cuda-downloads
+
+Now build `whisper.cpp` with cuBLAS support:
+
+```
+make clean
+WHISPER_CUBLAS=1 make -j
+```
+
+## OpenCL GPU support via CLBlast
+
+For cards and integrated GPUs that support OpenCL, the Encoder processing can be largely offloaded to the GPU through CLBlast. This is especially useful for users with AMD APUs or low end devices for up to ~2x speedup.
+
+First, make sure you have installed `CLBlast` for your OS or Distribution: https://github.com/CNugteren/CLBlast
+
+Now build `whisper.cpp` with CLBlast support:
+
+```
+Makefile:
+cd whisper.cpp
+make clean
+WHISPER_CLBLAST=1 make -j
+
+CMake:
+cd whisper.cpp ; mkdir build ; cd build
+cmake -DWHISPER_CLBLAST=ON  ..
+make clean
+make -j
+cp bin/* ../ 
+```
+
+
+Run all the examples as usual.
+
+## BLAS CPU support via OpenBLAS
+
+Encoder processing can be accelerated on the CPU via OpenBLAS.
+First, make sure you have installed `openblas`: https://www.openblas.net/
+
+Now build `whisper.cpp` with OpenBLAS support:
+
+```
+make clean
+WHISPER_OPENBLAS=1 make -j
+```
+
 ## Limitations
 
 - Inference only
-- No GPU support (yet)
 
 ## Another example
 
@@ -313,7 +529,7 @@ whisper_print_timings:    total time = 32733.52 ms
 ## Real-time audio input example
 
 This is a naive example of performing real-time inference on audio from your microphone.
-The [stream](examples/stream) tool samples the audio every half a second and runs the transcription continously.
+The [stream](examples/stream) tool samples the audio every half a second and runs the transcription continuously.
 More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
 ```java
@@ -346,6 +562,10 @@ export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/opt/homebrew/include
 Adding the `--print-colors` argument will print the transcribed text using an experimental color coding strategy
 to highlight words with high or low confidence:
 
+```java
+./main -m models/ggml-base.en.bin -f samples/gb0.wav --print-colors
+```
+
 <img width="965" alt="image" src="https://user-images.githubusercontent.com/1991296/197356445-311c8643-9397-4e5e-b46e-0b4b4daa2530.png">
 
 ## Controlling the length of the generated text segments (experimental)
@@ -372,7 +592,7 @@ main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 pr
 [00:00:10.020 --> 00:00:11.000]   country.
 ```
 
-## Word-level timestamp
+## Word-level timestamp (experimental)
 
 The `--max-len` argument can be used to obtain word-level timestamps. Simply use `-ml 1`:
 
@@ -385,7 +605,7 @@ system_info: n_threads = 4 / 10 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1
 
 main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, timestamps = 1 ...
 
-[00:00:00.000 --> 00:00:00.320]  
+[00:00:00.000 --> 00:00:00.320]
 [00:00:00.320 --> 00:00:00.370]   And
 [00:00:00.370 --> 00:00:00.690]   so
 [00:00:00.690 --> 00:00:00.850]   my
@@ -411,6 +631,32 @@ main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 pr
 [00:00:09.760 --> 00:00:10.020]   your
 [00:00:10.020 --> 00:00:10.510]   country
 [00:00:10.510 --> 00:00:11.000]  .
+```
+
+## Speaker segmentation via tinydiarize (experimental)
+
+More information about this approach is available here: https://github.com/ggerganov/whisper.cpp/pull/1058
+
+Sample usage:
+
+```py
+# download a tinydiarize compatible model
+./models/download-ggml-model.sh small.en-tdrz
+
+# run as usual, adding the "-tdrz" command-line argument
+./main -f ./samples/a13.wav -m ./models/ggml-small.en-tdrz.bin -tdrz
+...
+main: processing './samples/a13.wav' (480000 samples, 30.0 sec), 4 threads, 1 processors, lang = en, task = transcribe, tdrz = 1, timestamps = 1 ...
+...
+[00:00:00.000 --> 00:00:03.800]   Okay Houston, we've had a problem here. [SPEAKER_TURN]
+[00:00:03.800 --> 00:00:06.200]   This is Houston. Say again please. [SPEAKER_TURN]
+[00:00:06.200 --> 00:00:08.260]   Uh Houston we've had a problem.
+[00:00:08.260 --> 00:00:11.320]   We've had a main beam up on a volt. [SPEAKER_TURN]
+[00:00:11.320 --> 00:00:13.820]   Roger main beam interval. [SPEAKER_TURN]
+[00:00:13.820 --> 00:00:15.100]   Uh uh [SPEAKER_TURN]
+[00:00:15.100 --> 00:00:18.020]   So okay stand, by thirteen we're looking at it. [SPEAKER_TURN]
+[00:00:18.020 --> 00:00:25.740]   Okay uh right now uh Houston the uh voltage is uh is looking good um.
+[00:00:27.620 --> 00:00:29.940]   And we had a a pretty large bank or so.
 ```
 
 ## Karaoke-style movie generation (experimental)
@@ -484,7 +730,7 @@ The original models are converted to a custom binary format. This allows to pack
 You can download the converted models using the [models/download-ggml-model.sh](models/download-ggml-model.sh) script
 or manually from here:
 
-- https://huggingface.co/datasets/ggerganov/whisper.cpp
+- https://huggingface.co/ggerganov/whisper.cpp
 - https://ggml.ggerganov.com
 
 For more details, see the conversion script [models/convert-pt-to-ggml.py](models/convert-pt-to-ggml.py) or the README
@@ -494,15 +740,21 @@ in [models](models).
 
 - [X] Rust: [tazz4843/whisper-rs](https://github.com/tazz4843/whisper-rs) | [#310](https://github.com/ggerganov/whisper.cpp/discussions/310)
 - [X] Javascript: [bindings/javascript](bindings/javascript) | [#309](https://github.com/ggerganov/whisper.cpp/discussions/309)
+  - React Native (iOS / Android): [whisper.rn](https://github.com/mybigday/whisper.rn)
 - [X] Go: [bindings/go](bindings/go) | [#312](https://github.com/ggerganov/whisper.cpp/discussions/312)
+- [X] Java:
+  - [GiviMAD/whisper-jni](https://github.com/GiviMAD/whisper-jni)
 - [X] Ruby: [bindings/ruby](bindings/ruby) | [#507](https://github.com/ggerganov/whisper.cpp/discussions/507)
 - [X] Objective-C / Swift: [ggerganov/whisper.spm](https://github.com/ggerganov/whisper.spm) | [#313](https://github.com/ggerganov/whisper.cpp/discussions/313)
+  - [exPHAT/SwiftWhisper](https://github.com/exPHAT/SwiftWhisper)
 - [X] .NET: | [#422](https://github.com/ggerganov/whisper.cpp/discussions/422)
   - [sandrohanea/whisper.net](https://github.com/sandrohanea/whisper.net)
   - [NickDarvey/whisper](https://github.com/NickDarvey/whisper)
 - [X] Python: | [#9](https://github.com/ggerganov/whisper.cpp/issues/9)
   - [stlukey/whispercpp.py](https://github.com/stlukey/whispercpp.py) (Cython)
   - [aarnphm/whispercpp](https://github.com/aarnphm/whispercpp) (Pybind11)
+- [X] R: [bnosac/audio.whisper](https://github.com/bnosac/audio.whisper)
+- [X] Unity: [macoron/whisper.unity](https://github.com/Macoron/whisper.unity)
 
 ## Examples
 
@@ -516,6 +768,7 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | [stream](examples/stream) | [stream.wasm](examples/stream.wasm) | Real-time transcription of raw microphone capture |
 | [command](examples/command) | [command.wasm](examples/command.wasm) | Basic voice assistant example for receiving voice commands from the mic |
 | [talk](examples/talk) | [talk.wasm](examples/talk.wasm) | Talk with a GPT-2 bot |
+| [talk-llama](examples/talk-llama) | | Talk with a LLaMA bot |
 | [whisper.objc](examples/whisper.objc) | | iOS mobile application using whisper.cpp |
 | [whisper.swiftui](examples/whisper.swiftui) | | SwiftUI iOS / macOS application using whisper.cpp |
 | [whisper.android](examples/whisper.android) | | Android mobile application using whisper.cpp |

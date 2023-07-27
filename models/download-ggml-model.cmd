@@ -33,14 +33,14 @@ goto :eof
 :download_model
 echo Downloading ggml model %model%...
 
-cd %models_path%
+cd "%models_path%"
 
 if exist "ggml-%model%.bin" (
   echo Model %model% already exists. Skipping download.
   goto :eof
 )
 
-PowerShell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri https://huggingface.co/datasets/ggerganov/whisper.cpp/resolve/main/ggml-%model%.bin -OutFile ggml-%model%.bin"
+PowerShell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-%model%.bin -OutFile ggml-%model%.bin"
 
 if %ERRORLEVEL% neq 0 (
   echo Failed to download ggml model %model%

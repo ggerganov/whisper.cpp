@@ -145,7 +145,15 @@ function loadRemote(url, dst, size_mb, cbProgress, cbReady, cbCancel, cbPrint) {
                             var db = event.target.result;
                             var tx = db.transaction(['models'], 'readwrite');
                             var os = tx.objectStore('models');
-                            var rq = os.put(data, url);
+
+                            var rq = null;
+                            try {
+                                var rq = os.put(data, url);
+                            } catch (e) {
+                                cbPrint('loadRemote: failed to store "' + url + '" in the IndexedDB: \n' + e);
+                                cbCancel();
+                                return;
+                            }
 
                             rq.onsuccess = function (event) {
                                 cbPrint('loadRemote: "' + url + '" stored in the IndexedDB');
@@ -180,7 +188,6 @@ function loadRemote(url, dst, size_mb, cbProgress, cbReady, cbCancel, cbPrint) {
 
     rq.onabort = function (event) {
         cbPrint('loadRemote: failed to open IndexedDB: abort');
-
+        cbCancel();
     };
 }
-

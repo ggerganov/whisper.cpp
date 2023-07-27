@@ -31,6 +31,7 @@ options:
   -osrt,     --output-srt        [false  ] output result in a srt file
   -owts,     --output-words      [false  ] output script for generating karaoke video
   -ocsv,     --output-csv        [false  ] output result in a CSV file
+  -oj,       --output-json       [false  ] output result in a JSON file
   -of FNAME, --output-file FNAME [       ] output file path (without file extension)
   -ps,       --print-special     [false  ] print special tokens
   -pc,       --print-colors      [false  ] print colors

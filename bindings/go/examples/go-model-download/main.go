@@ -17,9 +17,9 @@ import (
 // CONSTANTS
 
 const (
-	srcUrl  = "https://huggingface.co/datasets/ggerganov/whisper.cpp/resolve/main" // The location of the models
-	srcExt  = ".bin"                                                               // Filename extension
-	bufSize = 1024 * 64                                                            // Size of the buffer used for downloading the model
+	srcUrl  = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main" // The location of the models
+	srcExt  = ".bin"                                                      // Filename extension
+	bufSize = 1024 * 64                                                   // Size of the buffer used for downloading the model
 )
 
 var (

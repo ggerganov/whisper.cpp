@@ -160,22 +160,6 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
         return 3;
     }
 
-    // initial prompt
-    std::vector<whisper_token> prompt_tokens;
-
-    if (!params.prompt.empty()) {
-        prompt_tokens.resize(1024);
-        prompt_tokens.resize(whisper_tokenize(ctx, params.prompt.c_str(), prompt_tokens.data(), prompt_tokens.size()));
-
-        fprintf(stderr, "\n");
-        fprintf(stderr, "initial prompt: '%s'\n", params.prompt.c_str());
-        fprintf(stderr, "initial tokens: [ ");
-        for (int i = 0; i < (int) prompt_tokens.size(); ++i) {
-            fprintf(stderr, "%d ", prompt_tokens[i]);
-        }
-        fprintf(stderr, "]\n");
-    }
-
     for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
         const auto fname_inp = params.fname_inp[f];
         const auto fname_out = f < (int)params.fname_out.size() && !params.fname_out[f].empty() ? params.fname_out[f] : params.fname_inp[f];
@@ -243,8 +227,7 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
             wparams.greedy.best_of        = params.best_of;
             wparams.beam_search.beam_size = params.beam_size;
 
-            wparams.prompt_tokens     = prompt_tokens.empty() ? nullptr : prompt_tokens.data();
-            wparams.prompt_n_tokens   = prompt_tokens.empty() ? 0       : prompt_tokens.size();
+            wparams.initial_prompt   = params.prompt.c_str();
 
             whisper_print_user_data user_data = { &params, &pcmf32s };
 
@@ -292,51 +275,64 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
     return 0;
 }
 
-Napi::Object whisper(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    if (info.Length() <= 0 || !info[0].IsObject()) {
-        Napi::TypeError::New(env, "object expected").ThrowAsJavaScriptException();
-    }
-    whisper_params params;
-    std::vector<std::vector<std::string>> result;
+class Worker : public Napi::AsyncWorker {
+ public:
+  Worker(Napi::Function& callback, whisper_params params)
+      : Napi::AsyncWorker(callback), params(params) {}
 
-    Napi::Object whisper_params = info[0].As<Napi::Object>();
-    std::string language = whisper_params.Get("language").As<Napi::String>();
-    std::string model = whisper_params.Get("model").As<Napi::String>();
-    std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
-
-    params.language = language;
-    params.model = model;
-    params.fname_inp.emplace_back(input);
-
-    // run model
+  void Execute() override {
     run(params, result);
+  }
 
-    fprintf(stderr, "RESULT:\n");
-    for (auto sentence:result) {
-        fprintf(stderr, "t0: %s, t1: %s, content: %s \n",
-                sentence[0].c_str(), sentence[1].c_str(), sentence[2].c_str());
-    }
-
-    Napi::Object res = Napi::Array::New(env, result.size());
+  void OnOK() override {
+    Napi::HandleScope scope(Env());
+    Napi::Object res = Napi::Array::New(Env(), result.size());
     for (uint64_t i = 0; i < result.size(); ++i) {
-        Napi::Object tmp = Napi::Array::New(env, 3);
-        for (uint64_t j = 0; j < 3; ++j) {
-            tmp[j] = Napi::String::New(env, result[i][j]);
-        }
-        res[i] = tmp;
+      Napi::Object tmp = Napi::Array::New(Env(), 3);
+      for (uint64_t j = 0; j < 3; ++j) {
+        tmp[j] = Napi::String::New(Env(), result[i][j]);
+      }
+      res[i] = tmp;
     }
+    Callback().Call({Env().Null(), res});
+  }
 
-    return res;
+ private:
+  whisper_params params;
+  std::vector<std::vector<std::string>> result;
+};
+
+
+
+Napi::Value whisper(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() <= 0 || !info[0].IsObject()) {
+    Napi::TypeError::New(env, "object expected").ThrowAsJavaScriptException();
+  }
+  whisper_params params;
+
+  Napi::Object whisper_params = info[0].As<Napi::Object>();
+  std::string language = whisper_params.Get("language").As<Napi::String>();
+  std::string model = whisper_params.Get("model").As<Napi::String>();
+  std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
+
+  params.language = language;
+  params.model = model;
+  params.fname_inp.emplace_back(input);
+
+  Napi::Function callback = info[1].As<Napi::Function>();
+  Worker* worker = new Worker(callback, params);
+  worker->Queue();
+  return env.Undefined();
 }
 
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
-    exports.Set(
-            Napi::String::New(env, "whisper"),
-            Napi::Function::New(env, whisper)
-    );
-    return exports;
+  exports.Set(
+      Napi::String::New(env, "whisper"),
+      Napi::Function::New(env, whisper)
+  );
+  return exports;
 }
 
 NODE_API_MODULE(whisper, Init);

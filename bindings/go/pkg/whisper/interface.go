@@ -12,6 +12,10 @@ import (
 // time. It is called during the Process function
 type SegmentCallback func(Segment)
 
+// ProgressCallback is the callback function for reporting progress during
+// processing. It is called during the Process function
+type ProgressCallback func(int)
+
 // Model is the interface to a whisper model. Create a new model with the
 // function whisper.New(string)
 type Model interface {
@@ -38,15 +42,17 @@ type Context interface {
 	SetDuration(time.Duration)    // Set duration
 	SetThreads(uint)              // Set number of threads to use
 	SetSpeedup(bool)              // Set speedup flag
+	SetSplitOnWord(bool)          // Set split on word flag
 	SetTokenThreshold(float32)    // Set timestamp token probability threshold
 	SetTokenSumThreshold(float32) // Set timestamp token sum probability threshold
 	SetMaxSegmentLength(uint)     // Set max segment length in characters
+	SetTokenTimestamps(bool)      // Set token timestamps flag
 	SetMaxTokensPerSegment(uint)  // Set max tokens per segment (0 = no limit)
 
 	// Process mono audio data and return any errors.
 	// If defined, newly generated segments are passed to the
 	// callback function during processing.
-	Process([]float32, SegmentCallback) error
+	Process([]float32, SegmentCallback, ProgressCallback) error
 
 	// After process is called, return segments until the end of the stream
 	// is reached, when io.EOF is returned.
@@ -85,7 +91,8 @@ type Segment struct {
 
 // Token is a text or special token
 type Token struct {
-	Id   int
-	Text string
-	P    float32
+	Id         int
+	Text       string
+	P          float32
+	Start, End time.Duration
 }

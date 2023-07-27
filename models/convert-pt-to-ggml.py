@@ -39,7 +39,8 @@ import json
 import code
 import torch
 import numpy as np
-
+import base64
+from pathlib import Path
 #from transformers import GPTJForCausalLM
 #from transformers import GPT2TokenizerFast
 
@@ -193,17 +194,17 @@ if len(sys.argv) < 4:
     print("Usage: convert-pt-to-ggml.py model.pt path-to-whisper-repo dir-output [use-f32]\n")
     sys.exit(1)
 
-fname_inp   = sys.argv[1]
-dir_whisper = sys.argv[2]
-dir_out     = sys.argv[3]
+fname_inp   = Path(sys.argv[1])
+dir_whisper = Path(sys.argv[2])
+dir_out     = Path(sys.argv[3])
 
 # try to load PyTorch binary data
 try:
     model_bytes = open(fname_inp, "rb").read()
     with io.BytesIO(model_bytes) as fp:
         checkpoint = torch.load(fp, map_location="cpu")
-except:
-    print("Error: failed to load PyTorch model file: %s" % fname_inp)
+except Exception:
+    print("Error: failed to load PyTorch model file:" , fname_inp)
     sys.exit(1)
 
 hparams = checkpoint["dims"]
@@ -217,33 +218,52 @@ list_vars = checkpoint["model_state_dict"]
 
 # load mel filters
 n_mels = hparams["n_mels"]
-with np.load(os.path.join(dir_whisper, "whisper/assets", "mel_filters.npz")) as f:
+with np.load(dir_whisper / "whisper" / "assets" / "mel_filters.npz") as f:
     filters = torch.from_numpy(f[f"mel_{n_mels}"])
     #print (filters)
 
 #code.interact(local=locals())
 
+# load tokenizer
+# for backwards compatibility, also check for older hf_transformers format tokenizer files
+# old format: dir_whisper/whisper/assets/[multilingual/gpt2]/vocab.json
+# new format: dir_whisper/whisper/assets/[multilingual/gpt2].tiktoken
 multilingual = hparams["n_vocab"] == 51865
-dir_tokenizer = os.path.join(dir_whisper, "whisper/assets", multilingual and "multilingual" or "gpt2")
+tokenizer = dir_whisper / "whisper" / "assets" / (multilingual and "multilingual.tiktoken" or "gpt2.tiktoken")
+tokenizer_type = "tiktoken"
+if not tokenizer.is_file():
+    tokenizer = dir_whisper / "whisper" / "assets" / (multilingual and "multilingual" or "gpt2") / "vocab.json"
+    tokenizer_type = "hf_transformers"
+    if not tokenizer.is_file():
+        print("Error: failed to find either tiktoken or hf_transformers tokenizer file:", tokenizer)
+        sys.exit(1)
 
-#tokenizer = build_tokenizer(dir_whisper, multilingual and "multilingual" or "gpt2")
-#print(tokenizer)
-#print(tokenizer.name_or_path)
-#print(len(tokenizer.additional_special_tokens))
+byte_encoder = bytes_to_unicode()
+byte_decoder = {v:k for k, v in byte_encoder.items()}
+
+if tokenizer_type == "tiktoken":
+    with open(tokenizer, "rb") as f:
+        contents = f.read()
+        tokens = {base64.b64decode(token): int(rank) for token, rank in (line.split() for line in contents.splitlines() if line)}
+elif tokenizer_type == "hf_transformers":
+    with open(tokenizer, "r", encoding="utf8") as f:
+        _tokens_raw = json.load(f)
+        if '<|endoftext|>' in _tokens_raw:
+            # ensures exact same model as tokenizer_type == tiktoken
+            # details: https://github.com/ggerganov/whisper.cpp/pull/725
+            del _tokens_raw['<|endoftext|>']
+        tokens = {bytes([byte_decoder[c] for c in token]): int(idx) for token, idx in _tokens_raw.items()}
 
 # output in the same directory as the model
-fname_out = dir_out + "/ggml-model.bin"
-
-with open(dir_tokenizer + "/vocab.json", "r", encoding="utf8") as f:
-    tokens = json.load(f)
+fname_out = dir_out / "ggml-model.bin"
 
 # use 16-bit or 32-bit floats
 use_f16 = True
 if len(sys.argv) > 4:
     use_f16 = False
-    fname_out = dir_out + "/ggml-model-f32.bin"
+    fname_out = dir_out / "ggml-model-f32.bin"
 
-fout = open(fname_out, "wb")
+fout = fname_out.open("wb")
 
 fout.write(struct.pack("i", 0x67676d6c)) # magic: ggml in hex
 fout.write(struct.pack("i", hparams["n_vocab"]))
@@ -265,32 +285,28 @@ for i in range(filters.shape[0]):
     for j in range(filters.shape[1]):
         fout.write(struct.pack("f", filters[i][j]))
 
-byte_encoder = bytes_to_unicode()
-byte_decoder = {v:k for k, v in byte_encoder.items()}
-
+# write tokenizer
 fout.write(struct.pack("i", len(tokens)))
 
 for key in tokens:
-    text = bytearray([byte_decoder[c] for c in key])
-    fout.write(struct.pack("i", len(text)))
-    fout.write(text)
+    fout.write(struct.pack("i", len(key)))
+    fout.write(key)
 
 for name in list_vars.keys():
     data = list_vars[name].squeeze().numpy()
-    print("Processing variable: " + name + " with shape: ", data.shape)
+    print("Processing variable: " , name ,  " with shape: ", data.shape)
 
     # reshape conv bias from [n] to [n, 1]
-    if name == "encoder.conv1.bias" or \
-       name == "encoder.conv2.bias":
+    if name in ["encoder.conv1.bias", "encoder.conv2.bias"]:
         data = data.reshape(data.shape[0], 1)
-        print("  Reshaped variable: " + name + " to shape: ", data.shape)
+        print(f"  Reshaped variable: {name} to shape: ", data.shape)
 
-    n_dims = len(data.shape);
+    n_dims = len(data.shape)
 
     # looks like the whisper models are in f16 by default
     # so we need to convert the small tensors to f32 until we fully support f16 in ggml
     # ftype == 0 -> float32, ftype == 1 -> float16
-    ftype = 1;
+    ftype = 1
     if use_f16:
         if n_dims < 2 or \
                 name == "encoder.conv1.bias"   or \
@@ -311,16 +327,16 @@ for name in list_vars.keys():
     #        data = data.transpose()
 
     # header
-    str = name.encode('utf-8')
-    fout.write(struct.pack("iii", n_dims, len(str), ftype))
+    str_ = name.encode('utf-8')
+    fout.write(struct.pack("iii", n_dims, len(str_), ftype))
     for i in range(n_dims):
         fout.write(struct.pack("i", data.shape[n_dims - 1 - i]))
-    fout.write(str);
+    fout.write(str_)
 
     # data
     data.tofile(fout)
 
 fout.close()
 
-print("Done. Output file: " + fname_out)
+print("Done. Output file: " , fname_out)
 print("")

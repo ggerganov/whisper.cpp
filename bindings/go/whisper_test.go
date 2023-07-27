@@ -52,7 +52,7 @@ func Test_Whisper_001(t *testing.T) {
 	defer ctx.Whisper_free()
 	params := ctx.Whisper_full_default_params(whisper.SAMPLING_GREEDY)
 	data := buf.AsFloat32Buffer().Data
-	err = ctx.Whisper_full(params, data, nil, nil)
+	err = ctx.Whisper_full(params, data, nil, nil, nil)
 	assert.NoError(err)
 
 	// Print out tokens

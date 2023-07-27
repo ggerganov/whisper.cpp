@@ -19,6 +19,10 @@ func (p *Params) SetTranslate(v bool) {
 	p.translate = toBool(v)
 }
 
+func (p *Params) SetSplitOnWord(v bool) {
+	p.split_on_word = toBool(v)
+}
+
 func (p *Params) SetNoContext(v bool) {
 	p.no_context = toBool(v)
 }
@@ -103,6 +107,10 @@ func (p *Params) SetTokenSumThreshold(t float32) {
 // Set max segment length in characters
 func (p *Params) SetMaxSegmentLength(n int) {
 	p.max_len = C.int(n)
+}
+
+func (p *Params) SetTokenTimestamps(b bool) {
+	p.token_timestamps = toBool(b)
 }
 
 // Set max tokens per segment (0 = no limit)
