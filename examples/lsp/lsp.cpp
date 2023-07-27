@@ -314,7 +314,7 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
     }
 }
 
-json register_commandset(struct whisper_context * ctx, json jparams, std::vector<struct commandset> commandset_list) {
+json register_commandset(struct whisper_context * ctx, json jparams, std::vector<struct commandset> &commandset_list) {
    struct commandset cs;
 
     std::string  k_prompt = " select one from the available words: ";
@@ -328,9 +328,8 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
          fprintf(stderr, "%s: error: failed to tokenize command '%s'\n", __func__, s.c_str());
          return 3;
       }
-      if (n == 1) {
-         token_vec.push_back(tokens[0]);
-      } else if (n > 1) {//empty string if n=0? Should never occur
+      token_vec.push_back(tokens[0]);
+      if (n > 1) {//empty string if n=0? Should never occur
          fprintf(stderr, "%s: error: command is more than a single token: %s\n", __func__, s.c_str());
       }
       struct command command = {token_vec, s};
@@ -356,7 +355,7 @@ json seek(struct whisper_context * ctx, audio_async &audio, json params) {
       {"message", "Seeking is not yet supported."}
    };
 }
-json parse_job(const json &body, struct whisper_context * ctx, audio_async &audio, const whisper_params &params, std::vector<struct commandset> commandset_list) {
+json parse_job(const json &body, struct whisper_context * ctx, audio_async &audio, const whisper_params &params, std::vector<struct commandset> &commandset_list) {
    //Closely following https://www.jsonrpc.org/specification
    std::string version = body.at("jsonrpc");
    if (version != "2.0") {
@@ -370,6 +369,7 @@ json parse_job(const json &body, struct whisper_context * ctx, audio_async &audi
    json res;
    try {
       //TODO: be consistent about argument order
+      fprintf(stderr, "Dispatching a job\n");
       if (method == "unguided")                { res = unguided_transcription(ctx, audio, jparams, params); }
       else if (method == "guided")             { res = guided_transcription(ctx, audio, params, jparams, commandset_list); }
       else if (method == "seek")               { res = seek(ctx, audio, jparams); }
@@ -397,8 +397,10 @@ void process_loop(struct whisper_context * ctx, audio_async &audio, const whispe
       //For eventual cancellation support, shouldn't block if job exists
       if (std::cin.rdbuf()->in_avail() > 22 || jobqueue.size() == 0) {
          int content_length;
-         if (scanf("Content-Length: %d", &content_length) != 1)
+         if (scanf("Content-Length: %d", &content_length) != 1) {
+            fprintf(stderr, "Could not read input: %d", std::cin.peek());
             return;
+         }
          //scanf leaves the new lines intact
          std::cin.ignore(2);
          if (std::cin.peek() != 13) {
@@ -419,7 +421,7 @@ void process_loop(struct whisper_context * ctx, audio_async &audio, const whispe
             jobqueue.push_back(job);
          }
       }
-      assert(job_queue.size() > 0);
+      assert(jobqueue.size() > 0);
       json job = jobqueue.front();
       json resp = parse_job(job, ctx, audio, params, commandset_list);
       if (resp != "unfinished") {
