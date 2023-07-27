@@ -1,3 +1,18 @@
+#include "common.h"
+#include "common-sdl.h"
+#include "whisper.h"
+#include "json.hpp"
+
+#include <iostream>
+#include <cassert>
+#include <cstdio>
+#include <string>
+#include <thread>
+#include <vector>
+#include <deque>
+
+using json = nlohmann::json;
+
 // command-line parameters
 struct whisper_params {
     int32_t n_threads  = std::min(4, (int32_t) std::thread::hardware_concurrency());
@@ -101,21 +116,21 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "\n");
 }
 
-json unguided_transcription(struct whisper_context * ctx, audio_async &audio, json jparams) {
+json unguided_transcription(struct whisper_context * ctx, audio_async &audio, json jparams, const whisper_params &params) {
     //length of a transcription chunk isn't important as long as timestamps are supported
     float prob = 0.0f;
     int time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
     int start_time = jparams.value("timestamp", time_now);
     std::string prompt = jparams.value("prompt", "");
     if(time_now - start_time < 1000) {
-       std::this_thread::sleep_for(1000 - (time_now - start_time));
+       std::this_thread::sleep_for(std::chrono::milliseconds(1000 - (time_now - start_time)));
     }
 
     //Wait until voice is detected
     time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
     int window_duration = std::max(2000,time_now-start_time);
-    audio.get(window_duration, pcmf32_cur);
     std::vector<float> pcmf32_cur;
+    audio.get(window_duration, pcmf32_cur);
     while (!::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
        //TODO: find a way to poll commands/allow interrupts here
        //initial plan was to have incomplete commands yield back,
@@ -162,7 +177,10 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
     // run the transformer and a single decoding pass
     if (whisper_full(ctx, wparams, pcmf32_cur.data(), pcmf32_cur.size()) != 0) {
        fprintf(stderr, "%s: ERROR: whisper_full() failed\n", __func__);
-       break;
+       throw json{
+          {"code", -32803},
+          {"message", "ERROR: whisper_full() failed"}//TODO: format string (sprintf?)
+       };
     }
     //TODO: simplified since single segment is forced
     std::string result = whisper_full_get_segment_text(ctx,0);
@@ -174,21 +192,21 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
 
 // command-list mode
 // guide the transcription to match the most likely command from a provided list
-json guided_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params, json jparams, std:vector<struct commandset> commandset_list) {
-    struct cs = commandset_list.get(jparams.value("commandset_index", commandset_list.size()-1));
+json guided_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params, json jparams, std::vector<struct commandset> commandset_list) {
+    struct commandset cs = commandset_list[jparams.value("commandset_index", commandset_list.size()-1)];
     int time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
     int start_time = jparams.value("timestamp",time_now);
     //Ensure minimum buffer
     if(time_now - start_time < 1000) {
-       std::this_thread::sleep_for(1000 - (time_now - start_time));
+       std::this_thread::sleep_for(std::chrono::milliseconds(1000 - (time_now - start_time)));
     }
 
     //Wait until voice is detected
     time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
     //This keeps it consistent with the old command implementation, but could be improved
     int window_duration = std::max(2000,time_now-start_time);
-    audio.get(window_duration, pcmf32_cur);
     std::vector<float> pcmf32_cur;
+    audio.get(window_duration, pcmf32_cur);
     while (!::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
        //TODO: find a way to poll commands/allow interrupts here
        //initial plan was to have incomplete commands yield back,
@@ -231,7 +249,10 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
     // run the transformer and a single decoding pass
     if (whisper_full(ctx, wparams, pcmf32_cur.data(), pcmf32_cur.size()) != 0) {
        fprintf(stderr, "%s: ERROR: whisper_full() failed\n", __func__);
-       break;
+       throw json{
+          {"code", -32803},
+          {"message", "ERROR: whisper_full() failed"}//TODO: format string (sprintf?)
+       };
     }
 
     // estimate command probability
@@ -263,7 +284,7 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
 
        //In my testing, the most verbose token is always the desired.
        //TODO: Trim commandset struct once efficacy has been verified
-       for (int i = 0; i < (int) cs.size(); ++i) {
+       for (int i = 0; i < (int) cs.commands.size(); ++i) {
           probs_id.emplace_back(probs[cs.commands[i].tokens[0]], i);
        }
 
@@ -278,8 +299,9 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
        return json{
            {"command_index", id},
            {"command_text", cs.commands[id].plaintext},
-           {"timestamp", unprocessed_audio_timestamp}
+           {"timestamp", unprocessed_audio_timestamp},
        };
+    }
 }
 
 json register_commandset(struct whisper_context * ctx, json jparams, std::vector<struct commandset> commandset_list) {
@@ -287,7 +309,7 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
 
     std::string  k_prompt = " select one from the available words: ";
     whisper_token tokens[32];
-   for (std::string s : params.begin()) {
+   for (std::string s : jparams) {
       std::vector<whisper_token> token_vec;
       //The existing command implementation uses a nested for loop to tokenize single characters
       //I fail to see the purpose of this when ' a' has a wholly different pronunciation than the start of ' apple'
@@ -306,7 +328,7 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
       k_prompt += s;
    }
    k_prompt = k_prompt.substr(0,k_prompt.length()-2) + ". Selected word:";
-   cs.prompt_tokens.resize(1024)
+   cs.prompt_tokens.resize(1024);
    int n = whisper_tokenize(ctx, k_prompt.c_str(), cs.prompt_tokens.data(), 1024);
    cs.prompt_tokens.resize(n);
    //prepare response
@@ -314,7 +336,7 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
    commandset_list.push_back(cs);
    return i;//may need manual cast
 }
-json seek(struct whisper_context * ctx, audio_aysnc &audio, json params) {
+json seek(struct whisper_context * ctx, audio_async &audio, json params) {
    //whisper_state has the pertinent offsets, but there also seem to be a large
    //number of scratch buffers that would prevent rewinding context in a manner similar to llama
    //I'll give this a another pass once everything else is implemented,
@@ -326,19 +348,20 @@ json seek(struct whisper_context * ctx, audio_aysnc &audio, json params) {
 }
 json parse_job(const json &body, struct whisper_context * ctx, audio_async &audio, const whisper_params &params, std::vector<struct commandset> commandset_list) {
    //Closely following https://www.jsonrpc.org/specification
-   String version = body.at("jsonrpc");
+   std::string version = body.at("jsonrpc");
    if (version != "2.0") {
       //unsupported version
    }
-   String method = body.at("method");
+   std::string method = body.at("method");
    json jparams = body.value("params", json{});
    json id = body.at("id");
    json res;
    try {
-      if (method == "unguided")                { res = unguided_transcription(ctx, audio, params, jparams); }
-      else if (method == "guided")             { res = guided_transcription(ctx, audio, params); }
-      else if (method == "seek")               { res = seek(ctx, audio, params); }
-      else if (method == "registerCommandset") { res = register_commandset(ctx, params, commandset_list); }
+      //TODO: be consistent about argument order
+      if (method == "unguided")                { res = unguided_transcription(ctx, audio, jparams, params); }
+      else if (method == "guided")             { res = guided_transcription(ctx, audio, params, jparams, commandset_list); }
+      else if (method == "seek")               { res = seek(ctx, audio, jparams); }
+      else if (method == "registerCommandset") { res = register_commandset(ctx, jparams, commandset_list); }
 
       return json{
          {"jsonrpc", "2.0"},
@@ -353,61 +376,13 @@ json parse_job(const json &body, struct whisper_context * ctx, audio_async &audi
       };
    }
 }
-//wip non-blocking read for cancellation support.
-//While the implementation seemed straightforward for the most likely usecase
-//addressing edge cases is overly involved for now.
-//void try_read(std::dequeue<json> jobqueue) {
-//   if (cin.rdbuf().in_avail()>22 || job_queue.size() == 0) {
-//      int content_length;
-//      scanf("Content-Length: %d", &content_length);
-//      //scanf leaves the new lines intact
-//      std::cin.ignore(2);
-//      if (std::cin.peek() != 13) {
-//         //Content-Type. jsonrpc necessitates utf8.
-//         std::cin.ignore(200,10);
-//      }
-//      std::cin.ignore(2);
-//      //A message is being sent and blocking is acceptable
-//      char * content = new char[length];
-//      std::cin.read(content, content_length);
-//      json job = json::parse(content);
-//      if (job.is_array()) {
-//         //response must also be batched. Will implement later
-//         //for (subjob : job.begin())
-//      } else {
-//         if (job.contains("method")) {
-//            std::string method = job.at("method").to_string();
-//            if(method == "cancelRequest") {
-//               int id = job.at("params").at("id");
-//               if (id == current_id) {
-//                  throw json{
-//                      {"code", -32800},
-//                      {"message", "Request was canceled"}
-//                  };
-//               }
-//               for (job : job_queue) {
-//                  if (job.at("id") == id) {
-//                     job.at("method") = "error";
-//                     job.emplace("error", json {
-//                         {"code", -32800},
-//                         {"message", "Request was canceled"}});
-//                     return;
-//                  }
-//               }
-//               throw "Couldn't find id to cancel request";
-//            }
-//         }
-//         job_queue.push_back(job);
-//      }
-//   }
-//}
 
 void process_loop(struct whisper_context * ctx, audio_async &audio, const whisper_params &params) {
-   std::dequeue<json> jobqueue;
-   std::vector<struct commandset> commandset_list
+   std::deque<json> jobqueue;
+   std::vector<struct commandset> commandset_list;
    while (true) {
       //For eventual cancellation support, shouldn't block if job exists
-      if (cin.rdbuf().in_avail()>22 || job_queue.size() == 0) {
+      if (std::cin.rdbuf()->in_avail() > 22 || jobqueue.size() == 0) {
          int content_length;
          scanf("Content-Length: %d", &content_length);
          //scanf leaves the new lines intact
@@ -419,7 +394,7 @@ void process_loop(struct whisper_context * ctx, audio_async &audio, const whispe
          std::cin.ignore(2);
          //A message is being sent and blocking is acceptable
          std::string content(content_length,'\0');
-         std::cin.read(content, content_length);
+         std::cin.read(&content[0], content_length);
          json job = json::parse(content);
          //TODO: Some messages(cancellation) should skip queue here
          if (job.is_array()) {
@@ -427,17 +402,17 @@ void process_loop(struct whisper_context * ctx, audio_async &audio, const whispe
             //for (subjob : job.begin())
             //TODO: At the very least respond with an unsupported error.
          } else {
-            job_queue.push_back(job);
+            jobqueue.push_back(job);
          }
       }
       assert(job_queue.size() > 0);
-      job = jobqueue.front();
+      json job = jobqueue.front();
       json resp = parse_job(job, ctx, audio, params, commandset_list);
       if (resp != "unfinished") {
          jobqueue.pop_front();
          //send response
-         string_t data = resp.dump(-1, ' ', false, json::error_handler_t::replace);
-         fprintf(stdout, "Content-Length: %d\r\n\r\n%s", data.length, data);
+         std::string data = resp.dump(-1, ' ', false, json::error_handler_t::replace);
+         fprintf(stdout, "Content-Length: %d\r\n\r\n%s", data.length(), data);
       }
    }
 }
