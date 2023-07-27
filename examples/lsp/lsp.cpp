@@ -106,131 +106,119 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, co
 
 // command-list mode
 // guide the transcription to match the most likely command from a provided list
-json guided_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params, struct command_set cs) {
+json guided_transcription(struct whisper_context * ctx, audio_async &audio, json params, std:vector<struct commandset> commandset_list) {
+    struct cs = commandset_list.get(params.value("commandset_index", commandset_list.size()-1));
+    int time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
+    int start_time = params.value("timestamp",time_now);
+    //Ensure minimum buffer
+    if(time_now - start_time < 1000) {
+       std::this_thread::sleep_for(1000 - (time_now - start_time));
+    }
+
+    //Wait until voice is detected
+    time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
+    //This keeps it consistent with the old command implementation, but could be improved
+    int window_duration = std::max(2000,time_now-start_time);
+    audio.get(window_duration, pcmf32_cur);
     std::vector<float> pcmf32_cur;
+    while (!::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
+       //TODO: find a way to poll commands/allow interrupts here
+       //initial plan was to have incomplete commands yield back,
+       //but passing state and calling a single poll here would be simpler...
 
-    //Constant delays should not be avoided. It may be necessary to do standalone
-    //timekeeping and sleep to keep a maximum poll rate.
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    //TODO: verify correctness here. Audio that has been processed before should
-    //not be processed again, but this may show the most viable avenue for brute
-    //forcing
-    audio.get(2000, pcmf32_cur);
-    //TODO: move to while not with delay and new audio.get
-    if (::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
-       fprintf(stdout, "%s: Speech detected! Processing ...\n", __func__);
+       //If implemented, this wait could be reduced by the elapsed time,
+       //but I expect polling to be quick unless a new message is sent
+       //and the only likely message is a cancellation
+       std::this_thread::sleep_for(std::chrono::milliseconds(100));
+       time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
+       window_duration = std::max(2000,time_now-start_time);
+       audio.get(window_duration, pcmf32_cur);
+    }
+    int unprocessed_audio_timestamp = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
 
-       const auto t_start = std::chrono::high_resolution_clock::now();
+    fprintf(stdout, "%s: Speech detected! Processing ...\n", __func__);
+    whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
-       whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    wparams.print_progress   = false;
+    wparams.print_special    = params.print_special;
+    wparams.print_realtime   = false;
+    //TODO: should always be false
+    wparams.print_timestamps = !params.no_timestamps;
+    wparams.translate        = params.translate;
+    wparams.no_context       = true;
+    wparams.single_segment   = true;
+    wparams.max_tokens       = 1;
+    wparams.language         = params.language.c_str();
+    wparams.n_threads        = params.n_threads;
 
-       wparams.print_progress   = false;
-       wparams.print_special    = params.print_special;
-       wparams.print_realtime   = false;
-       //TODO: should always be false
-       wparams.print_timestamps = !params.no_timestamps;
-       wparams.translate        = params.translate;
-       wparams.no_context       = true;
-       wparams.single_segment   = true;
-       wparams.max_tokens       = 1;
-       wparams.language         = params.language.c_str();
-       wparams.n_threads        = params.n_threads;
+    wparams.audio_ctx        = params.audio_ctx;
+    wparams.speed_up         = params.speed_up;
 
-       wparams.audio_ctx        = params.audio_ctx;
-       wparams.speed_up         = params.speed_up;
+    //TODO: Set up command sets/precompute prompts
+    wparams.prompt_tokens    = cs.prompt_tokens.data();
+    wparams.prompt_n_tokens  = cs.prompt_tokens.size();
+    //TODO: properly expose as option
+    wparams.suppress_non_speech_tokens = true;
 
-       //TODO: Set up command sets/precompute prompts
-       wparams.prompt_tokens    = cs.prompt_tokens.data();
-       wparams.prompt_n_tokens  = cs.prompt_tokens.size();
-       //TODO: properly expose as option
-       wparams.suppress_non_speech_tokens = true;
+    // run the transformer and a single decoding pass
+    if (whisper_full(ctx, wparams, pcmf32_cur.data(), pcmf32_cur.size()) != 0) {
+       fprintf(stderr, "%s: ERROR: whisper_full() failed\n", __func__);
+       break;
+    }
 
-       // run the transformer and a single decoding pass
-       if (whisper_full(ctx, wparams, pcmf32_cur.data(), pcmf32_cur.size()) != 0) {
-          fprintf(stderr, "%s: ERROR: whisper_full() failed\n", __func__);
-          break;
-       }
+    // estimate command probability
+    // NOTE: not optimal
+    {
+       const auto * logits = whisper_get_logits(ctx);
 
-       // estimate command probability
-       // NOTE: not optimal
+       std::vector<float> probs(whisper_n_vocab(ctx), 0.0f);
+
+       // compute probs from logits via softmax
        {
-          const auto * logits = whisper_get_logits(ctx);
-
-          std::vector<float> probs(whisper_n_vocab(ctx), 0.0f);
-
-          // compute probs from logits via softmax
-          {
-             float max = -1e9;
-             for (int i = 0; i < (int) probs.size(); ++i) {
-                max = std::max(max, logits[i]);
-             }
-
-             float sum = 0.0f;
-             for (int i = 0; i < (int) probs.size(); ++i) {
-                probs[i] = expf(logits[i] - max);
-                sum += probs[i];
-             }
-
-             for (int i = 0; i < (int) probs.size(); ++i) {
-                probs[i] /= sum;
-             }
+          float max = -1e9;
+          for (int i = 0; i < (int) probs.size(); ++i) {
+             max = std::max(max, logits[i]);
           }
 
-          std::vector<std::pair<float, int>> probs_id;
-
-          double psum = 0.0;
-          for (int i = 0; i < (int) allowed_commands.size(); ++i) {
-             probs_id.emplace_back(probs[allowed_tokens[i][0]], i);
-             for (int j = 1; j < (int) allowed_tokens[i].size(); ++j) {
-                probs_id.back().first += probs[allowed_tokens[i][j]];
-             }
-             probs_id.back().first /= allowed_tokens[i].size();
-             psum += probs_id.back().first;
+          float sum = 0.0f;
+          for (int i = 0; i < (int) probs.size(); ++i) {
+             probs[i] = expf(logits[i] - max);
+             sum += probs[i];
           }
 
-          //TODO: Either expose probabilities, or stop normalizing
-          // normalize
-          for (auto & p : probs_id) {
-             p.first /= psum;
+          for (int i = 0; i < (int) probs.size(); ++i) {
+             probs[i] /= sum;
           }
-
-          // sort descending
-          {
-             using pair_type = decltype(probs_id)::value_type;
-             std::sort(probs_id.begin(), probs_id.end(), [](const pair_type & a, const pair_type & b) {
-                   return a.first > b.first;
-                   });
-          }
-
-          //TODO: prevent reprocessing audio
-          //An amount of audio should be grabbed equal to current_time - processed timestamp
-          //If this delta is not enough for evaluation, block execution until it is.
-          //If this amount is too much (circular buffer overrun)...
-          //warn user. Skip forward half the audio buffer size to allow contiguous
-          //realtime processing until next overrun?
-          //
-          //Separate of this, there should be some indicator in the client message
-          //regarding it's timeliness...
-          //If listening was toggled from disabled to enabled,
-          //the state is equivalent to that of overrun
-          //
-          //Add a timestamp to response field.
-          //If client sends a request with latency dependent on a prior request,
-          //that request should mirror the same timestamp.
-          //If the latency is not dependent on a prior request, this field should be left blank
-          //and is calculated as current time minus a .1ish second buffer
-          //(potentially changeable as launch command line arg)
-          //
-          //In either case, request completion should block until a processable
-          //amount of audio has elapsed which ALSO satisfies the VAD check
-          //(Eventually, this server should still poll for client inputs
-          //   to allow a request blocking on audio data to be canceled.)
-          //N.B. whisper.cpp will refuse to process anything under 1s length
-          audio.clear();
        }
 
-       return json{
-          "result": probs_id[0].second;
+       std::vector<std::pair<float, int>> probs_id;
+
+       double psum = 0.0;
+       for (int i = 0; i < (int) allowed_commands.size(); ++i) {
+          probs_id.emplace_back(probs[allowed_tokens[i][0]], i);
+          for (int j = 1; j < (int) allowed_tokens[i].size(); ++j) {
+             probs_id.back().first += probs[allowed_tokens[i][j]];
+          }
+          probs_id.back().first /= allowed_tokens[i].size();
+          psum += probs_id.back().first;
+       }
+
+       //TODO: Either expose probabilities, or stop normalizing
+       // normalize
+       for (auto & p : probs_id) {
+          p.first /= psum;
+       }
+
+       // sort descending
+       {
+          using pair_type = decltype(probs_id)::value_type;
+          std::sort(probs_id.begin(), probs_id.end(), [](const pair_type & a, const pair_type & b) {
+                return a.first > b.first;
+                });
+       }
+       return json{ {"result": {
+           {"command_index", probs_id[0].second},
+           {"timestamp", unprocessed_audio_timestamp}
        }
 }
 
