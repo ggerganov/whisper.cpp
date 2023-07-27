@@ -118,10 +118,10 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
 
 json unguided_transcription(struct whisper_context * ctx, audio_async &audio, json jparams, const whisper_params &params) {
     //length of a transcription chunk isn't important as long as timestamps are supported
+   std::vector<whisper_token> prompt_tokens;
     float prob = 0.0f;
     int time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
     int start_time = jparams.value("timestamp", time_now);
-    std::string prompt = jparams.value("prompt", "");
     if(time_now - start_time < 1000) {
        std::this_thread::sleep_for(std::chrono::milliseconds(1000 - (time_now - start_time)));
     }
@@ -161,6 +161,16 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
     int unprocessed_audio_timestamp = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now())-200;
 
     whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    if (jparams.contains("prompt")) {
+       //unlikely to see much use. Under normal circumstances, no_context would be set to false
+       std::string prompt = jparams.at("prompt");
+       prompt_tokens.resize(1024);
+       int n = whisper_tokenize(ctx, prompt.c_str(), prompt_tokens.data(), 1024);
+       prompt_tokens.resize(n);
+
+       wparams.prompt_tokens    = prompt_tokens.data();
+       wparams.prompt_n_tokens  = prompt_tokens.size();
+    }
     wparams.print_progress   = false;
     wparams.print_special    = params.print_special;
     wparams.print_realtime   = false;
@@ -321,7 +331,7 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
       if (n == 1) {
          token_vec.push_back(tokens[0]);
       } else if (n > 1) {//empty string if n=0? Should never occur
-         fprintf(stderr, "%s: error: command is more than a single token: %s", __func__, s.c_str());
+         fprintf(stderr, "%s: error: command is more than a single token: %s\n", __func__, s.c_str());
       }
       struct command command = {token_vec, s};
       cs.commands.push_back(command);
@@ -353,7 +363,9 @@ json parse_job(const json &body, struct whisper_context * ctx, audio_async &audi
       //unsupported version
    }
    std::string method = body.at("method");
-   json jparams = body.value("params", json{});
+   json jparams = json{{"dummy", "dummy"}};
+   if (body.contains("params"))
+      jparams = body.at("params");
    json id = body.at("id");
    json res;
    try {
@@ -362,6 +374,7 @@ json parse_job(const json &body, struct whisper_context * ctx, audio_async &audi
       else if (method == "guided")             { res = guided_transcription(ctx, audio, params, jparams, commandset_list); }
       else if (method == "seek")               { res = seek(ctx, audio, jparams); }
       else if (method == "registerCommandset") { res = register_commandset(ctx, jparams, commandset_list); }
+
 
       return json{
          {"jsonrpc", "2.0"},
@@ -384,7 +397,8 @@ void process_loop(struct whisper_context * ctx, audio_async &audio, const whispe
       //For eventual cancellation support, shouldn't block if job exists
       if (std::cin.rdbuf()->in_avail() > 22 || jobqueue.size() == 0) {
          int content_length;
-         scanf("Content-Length: %d", &content_length);
+         if (scanf("Content-Length: %d", &content_length) != 1)
+            return;
          //scanf leaves the new lines intact
          std::cin.ignore(2);
          if (std::cin.peek() != 13) {
@@ -412,7 +426,7 @@ void process_loop(struct whisper_context * ctx, audio_async &audio, const whispe
          jobqueue.pop_front();
          //send response
          std::string data = resp.dump(-1, ' ', false, json::error_handler_t::replace);
-         fprintf(stdout, "Content-Length: %d\r\n\r\n%s", data.length(), data);
+         fprintf(stdout, "Content-Length: %d\r\n\r\n%s\n", data.length()+1, data.c_str());
       }
    }
 }
