@@ -122,9 +122,11 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
     float prob = 0.0f;
     int time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
     int start_time = jparams.value("timestamp", time_now);
+    fprintf(stderr,"%d - %d = %d\n", time_now,start_time,time_now-start_time);
     if(time_now - start_time < 1000) {
        std::this_thread::sleep_for(std::chrono::milliseconds(1000 - (time_now - start_time)));
     }
+    fprintf(stderr,"%d - %d = %d\n", time_now,start_time,time_now-start_time);
 
     //Wait until voice is detected
     time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
@@ -155,7 +157,8 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
     //For now, it'll be implemented to process either from start to now, or max samples
     //at VAD, but I'll probably pull the VAD method in and add detection for
     //for rising edges in addition to falling edges to detect start of speech.
-    audio.get(start_time,pcmf32_cur);
+    fprintf(stderr,"%d - %d = %d\n", time_now,start_time,time_now-start_time);
+    audio.get(time_now-start_time,pcmf32_cur);
 
     //TODO: swap to n_keep/param to make consistent with stream.cpp?
     int unprocessed_audio_timestamp = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now())-200;
@@ -194,6 +197,7 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
     }
     //TODO: simplified since single segment is forced
     std::string result = whisper_full_get_segment_text(ctx,0);
+    fprintf(stderr, "Transcribed string is: %s\n",result.c_str());
     return json {
         {"transcription", result},
         {"timestamp", unprocessed_audio_timestamp}
@@ -206,8 +210,12 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
     struct commandset cs = commandset_list[jparams.value("commandset_index", commandset_list.size()-1)];
     int time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
     int start_time = jparams.value("timestamp",time_now);
+    if (start_time == time_now) {
+       fprintf(stderr, "Did not get timestamp\n");
+    }
     //Ensure minimum buffer
     if(time_now - start_time < 1000) {
+       fprintf(stderr, "Waiting %f seconds for buffer\n", time_now-start_time);
        std::this_thread::sleep_for(std::chrono::milliseconds(1000 - (time_now - start_time)));
     }
 
@@ -232,7 +240,7 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
     }
     int unprocessed_audio_timestamp = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
 
-    fprintf(stdout, "%s: Speech detected! Processing ...\n", __func__);
+    fprintf(stderr, "%s: Speech detected! Processing ...\n", __func__);
     whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
     wparams.print_progress   = false;
@@ -343,7 +351,7 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
    //prepare response
    int i = commandset_list.size();
    commandset_list.push_back(cs);
-   return i;//may need manual cast
+   return json{{"index",i}};
 }
 json seek(struct whisper_context * ctx, audio_async &audio, json params) {
    //whisper_state has the pertinent offsets, but there also seem to be a large
@@ -374,6 +382,7 @@ json parse_job(const json &body, struct whisper_context * ctx, audio_async &audi
       else if (method == "guided")             { res = guided_transcription(ctx, audio, params, jparams, commandset_list); }
       else if (method == "seek")               { res = seek(ctx, audio, jparams); }
       else if (method == "registerCommandset") { res = register_commandset(ctx, jparams, commandset_list); }
+      else if (method == "echo")               { res = jparams; }
 
 
       return json{
@@ -429,6 +438,8 @@ void process_loop(struct whisper_context * ctx, audio_async &audio, const whispe
          //send response
          std::string data = resp.dump(-1, ' ', false, json::error_handler_t::replace);
          fprintf(stdout, "Content-Length: %d\r\n\r\n%s\n", data.length()+1, data.c_str());
+         std::cout.flush();
+
       }
    }
 }
