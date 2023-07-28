@@ -117,22 +117,24 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
 }
 
 json unguided_transcription(struct whisper_context * ctx, audio_async &audio, json jparams, const whisper_params &params) {
+    using namespace std::chrono;
     //length of a transcription chunk isn't important as long as timestamps are supported
-   std::vector<whisper_token> prompt_tokens;
-    float prob = 0.0f;
-    int time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
-    int start_time = jparams.value("timestamp", time_now);
-    fprintf(stderr,"%d - %d = %d\n", time_now,start_time,time_now-start_time);
-    if(time_now - start_time < 1000) {
-       std::this_thread::sleep_for(std::chrono::milliseconds(1000 - (time_now - start_time)));
+    std::vector<whisper_token> prompt_tokens;
+    milliseconds time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
+    milliseconds start_time = time_now;
+    if (jparams.contains("timestamp")) {
+       uint64_t ts = jparams.at("timestamp");
+       start_time = milliseconds(ts);
     }
-    fprintf(stderr,"%d - %d = %d\n", time_now,start_time,time_now-start_time);
+    if(time_now - start_time < milliseconds(1000)) {
+       std::this_thread::sleep_for(milliseconds(1000) - (time_now - start_time));
+    }
 
     //Wait until voice is detected
-    time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
-    int window_duration = std::max(2000,time_now-start_time);
+    time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
+    milliseconds window_duration = std::max(milliseconds(2000),time_now-start_time);
     std::vector<float> pcmf32_cur;
-    audio.get(window_duration, pcmf32_cur);
+    audio.get(window_duration.count(), pcmf32_cur);
     while (!::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
        //TODO: find a way to poll commands/allow interrupts here
        //initial plan was to have incomplete commands yield back,
@@ -141,10 +143,10 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
        //If implemented, this wait could be reduced by the elapsed time,
        //but I expect polling to be quick unless a new message is sent
        //and the only likely message is a cancellation
-       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-       time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
-       window_duration = std::max(2000,time_now-start_time);
-       audio.get(window_duration, pcmf32_cur);
+       std::this_thread::sleep_for(milliseconds(100));
+       time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
+       window_duration = std::max(milliseconds(2000),time_now-start_time);
+       audio.get(window_duration.count(), pcmf32_cur);
     }
     //TODO: Improve windowing for unguided transcription.
     //If voice isn't detected, transcription should not occur
@@ -157,11 +159,10 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
     //For now, it'll be implemented to process either from start to now, or max samples
     //at VAD, but I'll probably pull the VAD method in and add detection for
     //for rising edges in addition to falling edges to detect start of speech.
-    fprintf(stderr,"%d - %d = %d\n", time_now,start_time,time_now-start_time);
-    audio.get(time_now-start_time,pcmf32_cur);
+    audio.get((time_now-start_time).count(),pcmf32_cur);
 
     //TODO: swap to n_keep/param to make consistent with stream.cpp?
-    int unprocessed_audio_timestamp = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now())-200;
+    uint64_t unprocessed_audio_timestamp = (time_now-milliseconds(200)).count();
 
     whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     if (jparams.contains("prompt")) {
@@ -187,6 +188,7 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
 
     wparams.audio_ctx        = params.audio_ctx;
     wparams.speed_up         = params.speed_up;
+    wparams.suppress_non_speech_tokens = true;
     // run the transformer and a single decoding pass
     if (whisper_full(ctx, wparams, pcmf32_cur.data(), pcmf32_cur.size()) != 0) {
        fprintf(stderr, "%s: ERROR: whisper_full() failed\n", __func__);
@@ -195,9 +197,7 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
           {"message", "ERROR: whisper_full() failed"}//TODO: format string (sprintf?)
        };
     }
-    //TODO: simplified since single segment is forced
     std::string result = whisper_full_get_segment_text(ctx,0);
-    fprintf(stderr, "Transcribed string is: %s\n",result.c_str());
     return json {
         {"transcription", result},
         {"timestamp", unprocessed_audio_timestamp}
@@ -207,24 +207,24 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
 // command-list mode
 // guide the transcription to match the most likely command from a provided list
 json guided_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params, json jparams, std::vector<struct commandset> commandset_list) {
+    using namespace std::chrono;
     struct commandset cs = commandset_list[jparams.value("commandset_index", commandset_list.size()-1)];
-    int time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
-    int start_time = jparams.value("timestamp",time_now);
-    if (start_time == time_now) {
-       fprintf(stderr, "Did not get timestamp\n");
+    milliseconds time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
+    milliseconds start_time = time_now;
+    if (jparams.contains("timestamp")) {
+       uint64_t ts = jparams.at("timestamp");
+       start_time = milliseconds(ts);
     }
     //Ensure minimum buffer
-    if(time_now - start_time < 1000) {
-       fprintf(stderr, "Waiting %f seconds for buffer\n", time_now-start_time);
-       std::this_thread::sleep_for(std::chrono::milliseconds(1000 - (time_now - start_time)));
+    if(time_now - start_time < milliseconds(1000)) {
+       std::this_thread::sleep_for(milliseconds(1000) - (time_now - start_time));
     }
 
     //Wait until voice is detected
-    time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
-    //This keeps it consistent with the old command implementation, but could be improved
-    int window_duration = std::max(2000,time_now-start_time);
+    time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
+    milliseconds window_duration = std::max(milliseconds(2000),time_now-start_time);
     std::vector<float> pcmf32_cur;
-    audio.get(window_duration, pcmf32_cur);
+    audio.get(window_duration.count(), pcmf32_cur);
     while (!::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
        //TODO: find a way to poll commands/allow interrupts here
        //initial plan was to have incomplete commands yield back,
@@ -233,12 +233,12 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
        //If implemented, this wait could be reduced by the elapsed time,
        //but I expect polling to be quick unless a new message is sent
        //and the only likely message is a cancellation
-       std::this_thread::sleep_for(std::chrono::milliseconds(100));
-       time_now = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
-       window_duration = std::max(2000,time_now-start_time);
-       audio.get(window_duration, pcmf32_cur);
+       std::this_thread::sleep_for(milliseconds(100));
+       time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
+       milliseconds window_duration = std::max(milliseconds(1000),time_now-start_time);
+       audio.get(window_duration.count(), pcmf32_cur);
     }
-    int unprocessed_audio_timestamp = std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now());
+    uint64_t unprocessed_audio_timestamp = time_now.count();
 
     fprintf(stderr, "%s: Speech detected! Processing ...\n", __func__);
     whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
@@ -258,7 +258,7 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
     wparams.audio_ctx        = params.audio_ctx;
     wparams.speed_up         = params.speed_up;
 
-    //TODO: Set up command sets/precompute prompts
+    //Set up command sets/precompute prompts
     wparams.prompt_tokens    = cs.prompt_tokens.data();
     wparams.prompt_n_tokens  = cs.prompt_tokens.size();
     //TODO: properly expose as option
