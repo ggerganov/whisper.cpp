@@ -29,11 +29,11 @@ let s:lsp_command = [g:whisper_lsp_path,"-m",g:whisper_model_path]
 "(upper, exit, count, motion, command, inside/around)           "motion/visual"
 "(upper, exit, count, motion, line,    inside/around)           "command already entered"
 "(upper, exit, key,                                 )           "from/till"
-let s:c_lowerkeys = "1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./'"
-let s:c_upperkeys = '!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:"ZXCVBNM<>?"'
+let s:c_lowerkeys = "1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./\""
+let s:c_upperkeys = "!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?'"
 let s:c_count = split("1234567890",'\zs')
-let s:c_command = split("ryuogpdxcv.", '\zs')
-let s:c_motion = split("wetfhjkln",'\zs')
+let s:c_command = split("ryuogpdxcv.ia", '\zs')
+let s:c_motion = split("wetfhjklnb",'\zs')
 "Special commands.
 let s:c_special_always = ["exit", "upper"]
 let s:c_special_normal = ["save", "run"]
@@ -41,7 +41,7 @@ let s:c_special_normal = ["save", "run"]
 "If not in dict, key is spoken word,
 "If key resolves to string, value is used for normal/motion, but key for chars
 "If key resolves to list, ["normal","motion","single char"]
-let s:spoken_dict = {"w": "word", "e": "end", "r": "replace", "t": "till", "y": "yank", "u": "undo", "i": ["insert", "inside", "i"], "o": "open", "p": "paste",  "a": ["append", "around", "a"], "s": "substitute", "d": "delete", "f": "from", "g": "go", "h": "left", "j": "down", "k": "up", "l": "right", "c": "change", "v": "visual", "b": "back", "n": "next", "m": "mark", ".": ["repeat","repeat","period"]}
+let s:spoken_dict = {"w": "word", "e": "end", "r": "replace", "t": "till", "y": "yank", "u": "undo", "i": ["insert", "inside", "i"], "o": "open", "p": "paste",  "a": ["append", "around", "a"], "s": "substitute", "d": "delete", "f": "from", "g": "go", "h": "left", "j": "down", "k": "up", "l": "right", "c": "change", "v": "visual", "b": "back", "n": "next", "m": "mark", ".": ["repeat","repeat","period"], "[": ["[","[","brace"], "'": ["'",  "'", "apostrophe"], '"': ['"','"',"quotation"]}
 
 "Give this another pass. This seems overly hacky even if it's functional
 let s:sub_tran_msg = ""
@@ -51,16 +51,19 @@ func s:subTranProg(msg)
       let s:sub_tran_msg = s:sub_tran_msg .. a:msg
       exe "normal" "u" .. s:sub_tran_msg
    else
-      let s:sub_tran_msg = s:command_backlog .. s:sub_tran_msg .. a:msg
+      if a:msg[0] == ' '
+         let s:sub_tran_msg = s:command_backlog .. a:msg[1:-1]
+      else
+         let s:sub_tran_msg = s:command_backlog  .. a:msg
+      endif
       exe "normal" s:sub_tran_msg
    endif
 endfunction
-func s:subTranFinish(...)
+func s:subTranFinish(params)
    let s:sub_tran_msg = ""
    let s:command_backlog = ""
-   "This doesn't propogate timestamp, but will likely be implemented
-   "at the same time param propagation is.
-   call function("s:commandCallback", a:000)
+   unlet a:params.timestamp
+   call whisper#requestCommands(a:params)
 endfunction
 
 func s:logCallback(channel, msg)
@@ -123,6 +126,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
       "exit
       "if s:command_backlog == ""
       call s:logCallback(0,"Stopping command mode")
+      echo "No longer listening"
       return
       "else
       "   call s:logCallback(0,"Clearing command_backlog" .. s:command_backlog)
@@ -139,7 +143,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
    else
       let l:command = s:commandset_list[a:commandset_index][l:command_index]
       echo s:command_backlog .. " - " .. l:command
-      call s:logCallback(0,a:msg)
+      call s:logCallback(0, string(a:msg) .. " " .. a:commandset_index)
       if s:preceeding_upper
          let s:preceeding_upper = v:false
          let l:command_backlog = s:command_backlog .. tr(l:command, s:c_lowerkeys, s:c_upperkeys)
@@ -147,11 +151,22 @@ func s:commandCallback(params, commandset_index, channel, msg)
          let s:command_backlog = s:command_backlog .. l:command
       endif
       if a:commandset_index == 2
-         "single key, either completes motion or replace, always execute
-         let l:do_execute = v:true
+         "single key, either completes motion or replace
+         "Should move to execute unless part of a change
+         if match(s:command_backlog, 'c') != -1
+            let l:req = {"method": "unguided", "params": a:params}
+            let l:req.params.timestamp = a:msg.result.timestamp
+            let l:req.params.no_context = v:false
+            let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
+            return
+         else
+            let l:do_execute = v:true
+         endif
       "commandset index only matters for a/i
       elseif (l:command == "a" || l:command == "i") && a:commandset_index == 1
-         "inside/around. More involved than I originally thought.
+         "inside/around. likely deserving of it's own command set
+         "For now though, single key will function
+         let l:next_mode = 2
       elseif index(s:c_count, l:command) != -1
          let l:next_mode = a:commandset_index
       elseif index(s:c_motion, l:command) != -1
@@ -161,21 +176,19 @@ func s:commandCallback(params, commandset_index, channel, msg)
          else
             let l:do_execute = v:true
          endif
-      elseif index(s:c_command, l:command) != -1 || l:command == 'i' || l:command == 'a'
-         call s:logCallback(0,l:command)
+      elseif index(s:c_command, l:command) != -1
          if index(["y","g","d","c"], s:command_backlog[-1:-1]) != -1 && s:command_backlog[-1:-1] != s:command_backlog[-2:-2] && tolower(mode()) != 'v'
-            call s:logCallback(0,"single command")
             "need motion or repeated command
             "Potential for bad state here if disparaging command keys are
             "entered (i.e. yd), but vim can handle checks for this at exe
             "And checking for cases like y123d would complicate things
             let l:next_mode = 1
-         elseif index(["i","a","c"], l:command) != -1 || s:command_backlog[-1:-1] == 'R'
+         elseif index(["i","a","c", "o", "s"], l:command) != -1 || s:command_backlog[-1:-1] == 'R'
             "'Insert' mode, do general transcription
             let l:req = {"method": "unguided", "params": a:params}
             let l:req.params.timestamp = a:msg.result.timestamp
             let l:req.params.no_context = v:false
-            let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params, 0])])})
+            let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
             return
          elseif l:command == 'r'
             let l:next_mode = 2
@@ -200,10 +213,20 @@ func s:commandCallback(params, commandset_index, channel, msg)
    let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": function("s:commandCallback",[a:params, l:next_mode])})
 endfunction
 
-func s:registerCommandset(commandlist)
+func s:loadedCallback(channel, msg)
+   echo "Loading complete"
+   call s:logCallback(a:channel, a:msg)
+endfunction
+
+func s:registerCommandset(commandlist, is_final)
    let req = {"method": "registerCommandset"}
    let req.params = a:commandlist
-   let resp = ch_sendexpr(g:lsp_job, req, {"callback": "s:logCallback"})
+   call s:logCallback(0, join(a:commandlist))
+   if a:is_final
+      let resp = ch_sendexpr(g:lsp_job, req, {"callback": "s:loadedCallback"})
+   else
+      let resp = ch_sendexpr(g:lsp_job, req, {"callback": "s:logCallback"})
+   endif
 endfunction
 func s:registerAllCommands()
    let s:commandset_list = [0,0,0]
@@ -213,11 +236,11 @@ func s:registerAllCommands()
    "let l:post_command = s:c_special_always + s:c_count + s:c_command + s:c_motion
    let l:single_key = s:c_special_always + split(s:c_lowerkeys, '\zs')
    let s:commandset_list[0] = l:normal
-   call s:registerCommandset(s:commandsetToSpoken(l:normal, 0))
+   call s:registerCommandset(s:commandsetToSpoken(l:normal, 0), v:false)
    let s:commandset_list[1] = l:visual
-   call s:registerCommandset(s:commandsetToSpoken(l:visual, 1))
+   call s:registerCommandset(s:commandsetToSpoken(l:visual, 1), v:false)
    let s:commandset_list[2] = l:single_key
-   call s:registerCommandset(s:commandsetToSpoken(l:single_key, 2))
+   call s:registerCommandset(s:commandsetToSpoken(l:single_key, 2), v:true)
 endfunction
 
 func s:commandsetToSpoken(commandset, spoken_index)
