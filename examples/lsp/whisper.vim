@@ -22,36 +22,45 @@ endif
 let s:output_buffer = bufnr("whisper_log", v:true)
 call setbufvar(s:output_buffer,"&buftype","nofile")
 let s:lsp_command = [g:whisper_lsp_path,"-m",g:whisper_model_path]
-"let s:lsp_command = [g:whisper_lsp_path,"-m","/home/austin/whisper.cpp/models/ggml-tiny.en.bin", "-ac", "128"]
+"For faster execution. TODO: server load multiple models/run multiple servers?
+"let s:lsp_command = [g:whisper_lsp_path, "-m", g:whisper_dir .. "models/ggml-tiny.en.bin", "-ac", "128"]
 
-let s:commands_text = ["up", "down", "left", "right", "from", "till", "back", "word", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "change", "insert", "append", "delete", "go", "yank", "undo", "open", "paste", "repeat", "save", "run", "quotation", "exit"]
-let s:commands_ex = ["k", "j", "h", "l", "f", "t", "b", "w", "1", "2", "3", "4", "5", "6", "7", "8", "9", "o", "c", "i", "a", "d", "g", "y", "u", "o", "p", ".", "save", "run", '"', "exit"]
-"let s:commands_text = ["up", "down", "left", "right"]
-"let s:commands_ex = ["k","j","h","l"]
+"(upper, exit, count, motion, command, insert/append, save run) "base"
+"(upper, exit, count, motion, command, inside/around)           "motion/visual"
+"(upper, exit, count, motion, line,    inside/around)           "command already entered"
+"(upper, exit, key,                                 )           "from/till"
+let s:c_lowerkeys = "1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./'"
+let s:c_upperkeys = '!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:"ZXCVBNM<>?"'
+let s:c_count = split("1234567890",'\zs')
+let s:c_command = split("ryuogpdxcv.", '\zs')
+let s:c_motion = split("wetfhjkln",'\zs')
+"Special commands.
+let s:c_special_always = ["exit", "upper"]
+let s:c_special_normal = ["save", "run"]
 
-" If a command does not include a whole actionable step, attempting to execute
-" it discards the remainder of things. There is likely a simpler solution,
-" but it can be made functional now by storing a backbuffer until actionable
-let s:command_backlog = ""
-func s:commandCallback(channel, msg)
-   if a:msg.result.command_text == "exit"
-      call appendbufline(s:output_buffer, "$", "Ending command processing")
-      return
+"If not in dict, key is spoken word,
+"If key resolves to string, value is used for normal/motion, but key for chars
+"If key resolves to list, ["normal","motion","single char"]
+let s:spoken_dict = {"w": "word", "e": "end", "r": "replace", "t": "till", "y": "yank", "u": "undo", "i": ["insert", "inside", "i"], "o": "open", "p": "paste",  "a": ["append", "around", "a"], "s": "substitute", "d": "delete", "f": "from", "g": "go", "h": "left", "j": "down", "k": "up", "l": "right", "c": "change", "v": "visual", "b": "back", "n": "next", "m": "mark", ".": ["repeat","repeat","period"]}
+
+"Give this another pass. This seems overly hacky even if it's functional
+let s:sub_tran_msg = ""
+func s:subTranProg(msg)
+   call appendbufline(s:output_buffer, "$", s:sub_tran_msg .. " " .. a:msg .. " " .. s:command_backlog)
+   if s:sub_tran_msg != ""
+      let s:sub_tran_msg = s:sub_tran_msg .. a:msg
+      exe "normal" "u" .. s:sub_tran_msg
+   else
+      let s:sub_tran_msg = s:command_backlog .. s:sub_tran_msg .. a:msg
+      exe "normal" s:sub_tran_msg
    endif
-   let l:do_execute = v:false
-   let l:command = s:commands_ex[a:msg.result.command_index]
-   let s:command_backlog = s:command_backlog .. l:command
-   if index(["k","j","h","l","u","o",".","b","w","p"],l:command) != -1
-      let l:do_execute = v:true
-   endif
-   if (index(["y","d","c","g"], l:command) != -1) && (l:command == s:command_backlog[-1:-1])
-      let l:do_execute = v:true
-   endif
-   if l:do_execute
-      exe "normal" s:command_backlog
-      let s:command_backlog = ""
-   endif
-   call whisper#requestCommands({"timestamp": a:msg.result.timestamp})
+endfunction
+func s:subTranFinish(...)
+   let s:sub_tran_msg = ""
+   let s:command_backlog = ""
+   "This doesn't propogate timestamp, but will likely be implemented
+   "at the same time param propagation is.
+   call function("s:commandCallback", a:000)
 endfunction
 
 func s:logCallback(channel, msg)
@@ -60,31 +69,32 @@ endfunction
 
 "requestCommands([params_dict])
 func whisper#requestCommands(...)
-   let l:req = {"method": "guided", "params": {}}
+   let l:req = {"method": "guided", "params": {"commandset_index": 0}}
    if a:0 > 0
       call extend(l:req.params, a:1)
    endif
-   let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": "s:commandCallback"})
+   let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": function("s:commandCallback", [l:req.params, 0])})
 endfunction
 
-"TODO update to instead send strings to a callback.
-"This is likely the cleanest way to allow this single method to also serve
-"search (/) and ex(:) inputs
-fun s:transcriptionCallback(channel, msg)
-   call appendbufline(s:output_buffer,"$",a:msg)
-   let l:pos = getcurpos()
+func s:transcriptionCallback(progressCallback, finishedCallback, channel, msg)
    let l:tr = a:msg.result.transcription
 
    let l:ex_ind = match(tolower(l:tr),"exit", len(l:tr)-6)
    "The worst case I've observed so far is " Exit.", which is 6 characters
    if l:ex_ind != -1
-      call appendbufline(s:output_buffer, "$", "Ending unguided transcription")
-      exe "normal a" .. strpart(l:tr,0,l:ex_ind-1)
+      call a:progressCallback(strpart(l:tr,0,l:ex_ind-1))
+      call a:finishedCallback()
    else
-      exe "normal a" .. l:tr
+      call a:progressCallback(l:tr)
       let req = {"method": "unguided", "params": {"timestamp": a:msg.result.timestamp, "no_context": v:false}}
-      let resp = ch_sendexpr(g:lsp_job, req, {"callback": "s:transcriptionCallback"})
+      let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [a:progressCallback, a:finishedCallback])})
    endif
+endfunc
+func s:insertText(msg)
+   exe "normal a" .. a:msg
+endfunction
+func s:endTranscription()
+   call appendbufline(s:output_buffer, "$", "Ending unguided transcription")
 endfunction
 
 "doTranscription([params_dict])
@@ -93,11 +103,101 @@ func whisper#doTranscription(...)
    if a:0 > 0
       call extend(l:req.params, a:1)
    endif
-   let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": "s:transcriptionCallback"})
+   let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": function("s:transcriptionCallback", [function("s:insertText"),function("s:endTranscription")])})
 endfunction
 
-func g:Lsp_echo(channel, msg)
-   let req = {"method": "echo", "params": {"dummy": "dummy"}}
+"func g:Lsp_echo(channel, msg)
+"   let req = {"method": "echo", "params": {"dummy": "dummy"}}
+"endfunction
+
+" If a command does not include a whole actionable step, attempting to execute
+" it discards the remainder of things. There is likely a simpler solution,
+" but it can be made functional now by storing a backbuffer until actionable
+let s:command_backlog = ""
+let s:preceeding_upper = v:false
+func s:commandCallback(params, commandset_index, channel, msg)
+   let l:command_index = a:msg.result.command_index
+   let l:do_execute = v:false
+   let l:next_mode = 0
+   if l:command_index == 0
+      "exit
+      "if s:command_backlog == ""
+      call s:logCallback(0,"Stopping command mode")
+      return
+      "else
+      "   call s:logCallback(0,"Clearing command_backlog" .. s:command_backlog)
+      "   let s:command_backlog = ""
+      "   let s:preceeding_upper = v:false
+      "endif
+   elseif l:command_index == 1
+      "upper
+      let s:preceeding_upper = !s:preceeding_upper
+   elseif a:msg.result.command_text == "save"
+      exe "w"
+   elseif a:msg.result.command_text == "run"
+      exe "!make run"
+   else
+      let l:command = s:commandset_list[a:commandset_index][l:command_index]
+      echo s:command_backlog .. " - " .. l:command
+      call s:logCallback(0,a:msg)
+      if s:preceeding_upper
+         let s:preceeding_upper = v:false
+         let l:command_backlog = s:command_backlog .. tr(l:command, s:c_lowerkeys, s:c_upperkeys)
+      else
+         let s:command_backlog = s:command_backlog .. l:command
+      endif
+      if a:commandset_index == 2
+         "single key, either completes motion or replace, always execute
+         let l:do_execute = v:true
+      "commandset index only matters for a/i
+      elseif (l:command == "a" || l:command == "i") && a:commandset_index == 1
+         "inside/around. More involved than I originally thought.
+      elseif index(s:c_count, l:command) != -1
+         let l:next_mode = a:commandset_index
+      elseif index(s:c_motion, l:command) != -1
+         if l:command == 't' || l:command == 'f'
+            "prompt single key
+            let l:next_mode = 2
+         else
+            let l:do_execute = v:true
+         endif
+      elseif index(s:c_command, l:command) != -1 || l:command == 'i' || l:command == 'a'
+         call s:logCallback(0,l:command)
+         if index(["y","g","d","c"], s:command_backlog[-1:-1]) != -1 && s:command_backlog[-1:-1] != s:command_backlog[-2:-2] && tolower(mode()) != 'v'
+            call s:logCallback(0,"single command")
+            "need motion or repeated command
+            "Potential for bad state here if disparaging command keys are
+            "entered (i.e. yd), but vim can handle checks for this at exe
+            "And checking for cases like y123d would complicate things
+            let l:next_mode = 1
+         elseif index(["i","a","c"], l:command) != -1 || s:command_backlog[-1:-1] == 'R'
+            "'Insert' mode, do general transcription
+            let l:req = {"method": "unguided", "params": a:params}
+            let l:req.params.timestamp = a:msg.result.timestamp
+            let l:req.params.no_context = v:false
+            let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params, 0])])})
+            return
+         elseif l:command == 'r'
+            let l:next_mode = 2
+         else
+            let l:do_execute=v:true
+         endif
+      else
+         throw "invalid command state: " .. l:command .. " " .. a:commandset_index .. " " s:command_backlog
+      endif
+   endif
+   if l:do_execute
+      exe "normal" s:command_backlog
+      let s:command_backlog = ""
+   endif
+   let l:req = {"method": "guided", "params": {}}
+   if a:0 > 0
+      call extend(l:req.params, a:1)
+   endif
+   let l:req = {"method": "guided", "params": a:params}
+   let l:req.params.timestamp = a:msg.result.timestamp
+   let l:req.params.commandset_index = l:next_mode
+   let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": function("s:commandCallback",[a:params, l:next_mode])})
 endfunction
 
 func s:registerCommandset(commandlist)
@@ -105,11 +205,40 @@ func s:registerCommandset(commandlist)
    let req.params = a:commandlist
    let resp = ch_sendexpr(g:lsp_job, req, {"callback": "s:logCallback"})
 endfunction
-
-func whisper#registerCommandset(commandlist)
-   call s:registerCommandset(a:commandlist)
+func s:registerAllCommands()
+   let s:commandset_list = [0,0,0]
+   let l:normal = s:c_special_always + s:c_special_normal + s:c_count + s:c_command + s:c_motion
+   let l:visual = s:c_special_always + s:c_count + s:c_command + s:c_motion
+   "Currently the same as visual.
+   "let l:post_command = s:c_special_always + s:c_count + s:c_command + s:c_motion
+   let l:single_key = s:c_special_always + split(s:c_lowerkeys, '\zs')
+   let s:commandset_list[0] = l:normal
+   call s:registerCommandset(s:commandsetToSpoken(l:normal, 0))
+   let s:commandset_list[1] = l:visual
+   call s:registerCommandset(s:commandsetToSpoken(l:visual, 1))
+   let s:commandset_list[2] = l:single_key
+   call s:registerCommandset(s:commandsetToSpoken(l:single_key, 2))
 endfunction
 
+func s:commandsetToSpoken(commandset, spoken_index)
+   let l:spoken_list = []
+   for l:command in a:commandset
+      if has_key(s:spoken_dict, l:command)
+         let l:spoken_value = s:spoken_dict[l:command]
+         if type(l:spoken_value) == v:t_list
+            let l:spoken_value = l:spoken_value[a:spoken_index]
+         else
+            if a:spoken_index == 2
+               let l:spoken_value = l:command
+            endif
+         endif
+      else
+         let l:spoken_value = l:command
+      endif
+      call add(l:spoken_list, l:spoken_value )
+   endfor
+   return l:spoken_list
+endfunction
 
 " TODO: Check lifetime. If the script is resourced, is the existing
 " s:wlsp_job dropped and therefore killed?
@@ -122,5 +251,5 @@ if !exists("g:lsp_job")
    if job_status(g:lsp_job) == "fail"
       echoerr "Failed to start whisper job"
    endif
-   call s:registerCommandset(s:commands_text)
+   call s:registerAllCommands()
 endif

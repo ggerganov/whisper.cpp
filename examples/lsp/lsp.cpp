@@ -258,6 +258,7 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
     wparams.audio_ctx        = params.audio_ctx;
     wparams.speed_up         = params.speed_up;
 
+    //TODO: Do some time testing. Does an overly long prompt slow down processing?
     //Set up command sets/precompute prompts
     wparams.prompt_tokens    = cs.prompt_tokens.data();
     wparams.prompt_n_tokens  = cs.prompt_tokens.size();
@@ -323,6 +324,7 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
 }
 
 json register_commandset(struct whisper_context * ctx, json jparams, std::vector<struct commandset> &commandset_list) {
+   //TODO: check for token collision
    struct commandset cs;
 
     std::string  k_prompt = " select one from the available words: ";
