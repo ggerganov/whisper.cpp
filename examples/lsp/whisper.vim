@@ -25,10 +25,35 @@ let s:lsp_command = [g:whisper_lsp_path,"-m",g:whisper_model_path]
 "For faster execution. TODO: server load multiple models/run multiple servers?
 "let s:lsp_command = [g:whisper_lsp_path, "-m", g:whisper_dir .. "models/ggml-tiny.en.bin", "-ac", "128"]
 
+"requestCommands([params_dict])
+func whisper#requestCommands(...)
+   let l:req = {"method": "guided", "params": {"commandset_index": 0}}
+   if a:0 > 0
+      call extend(l:req.params, a:1)
+   endif
+   let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": function("s:commandCallback", [l:req.params, 0])})
+endfunction
+
+"doTranscription([params_dict])
+func whisper#doTranscription(...)
+   let l:req = {"method": "unguided", "params": {}}
+   if a:0 > 0
+      call extend(l:req.params, a:1)
+   endif
+   let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": function("s:transcriptionCallback", [function("s:insertText"),function("s:endTranscription")])})
+endfunction
+func whisper#uppertest(cha)
+    echo tr(a:cha, s:c_lowerkeys, s:c_upperkeys)
+endfunction
+
+
 "(upper, exit, count, motion, command, insert/append, save run) "base"
 "(upper, exit, count, motion, command, inside/around)           "motion/visual"
 "(upper, exit, count, motion, line,    inside/around)           "command already entered"
 "(upper, exit, key,                                 )           "from/till"
+
+"upper and lower keys is used to translate between cases with tr
+"Must be sunchronized
 let s:c_lowerkeys = "1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./\""
 let s:c_upperkeys = "!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?'"
 let s:c_count = split("1234567890",'\zs')
@@ -71,14 +96,6 @@ func s:logCallback(channel, msg)
    call appendbufline(s:output_buffer,"$",a:msg)
 endfunction
 
-"requestCommands([params_dict])
-func whisper#requestCommands(...)
-   let l:req = {"method": "guided", "params": {"commandset_index": 0}}
-   if a:0 > 0
-      call extend(l:req.params, a:1)
-   endif
-   let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": function("s:commandCallback", [l:req.params, 0])})
-endfunction
 
 func s:transcriptionCallback(progressCallback, finishedCallback, channel, msg)
    let l:tr = a:msg.result.transcription
@@ -101,14 +118,6 @@ func s:endTranscription()
    call appendbufline(s:output_buffer, "$", "Ending unguided transcription")
 endfunction
 
-"doTranscription([params_dict])
-func whisper#doTranscription(...)
-   let l:req = {"method": "unguided", "params": {}}
-   if a:0 > 0
-      call extend(l:req.params, a:1)
-   endif
-   let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": function("s:transcriptionCallback", [function("s:insertText"),function("s:endTranscription")])})
-endfunction
 
 "func g:Lsp_echo(channel, msg)
 "   let req = {"method": "echo", "params": {"dummy": "dummy"}}
@@ -123,6 +132,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
    let l:command_index = a:msg.result.command_index
    let l:do_execute = v:false
    let l:next_mode = 0
+   call s:logCallback(0, string(a:msg) .. " " .. a:commandset_index)
    if l:command_index == 0
       "exit
       "if s:command_backlog == ""
@@ -143,14 +153,14 @@ func s:commandCallback(params, commandset_index, channel, msg)
       exe "make run"
    else
       let l:command = s:commandset_list[a:commandset_index][l:command_index]
-      echo s:command_backlog .. " - " .. l:command
-      call s:logCallback(0, string(a:msg) .. " " .. a:commandset_index)
       if s:preceeding_upper
          let s:preceeding_upper = v:false
-         let l:command_backlog = s:command_backlog .. tr(l:command, s:c_lowerkeys, s:c_upperkeys)
+         let l:visual_command = tr(l:command, s:c_lowerkeys, s:c_upperkeys)
       else
-         let s:command_backlog = s:command_backlog .. l:command
+          let l:visual_command = l:command
       endif
+      echo s:command_backlog .. " - " .. l:visual_command
+      let s:command_backlog = s:command_backlog .. l:visual_command
       if a:commandset_index == 2
          "single key, either completes motion or replace
          "Should move to execute unless part of a change
