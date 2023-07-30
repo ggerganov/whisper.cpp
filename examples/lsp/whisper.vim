@@ -63,6 +63,7 @@ func s:subTranFinish(params)
    let s:sub_tran_msg = ""
    let s:command_backlog = ""
    unlet a:params.timestamp
+   let a:params.commandset_index = 0
    call whisper#requestCommands(a:params)
 endfunction
 
@@ -139,7 +140,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
    elseif a:msg.result.command_text == "save"
       exe "w"
    elseif a:msg.result.command_text == "run"
-      exe "!make run"
+      exe "make run"
    else
       let l:command = s:commandset_list[a:commandset_index][l:command_index]
       echo s:command_backlog .. " - " .. l:command
