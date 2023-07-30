@@ -255,6 +255,7 @@ std::string estimate_diarization_speaker(std::vector<std::vector<float>> pcmf32s
     return speaker;
 }
 void whisper_print_progress_callback(struct whisper_context * ctx, struct whisper_state * /*state*/, int progress, void * user_data) {
+    (void)ctx;
     int progress_step = ((whisper_print_user_data *) user_data)->params->progress_step;
     int * progress_prev  = &(((whisper_print_user_data *) user_data)->progress_prev);
     if (progress >= *progress_prev + progress_step) {

@@ -1140,7 +1140,7 @@ static void quantize_row_q8_0_reference(const float * restrict x, block_q8_0 * r
 static void quantize_row_q8_0(const float * restrict x, void * restrict vy, int k) {
     assert(QK8_0 == 32);
     assert(k % QK8_0 == 0);
-    const int nb = k / QK8_0;
+    const int nb = k / QK8_0; UNUSED(nb);
 
     block_q8_0 * restrict y = vy;
 
@@ -1335,7 +1335,7 @@ static void quantize_row_q8_1_reference(const float * restrict x, block_q8_1 * r
 
 static void quantize_row_q8_1(const float * restrict x, void * restrict vy, int k) {
     assert(k % QK8_1 == 0);
-    const int nb = k / QK8_1;
+    const int nb = k / QK8_1; UNUSED(nb);
 
     block_q8_1 * restrict y = vy;
 
