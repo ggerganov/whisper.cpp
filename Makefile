@@ -12,6 +12,12 @@ ifndef UNAME_M
 UNAME_M := $(shell uname -m)
 endif
 
+ifndef NVCC_VERSION
+	ifeq ($(call,$(shell which nvcc))$(.SHELLSTATUS),0)
+		NVCC_VERSION := $(shell nvcc --version | egrep -o "V[0-9]+.[0-9]+.[0-9]+" | cut -c2-)
+	endif
+endif
+
 CCV := $(shell $(CC) --version | head -n 1)
 CXXV := $(shell $(CXX) --version | head -n 1)
 
@@ -167,12 +173,18 @@ ifdef WHISPER_OPENBLAS
 endif
 
 ifdef WHISPER_CUBLAS
+	ifeq ($(shell expr $(NVCC_VERSION) \>= 11.6), 1)
+		CUDA_ARCH_FLAG=native
+	else
+		CUDA_ARCH_FLAG=all
+	endif
+
 	CFLAGS      += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
 	CXXFLAGS    += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
 	LDFLAGS     += -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib
 	WHISPER_OBJ += ggml-cuda.o
 	NVCC        = nvcc
-	NVCCFLAGS   = --forward-unknown-to-host-compiler -arch=any
+	NVCCFLAGS   = --forward-unknown-to-host-compiler -arch=$(CUDA_ARCH_FLAG)
 
 ggml-cuda.o: ggml-cuda.cu ggml-cuda.h
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
@@ -180,11 +192,17 @@ endif
 
 ifdef WHISPER_CLBLAST
 	CFLAGS 		+= -DGGML_USE_CLBLAST
-	LDFLAGS	 	+= -lclblast -lOpenCL
+	CXXFLAGS 	+= -DGGML_USE_CLBLAST
+	LDFLAGS	 	+= -lclblast
+	ifeq ($(UNAME_S),Darwin)
+		LDFLAGS	 	+= -framework OpenCL
+	else
+		LDFLAGS	    += -lOpenCL
+	endif
 	WHISPER_OBJ	+= ggml-opencl.o
 
 ggml-opencl.o: ggml-opencl.cpp ggml-opencl.h
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 endif
 
 ifdef WHISPER_GPROF
@@ -309,6 +327,7 @@ samples:
 	@wget --quiet --show-progress -O samples/hp0.ogg https://upload.wikimedia.org/wikipedia/en/d/d4/En.henryfphillips.ogg
 	@wget --quiet --show-progress -O samples/mm1.wav https://cdn.openai.com/whisper/draft-20220913a/micro-machines.wav
 	@wget --quiet --show-progress -O samples/a13.mp3 https://upload.wikimedia.org/wikipedia/commons/transcoded/6/6f/Apollo13-wehaveaproblem.ogg/Apollo13-wehaveaproblem.ogg.mp3
+	@wget --quiet --show-progress -O samples/diffusion2023-07-03.flac https://archive.org/download/diffusion2023-07-03/diffusion2023-07-03.flac
 	@echo "Converting to 16-bit WAV ..."
 	@ffmpeg -loglevel -0 -y -i samples/gb0.ogg -ar 16000 -ac 1 -c:a pcm_s16le samples/gb0.wav
 	@ffmpeg -loglevel -0 -y -i samples/gb1.ogg -ar 16000 -ac 1 -c:a pcm_s16le samples/gb1.wav
@@ -318,6 +337,8 @@ samples:
 	@rm samples/mm1.wav
 	@ffmpeg -loglevel -0 -y -i samples/a13.mp3 -ar 16000 -ac 1 -c:a pcm_s16le -ss 00:00:00 -to 00:00:30 samples/a13.wav
 	@rm samples/a13.mp3
+	@ffmpeg -loglevel -0 -y -i samples/diffusion2023-07-03.flac -ar 16000 -ac 1 -c:a pcm_s16le samples/diffusion2023-07-03.wav
+	@rm samples/diffusion2023-07-03.flac
 
 #
 # Models
@@ -359,4 +380,4 @@ tiny.en tiny base.en base small.en small medium.en medium large-v1 large: main
 
 .PHONY: tests
 tests:
-	bash ./tests/run-tests.sh
+	bash ./tests/run-tests.sh $(word 2, $(MAKECMDGOALS))

@@ -81,6 +81,10 @@ func (context *context) SetSpeedup(v bool) {
 	context.params.SetSpeedup(v)
 }
 
+func (context *context) SetSplitOnWord(v bool) {
+        context.params.SetSplitOnWord(v)
+}
+
 // Set number of threads to use
 func (context *context) SetThreads(v uint) {
 	context.params.SetThreads(int(v))
