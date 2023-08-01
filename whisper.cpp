@@ -2396,12 +2396,10 @@ static void fft(const std::vector<float> & in, std::vector<float> & out) {
     even.reserve(N/2);
     odd.reserve(N/2);
 
-    for (int i = 0; i < N; i++) {
-        if (i % 2 == 0) {
-            even.push_back(in[i]);
-        } else {
-            odd.push_back(in[i]);
-        }
+    //
+    for (int i = 0; i < N; i+=2) {
+        even.push_back(in[i]);
+        odd.push_back(in[i + 1]);
     }
 
     std::vector<float> even_fft;
@@ -2442,22 +2440,27 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
             if (offset + j < n_samples) {
                 fft_in[j] = hann[j] * samples[offset + j];
             } else {
-                fft_in[j] = 0.0;
+                break;
             }
         }
 
         // FFT -> mag^2
         fft(fft_in, fft_out);
 
-        for (int j = 0; j < fft_size; j++) {
+        // Calculate modulus of complex numbers
+        // It should be fft_size - 1, not fft_size.
+        // Otherwise, it will cause array out-of-bounds, polluting the FFT spectrum
+        for (int j = 0; j < fft_size - 1; j++) {
             fft_out[j] = (fft_out[2 * j + 0] * fft_out[2 * j + 0] + fft_out[2 * j + 1] * fft_out[2 * j + 1]);
         }
+
+        // The frequency spectrum produced by real input data is symmetrical around the Nyquist frequency.
         for (int j = 1; j < fft_size / 2; j++) {
             fft_out[j] += fft_out[fft_size - j];
         }
 
         if (speed_up) {
-            // scale down in the frequency domain results in a speed up in the time domain
+            // scale down in the frequency domain results in a speed-up in the time domain
             for (int j = 0; j < n_fft; j++) {
                 fft_out[j] = 0.5 * (fft_out[2 * j] + fft_out[2 * j + 1]);
             }
