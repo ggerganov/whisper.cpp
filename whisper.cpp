@@ -2448,15 +2448,14 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
         fft(fft_in, fft_out);
 
         // Calculate modulus of complex numbers
-        // It should be fft_size - 1, not fft_size.
-        // Otherwise, it will cause array out-of-bounds, polluting the FFT spectrum
-        for (int j = 0; j < fft_size - 1; j++) {
+        for (int j = 0; j < fft_size; j++) {
             fft_out[j] = (fft_out[2 * j + 0] * fft_out[2 * j + 0] + fft_out[2 * j + 1] * fft_out[2 * j + 1]);
         }
 
         // The frequency spectrum produced by real input data is symmetrical around the Nyquist frequency.
-        for (int j = 1; j < fft_size / 2; j++) {
-            fft_out[j] += fft_out[fft_size - j];
+        // This is where the actual issue lies
+        for (int j = 0; j < fft_size / 2; j++) {
+            fft_out[j] += fft_out[fft_size - j - 1];
         }
 
         if (speed_up) {
