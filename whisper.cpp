@@ -2422,17 +2422,18 @@ static void fft(const std::vector<float> & in, std::vector<float> & out) {
 
         out[2*(k + N/2) + 0] = even_fft[2*k + 0] - re*re_odd + im*im_odd;
         out[2*(k + N/2) + 1] = even_fft[2*k + 1] - re*im_odd - im*re_odd;
+
     }
 }
 
 static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> &hann, const float *samples,
                                               int n_samples, int fft_size, int fft_step, int n_threads,
                                               const whisper_filters &filters, bool speed_up, whisper_mel &mel) {
-    std::vector<float> fft_in(fft_size, 0.0);
-    std::vector<float> fft_out(2 * fft_size);
     int n_fft = 1 + (speed_up ? fft_size / 4 : fft_size / 2);
 
     for (int i = ith; i < mel.n_len; i += n_threads) {
+        std::vector<float> fft_in(fft_size, 0.0);
+        std::vector<float> fft_out(2 * fft_size);
         const int offset = i * fft_step;
 
         // apply Hanning window
@@ -2473,10 +2474,10 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
             int k = 0;
             for (k = 0; k < n_fft - 3; k += 4) {
                 sum +=
-                    fft_out[k + 0] * filters.data[j*n_fft + k + 0] +
-                    fft_out[k + 1] * filters.data[j*n_fft + k + 1] +
-                    fft_out[k + 2] * filters.data[j*n_fft + k + 2] +
-                    fft_out[k + 3] * filters.data[j*n_fft + k + 3];
+                    fft_out[k + 0] * filters.data[j * n_fft + k + 0] +
+                    fft_out[k + 1] * filters.data[j * n_fft + k + 1] +
+                    fft_out[k + 2] * filters.data[j * n_fft + k + 2] +
+                    fft_out[k + 3] * filters.data[j * n_fft + k + 3];
             }
 
             // handle n_fft remainder
@@ -3636,7 +3637,7 @@ static void whisper_process_logits(
     WHISPER_ASSERT(n_logits == ctx.vocab.n_vocab);
 
     // extract the logits for the last token
-    // we will be mutating and therefore we don't want to use the ctx.logits buffer directly
+    // we will be mutating, and therefore we don't want to use the ctx.logits buffer directly
     auto & probs    = decoder.probs;
     auto & logits   = decoder.logits;
     auto & logprobs = decoder.logprobs;
