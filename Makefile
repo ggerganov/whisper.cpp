@@ -280,7 +280,7 @@ libwhisper.so: ggml.o $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o $(WHISPER_OBJ) $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream command talk talk-llama bench quantize libwhisper.a libwhisper.so
+	rm -f *.o main stream command talk talk-llama bench quantize lsp libwhisper.a libwhisper.so
 
 #
 # Examples

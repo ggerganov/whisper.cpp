@@ -71,7 +71,6 @@ let s:spoken_dict = {"w": "word", "e": "end", "r": "replace", "t": "till", "y": 
 "Give this another pass. This seems overly hacky even if it's functional
 let s:sub_tran_msg = ""
 func s:subTranProg(msg)
-   call appendbufline(s:output_buffer, "$", s:sub_tran_msg .. " " .. a:msg .. " " .. s:command_backlog)
    if s:sub_tran_msg != ""
       let s:sub_tran_msg = s:sub_tran_msg .. a:msg
       exe "normal" "u" .. s:sub_tran_msg
@@ -83,12 +82,16 @@ func s:subTranProg(msg)
       endif
       exe "normal" s:sub_tran_msg
    endif
+   call appendbufline(s:output_buffer, "$", s:sub_tran_msg ..  ":" .. string(a:msg ))
 endfunction
 func s:subTranFinish(params)
    let s:sub_tran_msg = ""
    let s:command_backlog = ""
-   unlet a:params.timestamp
-   let a:params.commandset_index = 0
+   let l:params = a:params
+   unlet l:params.timestamp
+   if exists("l:params.commandset_index")
+       unlet l:params.commandset_index
+   endif
    call whisper#requestCommands(a:params)
 endfunction
 
@@ -214,10 +217,6 @@ func s:commandCallback(params, commandset_index, channel, msg)
       exe "normal" s:command_backlog
       let s:command_backlog = ""
    endif
-   let l:req = {"method": "guided", "params": {}}
-   if a:0 > 0
-      call extend(l:req.params, a:1)
-   endif
    let l:req = {"method": "guided", "params": a:params}
    let l:req.params.timestamp = a:msg.result.timestamp
    let l:req.params.commandset_index = l:next_mode
@@ -269,7 +268,7 @@ func s:commandsetToSpoken(commandset, spoken_index)
       else
          let l:spoken_value = l:command
       endif
-      call add(l:spoken_list, l:spoken_value )
+      call add(l:spoken_list, l:spoken_value)
    endfor
    return l:spoken_list
 endfunction
