@@ -2456,7 +2456,7 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
         // The frequency spectrum produced by real input data is symmetrical around the Nyquist frequency.
         // This is where the actual issue lies
         for (int j = 0; j < fft_size / 2; j++) {
-            fft_out[j] += fft_out[fft_size - j - 1];
+            fft_out[j] = (fft_out[fft_size - j - 1] + fft_out[j + 1]) / 2;
         }
 
         if (speed_up) {
