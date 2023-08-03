@@ -2425,32 +2425,33 @@ static void fft(const std::vector<float> & in, std::vector<float> & out) {
 
     }
 }
-
+static bool printed = false;
 static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> &hann, const float *samples,
                                               int n_samples, int fft_size, int fft_step, int n_threads,
                                               const whisper_filters &filters, bool speed_up, whisper_mel &mel) {
+    std::vector<float> fft_in(fft_size, 0.0);
+    std::vector<float> fft_out(2 * fft_size);
     int n_fft = 1 + (speed_up ? fft_size / 4 : fft_size / 2);
 
     for (int i = ith; i < mel.n_len; i += n_threads) {
-        std::vector<float> fft_in(fft_size, 0.0);
-        std::vector<float> fft_out(2 * fft_size);
         const int offset = i * fft_step;
 
-        // apply Hanning window
-        for (int j = 0; j < fft_size; j++) {
-            if (offset + j < n_samples) {
-                fft_in[j] = hann[j] * samples[offset + j];
-            } else {
-                break;
-            }
+        // apply Hanning window (~10% faster)
+        for (int j = 0; j < std::min(fft_size, n_samples - offset); j++) {
+            fft_in[j] = hann[j] * samples[offset + j];
+        }
+        // Can anyone explain why (n_samples - offset) can be negative ???
+        // If they are negative, fft_in would be all zero!
+        if (0 < n_samples - offset && n_samples - offset < fft_size) {
+            std::fill(fft_in.begin() + (n_samples - offset), fft_in.end(), 0.0);
         }
 
         // FFT -> mag^2
         fft(fft_in, fft_out);
 
-        // Calculate modulus of complex numbers
+        // Calculate modulus^2 of complex numbers
         for (int j = 0; j < fft_size; j++) {
-            fft_out[j] = (fft_out[2 * j + 0] * fft_out[2 * j + 0] + fft_out[2 * j + 1] * fft_out[2 * j + 1]);
+            fft_out[j] = (pow(fft_out[2 * j + 0], 2) + pow(fft_out[2 * j + 1], 2));
         }
 
         // The frequency spectrum produced by real input data is symmetrical around the Nyquist frequency.
@@ -2461,8 +2462,8 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
 
         if (speed_up) {
             // scale down in the frequency domain results in a speed-up in the time domain
-            for (int j = 0; j < n_fft; j++) {
-                fft_out[j] = 0.5 * (fft_out[2 * j] + fft_out[2 * j + 1]);
+            for (int j = 0; j < n_fft - 1; j++) {
+                fft_out[j] = (fft_out[2 * j] + fft_out[2 * j + 1]) / 2;
             }
         }
 
@@ -2511,6 +2512,10 @@ static bool log_mel_spectrogram(
     std::vector<float> hann;
     hann.resize(fft_size);
     for (int i = 0; i < fft_size; i++) {
+        // ref: https://pytorch.org/docs/stable/generated/torch.hann_window.html
+        // ref: https://github.com/openai/whisper/blob/main/whisper/audio.py#L147
+        // So it should be hann[i] = 0.5*(1.0 - cos((2.0*M_PI*i)/(fft_size - 1)));
+        // But using fft_size - 1 causes inference quality degradation ???
         hann[i] = 0.5*(1.0 - cos((2.0*M_PI*i)/(fft_size)));
     }
 
