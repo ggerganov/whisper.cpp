@@ -2436,59 +2436,71 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
     for (int i = ith; i < mel.n_len; i += n_threads) {
         const int offset = i * fft_step;
 
-        // apply Hanning window (~10% faster)
-        for (int j = 0; j < std::min(fft_size, n_samples - offset); j++) {
-            fft_in[j] = hann[j] * samples[offset + j];
-        }
-        // Can anyone explain why (n_samples - offset) can be negative ???
-        // If they are negative, fft_in would be all zero!
-        if (0 < n_samples - offset && n_samples - offset < fft_size) {
-            std::fill(fft_in.begin() + (n_samples - offset), fft_in.end(), 0.0);
-        }
+        // Calculate FFT only when fft_in are not all zero
+        if (n_samples - offset > 0) {
 
-        // FFT -> mag^2
-        fft(fft_in, fft_out);
-
-        // Calculate modulus^2 of complex numbers
-        for (int j = 0; j < fft_size; j++) {
-            fft_out[j] = (pow(fft_out[2 * j + 0], 2) + pow(fft_out[2 * j + 1], 2));
-        }
-
-        // The frequency spectrum produced by real input data is symmetrical around the Nyquist frequency.
-        // This is where the actual issue lies
-        for (int j = 0; j < fft_size / 2; j++) {
-            fft_out[j] = (fft_out[fft_size - j - 1] + fft_out[j + 1]) / 2;
-        }
-
-        if (speed_up) {
-            // scale down in the frequency domain results in a speed-up in the time domain
-            for (int j = 0; j < n_fft - 1; j++) {
-                fft_out[j] = (fft_out[2 * j] + fft_out[2 * j + 1]) / 2;
+            // apply Hanning window (~10% faster)
+            for (int j = 0; j < std::min(fft_size, n_samples - offset); j++) {
+                fft_in[j] = hann[j] * samples[offset + j];
             }
-        }
-
-        // mel spectrogram
-        for (int j = 0; j < mel.n_mel; j++) {
-            double sum = 0.0;
-
-            // unroll loop (suggested by GH user @lunixbochs)
-            int k = 0;
-            for (k = 0; k < n_fft - 3; k += 4) {
-                sum +=
-                    fft_out[k + 0] * filters.data[j * n_fft + k + 0] +
-                    fft_out[k + 1] * filters.data[j * n_fft + k + 1] +
-                    fft_out[k + 2] * filters.data[j * n_fft + k + 2] +
-                    fft_out[k + 3] * filters.data[j * n_fft + k + 3];
+            // Can anyone explain why (n_samples - offset) can be negative ???
+            // If they are negative, fft_in would be all zero!
+            if (n_samples - offset < fft_size) {
+                std::fill(fft_in.begin() + (n_samples - offset), fft_in.end(), 0.0);
             }
 
-            // handle n_fft remainder
-            for (; k < n_fft; k++) {
-                sum += fft_out[k] * filters.data[j * n_fft + k];
+            // FFT -> mag^2
+            fft(fft_in, fft_out);
+
+            // Calculate modulus^2 of complex numbers
+            // Use pow(fft_out[2 * j + 0], 2) + pow(fft_out[2 * j + 1], 2) causes inference quality problem? Interesting.
+            for (int j = 0; j < fft_size; j++) {
+                fft_out[j] = (fft_out[2 * j + 0] * fft_out[2 * j + 0] + fft_out[2 * j + 1] * fft_out[2 * j + 1]);
             }
 
-            sum = log10(std::max(sum, 1e-10));
+            // The frequency spectrum produced by real input data is symmetrical around the Nyquist frequency.
+            // This is where the actual issue lies
+            for (int j = 0; j < fft_size / 2; j++) {
+                fft_out[j] = (fft_out[fft_size - j - 1] + fft_out[j + 1]) / 2;
+            }
 
-            mel.data[j * mel.n_len + i] = sum;
+            if (speed_up) {
+                // scale down in the frequency domain results in a speed-up in the time domain
+                for (int j = 0; j < n_fft - 1; j++) {
+                    fft_out[j] = (fft_out[2 * j] + fft_out[2 * j + 1]) / 2;
+                }
+            }
+
+            // mel spectrogram
+            for (int j = 0; j < mel.n_mel; j++) {
+                double sum = 0.0;
+
+                // unroll loop (suggested by GH user @lunixbochs)
+                int k = 0;
+                for (k = 0; k < n_fft - 3; k += 4) {
+                    sum +=
+                            fft_out[k + 0] * filters.data[j * n_fft + k + 0] +
+                            fft_out[k + 1] * filters.data[j * n_fft + k + 1] +
+                            fft_out[k + 2] * filters.data[j * n_fft + k + 2] +
+                            fft_out[k + 3] * filters.data[j * n_fft + k + 3];
+                }
+
+                // handle n_fft remainder
+                for (; k < n_fft; k++) {
+                    sum += fft_out[k] * filters.data[j * n_fft + k];
+                }
+
+                sum = log10(std::max(sum, 1e-10));
+
+                mel.data[j * mel.n_len + i] = sum;
+            }
+
+        } else {
+            // Otherwise fft_out are all zero
+            double sum = log10(1e-10);
+            for (int j = 0; j < mel.n_mel; j++) {
+                mel.data[j * mel.n_len + i] = sum;
+            }
         }
     }
 }
@@ -2514,9 +2526,7 @@ static bool log_mel_spectrogram(
     for (int i = 0; i < fft_size; i++) {
         // ref: https://pytorch.org/docs/stable/generated/torch.hann_window.html
         // ref: https://github.com/openai/whisper/blob/main/whisper/audio.py#L147
-        // So it should be hann[i] = 0.5*(1.0 - cos((2.0*M_PI*i)/(fft_size - 1)));
-        // But using fft_size - 1 causes inference quality degradation ???
-        hann[i] = 0.5*(1.0 - cos((2.0*M_PI*i)/(fft_size)));
+        hann[i] = 0.5*(1.0 - cos((2.0*M_PI*i)/(fft_size - 1)));
     }
 
     mel.n_mel     = n_mel;
