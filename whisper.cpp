@@ -2425,82 +2425,82 @@ static void fft(const std::vector<float> & in, std::vector<float> & out) {
 
     }
 }
-static bool printed = false;
+
 static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> &hann, const float *samples,
                                               int n_samples, int fft_size, int fft_step, int n_threads,
                                               const whisper_filters &filters, bool speed_up, whisper_mel &mel) {
     std::vector<float> fft_in(fft_size, 0.0);
     std::vector<float> fft_out(2 * fft_size);
+    // Is using 32-bit float to calculate log_mel appropriate?
+    // 32-bit float has about 7 digits of precision, but minimum value of log_mel is 1e-10.
     int n_fft = 1 + (speed_up ? fft_size / 4 : fft_size / 2);
+    int i = ith;
 
-    for (int i = ith; i < mel.n_len; i += n_threads) {
+    // Calculate FFT only when fft_in are not all zero
+    for (; i < std::min((n_samples / fft_step) + 1, mel.n_len); i += n_threads) {
         const int offset = i * fft_step;
 
-        // Calculate FFT only when fft_in are not all zero
-        if (n_samples - offset > 0) {
+        // apply Hanning window (~10% faster)
+        for (int j = 0; j < std::min(fft_size, n_samples - offset); j++) {
+            fft_in[j] = hann[j] * samples[offset + j];
+        }
+        // fill the rest with zeros
+        if (n_samples - offset < fft_size) {
+            std::fill(fft_in.begin() + (n_samples - offset), fft_in.end(), 0.0);
+        }
 
-            // apply Hanning window (~10% faster)
-            for (int j = 0; j < std::min(fft_size, n_samples - offset); j++) {
-                fft_in[j] = hann[j] * samples[offset + j];
+        // FFT
+        fft(fft_in, fft_out);
+
+        // Calculate modulus^2 of complex numbers
+        // Use pow(fft_out[2 * j + 0], 2) + pow(fft_out[2 * j + 1], 2) causes inference quality problem? Interesting.
+        for (int j = 0; j < fft_size; j++) {
+            fft_out[j] = (fft_out[2 * j + 0] * fft_out[2 * j + 0] + fft_out[2 * j + 1] * fft_out[2 * j + 1]);
+        }
+
+        // The frequency spectrum produced by real input data is symmetrical around the Nyquist frequency.
+        // This is where the actual issue lies
+        for (int j = 0; j < fft_size / 2; j++) {
+            fft_out[j] = (fft_out[fft_size - j - 1] + fft_out[j + 1]) / 2;
+        }
+
+        if (speed_up) {
+            // scale down in the frequency domain results in a speed-up in the time domain
+            for (int j = 0; j < n_fft - 1; j++) {
+                fft_out[j] = (fft_out[2 * j] + fft_out[2 * j + 1]) / 2;
             }
-            // Can anyone explain why (n_samples - offset) can be negative ???
-            // If they are negative, fft_in would be all zero!
-            if (n_samples - offset < fft_size) {
-                std::fill(fft_in.begin() + (n_samples - offset), fft_in.end(), 0.0);
-            }
+        }
 
-            // FFT -> mag^2
-            fft(fft_in, fft_out);
+        // mel spectrogram
+        for (int j = 0; j < mel.n_mel; j++) {
+            double sum = 0.0;
 
-            // Calculate modulus^2 of complex numbers
-            // Use pow(fft_out[2 * j + 0], 2) + pow(fft_out[2 * j + 1], 2) causes inference quality problem? Interesting.
-            for (int j = 0; j < fft_size; j++) {
-                fft_out[j] = (fft_out[2 * j + 0] * fft_out[2 * j + 0] + fft_out[2 * j + 1] * fft_out[2 * j + 1]);
-            }
-
-            // The frequency spectrum produced by real input data is symmetrical around the Nyquist frequency.
-            // This is where the actual issue lies
-            for (int j = 0; j < fft_size / 2; j++) {
-                fft_out[j] = (fft_out[fft_size - j - 1] + fft_out[j + 1]) / 2;
-            }
-
-            if (speed_up) {
-                // scale down in the frequency domain results in a speed-up in the time domain
-                for (int j = 0; j < n_fft - 1; j++) {
-                    fft_out[j] = (fft_out[2 * j] + fft_out[2 * j + 1]) / 2;
-                }
-            }
-
-            // mel spectrogram
-            for (int j = 0; j < mel.n_mel; j++) {
-                double sum = 0.0;
-
-                // unroll loop (suggested by GH user @lunixbochs)
-                int k = 0;
-                for (k = 0; k < n_fft - 3; k += 4) {
-                    sum +=
-                            fft_out[k + 0] * filters.data[j * n_fft + k + 0] +
-                            fft_out[k + 1] * filters.data[j * n_fft + k + 1] +
-                            fft_out[k + 2] * filters.data[j * n_fft + k + 2] +
-                            fft_out[k + 3] * filters.data[j * n_fft + k + 3];
-                }
-
-                // handle n_fft remainder
-                for (; k < n_fft; k++) {
-                    sum += fft_out[k] * filters.data[j * n_fft + k];
-                }
-
-                sum = log10(std::max(sum, 1e-10));
-
-                mel.data[j * mel.n_len + i] = sum;
+            // unroll loop (suggested by GH user @lunixbochs)
+            int k = 0;
+            for (k = 0; k < n_fft - 3; k += 4) {
+                sum +=
+                        fft_out[k + 0] * filters.data[j * n_fft + k + 0] +
+                        fft_out[k + 1] * filters.data[j * n_fft + k + 1] +
+                        fft_out[k + 2] * filters.data[j * n_fft + k + 2] +
+                        fft_out[k + 3] * filters.data[j * n_fft + k + 3];
             }
 
-        } else {
-            // Otherwise fft_out are all zero
-            double sum = log10(1e-10);
-            for (int j = 0; j < mel.n_mel; j++) {
-                mel.data[j * mel.n_len + i] = sum;
+            // handle n_fft remainder
+            for (; k < n_fft; k++) {
+                sum += fft_out[k] * filters.data[j * n_fft + k];
             }
+
+            sum = log10(std::max(sum, 1e-10));
+
+            mel.data[j * mel.n_len + i] = sum;
+        }
+    }
+
+    // Otherwise fft_out are all zero
+    double sum = log10(1e-10);
+    for (; i < mel.n_len; i++) {
+        for (int j = 0; j < mel.n_mel; j++) {
+            mel.data[j * mel.n_len + i] = sum;
         }
     }
 }
