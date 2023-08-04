@@ -2498,7 +2498,7 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
 
     // Otherwise fft_out are all zero
     double sum = log10(1e-10);
-    for (; i < mel.n_len; i++) {
+    for (; i < mel.n_len; i += n_threads) {
         for (int j = 0; j < mel.n_mel; j++) {
             mel.data[j * mel.n_len + i] = sum;
         }
