@@ -105,11 +105,8 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -m FNAME,   --model FNAME    [%-7s] model path\n",                                  params.model.c_str());
     fprintf(stderr, "\n");
 }
-
-json unguided_transcription(struct whisper_context * ctx, audio_async &audio, json jparams, const whisper_params &params) {
+uint64_t wait_for_vad(audio_async & audio, json jparams, const whisper_params & params, std::vector<float> & pcmf32) {
     using namespace std::chrono;
-    // Length of a transcription chunk isn't important as long as timestamps are supported
-    std::vector<whisper_token> prompt_tokens;
     milliseconds time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
     milliseconds start_time = time_now;
     if (jparams.contains("timestamp")) {
@@ -123,36 +120,22 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
     // Wait until voice is detected
     time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
     milliseconds window_duration = std::max(milliseconds(2000),time_now-start_time);
-    std::vector<float> pcmf32_cur;
-    audio.get(window_duration.count(), pcmf32_cur);
-    while (!::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
-        // TODO: find a way to poll commands/allow interrupts here
-        // initial plan was to have incomplete commands yield back,
-        // but passing state and calling a single poll here would be simpler...
-
-        // If implemented, this wait could be reduced by the elapsed time,
-        // but I expect polling to be quick unless a new message is sent
-        // and the only likely message is a cancellation
+    audio.get(window_duration.count(), pcmf32);
+    while (!::vad_simple(pcmf32, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
         std::this_thread::sleep_for(milliseconds(100));
         time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
         window_duration = std::max(milliseconds(2000),time_now-start_time);
-        audio.get(window_duration.count(), pcmf32_cur);
+        audio.get(window_duration.count(), pcmf32);
     }
-    // TODO: Improve windowing for unguided transcription.
-    // If voice isn't detected, transcription should not occur
-    // If voice isn't detected at the start, the timestamp should be ignored and
-    //  a new starting timestamp should be made when it is.
-    // If voice stops being detected, transcription should stop.
-    // There should be a minimum length of time over which transcription occurs
-    //  unless bounds are forced by voice detection
-    // My current empirical understanding is that the VAD detects pauses in speech
-    // For now, it'll be implemented to process either from start to now, or max samples
-    // at VAD, but I'll probably pull the VAD method in and add detection for
-    // rising edges in addition to falling edges to detect start of speech.
-    audio.get((time_now-start_time).count(),pcmf32_cur);
+    audio.get((time_now-start_time).count(),pcmf32);
 
-    // TODO: swap to n_keep/param to make consistent with stream.cpp?
-    uint64_t unprocessed_audio_timestamp = (time_now-milliseconds(200)).count();
+    return time_now.count();
+}
+
+json unguided_transcription(struct whisper_context * ctx, audio_async &audio, json jparams, const whisper_params &params) {
+    std::vector<whisper_token> prompt_tokens;
+    std::vector<float> pcmf32;
+    uint64_t unprocessed_audio_timestamp = wait_for_vad(audio, jparams, params, pcmf32);
 
     whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     if (jparams.contains("prompt")) {
@@ -180,7 +163,7 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
     wparams.speed_up         = params.speed_up;
     wparams.suppress_non_speech_tokens = true;
     // run the transformer and a single decoding pass
-    if (whisper_full(ctx, wparams, pcmf32_cur.data(), pcmf32_cur.size()) != 0) {
+    if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
         fprintf(stderr, "%s: ERROR: whisper_full() failed\n", __func__);
         throw json{
             {"code", -32803},
@@ -197,31 +180,9 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
 // command-list mode
 // guide the transcription to match the most likely command from a provided list
 json guided_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params, json jparams, std::vector<struct commandset> commandset_list) {
-    using namespace std::chrono;
     struct commandset cs = commandset_list[jparams.value("commandset_index", commandset_list.size()-1)];
-    milliseconds time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
-    milliseconds start_time = time_now;
-    if (jparams.contains("timestamp")) {
-        uint64_t ts = jparams.at("timestamp");
-        start_time = milliseconds(ts);
-    }
-    // Ensure minimum buffer
-    if(time_now - start_time < milliseconds(1000)) {
-        std::this_thread::sleep_for(milliseconds(1000) - (time_now - start_time));
-    }
-
-    // Wait until voice is detected
-    time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
-    milliseconds window_duration = std::max(milliseconds(2000),time_now-start_time);
-    std::vector<float> pcmf32_cur;
-    audio.get(window_duration.count(), pcmf32_cur);
-    while (!::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
-        std::this_thread::sleep_for(milliseconds(100));
-        time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
-        milliseconds window_duration = std::max(milliseconds(1000),time_now-start_time);
-        audio.get(window_duration.count(), pcmf32_cur);
-    }
-    uint64_t unprocessed_audio_timestamp = time_now.count();
+    std::vector<float> pcmf32;
+    uint64_t unprocessed_audio_timestamp = wait_for_vad(audio, jparams, params, pcmf32);
 
     fprintf(stderr, "%s: Speech detected! Processing ...\n", __func__);
     whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
@@ -248,7 +209,7 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
     wparams.suppress_non_speech_tokens = true;
 
     // run the transformer and a single decoding pass
-    if (whisper_full(ctx, wparams, pcmf32_cur.data(), pcmf32_cur.size()) != 0) {
+    if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
         fprintf(stderr, "%s: ERROR: whisper_full() failed\n", __func__);
         throw json{
             {"code", -32803},
