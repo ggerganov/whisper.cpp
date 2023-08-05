@@ -107,29 +107,37 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
 }
 uint64_t wait_for_vad(audio_async & audio, json jparams, const whisper_params & params, std::vector<float> & pcmf32) {
     using namespace std::chrono;
-    milliseconds time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
-    milliseconds start_time = time_now;
+    uint64_t time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch().count();
+    uint64_t start_time = time_now;
     if (jparams.contains("timestamp")) {
-        uint64_t ts = jparams.at("timestamp");
-        start_time = milliseconds(ts);
+        start_time = jparams.at("timestamp");
     }
-    if(time_now - start_time < milliseconds(1000)) {
-        std::this_thread::sleep_for(milliseconds(1000) - (time_now - start_time));
+    if(time_now - start_time < 500) {
+        //wait for a backlog of audio
+        std::this_thread::sleep_for(milliseconds(500 - (time_now - start_time)));
+        time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch().count();
+    } else if (time_now - start_time > 1000) {
+        audio.get(time_now-start_time, pcmf32);
+        size_t max_offset = pcmf32.size() - WHISPER_SAMPLE_RATE;
+        for(size_t offset=0;offset < max_offset;offset+=WHISPER_SAMPLE_RATE/10) {
+            std::vector<float> audio_chunk(&pcmf32[offset], &pcmf32[offset+WHISPER_SAMPLE_RATE]);
+            if(::vad_simple(audio_chunk, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
+                pcmf32.resize(offset+WHISPER_SAMPLE_RATE);
+                return start_time + offset*1000/WHISPER_SAMPLE_RATE+1000;
+            }
+        }
     }
-
-    // Wait until voice is detected
-    time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
-    milliseconds window_duration = std::max(milliseconds(2000),time_now-start_time);
-    audio.get(window_duration.count(), pcmf32);
+    size_t window_duration = std::max((uint64_t)1000, time_now-start_time);
+    audio.get(window_duration, pcmf32);
     while (!::vad_simple(pcmf32, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
         std::this_thread::sleep_for(milliseconds(100));
-        time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch();
-        window_duration = std::max(milliseconds(2000),time_now-start_time);
-        audio.get(window_duration.count(), pcmf32);
+        time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch().count();
+        window_duration = std::max((uint64_t)1000,time_now-start_time);
+        audio.get(window_duration, pcmf32);
     }
-    audio.get((time_now-start_time).count(),pcmf32);
+    audio.get(time_now-start_time, pcmf32);
 
-    return time_now.count();
+    return time_now;
 }
 
 json unguided_transcription(struct whisper_context * ctx, audio_async &audio, json jparams, const whisper_params &params) {
