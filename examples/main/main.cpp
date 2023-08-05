@@ -59,6 +59,7 @@ struct whisper_params {
     int32_t offset_t_ms  =  0;
     int32_t offset_n     =  0;
     int32_t duration_ms  =  0;
+    int32_t progress_step =  5;
     int32_t max_context  = -1;
     int32_t max_len      =  0;
     int32_t best_of      =  2;
@@ -218,6 +219,7 @@ struct whisper_print_user_data {
     const whisper_params * params;
 
     const std::vector<std::vector<float>> * pcmf32s;
+    int progress_prev;
 };
 
 std::string estimate_diarization_speaker(std::vector<std::vector<float>> pcmf32s, int64_t t0, int64_t t1, bool id_only = false) {
@@ -251,6 +253,14 @@ std::string estimate_diarization_speaker(std::vector<std::vector<float>> pcmf32s
     }
 
     return speaker;
+}
+void whisper_print_progress_callback(struct whisper_context * ctx, struct whisper_state * /*state*/, int progress, void * user_data) {
+    int progress_step = ((whisper_print_user_data *) user_data)->params->progress_step;
+    int * progress_prev  = &(((whisper_print_user_data *) user_data)->progress_prev);
+    if (progress >= *progress_prev + progress_step) {
+        *progress_prev += progress_step;
+        fprintf(stderr, "%s: progress = %3d%%\n", __func__, progress);
+    }
 }
 
 void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper_state * /*state*/, int n_new, void * user_data) {
@@ -895,12 +905,17 @@ int main(int argc, char ** argv) {
             wparams.entropy_thold    = params.entropy_thold;
             wparams.logprob_thold    = params.logprob_thold;
 
-            whisper_print_user_data user_data = { &params, &pcmf32s };
+            whisper_print_user_data user_data = { &params, &pcmf32s, 0 };
 
             // this callback is called on each new segment
             if (!wparams.print_realtime) {
                 wparams.new_segment_callback           = whisper_print_segment_callback;
                 wparams.new_segment_callback_user_data = &user_data;
+            }
+
+            if (wparams.print_progress) {
+                wparams.progress_callback           = whisper_print_progress_callback;
+                wparams.progress_callback_user_data = &user_data;
             }
 
             // example for abort mechanism

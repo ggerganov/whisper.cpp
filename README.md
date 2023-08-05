@@ -22,6 +22,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - [Partial GPU support for NVIDIA via cuBLAS](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
 - [Partial OpenCL GPU support via CLBlast](https://github.com/ggerganov/whisper.cpp#opencl-gpu-support-via-clblast)
 - [BLAS CPU support via OpenBLAS](https://github.com/ggerganov/whisper.cpp#blas-cpu-support-via-openblas)
+- [OpenVINO Support](https://github.com/ggerganov/whisper.cpp#openvino-support)
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 
 Supported platforms:
@@ -310,6 +311,85 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
   Next runs are faster.
 
 For more information about the Core ML implementation please refer to PR [#566](https://github.com/ggerganov/whisper.cpp/pull/566).
+
+## OpenVINO support
+
+On platforms that support [OpenVINO](https://github.com/openvinotoolkit/openvino), the Encoder inference can be executed
+on OpenVINO-supported devices including x86 CPUs and Intel GPUs (integrated & discrete).
+
+This can result in significant speedup in encoder performance. Here are the instructions for generating the OpenVINO model and using it with `whisper.cpp`:
+
+- First, setup python virtual env. and install python dependencies. Python 3.10 is recommended.
+
+  Windows:
+  ```
+  cd models
+  python -m venv openvino_conv_env
+  openvino_conv_env\Scripts\activate
+  python -m pip install --upgrade pip
+  pip install -r openvino-conversion-requirements.txt
+  ```
+
+  Linux and macOS:
+  ```
+  cd models
+  python3 -m venv openvino_conv_env
+  source openvino_conv_env/bin/activate
+  python -m pip install --upgrade pip
+  pip install -r openvino-conversion-requirements.txt
+  ```
+
+- Generate an OpenVINO encoder model. For example, to generate a `base.en` model, use:
+
+  ```
+  python convert-whisper-to-openvino.py --model base.en
+  ```
+
+  This will produce ggml-base.en-encoder-openvino.xml/.bin IR model files. It's recommended to relocate these to the same folder as ggml models, as that
+  is the default location that the OpenVINO extension will search at runtime.
+
+- Build `whisper.cpp` with OpenVINO support:
+
+  Download OpenVINO package from [release page](https://github.com/openvinotoolkit/openvino/releases). The recommended version to use is [2023.0.0](https://github.com/openvinotoolkit/openvino/releases/tag/2023.0.0).
+
+  After downloading & extracting package onto your development system, set up required environment by sourcing setupvars script. For example:
+
+  Linux:
+  ```bash
+  source /path/to/l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64/setupvars.sh
+  ```
+
+  Windows (cmd):
+  ```
+  C:\Path\To\w_openvino_toolkit_windows_2023.0.0.10926.b4452d56304_x86_64\setupvars.bat
+  ```
+
+  And then build the project using cmake:
+  ```bash
+  cd build
+  cmake -DWHISPER_OPENVINO=1 ..
+  ```
+
+- Run the examples as usual. For example:
+  ```bash
+  ./main -m models/ggml-base.en.bin -f samples/jfk.wav
+
+  ...
+
+  whisper_ctx_init_openvino_encoder: loading OpenVINO model from 'models/ggml-base.en-encoder-openvino.xml'
+  whisper_ctx_init_openvino_encoder: first run on a device may take a while ...
+  whisper_openvino_init: path_model = models/ggml-base.en-encoder-openvino.xml, device = GPU, cache_dir = models/ggml-base.en-encoder-openvino-cache
+  whisper_ctx_init_openvino_encoder: OpenVINO model loaded
+
+  system_info: n_threads = 4 / 8 | AVX = 1 | AVX2 = 1 | AVX512 = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 0 | SSE3 = 1 | VSX = 0 | COREML = 0 | OPENVINO = 1 |
+
+  ...
+  ```
+
+  The first time run on an OpenVINO device is slow, since the OpenVINO framework will compile the IR (Intermediate Representation) model to a device-specific 'blob'. This device-specific blob will get
+  cached for the next run.
+  
+For more information about the Core ML implementation please refer to PR [#1037](https://github.com/ggerganov/whisper.cpp/pull/1037).
 
 ## NVIDIA GPU support via cuBLAS
 
