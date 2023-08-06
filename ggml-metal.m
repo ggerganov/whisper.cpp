@@ -357,7 +357,7 @@ void ggml_metal_set_tensor(
 void ggml_metal_get_tensor(
         struct ggml_metal_context * ctx,
         struct ggml_tensor * t) {
-    metal_printf("%s: extract results for tensor '%s'\n", __func__, t->name);
+    //metal_printf("%s: extract results for tensor '%s'\n", __func__, t->name);
 
     size_t offs;
     id<MTLBuffer> id_src = ggml_metal_get_buffer(ctx, t, &offs);
@@ -446,7 +446,7 @@ void ggml_metal_graph_find_concurrency(
 void ggml_metal_graph_compute(
         struct ggml_metal_context * ctx,
                struct ggml_cgraph * gf) {
-    metal_printf("%s: evaluating graph\n", __func__);
+    //metal_printf("%s: evaluating graph\n", __func__);
 
     // if there is ctx->concur_list, dispatch concurrently
     // else fallback to serial dispatch
@@ -501,7 +501,7 @@ void ggml_metal_graph_compute(
                     continue;
                 }
 
-                metal_printf("%s: encoding node %3d, op = %8s\n", __func__, i, ggml_op_name(gf->nodes[i]->op));
+                //metal_printf("%s: encoding node %3d, op = %8s\n", __func__, i, ggml_op_name(gf->nodes[i]->op));
 
                 struct ggml_tensor * src0 = gf->nodes[i]->src[0];
                 struct ggml_tensor * src1 = gf->nodes[i]->src[1];

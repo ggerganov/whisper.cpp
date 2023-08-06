@@ -634,6 +634,13 @@ struct whisper_kv_cache {
     std::vector<uint8_t> buf;
 
     int n; // number of tokens currently in the cache
+
+    ~whisper_kv_cache() {
+        if (ctx) {
+            ggml_free(ctx);
+        }
+    }
+
 };
 
 struct whisper_model {
@@ -671,7 +678,7 @@ struct whisper_model {
     std::vector<whisper_layer_decoder> layers_decoder;
 
     // context
-    struct ggml_context * ctx;
+    struct ggml_context * ctx = NULL;
 
     // the model memory buffer is read-only and can be shared between processors
     whisper_ctx_buffer * buf;
@@ -679,6 +686,17 @@ struct whisper_model {
     // tensors
     int n_loaded;
     std::map<std::string, struct ggml_tensor *> tensors;
+
+        ~whisper_model() {
+
+        if (ctx) {
+
+            ggml_free(ctx);
+
+        }
+
+    }
+
 };
 
 struct whisper_sequence {
@@ -1149,7 +1167,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 #ifdef WHISPER_USE_METAL
     const ggml_type dpe_type = GGML_TYPE_F16;
 #else
-    const ggml_type dpe_type = GGML_TYPE_F32;
+    const ggml_type dpe_type = GGML_TYPE_F16;
 #endif
 
     {
@@ -2405,7 +2423,7 @@ static bool whisper_decode_internal(
               const int   n_threads) {
     const int64_t t_start_us = ggml_time_us();
 
-    ggml_cgraph * gf =  whisper_build_decoder_graph(wctx, wstate, decoder, tokens, n_tokens, n_past); // llama_build_graph(lctx, tokens, embd, n_tokens, n_past);
+    ggml_cgraph * gf =  whisper_build_decoder_graph(wctx, wstate, decoder, tokens, n_tokens, n_past); 
 
 
     const int N = n_tokens;
@@ -2421,10 +2439,10 @@ static bool whisper_decode_internal(
 
     struct ggml_tensor * res = gf->nodes[gf->n_nodes - 1];
 
-#ifdef WHISPER_USE_COREML
+#ifdef WHISPER_USE_METAL
     if (wctx.ctx_metal && N == 1) {
     
-        ggml_metal_set_n_cb     (wctx.ctx_metal, 1);
+        ggml_metal_set_n_cb     (wctx.ctx_metal, 5);
 
         ggml_metal_graph_compute(wctx.ctx_metal, gf);
 
