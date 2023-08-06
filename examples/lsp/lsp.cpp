@@ -105,7 +105,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -m FNAME,   --model FNAME    [%-7s] model path\n",                                  params.model.c_str());
     fprintf(stderr, "\n");
 }
-uint64_t wait_for_vad(audio_async & audio, json jparams, const whisper_params & params, std::vector<float> & pcmf32) {
+uint64_t wait_for_vad(audio_async & audio, json jparams, const whisper_params & params, uint64_t maxlength_ms, std::vector<float> & pcmf32) {
     using namespace std::chrono;
     uint64_t time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch().count();
     uint64_t start_time = time_now;
@@ -123,6 +123,11 @@ uint64_t wait_for_vad(audio_async & audio, json jparams, const whisper_params & 
             std::vector<float> audio_chunk(&pcmf32[offset], &pcmf32[offset+WHISPER_SAMPLE_RATE]);
             if(::vad_simple(audio_chunk, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
                 pcmf32.resize(offset+WHISPER_SAMPLE_RATE);
+                if (offset*1000/WHISPER_SAMPLE_RATE+1000 > maxlength_ms) {
+                    //remove samples from the beginning
+                    pcmf32.erase(pcmf32.begin(),pcmf32.end()-(maxlength_ms*WHISPER_SAMPLE_RATE/1000));
+                    fprintf(stderr, "Shortened samples");
+                }
                 return start_time + offset*1000/WHISPER_SAMPLE_RATE+1000;
             }
         }
@@ -135,7 +140,11 @@ uint64_t wait_for_vad(audio_async & audio, json jparams, const whisper_params & 
         window_duration = std::max((uint64_t)1000,time_now-start_time);
         audio.get(window_duration, pcmf32);
     }
-    audio.get(time_now-start_time, pcmf32);
+    if (time_now - start_time > maxlength_ms) {
+        audio.get(maxlength_ms, pcmf32);
+    } else {
+        audio.get(time_now - start_time, pcmf32);
+    }
 
     return time_now;
 }
@@ -143,7 +152,7 @@ uint64_t wait_for_vad(audio_async & audio, json jparams, const whisper_params & 
 json unguided_transcription(struct whisper_context * ctx, audio_async &audio, json jparams, const whisper_params &params) {
     std::vector<whisper_token> prompt_tokens;
     std::vector<float> pcmf32;
-    uint64_t unprocessed_audio_timestamp = wait_for_vad(audio, jparams, params, pcmf32);
+    uint64_t unprocessed_audio_timestamp = wait_for_vad(audio, jparams, params, 10000U, pcmf32);
 
     whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     if (jparams.contains("prompt")) {
@@ -190,7 +199,7 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
 json guided_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params, json jparams, std::vector<struct commandset> commandset_list) {
     struct commandset cs = commandset_list[jparams.value("commandset_index", commandset_list.size()-1)];
     std::vector<float> pcmf32;
-    uint64_t unprocessed_audio_timestamp = wait_for_vad(audio, jparams, params, pcmf32);
+    uint64_t unprocessed_audio_timestamp = wait_for_vad(audio, jparams, params, 2000U, pcmf32);
 
     fprintf(stderr, "%s: Speech detected! Processing ...\n", __func__);
     whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
