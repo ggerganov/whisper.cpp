@@ -1145,6 +1145,12 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
     const ggml_type wtype = wctx.wtype;
     const ggml_type vtype = wctx.wtype == GGML_TYPE_F32 ? GGML_TYPE_F32 : GGML_TYPE_F16; // conv type
+    
+#ifdef WHISPER_USE_METAL
+    const ggml_type dpe_type = GGML_TYPE_F16;
+#else
+    const ggml_type dpe_type = GGML_TYPE_F32;
+#endif
 
     {
         const auto & hparams = model.hparams;
@@ -1177,7 +1183,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
         // decoder
         {
-            ctx_size += n_text_ctx*n_text_state*ggml_type_sizef(GGML_TYPE_F32); // d_pe;
+            ctx_size += n_text_ctx*n_text_state*ggml_type_sizef(dpe_type); // d_pe;
 
             ctx_size += n_vocab*n_text_state*ggml_type_sizef(wtype); // d_te;
 
@@ -1371,7 +1377,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
         // decoder
         {
-            model.d_pe   = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, n_text_state, n_text_ctx);
+            model.d_pe   = ggml_new_tensor_2d(ctx, dpe_type, n_text_state, n_text_ctx);
 
             model.d_te   = ggml_new_tensor_2d(ctx, wtype,         n_text_state, n_vocab);
 
@@ -3027,26 +3033,6 @@ struct whisper_context * whisper_init_no_state(struct whisper_model_loader * loa
 
     whisper_context * ctx = new whisper_context;
 
-#ifdef WHISPER_USE_METAL
-    ctx->ctx_metal = ggml_metal_init(1);
-
-    #define WHISPER_METAL_CHECK_BUF(result)                                          \
-    if (!(result)) {                                                           \
-        fprintf(stderr, "%s: failed to add buffer\n", __func__);               \
-        whisper_free(ctx);                                                       \
-        return NULL;                                                           \
-    }
-        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "data", data_ptr, data_size, max_size));
-        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "eval", ctx->state->buf_compute.addr, ctx->state->buf_compute.size, 0));
-        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "kvself",  ctx->state->decoders[0].kv_self.buf.data(), ctx->state->decoders[0].kv_self.buf.size(), 0));
-        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "kvcross", ctx->state->kv_cross.buf.data(),  ctx->state->kv_cross.buf.size(), 0));
-        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "scr0", ctx->state->buf_scratch[0].addr, ctx->state->buf_scratch[0].size, 0));
-        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "scr1", ctx->state->buf_scratch[1].addr, ctx->state->buf_scratch[1].size, 0));
-        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "scr2", ctx->state->buf_scratch[2].addr, ctx->state->buf_scratch[2].size, 0));
-        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "scr3", ctx->state->buf_scratch[3].addr, ctx->state->buf_scratch[3].size, 0));
-    #undef WHISPER_METAL_CHECK_BUF
-#endif
-
     if (!whisper_model_load(loader, *ctx)) {
         loader->close(loader->context);
         log("%s: failed to load model\n", __func__);
@@ -3070,6 +3056,36 @@ struct whisper_context * whisper_init_from_file(const char * path_model) {
         whisper_free(ctx);
         return nullptr;
     }
+
+#ifdef WHISPER_USE_METAL
+    ctx->ctx_metal = ggml_metal_init(1);
+
+    void * data_ptr  = NULL;
+    size_t data_size = 0;
+
+    data_ptr  = ggml_get_mem_buffer(ctx->model.ctx);
+    data_size = ggml_get_mem_size  (ctx->model.ctx);
+     
+    const size_t max_size = ggml_get_max_tensor_size(ctx->model.ctx);
+
+    fprintf(stderr, "%s: max tensor size = %8.2f MB\n", __func__, max_size/1024.0/1024.0);
+
+    #define WHISPER_METAL_CHECK_BUF(result)                                          \
+    if (!(result)) {                                                           \
+        fprintf(stderr, "%s: failed to add buffer\n", __func__);               \
+        whisper_free(ctx);                                                       \
+        return NULL;                                                           \
+    }
+        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "data", data_ptr, data_size, max_size));
+        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "eval", ctx->state->buf_compute.addr, ctx->state->buf_compute.size, 0));
+        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "kvself",  ctx->state->decoders[0].kv_self.buf.data(), ctx->state->decoders[0].kv_self.buf.size(), 0));
+        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "kvcross", ctx->state->kv_cross.buf.data(),  ctx->state->kv_cross.buf.size(), 0));
+        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "scr0", ctx->state->buf_scratch[0].addr, ctx->state->buf_scratch[0].size, 0));
+        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "scr1", ctx->state->buf_scratch[1].addr, ctx->state->buf_scratch[1].size, 0));
+        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "scr2", ctx->state->buf_scratch[2].addr, ctx->state->buf_scratch[2].size, 0));
+        WHISPER_METAL_CHECK_BUF(ggml_metal_add_buffer(ctx->ctx_metal, "scr3", ctx->state->buf_scratch[3].addr, ctx->state->buf_scratch[3].size, 0));
+    #undef WHISPER_METAL_CHECK_BUF
+#endif
 
     return ctx;
 }
@@ -3574,6 +3590,23 @@ static int whisper_has_openvino(void) {
 #endif
 }
 
+static int whisper_has_metal(void) {
+#ifdef WHISPER_USE_METAL
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+static int whisper_has_k_quants(void) {
+#ifdef WHISPER_NO_K_QUANTS
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+
 const char * whisper_print_system_info(void) {
     static std::string s;
 
@@ -3592,6 +3625,9 @@ const char * whisper_print_system_info(void) {
     s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
     s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
     s += "OPENVINO = "  + std::to_string(whisper_has_openvino())   + " | ";
+    s += "METAL = "     + std::to_string(whisper_has_metal())      + " | ";
+    s += "K_QUANTS = "  + std::to_string(whisper_has_k_quants())   + " | ";
+    
 
     return s.c_str();
 }

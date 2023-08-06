@@ -1,4 +1,5 @@
 #include "common-ggml.h"
+#include "ggml.h"
 
 #include <regex>
 #include <map>
@@ -119,6 +120,7 @@ bool ggml_common_quantize_0(
             }
         }
 
+
         // check if we should skip this tensor
         for (const auto & s : to_skip) {
             if (std::regex_match(name, std::regex(s))) {
@@ -149,11 +151,36 @@ bool ggml_common_quantize_0(
             }
 
             ttype = qtype;
-        } else {
-            const int bpe = (ttype == 0) ? sizeof(float) : sizeof(uint16_t);
 
-            data_u8.resize(nelements*bpe);
-            finp.read(reinterpret_cast<char *>(data_u8.data()), nelements * bpe);
+        } else {
+
+            if (name == "decoder.positional_embedding" && ttype == GGML_TYPE_F32) {
+
+                // Read original data as FP32
+                std::vector<float> original_data(nelements);
+                finp.read(reinterpret_cast<char *>(original_data.data()), nelements * sizeof(float));
+
+                // Create vector to hold the converted data
+                std::vector<ggml_fp16_t> converted_data(nelements);
+                
+                // Convert FP32 data to FP16
+                ggml_fp32_to_fp16_row(original_data.data(), converted_data.data(), nelements);
+                
+                // Adjust ttype to represent the new data type
+                ttype = GGML_TYPE_F16;
+                
+                // Reinterpret the converted data as bytes and load it into data_u8
+                data_u8.resize(nelements * sizeof(ggml_fp16_t));
+                std::memcpy(data_u8.data(), reinterpret_cast<const uint8_t*>(converted_data.data()), nelements * sizeof(ggml_fp16_t));
+
+            } else {
+                
+                const int bpe = (ttype == 0) ? sizeof(float) : sizeof(uint16_t);
+                data_u8.resize(nelements*bpe);
+                finp.read(reinterpret_cast<char *>(data_u8.data()), nelements * bpe);
+
+            }
+        
         }
 
         fout.write(reinterpret_cast<char *>(&n_dims), sizeof(n_dims));
