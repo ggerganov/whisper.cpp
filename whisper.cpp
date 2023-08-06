@@ -1165,7 +1165,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
     const ggml_type vtype = wctx.wtype == GGML_TYPE_F32 ? GGML_TYPE_F32 : GGML_TYPE_F16; // conv type
     
 #ifdef WHISPER_USE_METAL
-    const ggml_type dpe_type = GGML_TYPE_F16;
+    const ggml_type dpe_type = GGML_TYPE_F32;
 #else
     const ggml_type dpe_type = GGML_TYPE_F16;
 #endif
