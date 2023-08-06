@@ -92,13 +92,11 @@ func s:subTranProg(msg)
     call appendbufline(s:output_buffer, "$", s:sub_tran_msg ..  ":" .. string(a:msg ))
 endfunction
 "TODO: take second arguement to pass new timestamp forward?
-func s:subTranFinish(params)
+func s:subTranFinish(params, timestamp)
     let s:sub_tran_msg = ""
     let s:command_backlog = ""
     let l:params = a:params
-    if exists("l:params.timestamp")
-        unlet l:params.timestamp
-    endif
+    let l:params.timestamp = a:timestamp
     if exists("l:params.commandset_index")
         unlet l:params.commandset_index
     endif
@@ -117,24 +115,21 @@ func s:transcriptionCallback(progressCallback, finishedCallback, channel, msg)
     "The worst case I've observed so far is " Exit.", which is 6 characters
     if l:ex_ind != -1
         call a:progressCallback(strpart(l:tr,0,l:ex_ind-1))
-        call a:finishedCallback()
+        call a:finishedCallback(a:msg.result.timestamp)
     else
         call a:progressCallback(l:tr)
-        let req = {"method": "unguided", "params": {"timestamp": a:msg.result.timestamp, "no_context": v:false}}
+        let req = {"method": "unguided", "params": {"timestamp": a:msg.result.timestamp, "no_context": v:true}}
         let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [a:progressCallback, a:finishedCallback])})
     endif
 endfunc
 func s:insertText(msg)
     exe "normal a" .. a:msg
 endfunction
-func s:endTranscription()
+func s:endTranscription(timestamp)
     call appendbufline(s:output_buffer, "$", "Ending unguided transcription")
 endfunction
 
 
-"func g:Lsp_echo(channel, msg)
-"   let req = {"method": "echo", "params": {"dummy": "dummy"}}
-"endfunction
 
 " If a command does not include a whole actionable step, attempting to execute
 " it discards the remainder of things. There is likely a simpler solution,
@@ -154,6 +149,9 @@ func s:commandCallback(params, commandset_index, channel, msg)
         echo "No longer listening"
         return
         "else
+        " Legacy code to clear an existing buffer with exit.
+        " Was found to be rarely desired and is better introduced as a
+        " standalone command (clear?)
         "   call s:logCallback(0,"Clearing command_backlog" .. s:command_backlog)
         "   let s:command_backlog = ""
         "   let s:preceeding_upper = v:false
@@ -161,9 +159,9 @@ func s:commandCallback(params, commandset_index, channel, msg)
     elseif l:command_index == 1
         "upper
         let s:preceeding_upper = !s:preceeding_upper
-    elseif a:msg.result.command_text == "save"
+    elseif l:command == "save"
         exe "w"
-    elseif a:msg.result.command_text == "run"
+    elseif l:command == "run"
         exe "make run"
     else
         if s:preceeding_upper
@@ -177,10 +175,12 @@ func s:commandCallback(params, commandset_index, channel, msg)
         if a:commandset_index == 2
             "single key, either completes motion or replace
             "Should move to execute unless part of a change
-            if match(s:command_backlog, 'c') != -1
+            "Presence of a c anywhere but the last character is a change.
+            "a c as the last character always functions as a motion (cc / fc)
+            if match(s:command_backlog[0:-2], 'c') != -1
                 let l:req = {"method": "unguided", "params": a:params}
                 let l:req.params.timestamp = a:msg.result.timestamp
-                let l:req.params.no_context = v:false
+                let l:req.params.no_context = v:true
                 let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
                 return
             else
@@ -201,7 +201,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 let l:do_execute = v:true
             endif
         elseif index(s:c_command, l:command) != -1
-            if index(["y","g","d","c"], s:command_backlog[-1:-1]) != -1 && s:command_backlog[-1:-1] != s:command_backlog[-2:-2] && tolower(mode()) != 'v'
+            if index(["y","g","d","c"], s:command_backlog[-1:-1]) != -1 && s:command_backlog[-1:-1] != s:command_backlog[-2:-2] && mode() !=? 'v'
                 "need motion or repeated command
                 "Potential for bad state here if disparaging command keys are
                 "entered (i.e. yd), but vim can handle checks for this at exe
@@ -211,7 +211,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 "'Insert' mode, do general transcription
                 let l:req = {"method": "unguided", "params": a:params}
                 let l:req.params.timestamp = a:msg.result.timestamp
-                let l:req.params.no_context = v:false
+                let l:req.params.no_context = v:true
                 let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
                 return
             elseif l:command == 'r'
