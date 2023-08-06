@@ -138,7 +138,7 @@ bool whisper_model_quantize(const std::string & fname_inp, const std::string & f
         //    return false;
         //}
 
-        char word[128];
+        char word[129];
 
         for (int i = 0; i < n_vocab; i++) {
             uint32_t len;
