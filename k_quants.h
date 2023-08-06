@@ -15,6 +15,14 @@
 #define K_SCALE_SIZE 12
 #endif
 
+#ifndef static_assert
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201100L)
+#define static_assert(cond, msg) _Static_assert(cond, msg)
+#else
+#define static_assert(cond, msg) struct global_scope_noop_trick
+#endif
+#endif
+
 //
 // Super-block quantization structures
 //
@@ -154,4 +162,3 @@ size_t ggml_quantize_q3_K(const float * src, void * dst, int n, int k, int64_t *
 size_t ggml_quantize_q4_K(const float * src, void * dst, int n, int k, int64_t * hist);
 size_t ggml_quantize_q5_K(const float * src, void * dst, int n, int k, int64_t * hist);
 size_t ggml_quantize_q6_K(const float * src, void * dst, int n, int k, int64_t * hist);
-
