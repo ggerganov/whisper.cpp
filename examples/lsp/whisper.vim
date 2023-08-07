@@ -40,6 +40,7 @@ func whisper#doTranscription(...)
     if a:0 > 0
         call extend(l:req.params, a:1)
     endif
+    exe "normal i\<C-G>u"
     let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": function("s:transcriptionCallback", [function("s:insertText"),function("s:endTranscription")])})
 endfunction
 
@@ -183,6 +184,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 let l:req = {"method": "unguided", "params": a:params}
                 let l:req.params.timestamp = a:msg.result.timestamp
                 let l:req.params.no_context = v:true
+                exe "normal i\<C-G>u"
                 let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
                 return
             else
@@ -216,6 +218,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 let l:req = {"method": "unguided", "params": a:params}
                 let l:req.params.timestamp = a:msg.result.timestamp
                 let l:req.params.no_context = v:true
+                exe "normal i\<C-G>u"
                 let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
                 return
             elseif l:command == 'r'
