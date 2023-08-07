@@ -539,6 +539,24 @@ make stream
 
 https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a80f-28ba83be7d09.mp4
 
+## Real-time audio with ZMQ
+
+Install `zmq` (e.g., `brew install zmq sdl2`).
+
+```sh
+make streammq
+./streammq --step -1 -m models/ggml-large.bin -t 8 
+```
+
+I find it useful to use the basic VAD, so I use step `-1` instead of the above example.
+
+If make fails with being unable to find `zmq.h` file, I had to have these env vars set on my M1 mac:
+
+```sh
+export C_INCLUDE_PATH=$C_INCLUDE_PATH:/opt/homebrew/include
+export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/opt/homebrew/include
+```
+
 ## Confidence color-coding
 
 Adding the `--print-colors` argument will print the transcribed text using an experimental color coding strategy
