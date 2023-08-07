@@ -139,7 +139,7 @@ let s:preceeding_upper = v:false
 func s:commandCallback(params, commandset_index, channel, msg)
     let l:command_index = a:msg.result.command_index
     let l:do_execute = v:false
-    let l:next_mode = 0
+    let l:next_mode = a:commandset_index
     let l:command = s:commandset_list[a:commandset_index][l:command_index]
     call s:logCallback(0, string(a:msg) .. " " .. a:commandset_index .. " " .. l:command)
     if l:command_index == 0
@@ -160,11 +160,13 @@ func s:commandCallback(params, commandset_index, channel, msg)
         "upper
         let s:preceeding_upper = !s:preceeding_upper
     elseif l:command == "save"
+        " save and run can only happen in commandset 0,
         exe "w"
     elseif l:command == "run"
         exe "make run"
     else
         if s:preceeding_upper
+            "Upper should keep commandset
             let s:preceeding_upper = v:false
             let l:visual_command = tr(l:command, s:c_lowerkeys, s:c_upperkeys)
         else
@@ -185,6 +187,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 return
             else
                 let l:do_execute = v:true
+                let l:next_mode = 0
             endif
             "commandset index only matters for a/i
         elseif (l:command == "a" || l:command == "i") && a:commandset_index == 1
@@ -199,6 +202,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 let l:next_mode = 2
             else
                 let l:do_execute = v:true
+                let l:next_mode = 0
             endif
         elseif index(s:c_command, l:command) != -1
             if index(["y","g","d","c"], s:command_backlog[-1:-1]) != -1 && s:command_backlog[-1:-1] != s:command_backlog[-2:-2] && mode() !=? 'v'
@@ -217,10 +221,15 @@ func s:commandCallback(params, commandset_index, channel, msg)
             elseif l:command == 'r'
                 let l:next_mode = 2
             else
+                if l:command ==? 'v'
+                    let l:next_mode = 1
+                else
+                    let l:next_mode = 0
+                endif
                 let l:do_execute=v:true
             endif
         else
-            throw "invalid command state: " .. l:command .. " " .. a:commandset_index .. " " s:command_backlog
+            throw "Invalid command state: " .. l:command .. " " .. a:commandset_index .. " " s:command_backlog
         endif
     endif
     if l:do_execute
