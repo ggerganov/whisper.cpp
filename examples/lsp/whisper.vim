@@ -40,7 +40,7 @@ func whisper#doTranscription(...)
     if a:0 > 0
         call extend(l:req.params, a:1)
     endif
-    exe "normal i\<C-G>u"
+    exe "normal a\<C-G>u"
     let resp = ch_sendexpr(g:lsp_job, l:req, {"callback": function("s:transcriptionCallback", [function("s:insertText"),function("s:endTranscription")])})
 endfunction
 
@@ -69,7 +69,7 @@ let s:c_special_normal = ["save", "run"]
 "If not in dict, key is spoken word,
 "If key resolves to string, value is used for normal/motion, but key for chars
 "If key resolves to list, ["normal","motion","single char"]
-let s:spoken_dict = {"w": "word", "e": "end", "r": "replace", "t": "till", "y": "yank", "u": "undo", "i": ["insert", "inside", "i"], "o": "open", "p": "paste",  "a": ["append", "around", "a"], "s": "substitute", "d": "delete", "f": "from", "g": "go", "h": "left", "j": "down", "k": "up", "l": "right", "c": "change", "v": "visual", "b": "back", "n": "next", "m": "mark", ".": ["repeat","repeat","period"], "[": ["[","[","brace"], "'": ["'",  "'", "apostrophe"], '"': ['"','"',"quotation"]}
+let s:spoken_dict = {"w": "word", "e": "end", "r": "replace", "t": "till", "y": "yank", "u": "undo", "i": ["insert", "inside", "i"], "o": "open", "p": "paste",  "a": ["append", "around", "a"], "s": "substitute", "d": "delete", "f": "from", "g": "go", "h": "left", "j": "down", "k": "up", "l": "right", "c": "change", "v": "visual", "b": "back", "n": "next", "m": "mark", ".": ["repeat","repeat","period"], "[": ["[","[","brace"], "'": ["'",  "'", "apostrophe"], '"': ['"','"',"quotation"], "-": ["minus", "minus", "minus"]}
 
 "Give this another pass. This seems overly hacky even if it's functional
 let s:sub_tran_msg = ""
@@ -92,7 +92,7 @@ func s:subTranProg(msg)
     endif
     call appendbufline(s:output_buffer, "$", s:sub_tran_msg ..  ":" .. string(a:msg ))
 endfunction
-"TODO: take second arguement to pass new timestamp forward?
+
 func s:subTranFinish(params, timestamp)
     let s:sub_tran_msg = ""
     let s:command_backlog = ""
@@ -184,7 +184,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 let l:req = {"method": "unguided", "params": a:params}
                 let l:req.params.timestamp = a:msg.result.timestamp
                 let l:req.params.no_context = v:true
-                exe "normal i\<C-G>u"
+                exe "normal a\<C-G>u"
                 let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
                 return
             else
@@ -218,7 +218,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 let l:req = {"method": "unguided", "params": a:params}
                 let l:req.params.timestamp = a:msg.result.timestamp
                 let l:req.params.no_context = v:true
-                exe "normal i\<C-G>u"
+                exe "normal a\<C-G>u"
                 let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
                 return
             elseif l:command == 'r'
