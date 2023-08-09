@@ -128,6 +128,8 @@ bool audio_async::clear() {
 
         m_audio_pos = 0;
         m_audio_len = 0;
+        m_audio_read_cursor = -1;
+        overran_flag = false;
     }
 
     return true;
