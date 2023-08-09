@@ -60,15 +60,15 @@ let s:c_lowerkeys = "1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./\""
 let s:c_upperkeys = "!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?'"
 let s:c_count = split("1234567890",'\zs')
 let s:c_command = split("ryuogpdxcv.ia", '\zs')
-let s:c_motion = split("wetfhjklnb",'\zs')
+let s:c_motion = split("wetfhjklnb$^",'\zs')
 "Special commands.
 let s:c_special_always = ["exit", "upper"]
-let s:c_special_normal = ["save", "run"]
+let s:c_special_normal = ["save", "run", "space"]
 
 "If not in dict, key is spoken word,
 "If key resolves to string, value is used for normal/motion, but key for chars
 "If key resolves to list, ["normal","motion","single char"]
-let s:spoken_dict = {"w": "word", "e": "end", "r": "replace", "t": "till", "y": "yank", "u": "undo", "i": ["insert", "inside", "i"], "o": "open", "p": "paste",  "a": ["append", "around", "a"], "s": "substitute", "d": "delete", "f": "from", "g": "go", "h": "left", "j": "down", "k": "up", "l": "right", "c": "change", "v": "visual", "b": "back", "n": "next", "m": "mark", ".": ["repeat","repeat","period"], "[": ["[","[","brace"], "'": ["'",  "'", "apostrophe"], '"': ['"','"',"quotation"], "-": ["minus", "minus", "minus"]}
+let s:spoken_dict = {"w": "word", "e": "end", "r": "replace", "t": "till", "y": "yank", "u": "undo", "i": ["insert", "inside", "i"], "o": "open", "p": "paste",  "a": ["append", "around", "a"], "s": "substitute", "d": "delete", "f": "from", "g": "go", "h": "left", "j": "down", "k": "up", "l": "right", "c": "change", "v": "visual", "b": "back", "n": "next", "m": "mark", ".": ["repeat","repeat","period"], "[": ["[","[","brace"], "'": ["'",  "'", "apostrophe"], '"': ['"','"',"quotation"], "-": ["minus", "minus", "minus"], "$": "dollar", "^": "carrot"}
 
 "Give this another pass. This seems overly hacky even if it's functional
 let s:sub_tran_msg = ""
@@ -93,6 +93,7 @@ func s:subTranProg(msg)
 endfunction
 
 func s:subTranFinish(params, timestamp)
+    let s:repeat_command = s:sub_tran_msg
     let s:sub_tran_msg = ""
     let s:command_backlog = ""
     exe "normal a\<C-G>u"
@@ -136,6 +137,7 @@ endfunction
 " it discards the remainder of things. There is likely a simpler solution,
 " but it can be made functional now by storing a backbuffer until actionable
 let s:command_backlog = ""
+let s:repeat_command = ""
 let s:preceeding_upper = v:false
 func s:commandCallback(params, commandset_index, channel, msg)
     let l:command_index = a:msg.result.command_index
@@ -165,6 +167,8 @@ func s:commandCallback(params, commandset_index, channel, msg)
         exe "w"
     elseif l:command == "run"
         exe "make run"
+    elseif l:command == "space"
+        exe "normal i \<ESC>l"
     else
         if s:preceeding_upper
             "Upper should keep commandset
@@ -221,13 +225,17 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 return
             elseif l:command == 'r'
                 let l:next_mode = 2
+            elseif l:command == '.'
+                let l:next_mode = 0
+                let l:do_execute = v:true
+                let s:command_backlog = s:command_backlog[0:-2] .. s:repeat_command
             else
                 if l:command ==? 'v'
                     let l:next_mode = 1
                 else
                     let l:next_mode = 0
                 endif
-                let l:do_execute=v:true
+                let l:do_execute = v:true
             endif
         else
             throw "Invalid command state: " .. l:command .. " " .. a:commandset_index .. " " s:command_backlog
@@ -235,7 +243,11 @@ func s:commandCallback(params, commandset_index, channel, msg)
     endif
     if l:do_execute
         exe "normal" s:command_backlog
-        exe "normal a\<C-G>u"
+        if index(s:c_motion + ["u"],l:command) == -1
+            exe "normal a\<C-G>u"
+            let s:repeat_command = s:command_backlog
+            call s:logCallback(0, s:command_backlog)
+        endif
         let s:command_backlog = ""
     endif
     let l:req = {"method": "guided", "params": a:params}
@@ -253,24 +265,27 @@ func s:registerCommandset(commandlist, is_final)
     let req = {"method": "registerCommandset"}
     let req.params = a:commandlist
     call s:logCallback(0, join(a:commandlist))
+    call add(g:whisper_commandlist_spoken, a:commandlist)
     if a:is_final
         let resp = ch_sendexpr(g:lsp_job, req, {"callback": "s:loadedCallback"})
     else
         let resp = ch_sendexpr(g:lsp_job, req, {"callback": "s:logCallback"})
     endif
 endfunction
+
 func s:registerAllCommands()
-    let s:commandset_list = [0,0,0]
     let l:normal = s:c_special_always + s:c_special_normal + s:c_count + s:c_command + s:c_motion
     let l:visual = s:c_special_always + s:c_count + s:c_command + s:c_motion
     "Currently the same as visual.
     "let l:post_command = s:c_special_always + s:c_count + s:c_command + s:c_motion
     let l:single_key = s:c_special_always + split(s:c_lowerkeys, '\zs')
-    let s:commandset_list[0] = l:normal
+
+    " Used only for compatibility with the testing script
+    let g:whisper_commandlist_spoken = []
+
+    let s:commandset_list = [l:normal, l:visual, l:single_key]
     call s:registerCommandset(s:commandsetToSpoken(l:normal, 0), v:false)
-    let s:commandset_list[1] = l:visual
     call s:registerCommandset(s:commandsetToSpoken(l:visual, 1), v:false)
-    let s:commandset_list[2] = l:single_key
     call s:registerCommandset(s:commandsetToSpoken(l:single_key, 2), v:true)
 endfunction
 
@@ -295,9 +310,10 @@ func s:commandsetToSpoken(commandset, spoken_index)
 endfunction
 
 " TODO: Check lifetime. If the script is resourced, is the existing
-" s:wlsp_job dropped and therefore killed?
+" s:lsp_job dropped and therefore killed?
 " This seems to not be the case and I've had to deal with zombie processes
-" that survive exiting vim, even though this should not be the case
+" that survive exiting vim, even though said behavior conflicts with my
+" understanding of the provided documentation
 "let s:lsp_opts = {"in_mode": "lsp", "out_mode": "lsp", "err_mode": "nl", "out_cb": function('LspOutCallback'), "err_cb": function("LspErrCallback"), "exit_cb": function("LspExitCallback")}
 let s:lsp_opts = {"in_mode": "lsp", "out_mode": "lsp", "err_mode": "nl", "err_io": "buffer", "err_buf": s:output_buffer}
 if !exists("g:lsp_job")
