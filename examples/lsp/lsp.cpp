@@ -10,6 +10,7 @@
 #include <thread>
 #include <vector>
 #include <deque>
+#include <set>
 
 using json = nlohmann::json;
 
@@ -288,6 +289,7 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
     struct commandset cs;
 
     std::string  k_prompt = " select one from the available words: ";
+    std::set<whisper_token> token_set;
     whisper_token tokens[32];
     for (std::string s : jparams) {
         std::vector<whisper_token> token_vec;
@@ -299,6 +301,13 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
             return 3;
         }
         token_vec.push_back(tokens[0]);
+        if (!token_set.insert(tokens[0]).second) {
+            fprintf(stderr, "%s: warning: %s is a duplicate of an existing token\n", __func__, s.c_str());
+            throw json{
+                {"code",-31000},
+                {"message", "Duplicate token in token set: " + s}
+            };
+        }
         if (n > 1) {// empty string if n=0? Should never occur
             fprintf(stderr, "%s: error: command is more than a single token: %s\n", __func__, s.c_str());
         }
@@ -334,7 +343,7 @@ json parse_job(const json &body, struct whisper_context * ctx, audio_async &audi
             // unsupported version
             throw json{
                 {"code", -3260},
-                    {"message", "invalid jsonrpc version"}
+                {"message", "invalid jsonrpc version"}
             };
         }
         std::string method = body.at("method");
