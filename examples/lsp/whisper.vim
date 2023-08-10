@@ -169,6 +169,12 @@ func s:commandCallback(params, commandset_index, channel, msg)
         exe "make run"
     elseif l:command == "space"
         exe "normal i \<ESC>l"
+    elseif has_key(s:c_user, l:command)
+        let Userfunc = s:c_user[l:command]
+        if type(Userfunc) == v:t_string
+            let Userfunc = function(Userfunc)
+        endif
+        call Userfunc()
     else
         if s:preceeding_upper
             "Upper should keep commandset
@@ -274,7 +280,7 @@ func s:registerCommandset(commandlist, is_final)
 endfunction
 
 func s:registerAllCommands()
-    let l:normal = s:c_special_always + s:c_special_normal + s:c_count + s:c_command + s:c_motion
+    let l:normal = s:c_special_always + s:c_special_normal + s:c_count + s:c_command + s:c_motion + keys(s:c_user)
     let l:visual = s:c_special_always + s:c_count + s:c_command + s:c_motion
     "Currently the same as visual.
     "let l:post_command = s:c_special_always + s:c_count + s:c_command + s:c_motion
@@ -317,6 +323,11 @@ endfunction
 "let s:lsp_opts = {"in_mode": "lsp", "out_mode": "lsp", "err_mode": "nl", "out_cb": function('LspOutCallback'), "err_cb": function("LspErrCallback"), "exit_cb": function("LspExitCallback")}
 let s:lsp_opts = {"in_mode": "lsp", "out_mode": "lsp", "err_mode": "nl", "err_io": "buffer", "err_buf": s:output_buffer}
 if !exists("g:lsp_job")
+    if exists("g:whisper_user_commands")
+        let s:c_user = g:whisper_user_commands
+    else
+        let s:c_user = {}
+    endif
     let g:lsp_job = job_start(s:lsp_command, s:lsp_opts)
     if job_status(g:lsp_job) == "fail"
         echoerr "Failed to start whisper job"
