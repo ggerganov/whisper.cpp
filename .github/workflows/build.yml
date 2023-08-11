@@ -426,6 +426,19 @@ jobs:
           name: whispercpp.jar
           path: bindings/java/build/libs/whispercpp-*.jar
 
+  quantize:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+
+      - name: Test quantize
+        run: |
+          ./models/download-ggml-model.sh tiny.en
+          make quantize
+          ./quantize models/ggml-tiny.en.bin models/ggml-tiny.en-q4_0.bin q4_0
+
 #      - name: Publish package
 #        if: ${{ github.ref == 'refs/heads/master' }}
 #        uses: gradle/gradle-build-action@v2
