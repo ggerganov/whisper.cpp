@@ -2626,21 +2626,16 @@ static bool log_mel_spectrogram(
     samples_padded.resize(n_samples + stage_1_pad + stage_2_pad * 2);
     std::copy(samples, samples + n_samples, samples_padded.begin() + stage_2_pad);
 
-    // pad 30 seconds of zeros at the end of audio (48,000 samples)
-    std::fill(samples_padded.begin() + n_samples + stage_2_pad, samples_padded.begin() + n_samples + stage_2_pad + stage_1_pad, 0);
+    // pad 30 seconds of zeros at the end of audio (480,000 samples) + reflective pad 200 samples at the end of audio
+    std::fill(samples_padded.begin() + n_samples + stage_2_pad, samples_padded.begin() + n_samples + stage_1_pad + 2 * stage_2_pad, 0);
 
     // reflective pad 200 samples at the beginning of audio
     std::reverse_copy(samples + 1, samples + 1 + stage_2_pad, samples_padded.begin());
 
-    // reflective pad 200 samples at the end of audio
-    std::reverse_copy(samples + n_samples - stage_2_pad - 1, samples + n_samples - 1 , samples_padded.begin() + n_samples + stage_2_pad + stage_1_pad);
-
-
     mel.n_mel     = n_mel;
     // https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/SpectralOps.cpp#L936
-    mel.n_len     = 1 + (samples_padded.size() - frame_size) / frame_step;
-    // remove the last frame
-    mel.n_len     -= 1;
+    // Calculate number of frames + remove the last frame
+    mel.n_len     = (samples_padded.size() - frame_size) / frame_step;
     mel.n_len_org = mel.n_len;
     mel.data.resize(mel.n_mel * mel.n_len);
 
@@ -2681,6 +2676,15 @@ static bool log_mel_spectrogram(
     }
 
     wstate.t_mel_us += ggml_time_us() - t_start_us;
+
+    // Debug log_mel_spectrogram
+    std::ofstream outFile("output.json");
+    outFile << "[";
+    for (uint64_t i = 0; i < mel.data.size() - 1; i++) {
+        outFile << mel.data[i] << ", ";
+    }
+    outFile << mel.data[mel.data.size() - 1] << "]";
+    outFile.close();
 
     return true;
 }
