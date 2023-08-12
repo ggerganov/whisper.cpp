@@ -2427,7 +2427,7 @@ static void fft(const std::vector<float> & in, std::vector<float> & out) {
     }
 }
 
-static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> &hann, const float *samples,
+static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> &hann, const std::vector<float> &samples,
                                               int n_samples, int frame_size, int frame_step, int n_threads,
                                               const whisper_filters &filters, bool speed_up, whisper_mel &mel) {
     std::vector<float> fft_in(frame_size, 0.0);
@@ -2436,7 +2436,7 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
     int i = ith;
 
     // Calculate FFT only when fft_in are not all zero
-    for (; i < std::min((n_samples - frame_size) / frame_step + 1, mel.n_len); i += n_threads) {
+    for (; i < std::min((n_samples - frame_size) / frame_step + 3, mel.n_len); i += n_threads) {
         const int offset = i * frame_step;
 
         // apply Hanning window (~10% faster)
@@ -2644,13 +2644,13 @@ static bool log_mel_spectrogram(
         std::vector<std::thread> workers(n_threads - 1);
         for (int iw = 0; iw < n_threads - 1; ++iw) {
             workers[iw] = std::thread(
-                    log_mel_spectrogram_worker_thread, iw + 1, std::cref(hann), samples,
-                    n_samples, frame_size, frame_step, n_threads,
+                    log_mel_spectrogram_worker_thread, iw + 1, std::cref(hann), samples_padded,
+                    n_samples + stage_2_pad, frame_size, frame_step, n_threads,
                     std::cref(filters), speed_up, std::ref(mel));
         }
 
         // main thread
-        log_mel_spectrogram_worker_thread(0, hann, samples, n_samples, frame_size, frame_step, n_threads, filters, speed_up, mel);
+        log_mel_spectrogram_worker_thread(0, hann, samples_padded, n_samples + stage_2_pad, frame_size, frame_step, n_threads, filters, speed_up, mel);
 
         for (int iw = 0; iw < n_threads - 1; ++iw) {
             workers[iw].join();
