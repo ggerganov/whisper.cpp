@@ -3120,7 +3120,7 @@ int whisper_pcm_to_mel_phase_vocoder_with_state(struct whisper_context * ctx, st
     return 0;
 }
 
-// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2 (Phase Vocoder without phase lock is not good)
+// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2 (PV without phase lock is not good)
 int whisper_pcm_to_mel_phase_vocoder(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads, bool debug) {
     return whisper_pcm_to_mel_phase_vocoder_with_state(ctx, ctx->state, samples, n_samples, n_threads, debug);
 }
