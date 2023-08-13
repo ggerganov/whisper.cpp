@@ -2429,14 +2429,14 @@ static void fft(const std::vector<float> & in, std::vector<float> & out) {
 
 static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> &hann, const std::vector<float> &samples,
                                               int n_samples, int frame_size, int frame_step, int n_threads,
-                                              const whisper_filters &filters, bool speed_up, whisper_mel &mel) {
+                                              const whisper_filters &filters, whisper_mel &mel) {
     std::vector<float> fft_in(frame_size, 0.0);
     std::vector<float> fft_out(2 * frame_step);
-    int n_fft = 1 + (speed_up ? frame_size / 4 : frame_size / 2);
+    int n_fft = 1 + (frame_size / 2);
     int i = ith;
 
     // Calculate FFT only when fft_in are not all zero
-    for (; i < std::min((n_samples - frame_size) / frame_step + 3, mel.n_len); i += n_threads) {
+    for (; i < std::min(n_samples / frame_step + 1, mel.n_len); i += n_threads) {
         const int offset = i * frame_step;
 
         // apply Hanning window (~10% faster)
@@ -2455,13 +2455,6 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
         // Use pow(fft_out[2 * j + 0], 2) + pow(fft_out[2 * j + 1], 2) causes inference quality problem? Interesting.
         for (int j = 0; j < frame_size; j++) {
             fft_out[j] = (fft_out[2 * j + 0] * fft_out[2 * j + 0] + fft_out[2 * j + 1] * fft_out[2 * j + 1]);
-        }
-
-        if (speed_up) {
-            // scale down in the frequency domain results in a speed-up in the time domain
-            for (int j = 0; j < n_fft - 1; j++) {
-                fft_out[j] = (fft_out[2 * j] + fft_out[2 * j + 1]) / 2;
-            }
         }
 
         // mel spectrogram
@@ -2509,7 +2502,7 @@ static bool log_mel_spectrogram(
               const int   n_mel,
               const int   n_threads,
   const whisper_filters & filters,
-             const bool   speed_up,
+             const bool   debug,
             whisper_mel & mel) {
     const int64_t t_start_us = ggml_time_us();
 
@@ -2646,11 +2639,11 @@ static bool log_mel_spectrogram(
             workers[iw] = std::thread(
                     log_mel_spectrogram_worker_thread, iw + 1, std::cref(hann), samples_padded,
                     n_samples + stage_2_pad, frame_size, frame_step, n_threads,
-                    std::cref(filters), speed_up, std::ref(mel));
+                    std::cref(filters), std::ref(mel));
         }
 
         // main thread
-        log_mel_spectrogram_worker_thread(0, hann, samples_padded, n_samples + stage_2_pad, frame_size, frame_step, n_threads, filters, speed_up, mel);
+        log_mel_spectrogram_worker_thread(0, hann, samples_padded, n_samples + stage_2_pad, frame_size, frame_step, n_threads, filters, mel);
 
         for (int iw = 0; iw < n_threads - 1; ++iw) {
             workers[iw].join();
@@ -2677,14 +2670,16 @@ static bool log_mel_spectrogram(
 
     wstate.t_mel_us += ggml_time_us() - t_start_us;
 
-    // Debug log_mel_spectrogram
-    std::ofstream outFile("output.json");
-    outFile << "[";
-    for (uint64_t i = 0; i < mel.data.size() - 1; i++) {
-        outFile << mel.data[i] << ", ";
+    // Dump log_mel_spectrogram
+    if (debug) {
+        std::ofstream outFile("log_mel_spectrogram.json");
+        outFile << "[";
+        for (uint64_t i = 0; i < mel.data.size() - 1; i++) {
+            outFile << mel.data[i] << ", ";
+        }
+        outFile << mel.data[mel.data.size() - 1] << "]";
+        outFile.close();
     }
-    outFile << mel.data[mel.data.size() - 1] << "]";
-    outFile.close();
 
     return true;
 }
@@ -3102,8 +3097,8 @@ void whisper_free_params(struct whisper_full_params * params) {
     }
 }
 
-int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
-    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, WHISPER_N_FFT, WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, false, state->mel)) {
+int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads, bool debug) {
+    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, WHISPER_N_FFT, WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, debug, state->mel)) {
         log("%s: failed to compute mel spectrogram\n", __func__);
         return -1;
     }
@@ -3111,13 +3106,13 @@ int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_s
     return 0;
 }
 
-int whisper_pcm_to_mel(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads) {
-    return whisper_pcm_to_mel_with_state(ctx, ctx->state, samples, n_samples, n_threads);
+int whisper_pcm_to_mel(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads, bool debug) {
+    return whisper_pcm_to_mel_with_state(ctx, ctx->state, samples, n_samples, n_threads, debug);
 }
 
-// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2
-int whisper_pcm_to_mel_phase_vocoder_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
-    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, 2 * WHISPER_N_FFT, 2 * WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, true, state->mel)) {
+// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2 (Phase Vocoder without phase lock is not good)
+int whisper_pcm_to_mel_phase_vocoder_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads, bool debug) {
+    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, 2 * WHISPER_N_FFT, 2 * WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, debug, state->mel)) {
         log("%s: failed to compute mel spectrogram\n", __func__);
         return -1;
     }
@@ -3125,10 +3120,19 @@ int whisper_pcm_to_mel_phase_vocoder_with_state(struct whisper_context * ctx, st
     return 0;
 }
 
-// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2
-int whisper_pcm_to_mel_phase_vocoder(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads) {
-    return whisper_pcm_to_mel_phase_vocoder_with_state(ctx, ctx->state, samples, n_samples, n_threads);
+// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2 (Phase Vocoder without phase lock is not good)
+int whisper_pcm_to_mel_phase_vocoder(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads, bool debug) {
+    return whisper_pcm_to_mel_phase_vocoder_with_state(ctx, ctx->state, samples, n_samples, n_threads, debug);
 }
+
+// same as whisper_pcm_to_mel, but applies WSOLA to speed up the audio x2
+// TODO
+
+// same as whisper_pcm_to_mel, but applies HPTSM to speed up the audio x2
+// TODO
+
+// same as whisper_pcm_to_mel, but applies PV (with phase lock) to speed up the audio x2
+// TODO
 
 int whisper_set_mel_with_state(
         struct whisper_context * /*ctx*/,
@@ -3581,6 +3585,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.max_tokens        =*/ 0,
 
         /*.speed_up          =*/ false,
+        /*.debug_mode        =*/ false,
         /*.audio_ctx         =*/ 0,
 
         /*.tdrz_enable       =*/ false,
@@ -4145,12 +4150,12 @@ int whisper_full_with_state(
 
     // compute log mel spectrogram
     if (params.speed_up) {
-        if (whisper_pcm_to_mel_phase_vocoder_with_state(ctx, state, samples, n_samples, params.n_threads) != 0) {
-            log("%s: failed to compute log mel spectrogram\n", __func__);
-            return -1;
-        }
+        // Temporarily disable speed_up mode
+        // TODO: Replace PV with more advanced algorithm
+        log("%s: failed to compute log mel spectrogram\n", __func__);
+        return -1;
     } else {
-        if (whisper_pcm_to_mel_with_state(ctx, state, samples, n_samples, params.n_threads) != 0) {
+        if (whisper_pcm_to_mel_with_state(ctx, state, samples, n_samples, params.n_threads, params.debug_mode) != 0) {
             log("%s: failed to compute log mel spectrogram\n", __func__);
             return -2;
         }
