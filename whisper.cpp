@@ -2629,7 +2629,8 @@ static bool log_mel_spectrogram(
     // https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/SpectralOps.cpp#L936
     // Calculate number of frames + remove the last frame
     mel.n_len     = (samples_padded.size() - frame_size) / frame_step;
-    mel.n_len_org = mel.n_len;
+    // Calculate semi-padded sample length to ensure compatibility
+    mel.n_len_org = 1 + (n_samples + stage_2_pad) / frame_step;
     mel.data.resize(mel.n_mel * mel.n_len);
 
 
@@ -3106,8 +3107,8 @@ int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_s
     return 0;
 }
 
-int whisper_pcm_to_mel(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads, bool debug) {
-    return whisper_pcm_to_mel_with_state(ctx, ctx->state, samples, n_samples, n_threads, debug);
+int whisper_pcm_to_mel(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads) {
+    return whisper_pcm_to_mel_with_state(ctx, ctx->state, samples, n_samples, n_threads, false);
 }
 
 // same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2 (Phase Vocoder without phase lock is not good)
@@ -4189,8 +4190,8 @@ int whisper_full_with_state(
     const int seek_start = params.offset_ms/10;
     const int seek_end = params.duration_ms == 0 ? whisper_n_len_from_state(state) : seek_start + params.duration_ms/10;
 
-    // if length of spectrogram is less than 1s (100 samples), then return
-    // basically don't process anything that is less than 1s
+    // if length of spectrogram is less than 1.0s (100 frames), then return
+    // basically don't process anything that is less than 1.0s
     // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
     if (seek_end < seek_start + (params.speed_up ? 50 : 100)) {
         return 0;
