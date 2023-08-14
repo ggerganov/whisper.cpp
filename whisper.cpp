@@ -2427,11 +2427,27 @@ static void fft(const std::vector<float> & in, std::vector<float> & out) {
     }
 }
 
+static bool hann_window(int length, bool periodic, std::vector<float> &output) {
+    if (output.size() < length) {
+        output.resize(length);
+    }
+    int offset = -1;
+    if (periodic) {
+        offset = 0;
+    }
+    for (int i = 0; i < length; i++) {
+        output[i] = 0.5*(1.0 - cosf((2.0*M_PI*i)/(length + offset)));
+    }
+
+    return true;
+}
+
 static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> &hann, const std::vector<float> &samples,
                                               int n_samples, int frame_size, int frame_step, int n_threads,
                                               const whisper_filters &filters, whisper_mel &mel) {
     std::vector<float> fft_in(frame_size, 0.0);
     std::vector<float> fft_out(2 * frame_step);
+    // make sure n_fft == 1 + (WHISPER_N_FFT / 2), bin_0 to bin_nyquist
     int n_fft = 1 + (frame_size / 2);
     int i = ith;
 
@@ -2493,26 +2509,25 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
 
 // ref: https://github.com/openai/whisper/blob/main/whisper/audio.py#L110-L157
 static bool log_mel_spectrogram(
-          whisper_state & wstate,
-            const float * samples,
+              whisper_state & wstate,
+              const float * samples,
               const int   n_samples,
               const int   /*sample_rate*/,
               const int   frame_size,
               const int   frame_step,
               const int   n_mel,
               const int   n_threads,
-  const whisper_filters & filters,
-             const bool   debug,
-            whisper_mel & mel) {
+              const whisper_filters & filters,
+              const bool   debug,
+              whisper_mel & mel) {
     const int64_t t_start_us = ggml_time_us();
 
     // Hanning window (Use cosf to eliminate difference)
     // ref: https://pytorch.org/docs/stable/generated/torch.hann_window.html
     // ref: https://github.com/openai/whisper/blob/main/whisper/audio.py#L147
-    std::vector<float> hann(frame_size);
-    for (int i = 0; i < frame_size; i++) {
-        hann[i] = 0.5*(1.0 - cosf((2.0*M_PI*i)/(frame_size)));
-    }
+    std::vector<float> hann;
+    hann_window(frame_size, true, hann);
+
 
     // Calculate the length of padding
     int64_t stage_1_pad = WHISPER_SAMPLE_RATE * 30;
@@ -2534,7 +2549,7 @@ static bool log_mel_spectrogram(
     // Calculate number of frames + remove the last frame
     mel.n_len     = (samples_padded.size() - frame_size) / frame_step;
     // Calculate semi-padded sample length to ensure compatibility
-    mel.n_len_org = 1 + (n_samples + stage_2_pad) / frame_step;
+    mel.n_len_org = 1 + (n_samples + stage_2_pad - frame_size) / frame_step;
     mel.data.resize(mel.n_mel * mel.n_len);
 
 
@@ -3015,7 +3030,7 @@ int whisper_pcm_to_mel(struct whisper_context * ctx, const float * samples, int 
     return whisper_pcm_to_mel_with_state(ctx, ctx->state, samples, n_samples, n_threads, false);
 }
 
-// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2 (Phase Vocoder without phase lock is not good)
+// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2 (PV without phase lock is not good)
 int whisper_pcm_to_mel_phase_vocoder_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads, bool debug) {
     if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, 2 * WHISPER_N_FFT, 2 * WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, debug, state->mel)) {
         log("%s: failed to compute mel spectrogram\n", __func__);
@@ -4055,7 +4070,6 @@ int whisper_full_with_state(
 
     // compute log mel spectrogram
     if (params.speed_up) {
-        // Temporarily disable speed_up mode
         // TODO: Replace PV with more advanced algorithm
         log("%s: failed to compute log mel spectrogram\n", __func__);
         return -1;
