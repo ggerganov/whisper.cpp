@@ -68,6 +68,22 @@ ifeq ($(UNAME_S),DragonFly)
 	CXXFLAGS += -D__BSD_VISIBLE
 endif
 
+# alloca is a non-standard interface that is not visible on BSDs when
+# POSIX conformance is specified, but not all of them provide a clean way
+# to enable it in such cases
+ifeq ($(UNAME_S),FreeBSD)
+	CFLAGS   += -D__BSD_VISIBLE
+	CXXFLAGS += -D__BSD_VISIBLE
+endif
+ifeq ($(UNAME_S),NetBSD)
+	CFLAGS   += -D_NETBSD_SOURCE
+	CXXFLAGS += -D_NETBSD_SOURCE
+endif
+ifeq ($(UNAME_S),OpenBSD)
+	CFLAGS   += -D_BSD_SOURCE
+	CXXFLAGS += -D_BSD_SOURCE
+endif
+
 # OS specific
 # TODO: support Windows
 ifeq ($(filter $(UNAME_S),Linux Darwin DragonFly FreeBSD NetBSD OpenBSD Haiku),$(UNAME_S))
