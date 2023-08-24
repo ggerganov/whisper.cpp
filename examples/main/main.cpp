@@ -87,9 +87,7 @@ struct whisper_params {
     bool print_colors    = false;
     bool print_progress  = false;
     bool no_timestamps   = false;
-//JBY
     bool log_score       = false;
-//EOJBY
 
     std::string language  = "en";
     std::string prompt;
@@ -162,9 +160,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-m"    || arg == "--model")           { params.model           = argv[++i]; }
         else if (arg == "-f"    || arg == "--file")            { params.fname_inp.emplace_back(argv[++i]); }
         else if (arg == "-oved" || arg == "--ov-e-device")     { params.openvino_encode_device = argv[++i]; }
-//JBY
         else if (arg == "-ls"   || arg == "--log-score")       { params.log_score = true; }
-//EOJBY
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -218,9 +214,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -m FNAME,  --model FNAME       [%-7s] model path\n",                                     params.model.c_str());
     fprintf(stderr, "  -f FNAME,  --file FNAME        [%-7s] input WAV file path\n",                            "");
     fprintf(stderr, "  -oved D,   --ov-e-device DNAME [%-7s] the OpenVINO device used for encode inference\n",  params.openvino_encode_device.c_str());
-//JBY
     fprintf(stderr, "  -ls,       --log-score         [%-7s] log best decoder scores of tokens\n",              params.log_score?"true":"false");
-//EOJBY
     fprintf(stderr, "\n");
 }
 
@@ -495,7 +489,6 @@ bool output_csv(struct whisper_context * ctx, const char * fname, const whisper_
     return true;
 }
 
-//JBY
 bool output_score(struct whisper_context * ctx, const char * fname, const whisper_params & params, std::vector<std::vector<float>> pcmf32s) {
     std::ofstream fout(fname);
     fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
@@ -514,7 +507,6 @@ bool output_score(struct whisper_context * ctx, const char * fname, const whispe
     }
     return true;
 }
-//EOJBY
 
 bool output_json(struct whisper_context * ctx, const char * fname, const whisper_params & params, std::vector<std::vector<float>> pcmf32s) {
     std::ofstream fout(fname);
@@ -1013,13 +1005,11 @@ int main(int argc, char ** argv) {
                 output_lrc(ctx, fname_lrc.c_str(), params, pcmf32s);
             }
 
-//JBY
             // output to score file
             if (params.log_score) {
                 const auto fname_score = fname_out + ".score.txt";
                 output_score(ctx, fname_score.c_str(), params, pcmf32s);
             }
-//EOJBY
         }
     }
 
