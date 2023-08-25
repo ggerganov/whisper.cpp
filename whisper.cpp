@@ -2347,6 +2347,23 @@ static std::string to_timestamp(int64_t t, bool comma = false) {
     return std::string(buf);
 }
 
+#define SIN_COS_N_COUNT WHISPER_N_FFT
+static float sin_vals[SIN_COS_N_COUNT];
+static float cos_vals[SIN_COS_N_COUNT];
+
+// In FFT, we frequently use sine and cosine operations with the same values. 
+// We can use precalculated values to speed up the process.
+static void fill_sin_cos_table() {
+    static bool is_filled = false;
+    if (is_filled) return;
+    for (int i = 0; i < SIN_COS_N_COUNT; i++) {
+        double theta = (2*M_PI*i)/SIN_COS_N_COUNT;
+        sin_vals[i] = sinf(theta);
+        cos_vals[i] = cosf(theta);
+    }
+    is_filled = true;
+}
+
 // naive Discrete Fourier Transform
 // input is real-valued
 // output is complex-valued
@@ -2354,15 +2371,16 @@ static void dft(const std::vector<float> & in, std::vector<float> & out) {
     int N = in.size();
 
     out.resize(N*2);
+    const int sin_cos_step = SIN_COS_N_COUNT / N;
 
     for (int k = 0; k < N; k++) {
         float re = 0;
         float im = 0;
 
         for (int n = 0; n < N; n++) {
-            float angle = 2*M_PI*k*n/N;
-            re += in[n]*cos(angle);
-            im -= in[n]*sin(angle);
+            int idx = (k * n * sin_cos_step) % (SIN_COS_N_COUNT); // t = 2*M_PI*k*n/N
+            re += in[n]*cos_vals[idx]; // cos(t)
+            im -= in[n]*sin_vals[idx]; // sin(t)
         }
 
         out[k*2 + 0] = re;
@@ -2410,11 +2428,11 @@ static void fft(const std::vector<float> & in, std::vector<float> & out) {
     fft(even, even_fft);
     fft(odd, odd_fft);
 
+    const int sin_cos_step = SIN_COS_N_COUNT / N;
     for (int k = 0; k < N/2; k++) {
-        float theta = 2*M_PI*k/N;
-
-        float re = cos(theta);
-        float im = -sin(theta);
+        int idx = k * sin_cos_step; // t = 2*M_PI*k/N
+        float re = cos_vals[idx]; // cos(t)
+        float im = -sin_vals[idx]; // sin(t)
 
         float re_odd = odd_fft[2*k + 0];
         float im_odd = odd_fft[2*k + 1];
@@ -2694,6 +2712,7 @@ static std::string whisper_openvino_get_path_cache(std::string path_bin) {
 #endif
 
 struct whisper_state * whisper_init_state(whisper_context * ctx) {
+    fill_sin_cos_table();
     whisper_state * state = new whisper_state;
 
     const size_t scale = ctx->model.hparams.ftype ? 1 : 2;
