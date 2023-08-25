@@ -74,7 +74,12 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
 		CPUINFO_CMD := sysinfo -cpu
 	endif
 
-	ifdef CPUINFO_CMD
+	ifdef CPUINFO_CMD  	
+    AVX_M := $(shell $(CPUINFO_CMD) | grep -m 1 "avx ")
+		ifneq (,$(findstring avx,$(AVX_M)))
+			CFLAGS += -mavx
+		endif
+    
 		AVX2_M := $(shell $(CPUINFO_CMD) | grep -m 1 "avx2 ")
 		ifneq (,$(findstring avx2,$(AVX2_M)))
 			CFLAGS += -mavx2
