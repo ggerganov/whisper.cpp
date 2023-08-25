@@ -59,8 +59,8 @@ endfunction
 let s:c_lowerkeys = "1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./\""
 let s:c_upperkeys = "!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?'"
 let s:c_count = split("1234567890",'\zs')
-let s:c_command = split("ryuogpdxcv.ia", '\zs')
-let s:c_motion = split("wetfhjklnb$^",'\zs')
+let s:c_command = split("ryuogpdxcv.iam", '\zs')
+let s:c_motion = split("wetf'hjklnb$^)",'\zs')
 " object words: Word, Sentence, Paragraph, [, (, <, Tag, {. ", '
 let s:c_area = split("wsp])>t}\"'",'\zs')
 "Special commands.
@@ -78,7 +78,9 @@ let s:sub_tran_msg = ""
 func s:subTranProg(msg)
     if s:sub_tran_msg != ""
         let s:sub_tran_msg = s:sub_tran_msg .. a:msg
-        exe "normal" "u" .. s:sub_tran_msg
+        if mode() !=? 'v'
+            exe "normal" "u" .. s:sub_tran_msg
+        endif
     else
         if s:command_backlog == ""
             " this should not occur
@@ -90,13 +92,20 @@ func s:subTranProg(msg)
         else
             let s:sub_tran_msg = s:command_backlog  .. a:msg
         endif
-        exe "normal" s:sub_tran_msg
+        if mode() !=? 'v'
+            exe "normal" s:sub_tran_msg
+        endif
     endif
     call appendbufline(s:output_buffer, "$", s:sub_tran_msg ..  ":" .. string(a:msg ))
 endfunction
 
 func s:subTranFinish(params, timestamp)
     let s:repeat_command = s:sub_tran_msg
+    " Visual selection is lot if used with streaming, so streaming of partial
+    " transcriptions is disabled in visual mode
+    if mode() ==? 'v'
+        exe "normal" s:sub_tran_msg
+    endif
     let s:sub_tran_msg = ""
     let s:command_backlog = ""
     exe "normal a\<C-G>u"
@@ -211,7 +220,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
         elseif index(s:c_count, l:command) != -1
             let l:next_mode = a:commandset_index
         elseif index(s:c_motion, l:command) != -1
-            if l:command == 't' || l:command == 'f'
+            if l:command == 't' || l:command == 'f' || l:command == "'"
                 " prompt single key
                 let l:next_mode = 2
             else
@@ -232,7 +241,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 let l:req.params.no_context = v:true
                 let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
                 return
-            elseif l:command == 'r'
+            elseif l:command == 'r' || l:command == 'm'
                 let l:next_mode = 2
             elseif l:command == '.'
                 let l:next_mode = 0
@@ -251,6 +260,9 @@ func s:commandCallback(params, commandset_index, channel, msg)
         endif
     endif
     if l:do_execute
+        if mode() ==?'v' && l:next_mode == 0
+            let l:next_mode = 1
+        endif
         exe "normal" s:command_backlog
         if index(s:c_motion + ["u"],l:command) == -1
             exe "normal a\<C-G>u"
