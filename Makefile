@@ -139,7 +139,7 @@ endif
 endif
 
 ifdef WHISPER_OPENBLAS
-	CFLAGS  += -DGGML_USE_OPENBLAS -I/usr/local/include/openblas
+	CFLAGS  += -DGGML_USE_OPENBLAS -I/usr/local/include/openblas -I/usr/include/openblas
 	LDFLAGS += -lopenblas
 endif
 
