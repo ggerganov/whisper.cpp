@@ -2359,7 +2359,7 @@ static void fill_sin_cos_table() {
     for (int i = 0; i < SIN_COS_N_COUNT; i++) {
         double theta = (2*M_PI*i)/SIN_COS_N_COUNT;
         sin_vals[i] = sin(theta);
-        cos_vals[i] = cos(theta);
+        cos_vals[i] = cosf(theta);
     }
     is_filled = true;
 }
