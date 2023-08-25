@@ -248,6 +248,8 @@ message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "ppc64le")
+    message(STATUS "PowerPC detected")
 else()
     message(STATUS "x86 detected")
     if (MSVC)
