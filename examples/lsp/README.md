@@ -29,9 +29,11 @@ The vim plugin was designed to closely follow the mnemonics of vim
 
 `s:spoken_dict` is used to translate keys to their spoken form.
 
-Keys corresponding to a list, like `i`, have a spoken form corresponding to it's usage normally (insert), it's usage as part of a motion(inside), and it's usage as character ([to] i).
 
-Keys corresponding to a string use that spoken value normally and when a motion is expected, but use the key itself when a character is expected.
+Keys corresponding to a string use that spoken value normally and when a motion is expected, but use the key itself when a character is expected.  
+Keys corresponding to a dict, like `i`, can have manual difinitions given to each possible commandset.
+
+0 is normal (insert), 1 is motion (inside), 2 is it's usage as a single key ([to] i), and 3 is it's usage in an area selection (s -> [around] sentence)
 
 Some punctuation items, like `-` are explicitly given pronunciations to prevent them from being picked as punctuation instead of an actual command word.
 
