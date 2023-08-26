@@ -203,16 +203,8 @@ func s:commandCallback(params, commandset_index, channel, msg)
             " Should move to execute unless part of a change
             " Presence of a c anywhere but the last character is a change.
             " a c as the last character always functions as a motion (cc / fc)
-            if match(s:command_backlog[0:-2], 'c') != -1
-                let l:req = {"method": "unguided", "params": a:params}
-                let l:req.params.timestamp = a:msg.result.timestamp
-                let l:req.params.no_context = v:true
-                let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
-                return
-            else
-                let l:do_execute = v:true
-                let l:next_mode = 0
-            endif
+            let l:do_execute = v:true
+            let l:next_mode = 0
             " commandset index only matters for a/i
         elseif (l:command == "a" || l:command == "i") && a:commandset_index == 1
             " inside/around. Is commandset 3
@@ -234,7 +226,7 @@ func s:commandCallback(params, commandset_index, channel, msg)
                 " entered (i.e. yd), but vim can handle checks for this at exe
                 " And checking for cases like y123d would complicate things
                 let l:next_mode = 1
-            elseif index(["i","a","c", "o", "s"], l:command) != -1 || s:command_backlog[-1:-1] == 'R'
+            elseif index(["i","a","c", "o", "s"], l:command) != -1 || s:command_backlog[-1:-1] ==# 'R'
                 "'Insert' mode, do general transcription
                 let l:req = {"method": "unguided", "params": a:params}
                 let l:req.params.timestamp = a:msg.result.timestamp
@@ -262,6 +254,12 @@ func s:commandCallback(params, commandset_index, channel, msg)
     if l:do_execute
         if mode() ==?'v' && l:next_mode == 0
             let l:next_mode = 1
+        elseif match(s:command_backlog, 'c') != -1
+            let l:req = {"method": "unguided", "params": a:params}
+            let l:req.params.timestamp = a:msg.result.timestamp
+            let l:req.params.no_context = v:true
+            let resp = ch_sendexpr(g:lsp_job, req, {"callback": function("s:transcriptionCallback", [function("s:subTranProg"), function("s:subTranFinish", [a:params])])})
+            return
         endif
         exe "normal" s:command_backlog
         if index(s:c_motion + ["u"],l:command) == -1
