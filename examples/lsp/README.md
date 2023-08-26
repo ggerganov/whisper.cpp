@@ -33,7 +33,7 @@ The vim plugin was designed to closely follow the mnemonics of vim
 Keys corresponding to a string use that spoken value normally and when a motion is expected, but use the key itself when a character is expected.  
 Keys corresponding to a dict, like `i`, can have manual difinitions given to each possible commandset.
 
-0 is normal (insert), 1 is motion (inside), 2 is it's usage as a single key ([to] i), and 3 is it's usage in an area selection (s -> [around] sentence)
+0 is normal (insert), 1 is motion (inside), 2 is it's usage as a single key ([till] i), and 3 is it's usage in an area selection (s -> [around] sentence)
 
 Some punctuation items, like `-` are explicitly given pronunciations to prevent them from being picked as punctuation instead of an actual command word.
 

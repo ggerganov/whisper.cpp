@@ -58,7 +58,7 @@ endfunction
 " Must be sunchronized
 let s:c_lowerkeys = "1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./\""
 let s:c_upperkeys = "!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?'"
-let s:c_count = split("1234567890",'\zs')
+let s:c_count = split("1234567890\"",'\zs')
 let s:c_command = split("ryuogpdxcv.iam", '\zs')
 let s:c_motion = split("wetf'hjklnb$^)",'\zs')
 " object words: Word, Sentence, Paragraph, [, (, <, Tag, {. ", '
@@ -199,16 +199,20 @@ func s:commandCallback(params, commandset_index, channel, msg)
         echo s:command_backlog .. " - " .. l:visual_command
         let s:command_backlog = s:command_backlog .. l:visual_command
         if a:commandset_index == 2 || a:commandset_index == 3
-            " single key, either completes motion or replace
-            " Should move to execute unless part of a change
-            " Presence of a c anywhere but the last character is a change.
-            " a c as the last character always functions as a motion (cc / fc)
-            let l:do_execute = v:true
+            " single key, either completes motion, replace, or register
+            " Should move to execute unless part of a register
+            " Change will be caught at execute
+            if s:command_backlog[-2:-2] !=# '"'
+                call s:logCallback(0,"not register")
+                let l:do_execute = v:true
+            end
             let l:next_mode = 0
             " commandset index only matters for a/i
         elseif (l:command == "a" || l:command == "i") && a:commandset_index == 1
             " inside/around. Is commandset 3
             let l:next_mode = 3
+        elseif l:command ==# '"'
+            let l:next_mode = 2
         elseif index(s:c_count, l:command) != -1
             let l:next_mode = a:commandset_index
         elseif index(s:c_motion, l:command) != -1
