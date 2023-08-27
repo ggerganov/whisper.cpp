@@ -346,7 +346,7 @@ extern "C" {
                               void * user_data);
 
     // Parameters for the whisper_full() function
-    // If you chnage the order or add new parameters, make sure to update the default values in whisper.cpp:
+    // If you change the order or add new parameters, make sure to update the default values in whisper.cpp:
     // whisper_full_default_params()
     struct whisper_full_params {
         enum whisper_sampling_strategy strategy;

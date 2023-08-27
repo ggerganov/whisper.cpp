@@ -61,7 +61,7 @@ Or you can even run it straight in the browser: [talk.wasm](examples/talk.wasm)
 - Various other examples are available in the [examples](examples) folder
 
 The tensor operators are optimized heavily for Apple silicon CPUs. Depending on the computation size, Arm Neon SIMD
-instrisics or CBLAS Accelerate framework routines are used. The latter are especially effective for bigger sizes since
+intrinsics or CBLAS Accelerate framework routines are used. The latter are especially effective for bigger sizes since
 the Accelerate framework utilizes the special-purpose AMX coprocessor available in modern Apple products.
 
 ## Quick start

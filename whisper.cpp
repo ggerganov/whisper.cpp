@@ -82,7 +82,7 @@ static void byteswap_tensor(ggml_tensor * tensor) {
     } while (0)
 #define BYTESWAP_TENSOR(t)       \
     do {                         \
-        byteswap_tensor(tensor); \
+        byteswap_tensor(t); \
     } while (0)
 #else
 #define BYTESWAP_VALUE(d) do {} while (0)
@@ -589,7 +589,7 @@ struct whisper_model {
 struct whisper_sequence {
     std::vector<whisper_token_data> tokens;
 
-    // the accumulated transcription in the current interation (used to truncate the tokens array)
+    // the accumulated transcription in the current iteration (used to truncate the tokens array)
     int result_len;
 
     double sum_logprobs_all; // the sum of the log probabilities of the tokens
