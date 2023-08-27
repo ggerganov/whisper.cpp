@@ -2445,7 +2445,7 @@ static void fft(const std::vector<float> & in, std::vector<float> & out) {
     }
 }
 
-static bool hann_window(int length, bool periodic, std::vector<float> &output) {
+static bool hann_window(int length, bool periodic, std::vector<float> & output) {
     if (output.size() < length) {
         output.resize(length);
     }
@@ -2460,16 +2460,16 @@ static bool hann_window(int length, bool periodic, std::vector<float> &output) {
     return true;
 }
 
-static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> &hann, const std::vector<float> &samples,
+static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> & hann, const std::vector<float> & samples,
                                               int n_samples, int frame_size, int frame_step, int n_threads,
-                                              const whisper_filters &filters, whisper_mel &mel) {
+                                              const whisper_filters & filters, whisper_mel & mel) {
     std::vector<float> fft_in(frame_size, 0.0);
     std::vector<float> fft_out(2 * frame_step);
     // make sure n_fft == 1 + (WHISPER_N_FFT / 2), bin_0 to bin_nyquist
     int n_fft = 1 + (frame_size / 2);
     int i = ith;
 
-    // Calculate FFT only when fft_in are not all zero
+    // calculate FFT only when fft_in are not all zero
     for (; i < std::min(n_samples / frame_step + 1, mel.n_len); i += n_threads) {
         const int offset = i * frame_step;
 
