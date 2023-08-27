@@ -161,6 +161,21 @@ ggml-cuda.o: ggml-cuda.cu ggml-cuda.h
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
 endif
 
+ifdef WHISPER_HIPBLAS
+	ROCM_PATH   ?= /opt/rocm
+	HIPCC       ?= $(ROCM_PATH)/bin/hipcc
+	GPU_TARGETS ?= $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+	CFLAGS      += -DGGML_USE_HIPBLAS -DGGML_USE_CUBLAS
+	CXXFLAGS    += -DGGML_USE_HIPBLAS -DGGML_USE_CUBLAS
+	LDFLAGS     += -L$(ROCM_PATH)/lib -Wl,-rpath=$(ROCM_PATH)/lib
+	LDFLAGS     += -lhipblas -lamdhip64 -lrocblas
+	HIPFLAGS    += $(addprefix --offload-arch=,$(GPU_TARGETS))
+	WHISPER_OBJ += ggml-cuda.o
+
+ggml-cuda.o: ggml-cuda.cu ggml-cuda.h
+	$(HIPCC) $(CXXFLAGS) $(HIPFLAGS) -x hip -c -o $@ $<
+endif
+
 ifdef WHISPER_CLBLAST
 	CFLAGS 		+= -DGGML_USE_CLBLAST
 	CXXFLAGS 	+= -DGGML_USE_CLBLAST
