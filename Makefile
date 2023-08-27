@@ -121,6 +121,18 @@ ifneq ($(filter ppc64%,$(UNAME_M)),)
 	endif
 endif
 
+ifndef WHISPER_NO_K_QUANTS
+	CFLAGS   += -DGGML_USE_K_QUANTS
+	CXXFLAGS += -DGGML_USE_K_QUANTS
+	WHISPER_OBJ     += k_quants.o
+endif
+
+ifdef WHISPER_QKK_64
+	CFLAGS   += -DGGML_QKK_64
+	CXXFLAGS += -DGGML_QKK_64
+endif
+
+
 ifndef WHISPER_NO_ACCELERATE
 	# Mac M1 - include Accelerate framework
 	ifeq ($(UNAME_S),Darwin)
@@ -136,6 +148,11 @@ ifdef WHISPER_COREML
 ifdef WHISPER_COREML_ALLOW_FALLBACK
 	CXXFLAGS += -DWHISPER_COREML_ALLOW_FALLBACK
 endif
+endif
+
+ifdef WHISPER_USE_METAL
+	CXXFLAGS += -DWHISPER_USE_METAL 
+	LDFLAGS  += -framework Foundation -framework Metal -framework MetalKit -framework MetalPerformanceShaders -framework CoreGraphics
 endif
 
 ifdef WHISPER_OPENBLAS
@@ -207,6 +224,11 @@ ifneq ($(filter armv8%,$(UNAME_M)),)
 	CXXFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
 endif
 
+ifndef WHISPER_NO_K_QUANTS
+k_quants.o: k_quants.c k_quants.h
+	$(CC) $(CFLAGS) -c $< -o $@
+endif # WHISPER_NO_K_QUANTS
+
 #
 # Print build information
 #
@@ -229,7 +251,7 @@ $(info )
 ggml.o: ggml.c ggml.h ggml-cuda.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
-whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h
+whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h ggml-metal.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 ifndef WHISPER_COREML
@@ -242,6 +264,12 @@ whisper-encoder-impl.o: coreml/whisper-encoder-impl.m coreml/whisper-encoder-imp
 	$(CXX) -O3 -I . -fobjc-arc -c coreml/whisper-encoder-impl.m -o whisper-encoder-impl.o
 
 WHISPER_OBJ += whisper.o whisper-encoder.o whisper-encoder-impl.o
+endif
+
+ifdef WHISPER_USE_METAL
+ggml-metal.o: ggml-metal.m ggml-metal.h
+	$(CC) $(CFLAGS) -c $< -o $@
+WHISPER_OBJ += ggml-metal.o
 endif
 
 libwhisper.a: ggml.o $(WHISPER_OBJ)

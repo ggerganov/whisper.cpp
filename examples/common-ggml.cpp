@@ -1,4 +1,5 @@
 #include "common-ggml.h"
+#include "ggml.h"
 
 #include <regex>
 #include <map>
@@ -9,6 +10,11 @@ static const std::map<std::string, enum ggml_ftype> GGML_FTYPE_MAP = {
     {"q5_0", GGML_FTYPE_MOSTLY_Q5_0},
     {"q5_1", GGML_FTYPE_MOSTLY_Q5_1},
     {"q8_0", GGML_FTYPE_MOSTLY_Q8_0},
+    {"q2_k", GGML_FTYPE_MOSTLY_Q2_K},
+    {"q3_k", GGML_FTYPE_MOSTLY_Q3_K},
+    {"q4_k", GGML_FTYPE_MOSTLY_Q4_K},
+    {"q5_k", GGML_FTYPE_MOSTLY_Q5_K},
+    {"q6_k", GGML_FTYPE_MOSTLY_Q6_K},
 };
 
 void ggml_print_ftypes(FILE * fp) {
@@ -48,15 +54,15 @@ bool ggml_common_quantize_0(
         case GGML_FTYPE_MOSTLY_Q5_0: qtype = GGML_TYPE_Q5_0; break;
         case GGML_FTYPE_MOSTLY_Q5_1: qtype = GGML_TYPE_Q5_1; break;
         case GGML_FTYPE_MOSTLY_Q8_0: qtype = GGML_TYPE_Q8_0; break;
+        case GGML_FTYPE_MOSTLY_Q2_K: qtype = GGML_TYPE_Q2_K; break;
+        case GGML_FTYPE_MOSTLY_Q3_K: qtype = GGML_TYPE_Q3_K; break;
+        case GGML_FTYPE_MOSTLY_Q4_K: qtype = GGML_TYPE_Q4_K; break;
+        case GGML_FTYPE_MOSTLY_Q5_K: qtype = GGML_TYPE_Q5_K; break;
+        case GGML_FTYPE_MOSTLY_Q6_K: qtype = GGML_TYPE_Q6_K; break;
         case GGML_FTYPE_UNKNOWN:
         case GGML_FTYPE_ALL_F32:
         case GGML_FTYPE_MOSTLY_F16:
         case GGML_FTYPE_MOSTLY_Q4_1_SOME_F16:
-        case GGML_FTYPE_MOSTLY_Q2_K:
-        case GGML_FTYPE_MOSTLY_Q3_K:
-        case GGML_FTYPE_MOSTLY_Q4_K:
-        case GGML_FTYPE_MOSTLY_Q5_K:
-        case GGML_FTYPE_MOSTLY_Q6_K:
                 {
                     fprintf(stderr, "%s: invalid model type %d\n", __func__, ftype);
                     return false;
@@ -114,6 +120,7 @@ bool ggml_common_quantize_0(
             }
         }
 
+
         // check if we should skip this tensor
         for (const auto & s : to_skip) {
             if (std::regex_match(name, std::regex(s))) {
@@ -144,11 +151,36 @@ bool ggml_common_quantize_0(
             }
 
             ttype = qtype;
-        } else {
-            const int bpe = (ttype == 0) ? sizeof(float) : sizeof(uint16_t);
 
-            data_u8.resize(nelements*bpe);
-            finp.read(reinterpret_cast<char *>(data_u8.data()), nelements * bpe);
+        } else {
+
+            if (name == "decoder.positional_embedding" && ttype == GGML_TYPE_F32) {
+
+                // Read original data as FP32
+                std::vector<float> original_data(nelements);
+                finp.read(reinterpret_cast<char *>(original_data.data()), nelements * sizeof(float));
+
+                // Create vector to hold the converted data
+                std::vector<ggml_fp16_t> converted_data(nelements);
+                
+                // Convert FP32 data to FP16
+                ggml_fp32_to_fp16_row(original_data.data(), converted_data.data(), nelements);
+                
+                // Adjust ttype to represent the new data type
+                ttype = GGML_TYPE_F16;
+                
+                // Reinterpret the converted data as bytes and load it into data_u8
+                data_u8.resize(nelements * sizeof(ggml_fp16_t));
+                std::memcpy(data_u8.data(), reinterpret_cast<const uint8_t*>(converted_data.data()), nelements * sizeof(ggml_fp16_t));
+
+            } else {
+                
+                const int bpe = (ttype == 0) ? sizeof(float) : sizeof(uint16_t);
+                data_u8.resize(nelements*bpe);
+                finp.read(reinterpret_cast<char *>(data_u8.data()), nelements * bpe);
+
+            }
+        
         }
 
         fout.write(reinterpret_cast<char *>(&n_dims), sizeof(n_dims));
@@ -186,17 +218,32 @@ bool ggml_common_quantize_0(
                     {
                         cur_size = ggml_quantize_q8_0(data_f32.data(), work.data(), nelements, ne[0], hist_cur.data());
                     } break;
+                case GGML_TYPE_Q2_K:
+                    {
+                        cur_size = ggml_quantize_chunk(qtype, data_f32.data(), work.data(), 0, nelements, hist_cur.data());
+                    } break;
+                case GGML_TYPE_Q3_K:
+                    {
+                        cur_size = ggml_quantize_chunk(qtype, data_f32.data(), work.data(), 0, nelements, hist_cur.data());
+                    } break;
+                case GGML_TYPE_Q4_K:
+                    {
+                        cur_size = ggml_quantize_chunk(qtype, data_f32.data(), work.data(), 0, nelements, hist_cur.data());
+                    } break;
+                case GGML_TYPE_Q5_K:
+                    {
+                        cur_size = ggml_quantize_chunk(qtype, data_f32.data(), work.data(), 0, nelements, hist_cur.data());
+                    } break;
+                case GGML_TYPE_Q6_K:
+                    {
+                        cur_size = ggml_quantize_chunk(qtype, data_f32.data(), work.data(), 0, nelements, hist_cur.data());
+                    } break;
                 case GGML_TYPE_F32:
                 case GGML_TYPE_F16:
                 case GGML_TYPE_I8:
                 case GGML_TYPE_I16:
                 case GGML_TYPE_I32:
                 case GGML_TYPE_Q8_1:
-                case GGML_TYPE_Q2_K:
-                case GGML_TYPE_Q3_K:
-                case GGML_TYPE_Q4_K:
-                case GGML_TYPE_Q5_K:
-                case GGML_TYPE_Q6_K:
                 case GGML_TYPE_Q8_K:
                 case GGML_TYPE_COUNT:
                     {

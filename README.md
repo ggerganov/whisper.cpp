@@ -238,7 +238,7 @@ make large
 
 ## Quantization
 
-`whisper.cpp` supports integer quantization of the Whisper `ggml` models.
+`whisper.cpp` supports integer quantization and k-quantization of the Whisper `ggml` models.
 Quantized models require less memory and disk space and depending on the hardware can be processed more efficiently.
 
 Here are the steps for creating and using a quantized model:
@@ -250,7 +250,15 @@ make quantize
 
 # run the examples as usual, specifying the quantized model file
 ./main -m models/ggml-base.en-q5_0.bin ./samples/gb0.wav
+
+# quantize a model with Q3_K method
+make quantize
+./quantize models/ggml-base.en.bin models/ggml-base.en-q3_k.bin q3_k
+
+# run the examples as usual, specifying the quantized model file
+./main -m models/ggml-base.en-q3_k.bin ./samples/gb0.wav
 ```
+
 
 ## Core ML support
 
@@ -311,6 +319,35 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
   Next runs are faster.
 
 For more information about the Core ML implementation please refer to PR [#566](https://github.com/ggerganov/whisper.cpp/pull/566).
+
+
+## Metal support
+
+On Apple devices the Whisper Decoder inference can be ran on Metal (GPU). To run on Metal the model must be quantized, FP32 is not currently supported.
+
+Here are the instructions for running a quantized model on Metal:
+
+- Build `whisper.cpp` with Metal support:
+
+  ```bash
+  # using Makefile
+  make clean
+  WHISPER_USE_METAL=1 make -j
+  ```
+
+- Run examples as normal, for example:
+  ```bash
+  ./main -m models/ggml-large_q5_k.bin -f samples/jfk.wav
+
+  whisper_init_from_file_no_state: loading model from 'models/ggml-large_q5_k.bin' 
+  ...
+  ggml_metal_init: allocating
+  ggml_metal_init: using MPS
+  ggml_metal_init: loaded kernel_add                            0x1490e6500
+  ...
+  system_info: n_threads = 4 / 12 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | FMA = 0 | NEON = 1 | ARM_FMA = 1 | F16C = 0 | FP16_VA = 1 | WASM_SIMD = 0 | BLAS = 1 | SSE3 = 0 | VSX = 0 | COREML = 0 | OPENVINO = 0 | METAL = 1 | K_QUANTS = 1 | 
+
+  ```
 
 ## OpenVINO support
 

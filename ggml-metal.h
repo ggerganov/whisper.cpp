@@ -34,8 +34,12 @@ extern "C" {
 
 struct ggml_metal_context;
 
-struct ggml_metal_context * ggml_metal_init(void);
+// number of command buffers to use
+struct ggml_metal_context * ggml_metal_init(int n_cb);
 void ggml_metal_free(struct ggml_metal_context * ctx);
+
+// set the number of command buffers to use
+void ggml_metal_set_n_cb(struct ggml_metal_context * ctx, int n_cb);
 
 // creates a mapping between a host memory buffer and a device memory buffer
 // - make sure to map all buffers used in the graph before calling ggml_metal_graph_compute
@@ -57,6 +61,13 @@ void ggml_metal_set_tensor(struct ggml_metal_context * ctx, struct ggml_tensor *
 // get data from the device into host memory
 void ggml_metal_get_tensor(struct ggml_metal_context * ctx, struct ggml_tensor * t);
 
+// try to find operations that can be run concurrently in the graph
+// you should run it again if the topology of your graph changes
+void ggml_metal_graph_find_concurrency(struct ggml_metal_context * ctx, struct ggml_cgraph * gf);
+
+// if the graph has been optimized for concurrently dispatch
+bool ggml_metal_if_optimized(struct ggml_metal_context * ctx);
+
 // same as ggml_graph_compute but uses Metal
 // creates gf->n_threads command buffers in parallel
 void ggml_metal_graph_compute(struct ggml_metal_context * ctx, struct ggml_cgraph * gf);
@@ -64,4 +75,3 @@ void ggml_metal_graph_compute(struct ggml_metal_context * ctx, struct ggml_cgrap
 #ifdef __cplusplus
 }
 #endif
-

@@ -54,6 +54,8 @@ option(WHISPER_NO_AVX2                "whisper: disable AVX2" OFF)
 option(WHISPER_NO_FMA                 "whisper: disable FMA"  OFF)
 option(WHISPER_NO_F16C                "whisper: disable F16c" OFF)
 
+option(WHISPER_K_QUANTS                        "whisper: use k-quants"                              ON)
+option(WHISPER_QKK_64                          "whisper: use super-block size of 64 for k-quants"   OFF)
 option(WHISPER_OPENVINO               "whisper: support for OpenVINO" OFF)
 
 if (APPLE)
@@ -291,6 +293,14 @@ endif()
 
 if (WHISPER_PERF)
     set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_PERF)
+endif()
+
+if (WHISPER_K_QUANTS)
+    set(GGML_SOURCES_EXTRA ${GGML_SOURCES_EXTRA} k_quants.c k_quants.h)
+    add_compile_definitions(GGML_USE_K_QUANTS)
+    if (WHISPER_QKK_64)
+        add_compile_definitions(GGML_QKK_64)
+    endif()
 endif()
 
 #
