@@ -104,6 +104,11 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
 		ifneq (,$(findstring sse3,$(SSE3_M)))
 			CFLAGS += -msse3
 		endif
+
+		SSSE3_M := $(shell $(CPUINFO_CMD) | grep -m 1 "ssse3 ")
+		ifneq (,$(findstring ssse3,$(SSSE3_M)))
+			CFLAGS += -mssse3
+		endif
 	endif
 endif
 ifeq ($(UNAME_M),amd64)
