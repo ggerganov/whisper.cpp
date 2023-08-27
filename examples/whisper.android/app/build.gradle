@@ -18,6 +18,9 @@ android {
         vectorDrawables {
             useSupportLibrary true
         }
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
     }
 
     buildTypes {
@@ -42,8 +45,8 @@ android {
     }
     ndkVersion "25.1.8937393"
     externalNativeBuild {
-        ndkBuild {
-            path 'src/main/jni/whisper/Android.mk'
+        cmake {
+            path = file("src/main/jni/whisper/CMakeLists.txt")
         }
     }
     packagingOptions {
