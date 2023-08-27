@@ -375,6 +375,7 @@ extern "C" {
         // [EXPERIMENTAL] speed-up techniques
         // note: these can significantly reduce the quality of the output
         bool speed_up;          // speed-up the audio by 2x using Phase Vocoder
+        bool debug_mode;        // enable debug_mode provides extra info (eg. Dump log_mel)
         int  audio_ctx;         // overwrite the audio context size (0 = use default)
 
         // [EXPERIMENTAL] [TDRZ] tinydiarize
