@@ -57,7 +57,7 @@ endif
 
 # OS specific
 # TODO: support Windows
-ifeq ($(filter $(UNAME_S),Linux Darwin FreeBSD Haiku),$(UNAME_S))
+ifeq ($(filter $(UNAME_S),Linux Darwin DragonFly FreeBSD NetBSD OpenBSD Haiku),$(UNAME_S))
 	CFLAGS   += -pthread
 	CXXFLAGS += -pthread
 endif
