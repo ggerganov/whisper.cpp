@@ -162,6 +162,9 @@ int main(int argc, char ** argv) {
     }
 
     struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
+    
+    // initialize openvino encoder. this has no effect on whisper.cpp builds that don't have OpenVINO configured
+    whisper_ctx_init_openvino_encoder(ctx, nullptr, "GPU".c_str(), nullptr);
 
     std::vector<float> pcmf32    (n_samples_30s, 0.0f);
     std::vector<float> pcmf32_old;
