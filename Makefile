@@ -70,6 +70,8 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
 		CPUINFO_CMD := sysctl machdep.cpu.features
 	else ifeq ($(UNAME_S),Linux)
 		CPUINFO_CMD := cat /proc/cpuinfo
+	else ifneq (,$(filter MINGW32_NT% MINGW64_NT%,$(UNAME_S)))
+		CPUINFO_CMD := cat /proc/cpuinfo
 	else ifeq ($(UNAME_S),Haiku)
 		CPUINFO_CMD := sysinfo -cpu
 	endif
