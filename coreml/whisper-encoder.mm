@@ -53,9 +53,11 @@ void whisper_coreml_encode(
                                            error: nil
     ];
 
-    whisper_encoder_implOutput * outCoreML = [(__bridge id) ctx->data predictionFromLogmel_data:inMultiArray error:nil];
+    @autoreleasepool {
+        whisper_encoder_implOutput * outCoreML = [(__bridge id) ctx->data predictionFromLogmel_data:inMultiArray error:nil];
 
-    memcpy(out, outCoreML.output.dataPointer, outCoreML.output.count * sizeof(float));
+        memcpy(out, outCoreML.output.dataPointer, outCoreML.output.count * sizeof(float));
+    }
 }
 
 #if __cplusplus
