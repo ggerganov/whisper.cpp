@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES // for M_PI
+
 #include "common.h"
 
 // third-party utilities
@@ -13,53 +15,59 @@
 #include <codecvt>
 #include <sstream>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
+
+// Function to check if the next argument exists
+std::string get_next_arg(int& i, int argc, char** argv, const std::string& flag, gpt_params& params) {
+    if (i + 1 < argc && argv[i + 1][0] != '-') {
+        return argv[++i];
+    } else {
+        fprintf(stderr, "error: %s requires one argument.\n", flag.c_str());
+        gpt_print_usage(argc, argv, params);
+        exit(0);
+    }
+}
 
 bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
         if (arg == "-s" || arg == "--seed") {
-            params.seed = std::stoi(argv[++i]);
+            params.seed = std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "-t" || arg == "--threads") {
-            params.n_threads = std::stoi(argv[++i]);
+            params.n_threads = std::stoi(get_next_arg(i, argc, argv, arg, params));
+        } else if (arg == "-ngl" || arg == "--gpu-layers" || arg == "--n-gpu-layers") {
+            params.n_gpu_layers = std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "-p" || arg == "--prompt") {
-            params.prompt = argv[++i];
+            params.prompt = get_next_arg(i, argc, argv, arg, params);
         } else if (arg == "-n" || arg == "--n_predict") {
-            params.n_predict = std::stoi(argv[++i]);
+            params.n_predict = std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "--top_k") {
-            params.top_k = std::max(1, std::stoi(argv[++i]));
+            params.top_k = std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "--top_p") {
-            params.top_p = std::stof(argv[++i]);
+            params.top_p = std::stof(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "--temp") {
-            params.temp = std::stof(argv[++i]);
+            params.temp = std::stof(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "--repeat-last-n") {
-            params.repeat_last_n = std::stof(argv[++i]);
+            params.repeat_last_n = std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "--repeat-penalty") {
-            params.repeat_penalty = std::stof(argv[++i]);
+            params.repeat_penalty = std::stof(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "-b" || arg == "--batch_size") {
-            params.n_batch = std::stoi(argv[++i]);
+            params.n_batch= std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "-m" || arg == "--model") {
-            params.model = argv[++i];
+            params.model = get_next_arg(i, argc, argv, arg, params);
         } else if (arg == "-i" || arg == "--interactive") {
             params.interactive = true;
         } else if (arg == "-ip" || arg == "--interactive-port") {
             params.interactive = true;
-            params.interactive_port = std::stoi(argv[++i]);
+            params.interactive_port = std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "-h" || arg == "--help") {
             gpt_print_usage(argc, argv, params);
             exit(0);
         } else if (arg == "-f" || arg == "--file") {
-            if (++i > argc) {
-                fprintf(stderr, "Invalid file param");
-                break;
-            }
+            get_next_arg(i, argc, argv, arg, params);
             std::ifstream file(argv[i]);
             if (!file) {
                 fprintf(stderr, "error: failed to open file '%s'\n", argv[i]);
@@ -70,7 +78,7 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
                 params.prompt.pop_back();
             }
         } else if (arg == "-tt" || arg == "--token_test") {
-            params.token_test = argv[++i];
+            params.token_test = get_next_arg(i, argc, argv, arg, params);
         }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
@@ -89,6 +97,7 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     fprintf(stderr, "  -h, --help            show this help message and exit\n");
     fprintf(stderr, "  -s SEED, --seed SEED  RNG seed (default: -1)\n");
     fprintf(stderr, "  -t N, --threads N     number of threads to use during computation (default: %d)\n", params.n_threads);
+    fprintf(stderr, "  -ngl N, --gpu-layers N  number of layers to offload to GPU on supported models (default: %d)\n", params.n_gpu_layers);
     fprintf(stderr, "  -p PROMPT, --prompt PROMPT\n");
     fprintf(stderr, "                        prompt to start generation with (default: random)\n");
     fprintf(stderr, "  -f FNAME, --file FNAME\n");
@@ -754,4 +763,47 @@ float similarity(const std::string & s0, const std::string & s1) {
     const float dist = prevCol[len1 - 1];
 
     return 1.0f - (dist / std::max(s0.size(), s1.size()));
+}
+
+bool sam_params_parse(int argc, char ** argv, sam_params & params) {
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+
+        if (arg == "-s" || arg == "--seed") {
+            params.seed = std::stoi(argv[++i]);
+        } else if (arg == "-t" || arg == "--threads") {
+            params.n_threads = std::stoi(argv[++i]);
+        } else if (arg == "-m" || arg == "--model") {
+            params.model = argv[++i];
+        } else if (arg == "-i" || arg == "--inp") {
+            params.fname_inp = argv[++i];
+        } else if (arg == "-o" || arg == "--out") {
+            params.fname_out = argv[++i];
+        } else if (arg == "-h" || arg == "--help") {
+            sam_print_usage(argc, argv, params);
+            exit(0);
+        } else {
+            fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
+            sam_print_usage(argc, argv, params);
+            exit(0);
+        }
+    }
+
+    return true;
+}
+
+void sam_print_usage(int argc, char ** argv, const sam_params & params) {
+    fprintf(stderr, "usage: %s [options]\n", argv[0]);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "options:\n");
+    fprintf(stderr, "  -h, --help            show this help message and exit\n");
+    fprintf(stderr, "  -s SEED, --seed SEED  RNG seed (default: -1)\n");
+    fprintf(stderr, "  -t N, --threads N     number of threads to use during computation (default: %d)\n", params.n_threads);
+    fprintf(stderr, "  -m FNAME, --model FNAME\n");
+    fprintf(stderr, "                        model path (default: %s)\n", params.model.c_str());
+    fprintf(stderr, "  -i FNAME, --inp FNAME\n");
+    fprintf(stderr, "                        input file (default: %s)\n", params.fname_inp.c_str());
+    fprintf(stderr, "  -o FNAME, --out FNAME\n");
+    fprintf(stderr, "                        output file (default: %s)\n", params.fname_out.c_str());
+    fprintf(stderr, "\n");
 }

@@ -441,6 +441,7 @@ struct whisper_hparams {
     int32_t n_text_layer  = 4;
     int32_t n_mels        = 80;
     int32_t ftype         = 1;
+    float   eps           = 1e-5f;
 };
 
 // audio encoding layer
@@ -730,6 +731,7 @@ static void whisper_default_log(const char * text) {
 
 static whisper_log_callback whisper_log = whisper_default_log;
 
+// TODO: fix compile warning about "format string is not a string literal"
 static void log(const char * fmt, ...) {
     if (!whisper_log) return;
     char buf[1024];
@@ -1571,7 +1573,7 @@ static bool whisper_encode_internal(
             {
                 wstate.use_buf(ctx0, 0);
 
-                cur = ggml_norm(ctx0, inpL);
+                cur = ggml_norm(ctx0, inpL, hparams.eps);
 
                 // cur = ln_0_w*cur + ln_0_b
                 cur = ggml_add(ctx0,
@@ -1718,7 +1720,7 @@ static bool whisper_encode_internal(
                 {
                     wstate.use_buf(ctx0, 0);
 
-                    cur = ggml_norm(ctx0, inpFF);
+                    cur = ggml_norm(ctx0, inpFF, hparams.eps);
 
                     wstate.use_buf(ctx0, 1);
 
@@ -1781,7 +1783,7 @@ static bool whisper_encode_internal(
         {
             wstate.use_buf(ctx0, 0);
 
-            cur = ggml_norm(ctx0, cur);
+            cur = ggml_norm(ctx0, cur, hparams.eps);
 
             wstate.use_buf(ctx0, 1);
 
@@ -1798,10 +1800,9 @@ static bool whisper_encode_internal(
         // run the computation
         {
             struct ggml_cgraph gf = {};
-            gf.n_threads = n_threads;
 
-            ggml_build_forward_expand(&gf, cur);
-            ggml_graph_compute(ctx0, &gf);
+            ggml_build_forward_expand  (&gf, cur);
+            ggml_graph_compute_with_ctx(ctx0, &gf, n_threads);
 
             //ggml_graph_print(&gf);
         }
@@ -1844,12 +1845,11 @@ static bool whisper_encode_internal(
     // pre-compute cross-attention memory
     {
         struct ggml_cgraph gf = {};
-        gf.n_threads = n_threads;
 
         // TODO: hack to disconnect the encoded features from the previous graph
         cur->op = GGML_OP_NONE;
-        cur->src0 = nullptr;
-        cur->src1 = nullptr;
+        cur->src[0] = nullptr;
+        cur->src[1] = nullptr;
 
         for (int il = 0; il < model.hparams.n_text_layer; ++il) {
             auto& layer = model.layers_decoder[il];
@@ -1887,7 +1887,7 @@ static bool whisper_encode_internal(
             ggml_build_forward_expand(&gf, ggml_cpy(ctx0, Vcross, v));
         }
 
-        ggml_graph_compute(ctx0, &gf);
+        ggml_graph_compute_with_ctx(ctx0, &gf, n_threads);
         //ggml_graph_print(&gf);
     }
 
@@ -1958,7 +1958,6 @@ static bool whisper_decode_internal(
     struct ggml_context * ctx0 = ggml_init(params);
 
     struct ggml_cgraph gf = {};
-    gf.n_threads = n_threads;
 
     struct ggml_tensor * embd = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, N);
     memcpy(embd->data, tokens, N*ggml_element_size(embd));
@@ -1985,7 +1984,7 @@ static bool whisper_decode_internal(
         {
             wstate.use_buf(ctx0, 0);
 
-            cur = ggml_norm(ctx0, inpL);
+            cur = ggml_norm(ctx0, inpL, hparams.eps);
 
             // cur = ln_0_w*cur + ln_0_b
             cur = ggml_add(ctx0,
@@ -2112,7 +2111,7 @@ static bool whisper_decode_internal(
         {
             wstate.use_buf(ctx0, 0);
 
-            cur = ggml_norm(ctx0, inpCA); // note: we use inpCA here
+            cur = ggml_norm(ctx0, inpCA, hparams.eps); // note: we use inpCA here
 
             // cur = ln_0_w*cur + ln_0_b
             cur = ggml_add(ctx0,
@@ -2222,7 +2221,7 @@ static bool whisper_decode_internal(
             {
                 wstate.use_buf(ctx0, 0);
 
-                cur = ggml_norm(ctx0, inpFF);
+                cur = ggml_norm(ctx0, inpFF, hparams.eps);
 
                 wstate.use_buf(ctx0, 1);
 
@@ -2277,7 +2276,7 @@ static bool whisper_decode_internal(
     {
         wstate.use_buf(ctx0, 0);
 
-        cur = ggml_norm(ctx0, cur);
+        cur = ggml_norm(ctx0, cur, hparams.eps);
 
         wstate.use_buf(ctx0, 1);
 
@@ -2301,8 +2300,8 @@ static bool whisper_decode_internal(
 
     // run the computation
     {
-        ggml_build_forward_expand(&gf, logits);
-        ggml_graph_compute       (ctx0, &gf);
+        ggml_build_forward_expand  (&gf, logits);
+        ggml_graph_compute_with_ctx(ctx0, &gf, n_threads);
     }
 
     // extract logits for all N tokens
@@ -2351,7 +2350,7 @@ static std::string to_timestamp(int64_t t, bool comma = false) {
 static float sin_vals[SIN_COS_N_COUNT];
 static float cos_vals[SIN_COS_N_COUNT];
 
-// In FFT, we frequently use sine and cosine operations with the same values. 
+// In FFT, we frequently use sine and cosine operations with the same values.
 // We can use precalculated values to speed up the process.
 static void fill_sin_cos_table() {
     static bool is_filled = false;
@@ -5158,17 +5157,15 @@ WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads) {
 
             struct ggml_cgraph gf = ggml_build_forward(c);
 
-            gf.n_threads = n_threads;
-
             double tsum = 0.0;
 
             // heat-up
-            ggml_graph_compute(ctx0, &gf);
+            ggml_graph_compute_with_ctx(ctx0, &gf, n_threads);
 
             for (int i = 0; i < n_max; ++i) {
                 const int64_t t0 = ggml_time_us();
 
-                ggml_graph_compute(ctx0, &gf);
+                ggml_graph_compute_with_ctx(ctx0, &gf, n_threads);
 
                 const int64_t t1 = ggml_time_us();
 
