@@ -23,9 +23,9 @@ function(build_library target_name)
     
     target_link_libraries(${target_name} ${LOG_LIB} android)
 
-    if (${ANDROID_ABI} STREQUAL "arm64-v8a")
+    if (${target_name} STREQUAL "whisper_v8fp16_va")
         target_compile_options(${target_name} PRIVATE -march=armv8.2-a+fp16)
-    elseif (${ANDROID_ABI} STREQUAL "armeabi-v7a")
+    elseif (${target_name} STREQUAL "whisper_vfpv4")
         target_compile_options(${target_name} PRIVATE -mfpu=neon-vfpv4)
     endif ()
 
