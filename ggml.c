@@ -663,7 +663,7 @@ static inline __m256 sum_i16_pairs_float(const __m256i x) {
 }
 
 static inline __m256 mul_sum_us8_pairs_float(const __m256i ax, const __m256i sy) {
-#if __AVXVNNI__
+#ifdef __AVXVNNI__
     const __m256i zero = _mm256_setzero_si256();
     const __m256i summed_pairs = _mm256_dpbusd_epi32(zero, ax, sy);
     return _mm256_cvtepi32_ps(summed_pairs);
@@ -676,7 +676,7 @@ static inline __m256 mul_sum_us8_pairs_float(const __m256i ax, const __m256i sy)
 
 // multiply int8_t, add results pairwise twice and return as float vector
 static inline __m256 mul_sum_i8_pairs_float(const __m256i x, const __m256i y) {
-#if __AVXVNNIINT8__
+#ifdef __AVXVNNIINT8__
     const __m256i zero = _mm256_setzero_si256();
     const __m256i summed_pairs = _mm256_dpbssd_epi32(zero, x, y);
     return _mm256_cvtepi32_ps(summed_pairs);
@@ -692,7 +692,7 @@ static inline __m256 mul_sum_i8_pairs_float(const __m256i x, const __m256i y) {
 static inline __m128i packNibbles( __m256i bytes )
 {
     // Move bits within 16-bit lanes from 0000_abcd_0000_efgh into 0000_0000_abcd_efgh
-#if __AVX512F__
+#ifdef __AVX512F__
     const __m256i bytes_srli_4 = _mm256_srli_epi16(bytes, 4);   // 0000_0000_abcd_0000
     bytes = _mm256_or_si256(bytes, bytes_srli_4);               // 0000_abcd_abcd_efgh
     return _mm256_cvtepi16_epi8(bytes);                         // abcd_efgh
@@ -4949,6 +4949,13 @@ struct ggml_tensor * ggml_set_name(struct ggml_tensor * tensor, const char * nam
     return tensor;
 }
 
+#ifdef __GNUC__
+#ifdef __MINGW32__
+__attribute__((gnu_format(printf, 2, 3)))
+#else
+__attribute__((format(printf, 2, 3)))
+#endif
+#endif
 struct ggml_tensor * ggml_format_name(struct ggml_tensor * tensor, const char * fmt, ...) {
     va_list args;
     va_start(args, fmt);
