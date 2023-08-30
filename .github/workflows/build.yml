@@ -7,7 +7,7 @@ env:
 jobs:
   ubuntu-latest:
     runs-on: ubuntu-latest
-    
+
     strategy:
       fail-fast: false
       matrix:
@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v3
-      
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
@@ -46,10 +46,10 @@ jobs:
         run: |
           make
           make stream
-  
+
   freeBSD-latest:
     runs-on: macos-12
-    
+
     steps:
       - name: Clone
         uses: actions/checkout@v3
@@ -131,10 +131,10 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v3
-        
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
-      
+
       - name: Build ${{ matrix.arch }}
         run: |
           docker run --platform ${{ matrix.arch }} --rm \
@@ -275,10 +275,10 @@ jobs:
         with:
           name: whisper-blas-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
-          
+
   windows-cublas:
     runs-on: windows-latest
-    
+
     strategy:
       matrix:
         build: [Release]
@@ -290,40 +290,40 @@ jobs:
             s2arc: x64
           - sdl2: ON
             s2ver: 2.26.0
-            
+
     steps:
       - name: Clone
         uses: actions/checkout@v3
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1
-        
+
       - name: Install CUDA Toolkit
         id: cuda-toolkit
         uses: Jimver/cuda-toolkit@v0.2.10
-        
+
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
         run: |
           C:/msys64/usr/bin/wget.exe -qO sdl2.zip https://github.com/libsdl-org/SDL/releases/download/release-${{ matrix.s2ver }}/SDL2-devel-${{ matrix.s2ver }}-VC.zip
           7z x sdl2.zip
           echo "SDL2_DIR=$env:GITHUB_WORKSPACE/SDL2-${{ matrix.s2ver }}/cmake" >> $env:GITHUB_ENV
-        
+
       - name: Configure
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
           -DWHISPER_CUBLAS=1
-      
+
       - name: Build
         run: |
           cd ./build
           msbuild ALL_BUILD.vcxproj -t:build -p:configuration=${{ matrix.build }} -p:platform=${{ matrix.arch }}
-          
+
       - name: Copy SDL2.dll
         if: matrix.sdl2 == 'ON'
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
-          
+
       - name: Upload binaries
         if: matrix.sdl2 == 'ON'
         uses: actions/upload-artifact@v1
@@ -371,7 +371,7 @@ jobs:
 
       - name: Build objc example
         run: xcodebuild -project examples/whisper.objc/whisper.objc.xcodeproj -scheme whisper.objc -configuration ${{ matrix.build }} -sdk iphonesimulator build
-      
+
       - name: Build swiftui example
         run: xcodebuild -project examples/whisper.swiftui/whisper.swiftui.xcodeproj -scheme WhisperCppDemo -configuration ${{ matrix.build }} -sdk iphonesimulator build
 
@@ -387,7 +387,7 @@ jobs:
         with:
           distribution: zulu
           java-version: 17
-      
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v2
 
@@ -426,6 +426,15 @@ jobs:
           name: whispercpp.jar
           path: bindings/java/build/libs/whispercpp-*.jar
 
+      - name: Publish package
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: publish
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+
   quantize:
     runs-on: ubuntu-latest
 
@@ -438,12 +447,3 @@ jobs:
           ./models/download-ggml-model.sh tiny.en
           make quantize
           ./quantize models/ggml-tiny.en.bin models/ggml-tiny.en-q4_0.bin q4_0
-
-#      - name: Publish package
-#        if: ${{ github.ref == 'refs/heads/master' }}
-#        uses: gradle/gradle-build-action@v2
-#        with:
-#          arguments: publish
-#        env:
-#          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-#          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
