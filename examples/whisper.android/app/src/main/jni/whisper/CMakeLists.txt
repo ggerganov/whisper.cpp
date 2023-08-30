@@ -12,33 +12,42 @@ set(
         ${CMAKE_SOURCE_DIR}/jni.c
 )
 
-if (${ANDROID_ABI} STREQUAL "arm64-v8a")
-    set(WHISPER_LIBRARY_NAME whisper_v8fp16_va)
-elseif (${ANDROID_ABI} STREQUAL "armeabi-v7a")
-    set(WHISPER_LIBRARY_NAME whisper_vfpv4)
-endif ()
+find_library(LOG_LIB log)
 
-add_library(
-        ${WHISPER_LIBRARY_NAME}
+function(build_library target_name)
+    add_library(
+        ${target_name}
         SHARED
         ${SOURCE_FILES}
-)
+    )
+    
+    target_link_libraries(${target_name} ${LOG_LIB} android)
+
+    if (${target_name} STREQUAL "whisper_v8fp16_va")
+        target_compile_options(${target_name} PRIVATE -march=armv8.2-a+fp16)
+    elseif (${target_name} STREQUAL "whisper_vfpv4")
+        target_compile_options(${target_name} PRIVATE -mfpu=neon-vfpv4)
+    endif ()
+
+    if (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+
+        target_compile_options(${target_name} PRIVATE -O3)
+        target_compile_options(${target_name} PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
+        target_compile_options(${target_name} PRIVATE -ffunction-sections -fdata-sections)
+
+        target_link_options(${target_name} PRIVATE -Wl,--gc-sections)
+        target_link_options(${target_name} PRIVATE -Wl,--exclude-libs,ALL)
+        target_link_options(${target_name} PRIVATE -flto)
+
+    endif ()
+endfunction()
+
+build_library("whisper") # Default target
 
 if (${ANDROID_ABI} STREQUAL "arm64-v8a")
-    target_compile_options(${WHISPER_LIBRARY_NAME} PRIVATE -march=armv8.2-a+fp16)
+    build_library("whisper_v8fp16_va")
 elseif (${ANDROID_ABI} STREQUAL "armeabi-v7a")
-    target_compile_options(${WHISPER_LIBRARY_NAME} PRIVATE -mfpu=neon-vfpv4)
+    build_library("whisper_vfpv4")
 endif ()
 
-
-target_link_libraries(${WHISPER_LIBRARY_NAME} log android)
 include_directories(${WHISPER_LIB_DIR})
-
-if (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    target_compile_options(${WHISPER_LIBRARY_NAME} PRIVATE -O3)
-    target_compile_options(${WHISPER_LIBRARY_NAME} PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
-    target_compile_options(${WHISPER_LIBRARY_NAME} PRIVATE -ffunction-sections -fdata-sections)
-    target_link_options(${WHISPER_LIBRARY_NAME} PRIVATE -Wl,--gc-sections)
-    target_link_options(${WHISPER_LIBRARY_NAME} PRIVATE -Wl,--exclude-libs,ALL)
-    target_link_options(${WHISPER_LIBRARY_NAME} PRIVATE -flto)
-endif ()
