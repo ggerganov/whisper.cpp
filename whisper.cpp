@@ -3,7 +3,7 @@
 #include "coreml/whisper-encoder.h"
 #endif
 
-#if WHISPER_USE_OPENVINO
+#ifdef WHISPER_USE_OPENVINO
 #include "openvino/whisper-openvino-encoder.h"
 #endif
 
@@ -730,6 +730,13 @@ static void whisper_default_log(const char * text) {
 
 static whisper_log_callback whisper_log = whisper_default_log;
 
+#ifdef __GNUC__
+#ifdef __MINGW32__
+__attribute__((gnu_format(printf, 1, 2)))
+#else
+__attribute__((format(printf, 1, 2)))
+#endif
+#endif
 static void log(const char * fmt, ...) {
     if (!whisper_log) return;
     char buf[1024];
@@ -2446,7 +2453,7 @@ static void fft(const std::vector<float> & in, std::vector<float> & out) {
 }
 
 static bool hann_window(int length, bool periodic, std::vector<float> & output) {
-    if (output.size() < length) {
+    if (output.size() < static_cast<size_t>(length)) {
         output.resize(length);
     }
     int offset = -1;
