@@ -433,8 +433,10 @@ jobs:
           arguments: publish
           build-root-directory: bindings/java
         env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+          MAVEN_USERNAME: ${{ secrets.JIRA_USER }}
+          MAVEN_PASSWORD: ${{ secrets.JIRA_PASS }}
+          # MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          # MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
 
   quantize:
     runs-on: ubuntu-latest
