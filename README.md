@@ -419,6 +419,7 @@ WHISPER_CLBLAST=1 make -j
 
 CMake:
 cd whisper.cpp
+vcpkg install opencl clblast
 cmake -B build -DWHISPER_CLBLAST=ON
 cmake --build build -j --config Release
 cp build/bin/Release/* ../ 
