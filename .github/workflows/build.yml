@@ -431,6 +431,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           arguments: publish
+          build-root-directory: bindings/java
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
