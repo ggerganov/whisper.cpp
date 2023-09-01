@@ -79,7 +79,7 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 	endif
 
 	ifdef CPUINFO_CMD
-		AVX_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX')
+		AVX_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX|AVX1.0')
 		ifneq (,$(AVX_M))
 			CFLAGS   += -mavx
 			CXXFLAGS += -mavx
