@@ -81,32 +81,38 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 	ifdef CPUINFO_CMD
 		AVX_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX')
 		ifneq (,$(AVX_M))
-			CFLAGS += -mavx
+			CFLAGS   += -mavx
+			CXXFLAGS += -mavx
 		endif
 
 		AVX2_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX2')
 		ifneq (,$(AVX2_M))
-			CFLAGS += -mavx2
+			CFLAGS   += -mavx2
+			CXXFLAGS += -mavx2
 		endif
 
 		FMA_M := $(shell $(CPUINFO_CMD) | grep -iw 'FMA')
 		ifneq (,$(FMA_M))
-			CFLAGS += -mfma
+			CFLAGS   += -mfma
+			CXXFLAGS += -mfma
 		endif
 
 		F16C_M := $(shell $(CPUINFO_CMD) | grep -iw 'F16C')
 		ifneq (,$(F16C_M))
-			CFLAGS += -mf16c
+			CFLAGS   += -mf16c
+			CXXFLAGS += -mf16c
 		endif
 
 		SSE3_M := $(shell $(CPUINFO_CMD) | grep -iwE 'PNI|SSE3')
 		ifneq (,$(SSE3_M))
-			CFLAGS += -msse3
+			CFLAGS   += -msse3
+			CXXFLAGS += -msse3
 		endif
 
 		SSSE3_M := $(shell $(CPUINFO_CMD) | grep -iw 'SSSE3')
 		ifneq (,$(SSSE3_M))
-			CFLAGS += -mssse3
+			CFLAGS   += -mssse3
+			CXXFLAGS += -mssse3
 		endif
 	endif
 endif
