@@ -76,39 +76,34 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
 		CPUINFO_CMD := sysinfo -cpu
 	endif
 
-	ifdef CPUINFO_CMD  	
-    AVX_M := $(shell $(CPUINFO_CMD) | grep -m 1 "avx ")
-		ifneq (,$(findstring avx,$(AVX_M)))
+	ifdef CPUINFO_CMD
+		AVX_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX')
+		ifneq (,$(AVX_M))
 			CFLAGS += -mavx
 		endif
-    
-		AVX2_M := $(shell $(CPUINFO_CMD) | grep -m 1 "avx2 ")
-		ifneq (,$(findstring avx2,$(AVX2_M)))
+
+		AVX2_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX2')
+		ifneq (,$(AVX2_M))
 			CFLAGS += -mavx2
 		endif
 
-		FMA_M := $(shell $(CPUINFO_CMD) | grep -m 1 "fma ")
-		ifneq (,$(findstring fma,$(FMA_M)))
+		FMA_M := $(shell $(CPUINFO_CMD) | grep -iw 'FMA')
+		ifneq (,$(FMA_M))
 			CFLAGS += -mfma
 		endif
 
-		F16C_M := $(shell $(CPUINFO_CMD) | grep -m 1 "f16c ")
-		ifneq (,$(findstring f16c,$(F16C_M)))
+		F16C_M := $(shell $(CPUINFO_CMD) | grep -iw 'F16C')
+		ifneq (,$(F16C_M))
 			CFLAGS += -mf16c
-
-			AVX1_M := $(shell $(CPUINFO_CMD) | grep -m 1 "avx ")
-			ifneq (,$(findstring avx,$(AVX1_M)))
-				CFLAGS += -mavx
-			endif
 		endif
 
-		SSE3_M := $(shell $(CPUINFO_CMD) | grep -m 1 "sse3 ")
-		ifneq (,$(findstring sse3,$(SSE3_M)))
+		SSE3_M := $(shell $(CPUINFO_CMD) | grep -iwE 'PNI|SSE3')
+		ifneq (,$(SSE3_M))
 			CFLAGS += -msse3
 		endif
 
-		SSSE3_M := $(shell $(CPUINFO_CMD) | grep -m 1 "ssse3 ")
-		ifneq (,$(findstring ssse3,$(SSSE3_M)))
+		SSSE3_M := $(shell $(CPUINFO_CMD) | grep -iw 'SSSE3')
+		ifneq (,$(SSSE3_M))
 			CFLAGS += -mssse3
 		endif
 	endif
