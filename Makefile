@@ -58,9 +58,14 @@ endif
 
 # RLIMIT_MEMLOCK came in BSD, is not specified in POSIX.1,
 # and on macOS its availability depends on enabling Darwin extensions
+# similarly on DragonFly, enabling BSD extensions is necessary
 ifeq ($(UNAME_S),Darwin)
 	CFLAGS   += -D_DARWIN_C_SOURCE
 	CXXFLAGS += -D_DARWIN_C_SOURCE
+endif
+ifeq ($(UNAME_S),DragonFly)
+	CFLAGS   += -D__BSD_VISIBLE
+	CXXFLAGS += -D__BSD_VISIBLE
 endif
 
 # OS specific
