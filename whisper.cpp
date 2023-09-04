@@ -24,6 +24,7 @@
 #include <regex>
 #include <random>
 #include <unordered_set>
+#include <iostream>
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
@@ -622,6 +623,18 @@ struct whisper_decoder {
     std::vector<whisper_token> tokens_tmp; // used for whisper_decode calls
 };
 
+// replace std::pair by using customized pair struct (reason: std::pair is very slow)
+template<typename A, typename B>
+struct whisper_pair {
+    A first;
+    B second;
+
+    // Define a constructor that takes two arguments.
+    whisper_pair(const A& a, const B& b) : first(a), second(b) {}
+    // Define a constructor that takes no argument.
+    whisper_pair() : first(A()), second(B()) {}
+};
+
 struct whisper_state {
     int64_t t_sample_us = 0;
     int64_t t_encode_us = 0;
@@ -655,7 +668,7 @@ struct whisper_state {
     std::vector<whisper_token>   prompt_past;
 
     // work container used to avoid memory allocations
-    std::vector<std::pair<double, whisper_vocab::id>> logits_id;
+    std::vector<whisper_pair<double, whisper_vocab::id>> logits_id;
 
     mutable std::mt19937 rng; // used for sampling at t > 0.0
 
@@ -3978,17 +3991,18 @@ static std::vector<whisper_token_data> whisper_sample_token_topk(
 
     auto & logits_id = state.logits_id;
 
-    logits_id.clear();
+    logits_id.resize(n_logits);
     for (int i = 0; i < n_logits; ++i) {
-        logits_id.push_back({ logits[i], i });
+        logits_id[i].first = logits[i];
+        logits_id[i].second = i;
     }
 
-    std::partial_sort(
-            logits_id.begin(),
-            logits_id.begin() + k, logits_id.end(),
-            [](const std::pair<double, whisper_token> & a, const std::pair<double, whisper_token> & b) {
-                return a.first > b.first;
-            });
+    {
+        using pair_type = std::remove_reference<decltype(logits_id)>::type::value_type;
+        std::partial_sort(logits_id.begin(),logits_id.begin() + k, logits_id.end(),[](const pair_type & a, const pair_type & b) {
+                    return a.first > b.first;
+                });
+    }
 
     std::vector<whisper_token_data> result;
     result.reserve(k);
