@@ -4099,7 +4099,7 @@ static void whisper_sequence_score(
 
 static bool whisper_fast_swap_KV(std::vector<int> & view, whisper_decoder src[], int size) {
     // (decoder->buffer->decoder or decoder->buffer + decoder->decoder)
-    std::unordered_set<int> two_copy; // decoder indices requires two copies to safely modify KV caches
+    std::unordered_set<int> two_copy; // decoder indices require two copies to safely modify KV caches
     two_copy.reserve(size);
 
     // (buffer->decoder or decoder->decoder)
