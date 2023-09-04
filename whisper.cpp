@@ -4103,7 +4103,7 @@ static bool whisper_fast_swap_KV(std::vector<int> & view, whisper_decoder src[],
     two_copy.reserve(size);
 
     // (buffer->decoder or decoder->decoder)
-    std::unordered_set<int> one_copy; // decoder indices requires one copies to safely modify KV caches
+    std::unordered_set<int> one_copy; // decoder indices require one copy to safely modify KV caches
     one_copy.reserve(size);
 
     for (int i = 0; i < size; i++) {
