@@ -4096,7 +4096,7 @@ static void whisper_sequence_score(
     }
 }
 
-static bool whisper_fast_swap_KV(std::vector<int> & view, whisper_decoder src[], int size) {
+static bool whisper_kv_swap_fast(std::vector<int> & view, whisper_decoder src[], int & size) {
     // (decoder->buffer->decoder or decoder->buffer + decoder->decoder)
     std::unordered_set<int> two_copy; // decoder indices require two copies to safely modify KV caches
     two_copy.reserve(size);
@@ -4129,19 +4129,25 @@ static bool whisper_fast_swap_KV(std::vector<int> & view, whisper_decoder src[],
         std::vector<uint8_t> v;
     };
 
-    std::vector<kv_buf> kv_bufs;
-    kv_bufs.resize(size);
+    static std::vector<kv_buf> kv_bufs(size);
+    static bool is_resized = false;
 
-    for (auto &i : two_copy) {
+    if (!is_resized) {
+        for (int i = 0; i < size; i++) {
+            kv_bufs[i].k.resize(ggml_nbytes(src[i].kv_self.k));
+            kv_bufs[i].v.resize(ggml_nbytes(src[i].kv_self.v));
+        }
+        is_resized = true;
+    }
+
+    for (auto & i : two_copy) {
         // make a copy of KV caches
-        kv_bufs[i].k.resize(ggml_nbytes(src[i].kv_self.k));
-        kv_bufs[i].v.resize(ggml_nbytes(src[i].kv_self.v));
         memcpy(kv_bufs[i].k.data(), src[i].kv_self.k->data, kv_bufs[i].k.size());
         memcpy(kv_bufs[i].v.data(), src[i].kv_self.v->data, kv_bufs[i].v.size());
     }
 
     // since two-copy decoder KV caches are protected by kv_bufs, modify them first
-    for (auto &i : two_copy) {
+    for (auto & i : two_copy) {
         if (two_copy.find(view[i]) != two_copy.end()) {
             // modify KV caches of decoder using data from kv_bufs
             memcpy(src[i].kv_self.k->data, kv_bufs[view[i]].k.data(), kv_bufs[view[i]].k.size());
@@ -4154,7 +4160,7 @@ static bool whisper_fast_swap_KV(std::vector<int> & view, whisper_decoder src[],
     }
 
     // then modify one-copy decoder KV caches
-    for (auto &i : one_copy) {
+    for (auto & i : one_copy) {
         if (two_copy.find(view[i]) != two_copy.end()) {
             // modify KV caches of decoder using data from kv_bufs
             memcpy(src[i].kv_self.k->data, kv_bufs[view[i]].k.data(), kv_bufs[view[i]].k.size());
@@ -4481,7 +4487,6 @@ int whisper_full_with_state(
                 const int64_t t_start_sample_us = ggml_time_us();
 
                 if (params.strategy == whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH) {
-                    // clear beam candidates
                     beam_candidates.clear();
                 }
 
@@ -4529,7 +4534,7 @@ int whisper_full_with_state(
                     });
 
                     uint32_t cur_c = 0;
-                    std::vector<int> decoder_index(n_decoders_cur, -1);
+                    std::vector<int> decoder_idx(n_decoders_cur, -1);
 
                     for (int j = 0; j < n_decoders_cur; ++j) {
                         auto & decoder = state->decoders[j];
@@ -4548,13 +4553,13 @@ int whisper_full_with_state(
                         decoder.seek_delta = cur.seek_delta;
                         decoder.has_ts     = cur.has_ts;
 
-                        decoder_index[j] = cur.decoder_idx;
+                        decoder_idx[j] = cur.decoder_idx;
                         WHISPER_PRINT_DEBUG("%s: beam search: decoder %d: from decoder %d: token = %10s, plog = %8.5f, sum_logprobs = %8.5f\n",
                                 __func__, j, cur.decoder_idx, ctx->vocab.id_to_token.at(decoder.sequence.tokens.back().id).c_str(), decoder.sequence.tokens.back().plog, decoder.sequence.sum_logprobs_all);
                     }
 
                     // update KV caches
-                    whisper_fast_swap_KV(decoder_index, state->decoders, n_decoders_cur);
+                    whisper_kv_swap_fast(decoder_idx, state->decoders, n_decoders_cur);
                 }
 
                 // update the decoder state
