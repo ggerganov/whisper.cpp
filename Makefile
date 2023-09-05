@@ -67,7 +67,7 @@ endif
 #       feel free to update the Makefile for your architecture and send a pull request or issue
 ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 	ifeq ($(UNAME_S),Darwin)
-		CPUINFO_CMD := sysctl machdep.cpu.features
+		CPUINFO_CMD := sysctl machdep.cpu.features machdep.cpu.leaf7_features
 	else ifeq ($(UNAME_S),Linux)
 		CPUINFO_CMD := cat /proc/cpuinfo
 	else ifneq (,$(filter MINGW32_NT% MINGW64_NT%,$(UNAME_S)))
