@@ -656,10 +656,14 @@ __kernel void dequantize_mul_mat_vec_q6_K(__global const struct block_q6_K * xx,
 \n#if K_QUANTS_PER_ITERATION == 1\n
     const int l0 = K_QUANTS_PER_ITERATION*in;            // 0...15
     const int is = 0;
+
 \n#else\n
+
     const int l0 = 4 * in;                               // 0, 4, 8, ..., 28
     const int is = in / 4;
+
 \n#endif\n
+
     const int ql_offset = 64*im + l0;
     const int qh_offset = 32*im + l0;
     const int s_offset  =  8*im + is;
@@ -1376,7 +1380,7 @@ static void ggml_cl_mul_f32(const ggml_tensor * src0, const ggml_tensor * src1, 
     const int64_t ne00 = src0->ne[0];
     const int64_t ne01 = src0->ne[1];
     const int64_t ne02 = src0->ne[2];
-    const int64_t ne03 = src0->ne[2];
+    const int64_t ne03 = src0->ne[3];
     const int64_t ne0 = ne00 * ne01 * ne02 * ne03;
     const int64_t ne10 = src1->ne[0];
     const int64_t ne11 = src1->ne[1];
