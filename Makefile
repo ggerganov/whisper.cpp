@@ -65,56 +65,56 @@ endif
 # Architecture specific
 # TODO: probably these flags need to be tweaked on some architectures
 #       feel free to update the Makefile for your architecture and send a pull request or issue
-ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686))
+ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 	ifeq ($(UNAME_S),Darwin)
 		CPUINFO_CMD := sysctl machdep.cpu.features
 	else ifeq ($(UNAME_S),Linux)
 		CPUINFO_CMD := cat /proc/cpuinfo
 	else ifneq (,$(filter MINGW32_NT% MINGW64_NT%,$(UNAME_S)))
 		CPUINFO_CMD := cat /proc/cpuinfo
+	else ifneq (,$(filter DragonFly FreeBSD,$(UNAME_S)))
+		CPUINFO_CMD := grep Features /var/run/dmesg.boot
 	else ifeq ($(UNAME_S),Haiku)
 		CPUINFO_CMD := sysinfo -cpu
 	endif
 
-	ifdef CPUINFO_CMD  	
-    AVX_M := $(shell $(CPUINFO_CMD) | grep -m 1 "avx ")
-		ifneq (,$(findstring avx,$(AVX_M)))
-			CFLAGS += -mavx
-		endif
-    
-		AVX2_M := $(shell $(CPUINFO_CMD) | grep -m 1 "avx2 ")
-		ifneq (,$(findstring avx2,$(AVX2_M)))
-			CFLAGS += -mavx2
+	ifdef CPUINFO_CMD
+		AVX_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX|AVX1.0')
+		ifneq (,$(AVX_M))
+			CFLAGS   += -mavx
+			CXXFLAGS += -mavx
 		endif
 
-		FMA_M := $(shell $(CPUINFO_CMD) | grep -m 1 "fma ")
-		ifneq (,$(findstring fma,$(FMA_M)))
-			CFLAGS += -mfma
+		AVX2_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX2')
+		ifneq (,$(AVX2_M))
+			CFLAGS   += -mavx2
+			CXXFLAGS += -mavx2
 		endif
 
-		F16C_M := $(shell $(CPUINFO_CMD) | grep -m 1 "f16c ")
-		ifneq (,$(findstring f16c,$(F16C_M)))
-			CFLAGS += -mf16c
-
-			AVX1_M := $(shell $(CPUINFO_CMD) | grep -m 1 "avx ")
-			ifneq (,$(findstring avx,$(AVX1_M)))
-				CFLAGS += -mavx
-			endif
+		FMA_M := $(shell $(CPUINFO_CMD) | grep -iw 'FMA')
+		ifneq (,$(FMA_M))
+			CFLAGS   += -mfma
+			CXXFLAGS += -mfma
 		endif
 
-		SSE3_M := $(shell $(CPUINFO_CMD) | grep -m 1 "sse3 ")
-		ifneq (,$(findstring sse3,$(SSE3_M)))
-			CFLAGS += -msse3
+		F16C_M := $(shell $(CPUINFO_CMD) | grep -iw 'F16C')
+		ifneq (,$(F16C_M))
+			CFLAGS   += -mf16c
+			CXXFLAGS += -mf16c
 		endif
 
-		SSSE3_M := $(shell $(CPUINFO_CMD) | grep -m 1 "ssse3 ")
-		ifneq (,$(findstring ssse3,$(SSSE3_M)))
-			CFLAGS += -mssse3
+		SSE3_M := $(shell $(CPUINFO_CMD) | grep -iwE 'PNI|SSE3')
+		ifneq (,$(SSE3_M))
+			CFLAGS   += -msse3
+			CXXFLAGS += -msse3
+		endif
+
+		SSSE3_M := $(shell $(CPUINFO_CMD) | grep -iw 'SSSE3')
+		ifneq (,$(SSSE3_M))
+			CFLAGS   += -mssse3
+			CXXFLAGS += -mssse3
 		endif
 	endif
-endif
-ifeq ($(UNAME_M),amd64)
-	CFLAGS += -mavx -mavx2 -mfma -mf16c
 endif
 
 ifneq ($(filter ppc64%,$(UNAME_M)),)
