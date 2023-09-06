@@ -587,7 +587,11 @@ int process_general_transcription(struct whisper_context * ctx, audio_async &aud
                     // find the prompt in the text
                     float best_sim = 0.0f;
                     size_t best_len = 0;
-                    for (int n = 0.8*k_prompt.size(); n <= 1.2*k_prompt.size(); ++n) {
+                    for (size_t n = 0.8*k_prompt.size(); n <= 1.2*k_prompt.size(); ++n) {
+                        if (n >= txt.size()) {
+                            break;
+                        }
+
                         const auto prompt = txt.substr(0, n);
 
                         const float sim = similarity(prompt, k_prompt);
@@ -600,9 +604,15 @@ int process_general_transcription(struct whisper_context * ctx, audio_async &aud
                         }
                     }
 
-                    const std::string command = ::trim(txt.substr(best_len));
+                    if (best_len == 0) {
+                        fprintf(stdout, "%s: WARNING: command not recognized, try again\n", __func__);
+                    } else {
+                        // cut the prompt from the decoded text
+                        const std::string command = ::trim(txt.substr(best_len));
 
-                    fprintf(stdout, "%s: Command '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", command.c_str(), "\033[0m", (int) t_ms);
+                        fprintf(stdout, "%s: Command '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", command.c_str(), "\033[0m", (int) t_ms);
+                    }
+
                     fprintf(stdout, "\n");
                 }
 
