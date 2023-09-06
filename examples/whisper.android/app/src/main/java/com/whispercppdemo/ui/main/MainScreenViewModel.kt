@@ -47,7 +47,7 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
     }
 
     private suspend fun printSystemInfo() {
-        printMessage(String.format("System Info: %s\n", WhisperContext.getSystemInfo()));
+        printMessage(String.format("System Info: %s\n", WhisperContext.getSystemInfo()))
     }
 
     private suspend fun loadData() {
