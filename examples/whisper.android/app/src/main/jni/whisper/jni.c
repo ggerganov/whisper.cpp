@@ -163,15 +163,11 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_freeContext(
 
 JNIEXPORT void JNICALL
 Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_fullTranscribe(
-        JNIEnv *env, jobject thiz, jlong context_ptr, jfloatArray audio_data) {
+        JNIEnv *env, jobject thiz, jlong context_ptr, jint num_threads, jfloatArray audio_data) {
     UNUSED(thiz);
     struct whisper_context *context = (struct whisper_context *) context_ptr;
     jfloat *audio_data_arr = (*env)->GetFloatArrayElements(env, audio_data, NULL);
     const jsize audio_data_length = (*env)->GetArrayLength(env, audio_data);
-
-    // Leave 2 processors free (i.e. the high-efficiency cores).
-    int max_threads = max(1, min(8, get_nprocs() - 2));
-    LOGI("Selecting %d threads", max_threads);
 
     // The below adapted from the Objective-C iOS sample
     struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
@@ -181,7 +177,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_fullTranscribe(
     params.print_special = false;
     params.translate = false;
     params.language = "en";
-    params.n_threads = max_threads;
+    params.n_threads = num_threads;
     params.offset_ms = 0;
     params.no_context = true;
     params.single_segment = false;
