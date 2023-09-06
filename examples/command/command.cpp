@@ -31,8 +31,9 @@ struct whisper_params {
     int32_t max_tokens = 32;
     int32_t audio_ctx  = 0;
 
-    float vad_thold    = 0.6f;
-    float freq_thold   = 100.0f;
+    float vad_thold  = 0.6f;
+    float freq_thold = 100.0f;
+
     float grammar_penalty = 100.0f;
 
     bool speed_up      = false;
@@ -137,6 +138,9 @@ std::string transcribe(whisper_context * ctx, const whisper_params & params, con
     wparams.max_tokens       = params.max_tokens;
     wparams.language         = params.language.c_str();
     wparams.n_threads        = params.n_threads;
+
+    // disable fallback - seems not useful for command recognition
+    wparams.temperature_inc  = 0.0f;
 
     wparams.audio_ctx        = params.audio_ctx;
     wparams.speed_up         = params.speed_up;
@@ -508,7 +512,7 @@ int always_prompt_transcription(struct whisper_context * ctx, audio_async & audi
 
 // general-purpose mode
 // freely transcribe the voice into text
-int process_general_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params) {
+int process_general_transcription(struct whisper_context * ctx, audio_async & audio, const whisper_params & params) {
     bool is_running  = true;
     bool have_prompt = false;
     bool ask_prompt  = true;
@@ -519,7 +523,9 @@ int process_general_transcription(struct whisper_context * ctx, audio_async &aud
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;
 
-    const std::string k_prompt = "Ok Whisper, start listening for commands.";
+    //const std::string k_prompt = "Ok Whisper, start listening for commands.";
+    //const std::string k_prompt = "Начало.";
+    const std::string k_prompt = "Добре Уиспър, започни да слушаш за команди.";
 
     fprintf(stderr, "\n");
     fprintf(stderr, "%s: general-purpose mode\n", __func__);
@@ -578,6 +584,9 @@ int process_general_transcription(struct whisper_context * ctx, audio_async &aud
                     // prepend the prompt audio
                     pcmf32_cur.insert(pcmf32_cur.begin(), pcmf32_prompt.begin(), pcmf32_prompt.end());
 
+                    // append 1 second of silence
+                    pcmf32_cur.insert(pcmf32_cur.end(), 1000*WHISPER_SAMPLE_RATE/1000, 0.0f);
+
                     const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob, t_ms));
 
                     prob = 100.0f*(prob - prob0);
@@ -604,6 +613,7 @@ int process_general_transcription(struct whisper_context * ctx, audio_async &aud
                         }
                     }
 
+                    fprintf(stdout, "%s:   DEBUG: txt = '%s'\n", __func__, txt.c_str());
                     if (best_len == 0) {
                         fprintf(stdout, "%s: WARNING: command not recognized, try again\n", __func__);
                     } else {
