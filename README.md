@@ -287,8 +287,8 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
   WHISPER_COREML=1 make -j
 
   # using CMake
-  cd build
-  cmake -DWHISPER_COREML=1 ..
+  cmake -B build -DWHISPER_COREML=1
+  cmake --build build -j --config Release
   ```
 
 - Run the examples as usual. For example:
@@ -366,8 +366,8 @@ This can result in significant speedup in encoder performance. Here are the inst
 
   And then build the project using cmake:
   ```bash
-  cd build
-  cmake -DWHISPER_OPENVINO=1 ..
+  cmake -B build -DWHISPER_OPENVINO=1
+  cmake --build build -j --config Release
   ```
 
 - Run the examples as usual. For example:
@@ -418,11 +418,9 @@ make clean
 WHISPER_CLBLAST=1 make -j
 
 CMake:
-cd whisper.cpp ; mkdir build ; cd build
-cmake -DWHISPER_CLBLAST=ON  ..
-make clean
-make -j
-cp bin/* ../ 
+cd whisper.cpp
+cmake -B build -DWHISPER_CLBLAST=ON
+cmake --build build -j --config Release
 ```
 
 

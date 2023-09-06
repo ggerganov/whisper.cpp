@@ -191,9 +191,9 @@ bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & 
     // create the ggml context
     {
         struct ggml_init_params params = {
-            .mem_size   = ctx_size,
-            .mem_buffer = NULL,
-            .no_alloc   = false,
+            /*.mem_size   =*/ ctx_size,
+            /*.mem_buffer =*/ NULL,
+            /*.no_alloc   =*/ false,
         };
 
         model.ctx = ggml_init(params);
@@ -420,7 +420,6 @@ bool gpt2_eval(
 
     struct ggml_context * ctx0 = ggml_init(params);
     struct ggml_cgraph gf = {};
-    gf.n_threads = n_threads;
 
     struct ggml_tensor * embd = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, N);
     memcpy(embd->data, embd_inp.data(), N*ggml_element_size(embd));
@@ -442,7 +441,7 @@ bool gpt2_eval(
         // norm
         {
             // [ 768, N]
-            cur = ggml_norm(ctx0, inpL);
+            cur = ggml_norm(ctx0, inpL, 1e-5f);
 
             // cur = ln_1_g*cur + ln_1_b
             // [ 768, N]
@@ -589,7 +588,7 @@ bool gpt2_eval(
         {
             // norm
             {
-                cur = ggml_norm(ctx0, inpFF);
+                cur = ggml_norm(ctx0, inpFF, 1e-5f);
 
                 // cur = ln_2_g*cur + ln_2_b
                 // [ 768, N]
@@ -644,7 +643,7 @@ bool gpt2_eval(
     // norm
     {
         // [ 768, N]
-        inpL = ggml_norm(ctx0, inpL);
+        inpL = ggml_norm(ctx0, inpL, 1e-5f);
 
         // inpL = ln_f_g*inpL + ln_f_b
         // [ 768, N]
@@ -664,8 +663,8 @@ bool gpt2_eval(
     //inpL = ggml_soft_max(ctx0, inpL);
 
     // run the computation
-    ggml_build_forward_expand(&gf, inpL);
-    ggml_graph_compute       (ctx0, &gf);
+    ggml_build_forward_expand  (&gf, inpL);
+    ggml_graph_compute_with_ctx(ctx0, &gf, n_threads);
 
     //if (n_past%100 == 0) {
     //    ggml_graph_print   (&gf);
