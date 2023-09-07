@@ -792,7 +792,7 @@ bool sam_params_parse(int argc, char ** argv, sam_params & params) {
     return true;
 }
 
-void sam_print_usage(int argc, char ** argv, const sam_params & params) {
+void sam_print_usage(int /*argc*/, char ** argv, const sam_params & params) {
     fprintf(stderr, "usage: %s [options]\n", argv[0]);
     fprintf(stderr, "\n");
     fprintf(stderr, "options:\n");

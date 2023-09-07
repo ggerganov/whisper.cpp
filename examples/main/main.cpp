@@ -260,7 +260,7 @@ std::string estimate_diarization_speaker(std::vector<std::vector<float>> pcmf32s
 
     return speaker;
 }
-void whisper_print_progress_callback(struct whisper_context * ctx, struct whisper_state * /*state*/, int progress, void * user_data) {
+void whisper_print_progress_callback(struct whisper_context * /*ctx*/, struct whisper_state * /*state*/, int progress, void * user_data) {
     int progress_step = ((whisper_print_user_data *) user_data)->params->progress_step;
     int * progress_prev  = &(((whisper_print_user_data *) user_data)->progress_prev);
     if (progress >= *progress_prev + progress_step) {
@@ -492,7 +492,7 @@ bool output_csv(struct whisper_context * ctx, const char * fname, const whisper_
     return true;
 }
 
-bool output_score(struct whisper_context * ctx, const char * fname, const whisper_params & params, std::vector<std::vector<float>> pcmf32s) {
+bool output_score(struct whisper_context * ctx, const char * fname, const whisper_params & /*params*/, std::vector<std::vector<float>> /*pcmf32s*/) {
     std::ofstream fout(fname);
     fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
 

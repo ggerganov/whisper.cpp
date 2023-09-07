@@ -349,7 +349,10 @@ int main(int argc, char ** argv) {
                 gpt2_set_prompt(ctx_gpt, prompt_base.c_str());
 
                 text_to_speak = ::replace(text_to_speak, params.person + ": ", "");
-                system((params.speak + " " + std::to_string(voice_id) + " \"" + text_to_speak + "\"").c_str());
+                int ret = system((params.speak + " " + std::to_string(voice_id) + " \"" + text_to_speak + "\"").c_str());
+                if (ret != 0) {
+                    fprintf(stderr, "%s: system() failed!\n", __func__);
+                }
 
                 audio.clear();
 

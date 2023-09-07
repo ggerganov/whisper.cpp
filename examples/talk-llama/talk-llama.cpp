@@ -649,7 +649,10 @@ int main(int argc, char ** argv) {
                 }
 
                 text_to_speak = ::replace(text_to_speak, "\"", "");
-                system((params.speak + " " + std::to_string(voice_id) + " \"" + text_to_speak + "\"").c_str());
+                int ret = system((params.speak + " " + std::to_string(voice_id) + " \"" + text_to_speak + "\"").c_str());
+                if (ret != 0) {
+                    fprintf(stderr, "%s: failed to speak\n", __func__);
+                }
 
                 audio.clear();
 

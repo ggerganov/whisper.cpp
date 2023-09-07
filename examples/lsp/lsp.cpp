@@ -324,12 +324,12 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
     commandset_list.push_back(cs);
     return json{{"index",index}};
 }
-json seek(struct whisper_context * ctx, audio_async &audio, json params) {
+json seek(struct whisper_context * /*ctx*/, audio_async & /*audio*/, json /*params*/) {
     // whisper_state has the pertinent offsets, but there also seem to be a large
     // number of scratch buffers that would prevent rewinding context in a manner similar to llama
     // I'll give this a another pass once everything else is implemented,
     // but for now, it's unsupported
-    throw json{
+    throw json {
         {"code", -32601},
             {"message", "Seeking is not yet supported."}
     };
@@ -412,7 +412,7 @@ void process_loop(struct whisper_context * ctx, audio_async &audio, const whispe
             jobqueue.pop_front();
             // send response
             std::string data = resp.dump(-1, ' ', false, json::error_handler_t::replace);
-            fprintf(stdout, "Content-Length: %d\r\n\r\n%s\n", data.length()+1, data.c_str());
+            fprintf(stdout, "Content-Length: %d\r\n\r\n%s\n", (int)data.length()+1, data.c_str());
             std::cout.flush();
 
         }
