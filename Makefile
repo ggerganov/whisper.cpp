@@ -42,17 +42,54 @@ CFLAGS   = -I.              -O3 -DNDEBUG -std=c11   -fPIC
 CXXFLAGS = -I. -I./examples -O3 -DNDEBUG -std=c++11 -fPIC
 LDFLAGS  =
 
-# ref: https://github.com/ggerganov/whisper.cpp/issues/37
-ifneq ($(wildcard /usr/include/musl/*),)
-	CFLAGS += -D_POSIX_SOURCE -D_GNU_SOURCE
-	CXXFLAGS += -D_POSIX_SOURCE -D_GNU_SOURCE
+# clock_gettime came in POSIX.1b (1993)
+# CLOCK_MONOTONIC came in POSIX.1-2001 / SUSv3 as optional
+# posix_memalign came in POSIX.1-2001 / SUSv3
+# M_PI is an XSI extension since POSIX.1-2001 / SUSv3, came in XPG1 (1985)
+CFLAGS   += -D_XOPEN_SOURCE=600
+CXXFLAGS += -D_XOPEN_SOURCE=600
+
+# Somehow in OpenBSD whenever POSIX conformance is specified
+# some string functions rely on locale_t availability,
+# which was introduced in POSIX.1-2008, forcing us to go higher
+ifeq ($(UNAME_S),OpenBSD)
+	CFLAGS   += -U_XOPEN_SOURCE -D_XOPEN_SOURCE=700
+	CXXFLAGS += -U_XOPEN_SOURCE -D_XOPEN_SOURCE=700
+endif
+
+# Data types, macros and functions related to controlling CPU affinity
+# are available on Linux through GNU extensions in libc
+ifeq ($(UNAME_S),Linux)
+	CFLAGS   += -D_GNU_SOURCE
+	CXXFLAGS += -D_GNU_SOURCE
 endif
 
 # RLIMIT_MEMLOCK came in BSD, is not specified in POSIX.1,
 # and on macOS its availability depends on enabling Darwin extensions
+# similarly on DragonFly, enabling BSD extensions is necessary
 ifeq ($(UNAME_S),Darwin)
 	CFLAGS   += -D_DARWIN_C_SOURCE
 	CXXFLAGS += -D_DARWIN_C_SOURCE
+endif
+ifeq ($(UNAME_S),DragonFly)
+	CFLAGS   += -D__BSD_VISIBLE
+	CXXFLAGS += -D__BSD_VISIBLE
+endif
+
+# alloca is a non-standard interface that is not visible on BSDs when
+# POSIX conformance is specified, but not all of them provide a clean way
+# to enable it in such cases
+ifeq ($(UNAME_S),FreeBSD)
+	CFLAGS   += -D__BSD_VISIBLE
+	CXXFLAGS += -D__BSD_VISIBLE
+endif
+ifeq ($(UNAME_S),NetBSD)
+	CFLAGS   += -D_NETBSD_SOURCE
+	CXXFLAGS += -D_NETBSD_SOURCE
+endif
+ifeq ($(UNAME_S),OpenBSD)
+	CFLAGS   += -D_BSD_SOURCE
+	CXXFLAGS += -D_BSD_SOURCE
 endif
 
 # OS specific
