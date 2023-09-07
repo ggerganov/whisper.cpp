@@ -4105,6 +4105,12 @@ static bool whisper_kv_swap_fast(std::vector<int> & view, whisper_decoder src[],
     std::unordered_set<int> one_copy; // decoder indices require one copy to safely modify KV caches
     one_copy.reserve(size);
 
+    // (decoder<->decoder)
+    std::unordered_set<int> p_swap_set; // decoder indices able to swap KV-cache pointers
+    p_swap_set.reserve(size);
+    std::vector<whisper_pair<int, int>> p_swap_vec;
+    p_swap_vec.reserve(size);
+
     for (int i = 0; i < size; i++) {
         // zero-copy (no modification)
         if (i == view[i] || view[i] < 0) {continue;}
@@ -4115,6 +4121,12 @@ static bool whisper_kv_swap_fast(std::vector<int> & view, whisper_decoder src[],
             if (i == view[j]) {
                 two_copy.insert(i);
                 is_one_copy = false;
+                // detect symmetric diagram
+                if (j == view[i]) {
+                    p_swap_set.insert(i);
+                    p_swap_set.insert(j);
+                    p_swap_vec.emplace_back(i, j);
+                }
                 break;
             }
         }
@@ -4148,6 +4160,9 @@ static bool whisper_kv_swap_fast(std::vector<int> & view, whisper_decoder src[],
 
     // since two-copy decoder KV caches are protected by kv_bufs, modify them first
     for (auto & i : two_copy) {
+        // skip the decoder indices that require pointer swapping
+        if (p_swap_set.find(i) != p_swap_set.end()) {continue;}
+
         if (two_copy.find(view[i]) != two_copy.end()) {
             // modify KV caches of decoder using data from kv_bufs
             memcpy(src[i].kv_self.k->data, kv_bufs[view[i]].k.data(), kv_bufs[view[i]].k.size());
@@ -4161,6 +4176,9 @@ static bool whisper_kv_swap_fast(std::vector<int> & view, whisper_decoder src[],
 
     // then modify one-copy decoder KV caches
     for (auto & i : one_copy) {
+        // skip the decoder indices that require pointer swapping
+        if (p_swap_set.find(i) != p_swap_set.end()) {continue;}
+
         if (two_copy.find(view[i]) != two_copy.end()) {
             // modify KV caches of decoder using data from kv_bufs
             memcpy(src[i].kv_self.k->data, kv_bufs[view[i]].k.data(), kv_bufs[view[i]].k.size());
@@ -4170,6 +4188,12 @@ static bool whisper_kv_swap_fast(std::vector<int> & view, whisper_decoder src[],
             memcpy(src[i].kv_self.k->data, src[view[i]].kv_self.k->data, ggml_nbytes(src[view[i]].kv_self.k));
             memcpy(src[i].kv_self.v->data, src[view[i]].kv_self.v->data, ggml_nbytes(src[view[i]].kv_self.v));
         }
+    }
+
+    // swap the pointers
+    for (auto & i : p_swap_vec) {
+        std::swap(src[i.first].kv_self.k->data, src[i.second].kv_self.k->data);
+        std::swap(src[i.first].kv_self.v->data, src[i.second].kv_self.v->data);
     }
 
     return true;
