@@ -321,6 +321,10 @@ else()
     endif()
 endif()
 
+#
+# POSIX conformance
+#
+
 # clock_gettime came in POSIX.1b (1993)
 # CLOCK_MONOTONIC came in POSIX.1-2001 / SUSv3 as optional
 # posix_memalign came in POSIX.1-2001 / SUSv3

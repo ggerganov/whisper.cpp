@@ -428,7 +428,7 @@ jobs:
 
       - name: Publish package
         if: ${{ github.ref == 'refs/heads/master' }}
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@2.4.2
         with:
           arguments: publish
           build-root-directory: bindings/java
