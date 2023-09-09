@@ -426,12 +426,20 @@ jobs:
           name: whispercpp.jar
           path: bindings/java/build/libs/whispercpp-*.jar
 
+      - name: Debug gradle signing
+        run: |
+          ./gradlew --stacktrace signMavenJavaPublication
+        env:
+          MAVEN_USERNAME: ${{ secrets.JIRA_USER }}
+          MAVEN_PASSWORD: ${{ secrets.JIRA_PASS }}
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+
       - name: Publish package
         if: ${{ github.ref == 'refs/heads/master' }}
         uses: gradle/gradle-build-action@v2.4.2
         with:
-#          arguments: publish
-          arguments: --stacktrace signMavenJavaPublication
+          arguments: publish
           build-root-directory: bindings/java
         env:
           MAVEN_USERNAME: ${{ secrets.JIRA_USER }}
