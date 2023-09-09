@@ -435,10 +435,8 @@ jobs:
         env:
           MAVEN_USERNAME: ${{ secrets.JIRA_USER }}
           MAVEN_PASSWORD: ${{ secrets.JIRA_PASS }}
-          # MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          # MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
-          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.GPG_PRIVATE_KEY }}
+          PGP_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
   quantize:
     runs-on: ubuntu-latest
