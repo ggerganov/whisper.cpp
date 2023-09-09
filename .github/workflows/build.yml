@@ -428,6 +428,7 @@ jobs:
 
       - name: Debug gradle signing
         run: |
+          cd bindings/java
           ./gradlew --stacktrace signMavenJavaPublication
         env:
           MAVEN_USERNAME: ${{ secrets.JIRA_USER }}
