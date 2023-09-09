@@ -22,6 +22,11 @@
 #include <vector>
 #include <map>
 
+bool file_exists(const std::string & fname) {
+    std::ifstream f(fname.c_str());
+    return f.good();
+}
+
 // command-line parameters
 struct whisper_params {
     int32_t n_threads  = std::min(4, (int32_t) std::thread::hardware_concurrency());
@@ -35,6 +40,8 @@ struct whisper_params {
     float freq_thold = 100.0f;
 
     float grammar_penalty = 100.0f;
+
+    grammar_parser::parse_state grammar_parsed;
 
     bool speed_up      = false;
     bool translate     = false;
@@ -117,14 +124,17 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "\n");
 }
 
-std::string transcribe(whisper_context * ctx, const whisper_params & params, const std::vector<float> & pcmf32, float & prob, int64_t & t_ms) {
+std::string transcribe(
+                 whisper_context * ctx,
+            const whisper_params & params,
+        const std::vector<float> & pcmf32,
+               const std::string & grammar_rule,
+                           float & prob,
+                         int64_t & t_ms) {
     const auto t_start = std::chrono::high_resolution_clock::now();
 
     prob = 0.0f;
     t_ms = 0;
-
-    grammar_parser::parse_state                  parsed_grammar;
-    std::vector<const whisper_grammar_element *> grammar_rules;
 
     whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
@@ -140,17 +150,20 @@ std::string transcribe(whisper_context * ctx, const whisper_params & params, con
     wparams.n_threads        = params.n_threads;
 
     // disable fallback - seems not useful for command recognition
-    wparams.temperature_inc  = 0.0f;
+    wparams.temperature_inc  = 0.00f;
 
-    wparams.audio_ctx        = params.audio_ctx;
-    wparams.speed_up         = params.speed_up;
+    wparams.audio_ctx = params.audio_ctx;
+    wparams.speed_up  = params.speed_up;
 
-    if (!params.grammar.empty()) {
-        parsed_grammar          = grammar_parser::parse(params.grammar.c_str());
-        grammar_rules           = parsed_grammar.c_rules();
+    //wparams.initial_prompt = params.prompt.data();
+
+    const auto & grammar_parsed = params.grammar_parsed;
+    auto grammar_rules = grammar_parsed.c_rules();
+
+    if (!params.grammar_parsed.rules.empty()) {
         wparams.grammar_rules   = grammar_rules.data();
         wparams.n_grammar_rules = grammar_rules.size();
-        wparams.i_start_rule    = parsed_grammar.symbol_ids.at("root");
+        wparams.i_start_rule    = grammar_parsed.symbol_ids.at(grammar_rule);
         wparams.grammar_penalty = params.grammar_penalty;
     }
 
@@ -270,7 +283,7 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
         fprintf(stderr, " ]\n");
     }
 
-    std::string  k_prompt = "select one from the available words: ";
+    std::string k_prompt = "select one from the available words: ";
     for (int i = 0; i < (int) allowed_commands.size(); ++i) {
         if (i > 0) {
             k_prompt += ", ";
@@ -476,7 +489,7 @@ int always_prompt_transcription(struct whisper_context * ctx, audio_async & audi
                 // detect the commands
                 audio.get(params.command_ms, pcmf32_cur);
 
-                const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob, t_ms));
+                const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, "", prob, t_ms));
 
                 const auto words = get_words(txt);
 
@@ -523,9 +536,10 @@ int process_general_transcription(struct whisper_context * ctx, audio_async & au
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;
 
-    //const std::string k_prompt = "Ok Whisper, start listening for commands.";
-    //const std::string k_prompt = "Начало.";
-    const std::string k_prompt = "Добре Уиспър, започни да слушаш за команди.";
+    std::string k_prompt = "Ok Whisper, start listening for commands.";
+    if (!params.prompt.empty()) {
+        k_prompt = params.prompt;
+    }
 
     fprintf(stderr, "\n");
     fprintf(stderr, "%s: general-purpose mode\n", __func__);
@@ -558,7 +572,7 @@ int process_general_transcription(struct whisper_context * ctx, audio_async & au
                     // wait for activation phrase
                     audio.get(params.prompt_ms, pcmf32_cur);
 
-                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob0, t_ms));
+                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, "root", prob0, t_ms));
 
                     fprintf(stdout, "%s: Heard '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", txt.c_str(), "\033[0m", (int) t_ms);
 
@@ -581,13 +595,16 @@ int process_general_transcription(struct whisper_context * ctx, audio_async & au
                     // we have heard the activation phrase, now detect the commands
                     audio.get(params.command_ms, pcmf32_cur);
 
+                    //printf("len prompt:  %.4f\n", pcmf32_prompt.size() / (float) WHISPER_SAMPLE_RATE);
+                    //printf("len command: %.4f\n", pcmf32_cur.size() / (float) WHISPER_SAMPLE_RATE);
+
+                    // prepend 3 second of silence
+                    pcmf32_cur.insert(pcmf32_cur.begin(), 3.0f*WHISPER_SAMPLE_RATE, 0.0f);
+
                     // prepend the prompt audio
                     pcmf32_cur.insert(pcmf32_cur.begin(), pcmf32_prompt.begin(), pcmf32_prompt.end());
 
-                    // append 1 second of silence
-                    pcmf32_cur.insert(pcmf32_cur.end(), 1000*WHISPER_SAMPLE_RATE/1000, 0.0f);
-
-                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob, t_ms));
+                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, "root", prob, t_ms));
 
                     prob = 100.0f*(prob - prob0);
 
@@ -688,13 +705,23 @@ int main(int argc, char ** argv) {
     int  ret_val = 0;
 
     if (!params.grammar.empty()) {
-        auto parsed_grammar = grammar_parser::parse(params.grammar.c_str());
+        auto & grammar = params.grammar_parsed;
+        if (file_exists(params.grammar.c_str())) {
+            // read grammar from file
+            std::ifstream ifs(params.grammar.c_str());
+            const std::string txt = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+            grammar = grammar_parser::parse(txt.c_str());
+        } else {
+            // read grammar from string
+            grammar = grammar_parser::parse(params.grammar.c_str());
+        }
+
         // will be empty (default) if there are parse errors
-        if (parsed_grammar.rules.empty()) {
+        if (grammar.rules.empty()) {
             ret_val = 1;
         } else {
             fprintf(stderr, "%s: grammar:\n", __func__);
-            grammar_parser::print_grammar(stderr, parsed_grammar);
+            grammar_parser::print_grammar(stderr, grammar);
             fprintf(stderr, "\n");
         }
     }
@@ -702,7 +729,7 @@ int main(int argc, char ** argv) {
     if (ret_val == 0) {
         if (!params.commands.empty()) {
             ret_val = process_command_list(ctx, audio, params);
-        } else if (!params.prompt.empty()) {
+        } else if (!params.prompt.empty() && params.grammar_parsed.rules.empty()) {
             ret_val = always_prompt_transcription(ctx, audio, params);
         } else {
             ret_val = process_general_transcription(ctx, audio, params);

@@ -3865,28 +3865,29 @@ static struct whisper_grammar whisper_grammar_init(
 static void whisper_suppress_invalid_grammar(
              whisper_context  & ctx,
     const whisper_full_params & params,
-           std::vector<float> & logprobs,
+           std::vector<float> & logits,
     const     whisper_grammar & grammar) {
 
     if (grammar.rules.empty() || grammar.stacks.empty()) {
         return;
     }
 
-    // bool allow_eot = false;
-    // for (const auto & stack : grammar.stacks) {
-    //     if (stack.empty()) {
-    //         allow_eot = true;
-    //         break;
-    //     }
-    // }
+    bool allow_eot = false;
+    for (const auto & stack : grammar.stacks) {
+        if (stack.empty()) {
+            allow_eot = true;
+            break;
+        }
+    }
+
+    const whisper_token eot = whisper_token_eot(&ctx);
 
     std::vector<std::pair<std::vector<uint32_t>, whisper_partial_utf8>> candidates_decoded;
     std::vector<whisper_grammar_candidate>                              candidates_grammar;
 
-    size_t size = logprobs.size();
-    for (whisper_token id = 0; id < (int) size; ++id) {
+    for (whisper_token id = 0; id < eot; ++id) {
         const std::string & text = ctx.vocab.id_to_token[id];
-        if (!text.empty() && text.rfind("[_", 0) != 0) {
+        if (!text.empty()) {
             candidates_decoded.push_back(decode_utf8(text.c_str(), grammar.partial_utf8));
             candidates_grammar.push_back({ id, candidates_decoded.back().first.data(), candidates_decoded.back().second });
         }
@@ -3895,14 +3896,12 @@ static void whisper_suppress_invalid_grammar(
     const auto rejects = whisper_grammar_reject_candidates(grammar.rules, grammar.stacks, candidates_grammar);
 
     for (const auto & reject : rejects) {
-        logprobs[reject.id] -= params.grammar_penalty;
+        logits[reject.id] -= params.grammar_penalty;
     }
 
-    // when the grammar does not allow any continuation, we don't want to penalize the EOT token
-    // TODO: is there are better way to do this?
-    printf("rejects.size() = %zu, whisper_token_eot(&ctx) - 2 = %d\n", rejects.size(), whisper_token_eot(&ctx) - 2);
-    if ((int) rejects.size() < whisper_token_eot(&ctx) - 2) {
-        logprobs[whisper_token_eot(&ctx)] -= params.grammar_penalty;
+    // when the grammar allows a continuation, we penalize the end-of-text token
+    if (!allow_eot) {
+        logits[eot] -= params.grammar_penalty;
     }
     //fprintf(stderr, "Allowed: (%zu tokens)\n", size - rejects.size());
 }
@@ -3912,7 +3911,7 @@ static void whisper_grammar_accept_token(whisper_context & ctx, whisper_grammar 
         return;
     }
 
-     fprintf(stderr, "Accept: '%s'\n", ctx.vocab.id_to_token[token].c_str());
+    //fprintf(stderr, "Accept: '%s'\n", ctx.vocab.id_to_token[token].c_str());
 
     const std::string & text = ctx.vocab.id_to_token[token];
 
@@ -4308,14 +4307,28 @@ static void whisper_process_logits(
                     logits[i]   = -INFINITY;
                     logprobs[i] = -INFINITY;
                 }
-            } else {
-                //printf("sampling text\n");
-                for (int i = vocab.token_beg; i < n_logits; ++i) {
-                    logits[i]   = -INFINITY;
-                    logprobs[i] = -INFINITY;
-                }
+            } else if (params.n_grammar_rules > 0) {
+                whisper_suppress_invalid_grammar(ctx, params, logits, decoder.grammar);
 
-                whisper_suppress_invalid_grammar(ctx, params, logprobs, decoder.grammar);
+                // populate the logprobs array (log_softmax)
+                {
+                    const float logit_max = *std::max_element(logits.begin(), logits.end());
+                    float logsumexp = 0.0f;
+                    for (int i = 0; i < n_logits; ++i) {
+                        if (logits[i] > -INFINITY) {
+                            logsumexp += expf(logits[i] - logit_max);
+                        }
+                    }
+                    logsumexp = logf(logsumexp) + logit_max;
+
+                    for (int i = 0; i < n_logits; ++i) {
+                        if (logits[i] > -INFINITY) {
+                            logprobs[i] = logits[i] - logsumexp;
+                        } else {
+                            logprobs[i] = -INFINITY;
+                        }
+                    }
+                }
             }
         }
     }
@@ -4331,7 +4344,7 @@ static void whisper_process_logits(
         }
     }
 
-#if 1
+#if 0
     // print first 100 logits - token string : logit
     //for (int i = 0; i < 10; i++) {
     //    const auto token   = vocab.id_to_token.at(i);

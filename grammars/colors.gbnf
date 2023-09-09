@@ -1,0 +1,24 @@
+# - red
+# - green
+# - blue
+# - red green
+# - red blue
+# - green red
+# - green blue green
+#
+# initial prompt:
+#
+#   "red green blue"
+#
+# example:
+#
+#   ./command -m ./models/ggml-base.en.bin -t 8 --grammar ./grammars/colors.gbnf --prompt "red green blue"
+#
+
+root   ::= init color (color)? (color)? "."
+prompt ::= init "."
+
+# leading space is very important!
+init ::= " red green blue"
+
+color ::= " " ("red" | "green" | "blue")

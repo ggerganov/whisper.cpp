@@ -1,0 +1,27 @@
+# - bishop to c3
+# - rook to d4
+# - knight to e5
+# - d4 d5 knight to c3
+# - c3 queen to d4 king b1
+# - pawn to a1 bishop to b2 knight to c3
+#
+# initial prompt:
+#
+#   "pawn to a1, bishop to b2, knight to c3, rook to d4, queen to e5, king to f6,"
+#
+# example:
+#
+#   ./command -m ./models/ggml-base.en.bin -t 8 --grammar ./grammars/chess.gbnf --prompt "pawn knight king a1 f5 h6"
+#
+
+root   ::= init (move? move? move? ".")
+prompt ::= init "."
+
+# leading space is very important!
+init ::= " pawn knight king a1 f5 h6"
+
+move ::= " " ((piece | pawn | king) " " "to "?)? [a-h] [1-8]
+
+piece ::= "bishop" | "rook" | "knight" | "queen"
+king  ::= "king"
+pawn  ::= "pawn"
