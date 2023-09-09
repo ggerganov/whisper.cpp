@@ -430,13 +430,12 @@ jobs:
         if: ${{ github.ref == 'refs/heads/master' }}
         uses: gradle/gradle-build-action@v2.4.2
         with:
-          arguments: publish
+#          arguments: publish
+          arguments: --stacktrace signMavenJavaPublication
           build-root-directory: bindings/java
         env:
           MAVEN_USERNAME: ${{ secrets.JIRA_USER }}
           MAVEN_PASSWORD: ${{ secrets.JIRA_PASS }}
-          # MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          # MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
 
