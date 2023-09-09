@@ -5,10 +5,6 @@
 # - c3 queen to d4 king b1
 # - pawn to a1 bishop to b2 knight to c3
 #
-# initial prompt:
-#
-#   "pawn to a1, bishop to b2, knight to c3, rook to d4, queen to e5, king to f6,"
-#
 # example:
 #
 #   ./command -m ./models/ggml-base.en.bin -t 8 --grammar ./grammars/chess.gbnf --prompt "pawn knight king a1 f5 h6"

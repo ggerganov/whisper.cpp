@@ -137,6 +137,7 @@ std::string transcribe(
     t_ms = 0;
 
     whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    //whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_BEAM_SEARCH);
 
     wparams.print_progress   = false;
     wparams.print_special    = params.print_special;
@@ -148,9 +149,6 @@ std::string transcribe(
     wparams.max_tokens       = params.max_tokens;
     wparams.language         = params.language.c_str();
     wparams.n_threads        = params.n_threads;
-
-    // disable fallback - seems not useful for command recognition
-    wparams.temperature_inc  = 0.00f;
 
     wparams.audio_ctx = params.audio_ctx;
     wparams.speed_up  = params.speed_up;
