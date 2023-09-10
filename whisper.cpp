@@ -1410,8 +1410,6 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
 
     const int n_mels = hparams.n_mels;
 
-    assert(mel_inp.n_mel == n_mels);
-
     struct ggml_init_params params = {
         /*.mem_size   =*/ wstate.buf_compute.size(),
         /*.mem_buffer =*/ wstate.buf_compute.data(),
@@ -1429,6 +1427,8 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
 
     assert(mel->type == GGML_TYPE_F32);
     if (!ggml_allocr_is_measure(alloc)) {
+        assert(mel_inp.n_mel == n_mels);
+
         float * dst = (float *) mel->data;
         memset(dst, 0, ggml_nbytes(mel));
 
@@ -1440,6 +1440,15 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                 dst[j*2*n_ctx + (i - i0)] = mel_inp.data[j*mel_inp.n_len + i];
             }
         }
+    }
+
+    ggml_build_forward_expand(gf, mel);
+
+    struct ggml_tensor * KQscale = ggml_new_tensor_1d(ctx0, GGML_TYPE_F32, 1);
+    ggml_allocr_alloc(alloc, KQscale);
+
+    if (!ggml_allocr_is_measure(alloc)) {
+        ggml_set_f32(KQscale, 1.0f/sqrt(float(n_state)/n_head));
     }
 
     struct ggml_tensor * cur;
@@ -1533,14 +1542,14 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                             Qcur),
                         Qcur);
 
-                //Qcur = ggml_scale_inplace(ctx0, Qcur, ggml_new_f32(ctx0, pow(float(n_state)/n_head, -0.25)));
+                //Qcur = ggml_scale(ctx0, Qcur, ggml_new_f32(ctx0, pow(float(n_state)/n_head, -0.25)));
 
                 // note: no bias for Key
                 struct ggml_tensor * Kcur = ggml_mul_mat(ctx0,
                         layer.attn_k_w,
                         cur);
 
-                //Kcur = ggml_scale_inplace(ctx0, Kcur, ggml_new_f32(ctx0, pow(float(n_state)/n_head, -0.25)));
+                //Kcur = ggml_scale(ctx0, Kcur, ggml_new_f32(ctx0, pow(float(n_state)/n_head, -0.25)));
 
                 struct ggml_tensor * Vcur = ggml_mul_mat(ctx0,
                         layer.attn_v_w,
@@ -1597,13 +1606,9 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                 // K * Q
                 struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
 
-                struct ggml_tensor * KQ_scaled =
-                    ggml_scale_inplace(ctx0,
-                            KQ,
-                            ggml_new_f32(ctx0, 1.0f/sqrt(float(n_state)/n_head))
-                            );
+                struct ggml_tensor * KQ_scaled = ggml_scale(ctx0, KQ, KQscale);
 
-                struct ggml_tensor * KQ_soft_max = ggml_soft_max_inplace(ctx0, KQ_scaled);
+                struct ggml_tensor * KQ_soft_max = ggml_soft_max(ctx0, KQ_scaled);
 
                 struct ggml_tensor * V =
                     ggml_cpy(ctx0,
@@ -1698,27 +1703,33 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                         cur),
                     ggml_repeat(ctx0, model.e_ln_b, cur));
         }
-
-        ggml_build_forward_expand  (gf, cur);
     }
 #ifdef WHISPER_USE_COREML
     else if (use_coreml) {
         cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
+        ggml_allocr_alloc(alloc, cur);
 
-        whisper_coreml_encode(wstate.ctx_coreml, (float *) mel->data, (float *) cur->data);
+        if (!ggml_allocr_is_measure(alloc)) {
+            whisper_coreml_encode(wstate.ctx_coreml, (float *) mel->data, (float *) cur->data);
+        }
     }
 #endif
 #ifdef WHISPER_USE_OPENVINO
     else if (use_openvino) {
         cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
+        ggml_allocr_alloc(alloc, cur);
 
-        if (!whisper_openvino_encode(wstate.ctx_openvino, mel, cur)) {
-            return false;
+        if (!ggml_allocr_is_measure(alloc)) {
+            whisper_openvino_encode(wstate.ctx_openvino, mel, cur);
         }
     }
 #endif
 
+    ggml_build_forward_expand(gf, cur);
+
     wstate.embd_enc = cur;
+
+    //ggml_graph_print(gf);
 
     ////////////////////////////////////////////////////////////////////////////
 
@@ -1755,14 +1766,16 @@ static struct ggml_cgraph * whisper_build_graph_encoder_post(
 
     ggml_cgraph * gf = ggml_new_graph(ctx0);
 
-    //ggml_allocr * alloc = wstate.alloc_encode_post;
+    ggml_allocr * alloc = wstate.alloc_encode_post;
 
-    struct ggml_tensor * cur = wstate.embd_enc;
+    struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_enc);
 
-    // TODO: hack to disconnect the encoded features from the previous graph
-    cur->op = GGML_OP_NONE;
-    cur->src[0] = nullptr;
-    cur->src[1] = nullptr;
+    struct ggml_tensor * Kscale = ggml_new_tensor_1d(ctx0, GGML_TYPE_F32, 1);
+    ggml_allocr_alloc(alloc, Kscale);
+
+    if (!ggml_allocr_is_measure(alloc)) {
+        ggml_set_f32(Kscale, pow(float(n_state) / n_head, -0.25));
+    }
 
     for (int il = 0; il < model.hparams.n_text_layer; ++il) {
         auto & layer = model.layers_decoder[il];
@@ -1771,7 +1784,7 @@ static struct ggml_cgraph * whisper_build_graph_encoder_post(
                 layer.cross_attn_k_w,
                 cur);
 
-        Kcross = ggml_scale_inplace(ctx0, Kcross, ggml_new_f32(ctx0, pow(float(n_state) / n_head, -0.25)));
+        Kcross = ggml_scale(ctx0, Kcross, Kscale);
 
         struct ggml_tensor* Vcross = ggml_mul_mat(ctx0,
                 layer.cross_attn_v_w,
@@ -1793,6 +1806,8 @@ static struct ggml_cgraph * whisper_build_graph_encoder_post(
         ggml_build_forward_expand(gf, ggml_cpy(ctx0, Kcross, k));
         ggml_build_forward_expand(gf, ggml_cpy(ctx0, Vcross, v));
     }
+
+    //ggml_graph_print(gf);
 
     ggml_free(ctx0);
 
@@ -1826,7 +1841,26 @@ static bool whisper_encode_internal(
 
         ggml_allocr_alloc_graph(alloc, gf);
 
+#ifdef WHISPER_USE_COREML
+#else
         ggml_graph_compute_helper(wstate.work_buffer, gf, n_threads);
+#endif
+
+        //auto cur = wstate.embd_enc;
+        ////auto cur = gf->leafs[0];
+        //printf("cur name = '%s'\n", cur->name);
+
+        //float * res = (float *) cur->data;
+        //for (int i = 0; i < 10; ++i) {
+        //    printf("%f ", res[i]);
+        //}
+        //printf("\n");
+        //double sum = 0.0;
+        //for (int i = 0; i < ggml_nelements(cur); ++i) {
+        //    sum += res[i];
+        //}
+        //printf("sum: %f\n", sum);
+        //printf("n: %d\n", ggml_nelements(cur));
     }
 
     // encoder_post
@@ -1840,6 +1874,21 @@ static bool whisper_encode_internal(
         ggml_allocr_alloc_graph(alloc, gf);
 
         ggml_graph_compute_helper(wstate.work_buffer, gf, n_threads);
+
+        //auto cur = gf->nodes[gf->n_nodes - 1];
+        //printf("cur name = '%s'\n", cur->name);
+
+        //ggml_fp16_t * res = (ggml_fp16_t *) cur->data;
+        //for (int i = 0; i < 10; ++i) {
+        //    printf("%f ", ggml_fp32_to_fp16(res[i]));
+        //}
+        //printf("\n");
+        //double sum = 0.0;
+        //for (int i = 0; i < ggml_nelements(cur); ++i) {
+        //    sum += ggml_fp32_to_fp16(res[i]);
+        //}
+        //printf("sum: %f\n", sum);
+        //printf("n: %d\n", ggml_nelements(cur));
     }
 
     // ggml_graph_compute_with_ctx(ctx0, &gf, n_threads);
@@ -1902,6 +1951,13 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
         }
     }
 
+    struct ggml_tensor * KQscale = ggml_new_tensor_1d(ctx0, GGML_TYPE_F32, 1);
+    ggml_allocr_alloc(alloc, KQscale);
+
+    if (!ggml_allocr_is_measure(alloc)) {
+        ggml_set_f32(KQscale, pow(float(n_state)/n_head, -0.25));
+    }
+
     // token encoding + position encoding
     struct ggml_tensor * cur =
         ggml_add(ctx0,
@@ -1937,14 +1993,14 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                         Qcur),
                     Qcur);
 
-            Qcur = ggml_scale_inplace(ctx0, Qcur, ggml_new_f32(ctx0, pow(float(n_state)/n_head, -0.25)));
+            Qcur = ggml_scale(ctx0, Qcur, KQscale);
 
             // note: no bias for Key
             struct ggml_tensor * Kcur = ggml_mul_mat(ctx0,
                     layer.attn_k_w,
                     cur);
 
-            Kcur = ggml_scale_inplace(ctx0, Kcur, ggml_new_f32(ctx0, pow(float(n_state)/n_head, -0.25)));
+            Kcur = ggml_scale(ctx0, Kcur, KQscale);
 
             // store key and value to memory
             {
@@ -1988,15 +2044,11 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
             // K * Q
             struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
 
-            //struct ggml_tensor * KQ_scaled =
-            //    ggml_scale_inplace(ctx0,
-            //            KQ,
-            //            ggml_new_f32(ctx0, 1.0f/sqrt(float(n_state)/n_head))
-            //            );
+            //struct ggml_tensor * KQ_scaled = ggml_scale(ctx0, KQ, KQ_scale);
 
-            struct ggml_tensor * KQ_masked = ggml_diag_mask_inf_inplace(ctx0, KQ, n_past);
+            struct ggml_tensor * KQ_masked = ggml_diag_mask_inf(ctx0, KQ, n_past);
 
-            struct ggml_tensor * KQ_soft_max = ggml_soft_max_inplace(ctx0, KQ_masked);
+            struct ggml_tensor * KQ_soft_max = ggml_soft_max(ctx0, KQ_masked);
 
             struct ggml_tensor * V =
                 ggml_view_3d(ctx0, kv_self.v,
@@ -2052,7 +2104,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                         Qcur),
                     Qcur);
 
-            Qcur = ggml_scale_inplace(ctx0, Qcur, ggml_new_f32(ctx0, pow(float(n_state)/n_head, -0.25)));
+            Qcur = ggml_scale(ctx0, Qcur, KQscale);
 
             // Kcross is already scaled
             struct ggml_tensor * Kcross =
@@ -2092,15 +2144,15 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
             struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
 
             //struct ggml_tensor * KQ_scaled =
-            //    ggml_scale_inplace(ctx0,
+            //    ggml_scale(ctx0,
             //            KQ,
             //            ggml_new_f32(ctx0, 1.0f/sqrt(float(n_state)/n_head))
             //            );
 
             // no masking for cross-attention
-            //struct ggml_tensor * KQ_masked = ggml_diag_mask_inf_inplace(ctx0, KQ_scaled, n_past);
+            //struct ggml_tensor * KQ_masked = ggml_diag_mask_inf(ctx0, KQ_scaled, n_past);
 
-            struct ggml_tensor * KQ_soft_max = ggml_soft_max_inplace(ctx0, KQ);
+            struct ggml_tensor * KQ_soft_max = ggml_soft_max(ctx0, KQ);
 
             struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V, KQ_soft_max);
 
@@ -2225,7 +2277,7 @@ static bool whisper_decode_internal(
 
     // decoder
     {
-        auto & alloc = wstate.alloc_encode;
+        auto & alloc = wstate.alloc_decode;
 
         ggml_allocr_reset(alloc);
 
@@ -2758,8 +2810,9 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     {
         const auto & hparams = ctx->model.hparams;
 
-        const int n_tokens = hparams.n_text_ctx/2;
-        const int n_past   = hparams.n_text_ctx/2; // TODO: double-check
+        // TODO: make sure this is the worst-case scenario
+        const int n_tokens = hparams.n_text_ctx;
+        const int n_past   = 0;
 
         ggml_cgraph * gf = whisper_build_graph_decoder(*ctx, *state, state->decoders[0], NULL, n_tokens, n_past);
 

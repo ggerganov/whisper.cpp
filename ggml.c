@@ -18337,10 +18337,11 @@ void ggml_graph_print(const struct ggml_cgraph * cgraph) {
     for (int i = 0; i < cgraph->n_leafs; i++) {
         struct ggml_tensor * node = cgraph->leafs[i];
 
-        GGML_PRINT(" - %3d: [ %5" PRId64 ", %5" PRId64 "] %8s\n",
+        GGML_PRINT(" - %3d: [ %5" PRId64 ", %5" PRId64 "] %8s %16s\n",
                 i,
                 node->ne[0], node->ne[1],
-                ggml_op_name(node->op));
+                ggml_op_name(node->op),
+                ggml_get_name(node));
     }
 
     for (int i = 0; i < GGML_OP_COUNT; i++) {

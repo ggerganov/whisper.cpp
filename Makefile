@@ -18,7 +18,7 @@ ifndef NVCC_VERSION
 	endif
 endif
 
-CCV := $(shell $(CC) --version | head -n 1)
+CCV  := $(shell $(CC) --version | head -n 1)
 CXXV := $(shell $(CXX) --version | head -n 1)
 
 # Mac OS + Arm can report x86_64
