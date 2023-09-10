@@ -4132,15 +4132,16 @@ static bool whisper_kv_swap_fast(
         // since we modify data sequentially, we only consider decoder indices after current index
         for (int j = i + 1; j < size; j++) {
             if (i == view[j]) {
-                two_copy.insert(i);
-                is_one_copy = false;
                 // detect symmetric diagram
                 if (j == view[i]) {
                     p_swap_set.insert(i);
                     p_swap_set.insert(j);
                     p_swap_vec.emplace_back(i, j);
+                } else {
+                    two_copy.insert(i);
+                    is_one_copy = false;
+                    break;
                 }
-                break;
             }
         }
         if (is_one_copy) {
