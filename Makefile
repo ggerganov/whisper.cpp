@@ -295,6 +295,11 @@ $(info )
 ggml.o: ggml.c ggml.h ggml-cuda.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
+ggml-alloc.o: ggml-alloc.c ggml.h ggml-alloc.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
+
+WHISPER_OBJ += ggml-alloc.o
+
 whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
