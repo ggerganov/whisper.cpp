@@ -4140,8 +4140,8 @@ static bool whisper_kv_swap_fast(
                 } else {
                     two_copy.insert(i);
                     is_one_copy = false;
-                    break;
                 }
+                break;
             }
         }
         if (is_one_copy) {
