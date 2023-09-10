@@ -4996,9 +4996,6 @@ int whisper_full_with_state(
 
                         auto & cur = beam_candidates[cur_c++];
 
-                        // TODO: test if this is better:
-                        //while (beam_candidates.size() > cur_c && i > 0) {
-
                         while (beam_candidates.size() > cur_c && beam_candidates[cur_c].sequence.sum_logprobs_all == cur.sequence.sum_logprobs_all && i > 0) {
                             ++cur_c;
                         }
