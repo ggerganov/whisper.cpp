@@ -184,6 +184,8 @@ endif
 
 ifndef WHISPER_NO_METAL
 	ifeq ($(UNAME_S),Darwin)
+		WHISPER_METAL := 1
+
 		CXXFLAGS += -DGGML_USE_METAL
 		LDFLAGS  += -framework Foundation -framework Metal -framework MetalKit
 	endif
@@ -315,7 +317,7 @@ whisper-encoder-impl.o: coreml/whisper-encoder-impl.m coreml/whisper-encoder-imp
 WHISPER_OBJ += whisper.o whisper-encoder.o whisper-encoder-impl.o
 endif
 
-ifndef WHISPER_NO_METAL
+ifdef WHISPER_METAL
 ggml-metal.o: ggml-metal.m ggml-metal.h
 	$(CC) $(CFLAGS) -c $< -o $@
 

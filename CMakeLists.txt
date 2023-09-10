@@ -426,6 +426,8 @@ set(TARGET whisper)
 add_library(${TARGET}
     ggml.h
     ggml.c
+    ggml-alloc.h
+    ggml-alloc.c
     ${GGML_CUDA_SOURCES}
     ${GGML_OPENCL_SOURCES}
     whisper.h
