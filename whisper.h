@@ -389,6 +389,7 @@ extern "C" {
 
         bool translate;
         bool no_context;        // do not use past transcription (if any) as initial prompt for the decoder
+        bool no_timestamps;     // do not generate timestamps
         bool single_segment;    // force single segment output (useful for streaming)
         bool print_special;     // print special tokens (e.g. <SOT>, <EOT>, <BEG>, etc.)
         bool print_progress;    // print progress information

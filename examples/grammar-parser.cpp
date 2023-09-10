@@ -413,7 +413,7 @@ namespace grammar_parser {
         }
     }
 
-    std::vector<const whisper_grammar_element *> parse_state::c_rules() {
+    std::vector<const whisper_grammar_element *> parse_state::c_rules() const{
         std::vector<const whisper_grammar_element *> ret;
         for (const auto & rule : rules) {
             ret.push_back(rule.data());

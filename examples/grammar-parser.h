@@ -21,7 +21,7 @@ namespace grammar_parser {
         std::map<std::string, uint32_t>                   symbol_ids;
         std::vector<std::vector<whisper_grammar_element>> rules;
 
-        std::vector<const whisper_grammar_element *>      c_rules();
+        std::vector<const whisper_grammar_element *>      c_rules() const;
     };
 
     parse_state parse(const char * src);
