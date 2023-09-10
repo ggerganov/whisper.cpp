@@ -4161,13 +4161,13 @@ static bool whisper_kv_swap_fast(
         memcpy(kv_swap_bufs[i].v.data(), src[i].kv_self.v->data, kv_swap_bufs[i].v.size());
     }
 
-    // since two-copy decoder KV caches are protected by kv_bufs, modify them first
+    // since two-copy decoder KV caches are protected by kv_swap_bufs, modify them first
     for (auto & i : two_copy) {
         // skip the decoder indices that require pointer swapping
         if (p_swap_set.find(i) != p_swap_set.end()) {continue;}
 
         if (two_copy.find(view[i]) != two_copy.end()) {
-            // modify KV caches of decoder using data from kv_bufs
+            // modify KV caches of decoder using data from kv_swap_bufs
             memcpy(src[i].kv_self.k->data, kv_swap_bufs[view[i]].k.data(), kv_swap_bufs[view[i]].k.size());
             memcpy(src[i].kv_self.v->data, kv_swap_bufs[view[i]].v.data(), kv_swap_bufs[view[i]].v.size());
         } else {
@@ -4183,7 +4183,7 @@ static bool whisper_kv_swap_fast(
         if (p_swap_set.find(i) != p_swap_set.end()) {continue;}
 
         if (two_copy.find(view[i]) != two_copy.end()) {
-            // modify KV caches of decoder using data from kv_bufs
+            // modify KV caches of decoder using data from kv_swap_bufs
             memcpy(src[i].kv_self.k->data, kv_swap_bufs[view[i]].k.data(), kv_swap_bufs[view[i]].k.size());
             memcpy(src[i].kv_self.v->data, kv_swap_bufs[view[i]].v.data(), kv_swap_bufs[view[i]].v.size());
         } else {
