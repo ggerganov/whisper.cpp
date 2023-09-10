@@ -1,20 +1,16 @@
 # - red
 # - green
 # - blue
-# - red green
-# - red blue
-# - green red
-# - green blue green
 #
 # example:
 #
-#   ./command -m ./models/ggml-base.en.bin -t 8 --grammar ./grammars/colors.gbnf --prompt "red green blue"
+#   ./command -m ./models/ggml-tiny.en.bin -t 8 --grammar ./grammars/colors.gbnf --prompt "red, green, blue," --context "green, red, blue,"
 #
 
-root   ::= init color (color)? (color)? "."
+root   ::= init color "."
 prompt ::= init "."
 
 # leading space is very important!
-init ::= " red green blue"
+init ::= " red, green, blue"
 
-color ::= " " ("red" | "green" | "blue")
+color ::= ", " ("red" | "green" | "blue")

@@ -23,14 +23,14 @@
 #
 # example:
 #
-#   ./command -m ./models/ggml-base.en.bin -t 8 --grammar ./grammars/chess.gbnf --prompt "Ok Whisper, start listening for commands"
+#   ./command -m ./models/ggml-tiny.en.bin -t 8 --grammar ./grammars/assistant.gbnf --prompt "Ok Whisper, start listening for commands." --context "Whisper is a home assistant. It recognizes voice commands. Time is 11pm." --grammar-penalty 10
 #
 
 root   ::= init " " (command | question) "."
-prompt ::= init "."
+prompt ::= init
 
 # leading space is very important!
-init ::= " Ok Whisper, start listening for commands"
+init ::= " Ok Whisper, start listening for commands."
 
 command ::= "Turn " ("on" | "off") " " device | "Set " device " to " value |
             "Increase " device " by " value | "Decrease " device " by " value |
@@ -54,4 +54,4 @@ media ::= "music" | "radio" | "podcast" | "audiobook" | "TV show" | "movie"
 
 task ::= [a-zA-Z]+ (" " [a-zA-Z]+)?
 
-time ::= [0-9] [0-9]? ":" [0-9] [0-9] ("am" | "pm")?
+time ::= [0-9] [0-9]? ("am" | "pm")?

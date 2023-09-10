@@ -3872,13 +3872,13 @@ static void whisper_suppress_invalid_grammar(
         return;
     }
 
-    bool allow_eot = false;
-    for (const auto & stack : grammar.stacks) {
-        if (stack.empty()) {
-            allow_eot = true;
-            break;
-        }
-    }
+    //bool allow_eot = false;
+    //for (const auto & stack : grammar.stacks) {
+    //    if (stack.empty()) {
+    //        allow_eot = true;
+    //        break;
+    //    }
+    //}
 
     const whisper_token eot = whisper_token_eot(&ctx);
 
@@ -3900,9 +3900,9 @@ static void whisper_suppress_invalid_grammar(
     }
 
     // when the grammar allows a continuation, we penalize the end-of-text token
-    if (!allow_eot) {
-        logits[eot] -= params.grammar_penalty;
-    }
+    //if (!allow_eot) {
+    //    logits[eot] -= params.grammar_penalty;
+    //}
     //fprintf(stderr, "Allowed: (%zu tokens)\n", size - rejects.size());
 }
 
@@ -3955,6 +3955,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
         /*.translate         =*/ false,
         /*.no_context        =*/ true,
+        /*.no_timestamps     =*/ false,
         /*.single_segment    =*/ false,
         /*.print_special     =*/ false,
         /*.print_progress    =*/ true,
@@ -4170,6 +4171,11 @@ static void whisper_process_logits(
         // suppress <|notimestamps|> token
         // ref: https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L410-L412
         logits[vocab.token_not] = -INFINITY;
+        if (params.no_timestamps) {
+            for (int i = vocab.token_beg; i < n_logits; ++i) {
+                logits[i] = -INFINITY;
+            }
+        }
 
         // suppress sot and nosp tokens
         logits[vocab.token_sot]  = -INFINITY;
@@ -4515,8 +4521,11 @@ static std::vector<whisper_token_data> whisper_sample_token_topk(
         ptsum = sum_ts;
     }
 
+    std::discrete_distribution<> dist(probs.begin(), probs.end());
+
     for (int i = 0; i < k; ++i) {
-        const auto id = logits_id[i].second;
+        const auto id = dist(state.rng);
+        //printf("XXX %d %d %f %f %f %f\n", id, tid, probs[id], logprobs[id], pt, ptsum);
 
         result.push_back({ id, tid, probs[id], logprobs[id], pt, ptsum, -1, -1, 0.0f, });
 
@@ -4726,7 +4735,7 @@ int whisper_full_with_state(
     state->exp_n_audio_ctx = params.audio_ctx;
 
     // these tokens determine the task that will be performed
-    std::vector<whisper_token> prompt_init = { whisper_token_sot(ctx) };
+    std::vector<whisper_token> prompt_init = { whisper_token_sot(ctx), };
     if (whisper_is_multilingual(ctx)) {
         const int lang_id = whisper_lang_id(params.language);
         state->lang_id = lang_id;
@@ -4736,6 +4745,9 @@ int whisper_full_with_state(
         } else {
             prompt_init.push_back(whisper_token_transcribe(ctx));
         }
+    }
+    if (params.no_timestamps) {
+        prompt_init.push_back(whisper_token_not(ctx));
     }
 
     int seek = seek_start;
@@ -4821,7 +4833,7 @@ int whisper_full_with_state(
 
             n_decoders_cur = std::max(1, n_decoders_cur);
 
-            WHISPER_PRINT_DEBUG("\n%s: decoding with %d decoders, temperature = %.2f\n", __func__, n_decoders_cur, t_cur);
+            WHISPER_PRINT_DEBUG("\n%s: strategy = %d, decoding with %d decoders, temperature = %.2f\n", __func__, params.strategy, n_decoders_cur, t_cur);
 
             // TAGS: WHISPER_DECODER_INIT
             for (int j = 0; j < n_decoders_cur; ++j) {
@@ -4978,7 +4990,14 @@ int whisper_full_with_state(
                             continue;
                         }
 
+                        if (cur_c >= beam_candidates.size()) {
+                            cur_c = 0;
+                        }
+
                         auto & cur = beam_candidates[cur_c++];
+
+                        // TODO: test if this is better:
+                        //while (beam_candidates.size() > cur_c && i > 0) {
 
                         while (beam_candidates.size() > cur_c && beam_candidates[cur_c].sequence.sum_logprobs_all == cur.sequence.sum_logprobs_all && i > 0) {
                             ++cur_c;
