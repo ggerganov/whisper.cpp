@@ -2733,6 +2733,8 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         log("%s: kv self size  = %7.2f MB\n", __func__, memory_size / 1024.0 / 1024.0);
     }
 
+    log("debug CI - checkpoint 0\n");
+
     if (!kv_cache_init(ctx->model.hparams, state->kv_cross, ctx->itype, ctx->model.hparams.n_audio_ctx)) {
         log("%s: kv_cache_init() failed for cross-attention cache\n", __func__);
         delete state;
@@ -2743,6 +2745,8 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         const size_t memory_size = ggml_nbytes(state->kv_cross.k) + ggml_nbytes(state->kv_cross.v);
         log("%s: kv cross size = %7.2f MB\n", __func__, memory_size / 1024.0 / 1024.0);
     }
+
+    log("debug CI - checkpoint 1\n");
 
 #ifdef WHISPER_USE_COREML
     const auto path_coreml = whisper_get_coreml_path_encoder(ctx->path_model);
@@ -2761,24 +2765,41 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     }
 #endif
 
+    log("debug CI - checkpoint 2\n");
+
     state->logits.reserve(ctx->vocab.n_vocab * ctx->model.hparams.n_text_ctx);
+
+    log("debug CI - checkpoint 3\n");
 
     state->logits_id.reserve(ctx->model.hparams.n_vocab);
 
+    log("debug CI - checkpoint 4\n");
+
     // TAGS: WHISPER_DECODER_INIT
     state->decoders[0].sequence.tokens.reserve(ctx->model.hparams.n_text_ctx);
+
+    log("debug CI - checkpoint 5\n");
 
     state->decoders[0].probs.reserve(ctx->vocab.n_vocab);
     state->decoders[0].logits.reserve(ctx->vocab.n_vocab);
     state->decoders[0].logprobs.reserve(ctx->vocab.n_vocab);
 
+    log("debug CI - checkpoint 6\n");
+
     state->buf_compute.resize(ggml_tensor_overhead()*GGML_MAX_NODES + ggml_graph_overhead());
+
+    log("debug CI - checkpoint 7\n");
 
     static const size_t tensor_alignment = 32;
 
+    log("debug CI - checkpoint 8\n");
+
     state->alloc_encode      = ggml_allocr_new_measure(tensor_alignment);
+    log("debug CI - checkpoint 9\n");
     state->alloc_encode_post = ggml_allocr_new_measure(tensor_alignment);
+    log("debug CI - checkpoint 10\n");
     state->alloc_decode      = ggml_allocr_new_measure(tensor_alignment);
+    log("debug CI - checkpoint 11\n");
 
     // encoder allocator
     {
