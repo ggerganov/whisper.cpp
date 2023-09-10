@@ -3,6 +3,10 @@
 #include "coreml/whisper-encoder.h"
 #endif
 
+#ifdef GGML_USE_METAL
+#  include "ggml-metal.h"
+#endif
+
 #ifdef WHISPER_USE_OPENVINO
 #include "openvino/whisper-openvino-encoder.h"
 #endif
@@ -687,6 +691,10 @@ struct whisper_state {
     std::string path_model; // populated by whisper_init_from_file()
 #ifdef WHISPER_USE_COREML
     whisper_coreml_context * ctx_coreml = nullptr;
+#endif
+
+#ifdef GGML_USE_METAL
+    ggml_metal_context * ctx_metal = nullptr;
 #endif
 
 #ifdef WHISPER_USE_OPENVINO
@@ -3029,6 +3037,13 @@ void whisper_free_state(struct whisper_state * state)
         if (state->ctx_coreml != nullptr) {
             whisper_coreml_free(state->ctx_coreml);
             state->ctx_coreml = nullptr;
+        }
+#endif
+
+#ifdef GGML_USE_METAL
+        if (state->ctx_metal) {
+            ggml_metal_free(state->ctx_metal);
+            state->ctx_metal = nullptr;
         }
 #endif
 
