@@ -2843,6 +2843,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         ggml_cgraph * gf = whisper_build_graph_decoder(*ctx, *state, state->decoders[0], NULL, n_tokens, n_past);
 
         const size_t alloc_size = ggml_allocr_alloc_graph(alloc, gf) + tensor_alignment;
+
         ggml_allocr_free(alloc);
 
         log("%s: compute buffer (decode) = %7.2f MB\n", __func__, (meta.size() + alloc_size) / 1024.0 / 1024.0);
