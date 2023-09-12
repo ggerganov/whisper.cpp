@@ -2794,7 +2794,9 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
         meta.resize(ggml_tensor_overhead()*GGML_MAX_NODES + ggml_graph_overhead());
 
+        log("checkpoint 0\n");
         alloc = ggml_allocr_new_measure(tensor_alignment);
+        log("checkpoint 1\n");
 
         ggml_cgraph * gf = whisper_build_graph_encoder(*ctx, *state, 0);
 
@@ -2816,11 +2818,15 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
         meta.resize(ggml_tensor_overhead()*GGML_MAX_NODES + ggml_graph_overhead());
 
+        log("checkpoint 2\n");
         alloc = ggml_allocr_new_measure(tensor_alignment);
+        log("checkpoint 3\n");
 
         ggml_cgraph * gf = whisper_build_graph_cross(*ctx, *state);
+        log("checkpoint 4\n");
 
         const size_t alloc_size = ggml_allocr_alloc_graph(alloc, gf) + tensor_alignment;
+        log("checkpoint 5\n");
 
         ggml_allocr_free(alloc);
 
