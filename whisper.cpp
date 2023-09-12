@@ -2031,17 +2031,15 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
             struct ggml_tensor * Q =
                 ggml_permute(ctx0,
-                        ggml_cpy(ctx0,
-                            Qcur,
-                            ggml_new_tensor_3d(ctx0, GGML_TYPE_F32, n_state/n_head, n_head, N)),
+                        ggml_reshape_3d(ctx0, Qcur, n_state/n_head, n_head, N),
                         0, 2, 1, 3);
 
             struct ggml_tensor * K =
-                ggml_permute(ctx0,
-                        ggml_reshape_3d(ctx0,
-                            ggml_view_1d(ctx0, kv_self.k, (n_past + N)*n_state, il*n_ctx*ggml_element_size(kv_self.k)*n_state),
-                            n_state/n_head, n_head, n_past + N),
-                        0, 2, 1, 3);
+                ggml_view_3d(ctx0, kv_self.k,
+                        n_state/n_head, n_past + N, n_head,
+                        ggml_element_size(kv_self.k)*n_state,
+                        ggml_element_size(kv_self.k)*n_state/n_head,
+                        ggml_element_size(kv_self.k)*n_state*n_ctx*il);
 
             // K * Q
             struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
@@ -2108,9 +2106,11 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
             // Kcross is already scaled
             struct ggml_tensor * Kcross =
-                ggml_reshape_3d(ctx0,
-                        ggml_view_1d(ctx0, wstate.kv_cross.k, M*n_state, il*M*ggml_element_size(wstate.kv_cross.k)*n_state),
-                        n_state/n_head, n_head, M);
+                ggml_view_3d(ctx0, wstate.kv_cross.k,
+                        n_state/n_head, M, n_head,
+                        ggml_element_size(wstate.kv_cross.k)*n_state,
+                        ggml_element_size(wstate.kv_cross.k)*n_state/n_head,
+                        ggml_element_size(wstate.kv_cross.k)*n_state*M*il);
 
             //struct ggml_tensor * Vcross =
             //    ggml_reshape_3d(ctx0,
@@ -2133,15 +2133,11 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
             struct ggml_tensor * Q =
                 ggml_permute(ctx0,
-                        ggml_cpy(ctx0,
-                            Qcur,
-                            ggml_new_tensor_3d(ctx0, GGML_TYPE_F32, n_state/n_head, n_head, N)),
+                        ggml_reshape_3d(ctx0, Qcur, n_state/n_head, n_head, N),
                         0, 2, 1, 3);
 
-            struct ggml_tensor * K = ggml_permute(ctx0, Kcross, 0, 2, 1, 3);
-
             // K * Q
-            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
+            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, Kcross, Q);
 
             //struct ggml_tensor * KQ_scaled =
             //    ggml_scale(ctx0,
@@ -2288,8 +2284,7 @@ static bool whisper_decode_internal(
         logits = gf->nodes[gf->n_nodes - 1];
 
 #ifdef GGML_USE_METAL
-        if (wstate.ctx_metal && n_tokens == 1) {
-            // TODO: fix for non-1 tokens
+        if (wstate.ctx_metal) {
             ggml_metal_set_n_cb     (wstate.ctx_metal, n_threads);
             ggml_metal_graph_compute(wstate.ctx_metal, gf);
             ggml_metal_get_tensor   (wstate.ctx_metal, logits);
@@ -2302,8 +2297,8 @@ static bool whisper_decode_internal(
     }
 
     // extract logits for all N tokens
-    //logits_out.resize(N*n_vocab);
-    //memcpy(logits_out.data(), ggml_get_data(logits), sizeof(float)*N*n_vocab);
+    //logits_out.resize(n_tokens*n_vocab);
+    //memcpy(logits_out.data(), ggml_get_data(logits), sizeof(float)*n_tokens*n_vocab);
 
     // extract logits only for the last token
     logits_out.resize(n_vocab);
@@ -2794,9 +2789,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
         meta.resize(ggml_tensor_overhead()*GGML_MAX_NODES + ggml_graph_overhead());
 
-        log("checkpoint 0\n");
         alloc = ggml_allocr_new_measure(tensor_alignment);
-        log("checkpoint 1\n");
 
         ggml_cgraph * gf = whisper_build_graph_encoder(*ctx, *state, 0);
 
@@ -2818,15 +2811,11 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
         meta.resize(ggml_tensor_overhead()*GGML_MAX_NODES + ggml_graph_overhead());
 
-        log("checkpoint 2\n");
         alloc = ggml_allocr_new_measure(tensor_alignment);
-        log("checkpoint 3\n");
 
         ggml_cgraph * gf = whisper_build_graph_cross(*ctx, *state);
-        log("checkpoint 4\n");
 
         const size_t alloc_size = ggml_allocr_alloc_graph(alloc, gf) + tensor_alignment;
-        log("checkpoint 5\n");
 
         ggml_allocr_free(alloc);
 

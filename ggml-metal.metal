@@ -107,7 +107,6 @@ kernel void kernel_soft_max(
         constant   int64_t & ne00,
         constant   int64_t & ne01,
         constant   int64_t & ne02,
-        threadgroup float  * buf [[threadgroup(0)]],
         uint3 tgpig[[threadgroup_position_in_grid]],
         uint3 tpitg[[thread_position_in_threadgroup]],
         uint3   ntg[[threads_per_threadgroup]]) {
@@ -119,58 +118,23 @@ kernel void kernel_soft_max(
     device       float * pdst  = dst  + i03*ne02*ne01*ne00 + i02*ne01*ne00 + i01*ne00;
 
     // parallel max
-    buf[tpitg[0]] = -INFINITY;
-    for (int i00 = tpitg[0]; i00 < ne00; i00 += ntg[0]) {
-        buf[tpitg[0]] = MAX(buf[tpitg[0]], psrc0[i00]);
+    float lmax = psrc0[tpitg[0]];
+    for (int i00 = tpitg[0] + ntg[0]; i00 < ne00; i00 += ntg[0]) {
+        lmax = MAX(lmax, psrc0[i00]);
     }
-
-    // reduce
-    threadgroup_barrier(mem_flags::mem_threadgroup);
-    for (uint i = ntg[0]/2; i > 0; i /= 2) {
-        if (tpitg[0] < i) {
-            buf[tpitg[0]] = MAX(buf[tpitg[0]], buf[tpitg[0] + i]);
-        }
-        threadgroup_barrier(mem_flags::mem_threadgroup);
-    }
-
-    //// broadcast - not needed. There is a threadgroup barrier above in the last iteration of
-    //               the loop, and when that is done, buf[0] has the correct (synchronized) value
-    //if (tpitg[0] == 0) {
-    //    buf[0] = buf[0];
-    //}
-
-    //threadgroup_barrier(mem_flags::mem_threadgroup);
-
-    const float max = buf[0];
+    const float max = simd_max(lmax);
 
     // parallel sum
-    buf[tpitg[0]] = 0.0f;
+    float lsum = 0.0f;
     for (int i00 = tpitg[0]; i00 < ne00; i00 += ntg[0]) {
         const float exp_psrc0 = exp(psrc0[i00] - max);
-        buf[tpitg[0]] += exp_psrc0;
+        lsum += exp_psrc0;
         // Remember the result of exp here. exp is expensive, so we really do not
         // whish to compute it twice.
         pdst[i00] = exp_psrc0;
     }
 
-    // reduce
-    threadgroup_barrier(mem_flags::mem_threadgroup);
-    for (uint i = ntg[0]/2; i > 0; i /= 2) {
-        if (tpitg[0] < i) {
-            buf[tpitg[0]] += buf[tpitg[0] + i];
-        }
-        threadgroup_barrier(mem_flags::mem_threadgroup);
-    }
-
-    // broadcast - not needed, see above
-    //// broadcast
-    //if (tpitg[0] == 0) {
-    //    buf[0] = buf[0];
-    //}
-
-    //threadgroup_barrier(mem_flags::mem_threadgroup);
-
-    const float sum = buf[0];
+    const float sum = simd_sum(lsum);
 
     for (int i00 = tpitg[0]; i00 < ne00; i00 += ntg[0]) {
         pdst[i00] /= sum;
@@ -192,22 +156,6 @@ kernel void kernel_diag_mask_inf(
         dst[i02*ne01*ne00 + i01*ne00 + i00] = -INFINITY;
     } else {
         dst[i02*ne01*ne00 + i01*ne00 + i00] = src0[i02*ne01*ne00 + i01*ne00 + i00];
-    }
-}
-
-kernel void kernel_get_rows_f32(
-        device const float * src0,
-        device const   int * src1,
-        device       float * dst,
-        constant   int64_t & ne00,
-        constant  uint64_t & nb01,
-        constant  uint64_t & nb1,
-        uint tpig[[thread_position_in_grid]]) {
-    const int i = tpig;
-    const int r = ((device int32_t *) src1)[i];
-
-    for (int j = 0; j < ne00; j++) {
-        dst[i*nb1 + j] = ((device float *) ((device char *) src0 + r*nb01))[j];
     }
 }
 
@@ -1763,6 +1711,15 @@ kernel void kernel_mul_mat_q6_K_f32(
 
 //============================= templates and their specializations =============================
 
+// NOTE: this is not dequantizeing - we are simply fitting the template
+template <typename type4x4>
+void dequantize_f32(device const float4x4 * src, short il, thread type4x4 & reg) {
+    float4x4 temp = *(((device float4x4 *)src));
+    for (int i = 0; i < 16; i++){
+        reg[i/4][i%4] = temp[i/4][i%4];
+    }
+}
+
 template <typename type4x4>
 void dequantize_f16(device const half4x4 * src, short il, thread type4x4 & reg) {
     half4x4 temp = *(((device half4x4 *)src));
@@ -2111,6 +2068,7 @@ kernel void kernel_mul_mm(device const  uchar * src0,
 typedef void (get_rows_t)(device const void *, device const int *, device float *, constant int64_t &, \
                           constant uint64_t &, constant uint64_t &, uint, uint, uint);
 
+template [[host_name("kernel_get_rows_f32")]]  kernel get_rows_t kernel_get_rows<float4x4,   1, dequantize_f32>;
 template [[host_name("kernel_get_rows_f16")]]  kernel get_rows_t kernel_get_rows<half4x4,    1, dequantize_f16>;
 template [[host_name("kernel_get_rows_q4_0")]] kernel get_rows_t kernel_get_rows<block_q4_0, 2, dequantize_q4_0>;
 template [[host_name("kernel_get_rows_q4_1")]] kernel get_rows_t kernel_get_rows<block_q4_1, 2, dequantize_q4_1>;

@@ -368,6 +368,7 @@ static id<MTLBuffer> ggml_metal_get_buffer(struct ggml_metal_context * ctx, stru
     for (int i = 0; i < ctx->n_buffers; ++i) {
         const int64_t ioffs = (int64_t) t->data - (int64_t) ctx->buffers[i].data;
 
+        //metal_printf("ioffs = %10ld, tsize = %10ld, sum = %10ld, ctx->buffers[%d].size = %10ld, name = %s\n", ioffs, tsize, ioffs + tsize, i, ctx->buffers[i].size, ctx->buffers[i].name);
         if (ioffs >= 0 && ioffs + tsize <= (int64_t) ctx->buffers[i].size) {
             *offs = (size_t) ioffs;
 
@@ -701,6 +702,7 @@ void ggml_metal_graph_compute(
                     case GGML_OP_ADD:
                         {
                             GGML_ASSERT(ggml_is_contiguous(src0));
+                            GGML_ASSERT(ggml_is_contiguous(src1));
 
                             // utilize float4
                             GGML_ASSERT(ne00 % 4 == 0);
@@ -708,6 +710,7 @@ void ggml_metal_graph_compute(
 
                             if (ggml_nelements(src1) == ne10) {
                                 // src1 is a row
+                                GGML_ASSERT(ne11 == 1);
                                 [encoder setComputePipelineState:ctx->pipeline_add_row];
                             } else {
                                 [encoder setComputePipelineState:ctx->pipeline_add];
@@ -724,6 +727,7 @@ void ggml_metal_graph_compute(
                     case GGML_OP_MUL:
                         {
                             GGML_ASSERT(ggml_is_contiguous(src0));
+                            GGML_ASSERT(ggml_is_contiguous(src1));
 
                             // utilize float4
                             GGML_ASSERT(ne00 % 4 == 0);
@@ -731,6 +735,7 @@ void ggml_metal_graph_compute(
 
                             if (ggml_nelements(src1) == ne10) {
                                 // src1 is a row
+                                GGML_ASSERT(ne11 == 1);
                                 [encoder setComputePipelineState:ctx->pipeline_mul_row];
                             } else {
                                 [encoder setComputePipelineState:ctx->pipeline_mul];
@@ -746,6 +751,8 @@ void ggml_metal_graph_compute(
                         } break;
                     case GGML_OP_SCALE:
                         {
+                            GGML_ASSERT(ggml_is_contiguous(src0));
+
                             const float scale = *(const float *) src1->data;
 
                             [encoder setComputePipelineState:ctx->pipeline_scale];
@@ -805,7 +812,6 @@ void ggml_metal_graph_compute(
                             [encoder setBytes:&ne00 length:sizeof(ne00) atIndex:2];
                             [encoder setBytes:&ne01 length:sizeof(ne01) atIndex:3];
                             [encoder setBytes:&ne02 length:sizeof(ne02) atIndex:4];
-                            [encoder setThreadgroupMemoryLength:nth*sizeof(float) atIndex:0];
 
                             [encoder dispatchThreadgroups:MTLSizeMake(ne01, ne02, ne03) threadsPerThreadgroup:MTLSizeMake(nth, 1, 1)];
                         } break;
@@ -1022,9 +1028,9 @@ void ggml_metal_graph_compute(
                             [encoder setBuffer:id_src0 offset:offs_src0 atIndex:0];
                             [encoder setBuffer:id_src1 offset:offs_src1 atIndex:1];
                             [encoder setBuffer:id_dst  offset:offs_dst  atIndex:2];
-                            [encoder setBytes:&(src0->ne[0]) length:sizeof( int64_t) atIndex:3];
-                            [encoder setBytes:&(src0->nb[1]) length:sizeof(uint64_t) atIndex:4];
-                            [encoder setBytes:&(dst->nb[1])  length:sizeof(uint64_t) atIndex:5];
+                            [encoder setBytes:&ne00 length:sizeof( int64_t) atIndex:3];
+                            [encoder setBytes:&nb01 length:sizeof(uint64_t) atIndex:4];
+                            [encoder setBytes:&nb1  length:sizeof(uint64_t) atIndex:5];
 
                             const int64_t n = ggml_nelements(src1);
 
