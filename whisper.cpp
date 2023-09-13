@@ -1406,6 +1406,8 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 }
 
 static bool whisper_encode_external(const whisper_state & wstate) {
+    GGML_UNUSED(wstate);
+
 #ifndef WHISPER_USE_COREML
     const bool use_coreml = false;
 #else
