@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1844471A2AB211A2007D6BFE /* ggml-alloc.c in Sources */ = {isa = PBXBuildFile; fileRef = 184447182AB211A2007D6BFE /* ggml-alloc.c */; };
 		18627C7B29052BDF00BD2A04 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 18627C7A29052BDF00BD2A04 /* AppDelegate.m */; };
 		18627C7E29052BDF00BD2A04 /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 18627C7D29052BDF00BD2A04 /* SceneDelegate.m */; };
 		18627C8129052BDF00BD2A04 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 18627C8029052BDF00BD2A04 /* ViewController.m */; };
@@ -24,6 +25,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		184447182AB211A2007D6BFE /* ggml-alloc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-alloc.c"; path = "../../../ggml-alloc.c"; sourceTree = "<group>"; };
+		184447192AB211A2007D6BFE /* ggml-alloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-alloc.h"; path = "../../../ggml-alloc.h"; sourceTree = "<group>"; };
 		18627C7629052BDF00BD2A04 /* whisper.objc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = whisper.objc.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		18627C7929052BDF00BD2A04 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		18627C7A29052BDF00BD2A04 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -80,6 +83,8 @@
 		18627C7829052BDF00BD2A04 /* whisper.objc */ = {
 			isa = PBXGroup;
 			children = (
+				184447182AB211A2007D6BFE /* ggml-alloc.c */,
+				184447192AB211A2007D6BFE /* ggml-alloc.h */,
 				7FE3424E2A0C418A0015A058 /* ggml-base.en-encoder.mlmodelc */,
 				7FE342442A0C3FA20015A058 /* coreml */,
 				18627C9A29052CFF00BD2A04 /* ggml-base.en.bin */,
@@ -194,6 +199,7 @@
 				18627C9629052C5800BD2A04 /* ggml.c in Sources */,
 				18627C7B29052BDF00BD2A04 /* AppDelegate.m in Sources */,
 				7FE3424D2A0C3FA20015A058 /* whisper-decoder-impl.m in Sources */,
+				1844471A2AB211A2007D6BFE /* ggml-alloc.c in Sources */,
 				18627C8C29052BE000BD2A04 /* main.m in Sources */,
 				18627C7E29052BDF00BD2A04 /* SceneDelegate.m in Sources */,
 				7FE3424B2A0C3FA20015A058 /* whisper-encoder-impl.m in Sources */,
