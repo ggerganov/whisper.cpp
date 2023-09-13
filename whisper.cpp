@@ -2,6 +2,10 @@
 #ifdef WHISPER_USE_COREML
 #include "coreml/whisper-encoder.h"
 #endif
+#if WHISPER_USE_ASAHI
+#define WHISPER_USE_COREML
+#include "asahi/whisper-encoder.h"
+#endif
 
 #ifdef WHISPER_USE_OPENVINO
 #include "openvino/whisper-openvino-encoder.h"
@@ -1858,7 +1862,18 @@ static bool whisper_encode_internal(
 
         cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
 
+#ifdef WHISPER_USE_ASAHI
+        ggml_fp16_t mel2[mel->ne[0] * mel->ne[1]];
+        ggml_fp16_t cur2[cur->ne[0] * cur->ne[1]];
+
+        ggml_fp32_to_fp16_row((float *) mel->data, mel2, mel->ne[0] * mel->ne[1]);
+
+        whisper_coreml_encode(wstate.ctx_coreml, mel2, cur2);
+
+        ggml_fp16_to_fp32_row(cur2, (float *) cur->data, cur->ne[0] * cur->ne[1]);
+#else
         whisper_coreml_encode(wstate.ctx_coreml, (float *) mel->data, (float *) cur->data);
+#endif
     }
 #endif
 #ifdef WHISPER_USE_OPENVINO
