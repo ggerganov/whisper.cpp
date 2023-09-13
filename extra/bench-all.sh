@@ -48,9 +48,6 @@ printf "| CPU | OS | Config | Model | Th | Load | Enc. | Commit |\n"
 printf "| --- | -- | ------ | ----- | -- | ---- | ---- | ------ |\n"
 
 for model in "${models[@]}"; do
-    # run once to heat-up the cache
-    ./bench -m ./models/ggml-$model.bin -t $n_threads 2>/dev/null 1>/dev/null
-
     # actual run
     # store stderr output in a variable in order to parse it later
     output=$(./bench -m ./models/ggml-$model.bin -t $n_threads 2>&1)

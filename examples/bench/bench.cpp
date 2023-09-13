@@ -70,6 +70,15 @@ int whisper_bench_encoder(const whisper_params & params) {
         return 3;
     }
 
+    // heat up
+    if (int ret = whisper_encode(ctx, 0, params.n_threads) != 0) {
+        fprintf(stderr, "error: failed to encode model: %d\n", ret);
+        return 4;
+    }
+
+    whisper_reset_timings(ctx);
+
+    // actual run
     if (int ret = whisper_encode(ctx, 0, params.n_threads) != 0) {
         fprintf(stderr, "error: failed to encode model: %d\n", ret);
         return 4;

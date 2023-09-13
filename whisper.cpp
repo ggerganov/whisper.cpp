@@ -3588,6 +3588,9 @@ void whisper_reset_timings(struct whisper_context * ctx) {
         ctx->state->t_sample_us = 0;
         ctx->state->t_encode_us = 0;
         ctx->state->t_decode_us = 0;
+        ctx->state->n_sample = 0;
+        ctx->state->n_encode = 0;
+        ctx->state->n_decode = 0;
     }
 }
 
