@@ -856,8 +856,7 @@ void ggml_metal_graph_compute(
 
                             // for now the matrix-matrix multiplication kernel only works on A14+/M1+ SoCs
                             // AMD GPU and older A-chips will reuse matrix-vector multiplication kernel
-                            if (ggml_is_contiguous(src0) &&
-                                ggml_is_contiguous(src1) &&
+                            if (ggml_is_contiguous(src1) &&
                                 src1t == GGML_TYPE_F32 &&
                                 [ctx->device supportsFamily:MTLGPUFamilyApple7] &&
                                 ne00%32 == 0 &&

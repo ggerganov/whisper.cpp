@@ -1688,7 +1688,7 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                         0, 2, 1, 3);
 
             // K * Q
-            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
+            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, ggml_cont(ctx0, Q));
 
             struct ggml_tensor * KQ_scaled = ggml_scale(ctx0, KQ, KQscale);
 
@@ -2089,7 +2089,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                         ggml_element_size(kv_self.k)*n_state*n_ctx*il);
 
             // K * Q
-            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
+            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, ggml_cont(ctx0, Q));
 
             //struct ggml_tensor * KQ_scaled = ggml_scale(ctx0, KQ, KQ_scale);
 
@@ -2184,7 +2184,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                         0, 2, 1, 3);
 
             // K * Q
-            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, Kcross, Q);
+            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, Kcross, ggml_cont(ctx0, Q));
 
             //struct ggml_tensor * KQ_scaled =
             //    ggml_scale(ctx0,
