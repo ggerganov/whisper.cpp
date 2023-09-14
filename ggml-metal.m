@@ -610,14 +610,15 @@ void ggml_metal_graph_find_concurrency(
 
 void ggml_metal_graph_compute(
         struct ggml_metal_context * ctx,
-               struct ggml_cgraph * gf) {
+               struct ggml_cgraph * gf,
+                             bool   concurrent) {
     @autoreleasepool {
 
     // if there is ctx->concur_list, dispatch concurrently
     // else fallback to serial dispatch
     MTLComputePassDescriptor * edesc = MTLComputePassDescriptor.computePassDescriptor;
 
-    const bool has_concur = ctx->concur_list_len && ctx->concur_list_len <= GGML_MAX_CONCUR;
+    const bool has_concur = concurrent && ctx->concur_list_len && ctx->concur_list_len <= GGML_MAX_CONCUR;
 
     const int n_nodes  = has_concur ? ctx->concur_list_len      : gf->n_nodes;
     edesc.dispatchType = has_concur ? MTLDispatchTypeConcurrent : MTLDispatchTypeSerial;
@@ -927,7 +928,7 @@ void ggml_metal_graph_compute(
                                                 [encoder setComputePipelineState:ctx->pipeline_mul_mat_f16_f32_1row];
                                             //} else if (ne00 >= 128 && ne01 >= 8 && ne00%4 == 0) {
                                             } else if (false) {
-                                                // TODO: with the ggml_cont(ctx0, Q), this kernel is no longer useful
+                                                // TODO: with ggml_mul_mat_pad this kernel no longer seems to be needed
                                                 [encoder setComputePipelineState:ctx->pipeline_mul_mat_f16_f32_l4];
                                                 nrows = ne11;
                                             } else {
