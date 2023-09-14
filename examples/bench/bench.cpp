@@ -76,6 +76,7 @@ int whisper_bench_full(const whisper_params & params) {
     }
 
     whisper_token tokens[512];
+    memset(tokens, 0, sizeof(tokens));
 
     // prompt heat
     if (int ret = whisper_decode(ctx, tokens, 256, 0, params.n_threads) != 0) {
