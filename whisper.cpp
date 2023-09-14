@@ -641,11 +641,13 @@ struct whisper_state {
     int64_t t_sample_us = 0;
     int64_t t_encode_us = 0;
     int64_t t_decode_us = 0;
+    int64_t t_prompt_us = 0;
     int64_t t_mel_us = 0;
 
     int32_t n_sample = 0; // number of tokens sampled
     int32_t n_encode = 0; // number of encoder calls
-    int32_t n_decode = 0; // number of decoder calls
+    int32_t n_decode = 0; // number of decoder calls with n_tokens == 1 (text-generation)
+    int32_t n_prompt = 0; // number of decoder calls with n_tokens >  1 (prompt encoding)
     int32_t n_fail_p = 0; // number of logprob threshold failures
     int32_t n_fail_h = 0; // number of entropy threshold failures
 
@@ -2359,8 +2361,13 @@ static bool whisper_decode_internal(
         //        wstate.get_buf_max_mem(3)/1024.0/1024.0);
     }
 
-    wstate.t_decode_us += ggml_time_us() - t_start_us;
-    wstate.n_decode++;
+    if (n_tokens == 1) {
+        wstate.t_decode_us += ggml_time_us() - t_start_us;
+        wstate.n_decode++;
+    } else {
+        wstate.t_prompt_us += ggml_time_us() - t_start_us;
+        wstate.n_prompt++;
+    }
 
     return true;
 }
@@ -3573,12 +3580,14 @@ void whisper_print_timings(struct whisper_context * ctx) {
         const int32_t n_sample = std::max(1, ctx->state->n_sample);
         const int32_t n_encode = std::max(1, ctx->state->n_encode);
         const int32_t n_decode = std::max(1, ctx->state->n_decode);
+        const int32_t n_prompt = std::max(1, ctx->state->n_prompt);
 
         log("%s:     fallbacks = %3d p / %3d h\n", __func__, ctx->state->n_fail_p, ctx->state->n_fail_h);
         log("%s:      mel time = %8.2f ms\n", __func__, ctx->state->t_mel_us / 1000.0f);
         log("%s:   sample time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_sample_us, n_sample, 1e-3f * ctx->state->t_sample_us / n_sample);
         log("%s:   encode time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_encode_us, n_encode, 1e-3f * ctx->state->t_encode_us / n_encode);
         log("%s:   decode time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_decode_us, n_decode, 1e-3f * ctx->state->t_decode_us / n_decode);
+        log("%s:   prompt time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_prompt_us, n_prompt, 1e-3f * ctx->state->t_prompt_us / n_prompt);
     }
     log("%s:    total time = %8.2f ms\n", __func__, (t_end_us - ctx->t_start_us)/1000.0f);
 }
@@ -3588,9 +3597,11 @@ void whisper_reset_timings(struct whisper_context * ctx) {
         ctx->state->t_sample_us = 0;
         ctx->state->t_encode_us = 0;
         ctx->state->t_decode_us = 0;
+        ctx->state->t_prompt_us = 0;
         ctx->state->n_sample = 0;
         ctx->state->n_encode = 0;
         ctx->state->n_decode = 0;
+        ctx->state->n_prompt = 0;
     }
 }
 
@@ -5161,6 +5172,12 @@ int whisper_full_parallel(
         ctx->state->t_sample_us += states[i]->t_sample_us;
         ctx->state->t_encode_us += states[i]->t_encode_us;
         ctx->state->t_decode_us += states[i]->t_decode_us;
+        ctx->state->t_prompt_us += states[i]->t_prompt_us;
+
+        ctx->state->n_sample += states[i]->n_sample;
+        ctx->state->n_encode += states[i]->n_encode;
+        ctx->state->n_decode += states[i]->n_decode;
+        ctx->state->n_prompt += states[i]->n_prompt;
 
         whisper_free_state(states[i]);
     }

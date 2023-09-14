@@ -44,8 +44,8 @@ if [ "$encoder_only" -eq 0 ]; then
     printf "\n"
 fi
 
-printf "| CPU | OS | Config | Model | Th | Load | Enc. | Commit |\n"
-printf "| --- | -- | ------ | ----- | -- | ---- | ---- | ------ |\n"
+printf "| CPU | OS | Config | Model | Th | Enc. | Dec. | PP   | Commit |\n"
+printf "| --- | -- | ------ | ----- | -- | ---- | ---- | ---- | ------ |\n"
 
 for model in "${models[@]}"; do
     # actual run
@@ -54,14 +54,16 @@ for model in "${models[@]}"; do
     ret=$?
 
     # parse the output:
-    load_time=$(echo "$output" | grep "load time" | awk '{print $5}')
-    encode_time=$(echo "$output" | grep "encode time" | awk '{print $5}')
+    encode_time=$(echo "$output" | grep "encode time" | awk '{print $11}')
+    decode_time=$(echo "$output" | grep "decode time" | awk '{print $11}')
+    prompt_time=$(echo "$output" | grep "prompt time" | awk '{print $11}')
     system_info=$(echo "$output" | grep "system_info")
     n_threads=$(echo "$output" | grep "system_info" | awk '{print $4}')
 
     # floor to milliseconds
-    load_time=${load_time%.*}
-    encode_time=${encode_time%.*}
+    #encode_time=${encode_time%.*}
+    #decode_time=${decode_time%.*}
+    #prompt_time=${prompt_time%.*}
 
     config=""
 
@@ -84,6 +86,6 @@ for model in "${models[@]}"; do
     commit=$(git rev-parse --short HEAD)
 
     if [ $ret -eq 0 ]; then
-        printf "| <todo> | <todo> | $config | $model | $n_threads | $load_time | $encode_time | $commit |\n"
+        printf "| <todo> | <todo> | $config | $model | $n_threads | $encode_time | $decode_time | $prompt_time | $commit |\n"
     fi
 done
