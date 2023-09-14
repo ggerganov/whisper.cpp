@@ -1953,7 +1953,7 @@ static bool whisper_encode_internal(
 #ifdef GGML_USE_METAL
         if (wstate.ctx_metal) {
             ggml_metal_set_n_cb     (wstate.ctx_metal, n_threads);
-            ggml_metal_graph_compute(wstate.ctx_metal, gf, false);
+            ggml_metal_graph_compute(wstate.ctx_metal, gf);
         } else {
             ggml_graph_compute_helper(wstate.work_buffer, gf, n_threads);
         }
@@ -1975,7 +1975,7 @@ static bool whisper_encode_internal(
 #ifdef GGML_USE_METAL
         if (wstate.ctx_metal) {
             ggml_metal_set_n_cb     (wstate.ctx_metal, n_threads);
-            ggml_metal_graph_compute(wstate.ctx_metal, gf, false);
+            ggml_metal_graph_compute(wstate.ctx_metal, gf);
         } else {
             ggml_graph_compute_helper(wstate.work_buffer, gf, n_threads);
         }
@@ -2373,7 +2373,7 @@ static bool whisper_decode_internal(
 #ifdef GGML_USE_METAL
         if (wstate.ctx_metal) {
             ggml_metal_set_n_cb     (wstate.ctx_metal, n_threads);
-            ggml_metal_graph_compute(wstate.ctx_metal, gf, false);
+            ggml_metal_graph_compute(wstate.ctx_metal, gf);
         } else {
             ggml_graph_compute_helper(wstate.work_buffer, gf, n_threads);
         }
