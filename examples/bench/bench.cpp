@@ -105,8 +105,8 @@ int whisper_bench_full(const whisper_params & params) {
         }
     }
 
-    for (int i = 0; i < 128; i++) {
-        if (int ret = whisper_decode(ctx, tokens, 1, 256, params.n_threads) != 0) {
+    for (int i = 0; i < 256; i++) {
+        if (int ret = whisper_decode(ctx, tokens, 1, i, params.n_threads) != 0) {
             fprintf(stderr, "error: failed to encode model: %d\n", ret);
             return 4;
         }
