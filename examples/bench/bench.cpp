@@ -69,7 +69,6 @@ int whisper_bench_full(const whisper_params & params) {
         fprintf(stderr, "error: failed to set mel: %d\n", ret);
         return 3;
     }
-
     // heat encoder
     if (int ret = whisper_encode(ctx, 0, params.n_threads) != 0) {
         fprintf(stderr, "error: failed to encode model: %d\n", ret);

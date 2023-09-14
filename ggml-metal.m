@@ -878,7 +878,8 @@ void ggml_metal_graph_compute(
 
                             // for now the matrix-matrix multiplication kernel only works on A14+/M1+ SoCs
                             // AMD GPU and older A-chips will reuse matrix-vector multiplication kernel
-                            if (ggml_is_contiguous(src1) &&
+                            if (!ggml_is_transposed(src0) &&
+                                !ggml_is_transposed(src1) &&
                                 src1t == GGML_TYPE_F32 &&
                                 [ctx->device supportsFamily:MTLGPUFamilyApple7] &&
                                 ne00%32 == 0 &&
@@ -903,9 +904,12 @@ void ggml_metal_graph_compute(
                                 [encoder setBytes:&nb01    length:sizeof(nb01) atIndex:5];
                                 [encoder setBytes:&nb02    length:sizeof(nb02) atIndex:6];
                                 [encoder setBytes:&ne12    length:sizeof(ne12) atIndex:7];
-                                [encoder setBytes:&ne0     length:sizeof(ne0)  atIndex:8];
-                                [encoder setBytes:&ne1     length:sizeof(ne1)  atIndex:9];
-                                [encoder setBytes:&gqa     length:sizeof(gqa)  atIndex:10];
+                                [encoder setBytes:&nb10    length:sizeof(nb10) atIndex:8];
+                                [encoder setBytes:&nb11    length:sizeof(nb11) atIndex:9];
+                                [encoder setBytes:&nb12    length:sizeof(nb12) atIndex:10];
+                                [encoder setBytes:&ne0     length:sizeof(ne0)  atIndex:11];
+                                [encoder setBytes:&ne1     length:sizeof(ne1)  atIndex:12];
+                                [encoder setBytes:&gqa     length:sizeof(gqa)  atIndex:13];
                                 [encoder setThreadgroupMemoryLength:8192 atIndex:0];
                                 [encoder dispatchThreadgroups:MTLSizeMake( (ne11+31)/32, (ne01+63) / 64, ne12) threadsPerThreadgroup:MTLSizeMake(128, 1, 1)];
                             } else {
