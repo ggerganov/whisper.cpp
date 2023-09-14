@@ -137,6 +137,10 @@ static void ggml_graph_compute_helper(std::vector<uint8_t> & buf, ggml_cgraph * 
 }
 
 static struct ggml_tensor * ggml_mul_mat_pad(struct ggml_context * ctx, struct ggml_tensor * x, struct ggml_tensor * y, int pad = 32) {
+//#if !defined(GGML_USE_METAL)
+//    return ggml_mul_mat(ctx, x, y);
+//#endif
+
     if (x->ne[0] % pad == 0 || x->ne[0] / pad < 2) {
         return ggml_mul_mat(ctx, x, y);
     }
