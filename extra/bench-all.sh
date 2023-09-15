@@ -44,27 +44,26 @@ if [ "$encoder_only" -eq 0 ]; then
     printf "\n"
 fi
 
-printf "| CPU | OS | Config | Model | Th | Load | Enc. | Commit |\n"
-printf "| --- | -- | ------ | ----- | -- | ---- | ---- | ------ |\n"
+printf "| %6s | %6s | %12s | %9s | %3s | %7s | %7s | %7s | %7s |\n" "CPU" "OS" "Config" "Model" "Th" "Enc." "Dec." "PP" "Commit"
+printf "| %6s | %6s | %12s | %9s | %3s | %7s | %7s | %7s | %7s |\n" "---" "---" "---" "---" "---" "---" "---" "---" "---"
 
 for model in "${models[@]}"; do
-    # run once to heat-up the cache
-    ./bench -m ./models/ggml-$model.bin -t $n_threads 2>/dev/null 1>/dev/null
-
     # actual run
     # store stderr output in a variable in order to parse it later
     output=$(./bench -m ./models/ggml-$model.bin -t $n_threads 2>&1)
     ret=$?
 
     # parse the output:
-    load_time=$(echo "$output" | grep "load time" | awk '{print $5}')
-    encode_time=$(echo "$output" | grep "encode time" | awk '{print $5}')
+    encode_time=$(echo "$output" | grep "encode time" | awk '{print $11}')
+    decode_time=$(echo "$output" | grep "decode time" | awk '{print $11}')
+    prompt_time=$(echo "$output" | grep "prompt time" | awk '{print $11}')
     system_info=$(echo "$output" | grep "system_info")
     n_threads=$(echo "$output" | grep "system_info" | awk '{print $4}')
 
     # floor to milliseconds
-    load_time=${load_time%.*}
-    encode_time=${encode_time%.*}
+    #encode_time=${encode_time%.*}
+    #decode_time=${decode_time%.*}
+    #prompt_time=${prompt_time%.*}
 
     config=""
 
@@ -87,6 +86,6 @@ for model in "${models[@]}"; do
     commit=$(git rev-parse --short HEAD)
 
     if [ $ret -eq 0 ]; then
-        printf "| <todo> | <todo> | $config | $model | $n_threads | $load_time | $encode_time | $commit |\n"
+        printf "| <todo> | <todo> | %12s | %9s | %3s | %7s | %7s | %7s | %7s |\n" "$config" "$model" "$n_threads" "$encode_time" "$decode_time" "$prompt_time" "$commit"
     fi
 done

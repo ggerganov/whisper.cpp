@@ -1,18 +1,20 @@
 #!/bin/bash
 
-cp -rpv ../ggml/src/ggml.c               ./ggml.c
-cp -rpv ../ggml/src/ggml-cuda.h          ./ggml-cuda.h
-cp -rpv ../ggml/src/ggml-cuda.cu         ./ggml-cuda.cu
-cp -rpv ../ggml/src/ggml-opencl.h        ./ggml-opencl.h
-cp -rpv ../ggml/src/ggml-opencl.cpp      ./ggml-opencl.cpp
-cp -rpv ../ggml/src/ggml-metal.h         ./ggml-metal.h
-cp -rpv ../ggml/src/ggml-metal.m         ./ggml-metal.m
-cp -rpv ../ggml/src/ggml-metal.metal     ./ggml-metal.metal
-cp -rpv ../ggml/include/ggml/ggml.h      ./ggml.h
-cp -rpv ../ggml/examples/common.h        ./examples/common.h
-cp -rpv ../ggml/examples/common.cpp      ./examples/common.cpp
-cp -rpv ../ggml/examples/common-ggml.h   ./examples/common-ggml.h
-cp -rpv ../ggml/examples/common-ggml.cpp ./examples/common-ggml.cpp
+cp -rpv ../ggml/src/ggml.c                ./ggml.c
+cp -rpv ../ggml/src/ggml-alloc.c          ./ggml-alloc.c
+cp -rpv ../ggml/src/ggml-cuda.h           ./ggml-cuda.h
+cp -rpv ../ggml/src/ggml-cuda.cu          ./ggml-cuda.cu
+cp -rpv ../ggml/src/ggml-opencl.h         ./ggml-opencl.h
+cp -rpv ../ggml/src/ggml-opencl.cpp       ./ggml-opencl.cpp
+cp -rpv ../ggml/src/ggml-metal.h          ./ggml-metal.h
+cp -rpv ../ggml/src/ggml-metal.m          ./ggml-metal.m
+cp -rpv ../ggml/src/ggml-metal.metal      ./ggml-metal.metal
+cp -rpv ../ggml/include/ggml/ggml.h       ./ggml.h
+cp -rpv ../ggml/include/ggml/ggml-alloc.h ./ggml-alloc.h
+cp -rpv ../ggml/examples/common.h         ./examples/common.h
+cp -rpv ../ggml/examples/common.cpp       ./examples/common.cpp
+cp -rpv ../ggml/examples/common-ggml.h    ./examples/common-ggml.h
+cp -rpv ../ggml/examples/common-ggml.cpp  ./examples/common-ggml.cpp
 
 cp -rpv ../ggml/examples/whisper/whisper.h    ./whisper.h
 cp -rpv ../ggml/examples/whisper/whisper.cpp  ./whisper.cpp

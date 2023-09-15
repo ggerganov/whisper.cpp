@@ -18,7 +18,7 @@ ifndef NVCC_VERSION
 	endif
 endif
 
-CCV := $(shell $(CC) --version | head -n 1)
+CCV  := $(shell $(CC) --version | head -n 1)
 CXXV := $(shell $(CXX) --version | head -n 1)
 
 # Mac OS + Arm can report x86_64
@@ -182,6 +182,15 @@ ifdef WHISPER_COREML_ALLOW_FALLBACK
 endif
 endif
 
+ifndef WHISPER_NO_METAL
+	ifeq ($(UNAME_S),Darwin)
+		WHISPER_METAL := 1
+
+		CXXFLAGS += -DGGML_USE_METAL
+		LDFLAGS  += -framework Foundation -framework Metal -framework MetalKit
+	endif
+endif
+
 ifdef WHISPER_OPENBLAS
 	CFLAGS  += -DGGML_USE_OPENBLAS -I/usr/local/include/openblas -I/usr/include/openblas
 	LDFLAGS += -lopenblas
@@ -288,6 +297,11 @@ $(info )
 ggml.o: ggml.c ggml.h ggml-cuda.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
+ggml-alloc.o: ggml-alloc.c ggml.h ggml-alloc.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
+
+WHISPER_OBJ += ggml-alloc.o
+
 whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -301,6 +315,13 @@ whisper-encoder-impl.o: coreml/whisper-encoder-impl.m coreml/whisper-encoder-imp
 	$(CXX) -O3 -I . -fobjc-arc -c coreml/whisper-encoder-impl.m -o whisper-encoder-impl.o
 
 WHISPER_OBJ += whisper.o whisper-encoder.o whisper-encoder-impl.o
+endif
+
+ifdef WHISPER_METAL
+ggml-metal.o: ggml-metal.m ggml-metal.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+WHISPER_OBJ += ggml-metal.o
 endif
 
 libwhisper.a: ggml.o $(WHISPER_OBJ)
