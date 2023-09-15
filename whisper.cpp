@@ -762,6 +762,7 @@ struct whisper_context {
     whisper_state * state = nullptr;
 
     std::string path_model; // populated by whisper_init_from_file()
+    whisper_context_params params;
 };
 
 static void whisper_default_log(const char * text) {
@@ -2917,12 +2918,13 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     }
 
 #ifdef GGML_USE_METAL
-    // TODO: Param for enable GPU
-    state->ctx_metal = ggml_metal_init(1);
-    if (!state->ctx_metal) {
-        log("%s: ggml_metal_init() failed\n", __func__);
-        delete state;
-        return nullptr;
+    if (ctx->params.use_gpu) {
+        state->ctx_metal = ggml_metal_init(1);
+        if (!state->ctx_metal) {
+            log("%s: ggml_metal_init() failed\n", __func__);
+            delete state;
+            return nullptr;
+        }
     }
 
     if (state->ctx_metal) {
@@ -3030,7 +3032,7 @@ int whisper_ctx_init_openvino_encoder(
 #endif
 }
 
-struct whisper_context * whisper_init_from_file_no_state(const char * path_model) {
+struct whisper_context * whisper_init_from_file_no_state(const char * path_model, whisper_context_params params) {
     log("%s: loading model from '%s'\n", __func__, path_model);
 
     auto fin = std::ifstream(path_model, std::ios::binary);
@@ -3059,7 +3061,7 @@ struct whisper_context * whisper_init_from_file_no_state(const char * path_model
         fin->close();
     };
 
-    auto ctx = whisper_init_no_state(&loader);
+    auto ctx = whisper_init_no_state(&loader, params);
 
     if (ctx) {
         ctx->path_model = path_model;
@@ -3068,7 +3070,7 @@ struct whisper_context * whisper_init_from_file_no_state(const char * path_model
     return ctx;
 }
 
-struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t buffer_size) {
+struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t buffer_size, whisper_context_params params) {
     struct buf_context {
         uint8_t* buffer;
         size_t size;
@@ -3102,13 +3104,14 @@ struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t
 
     loader.close = [](void * /*ctx*/) { };
 
-    return whisper_init_no_state(&loader);
+    return whisper_init_no_state(&loader, params);
 }
 
-struct whisper_context * whisper_init_no_state(struct whisper_model_loader * loader) {
+struct whisper_context * whisper_init_no_state(struct whisper_model_loader * loader, whisper_context_params params) {
     ggml_time_init();
 
     whisper_context * ctx = new whisper_context;
+    ctx->params = params;
 
     if (!whisper_model_load(loader, *ctx)) {
         loader->close(loader->context);
@@ -3122,8 +3125,8 @@ struct whisper_context * whisper_init_no_state(struct whisper_model_loader * loa
     return ctx;
 }
 
-struct whisper_context * whisper_init_from_file(const char * path_model) {
-    whisper_context * ctx = whisper_init_from_file_no_state(path_model);
+struct whisper_context * whisper_init_from_file(const char * path_model, whisper_context_params params) {
+    whisper_context * ctx = whisper_init_from_file_no_state(path_model, params);
     if (!ctx) {
         return nullptr;
     }
@@ -3137,8 +3140,8 @@ struct whisper_context * whisper_init_from_file(const char * path_model) {
     return ctx;
 }
 
-struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size) {
-    whisper_context * ctx = whisper_init_from_buffer_no_state(buffer, buffer_size);
+struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size, whisper_context_params params) {
+    whisper_context * ctx = whisper_init_from_buffer_no_state(buffer, buffer_size, params);
     if (!ctx) {
         return nullptr;
     }
@@ -3152,8 +3155,8 @@ struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_s
     return ctx;
 }
 
-struct whisper_context * whisper_init(struct whisper_model_loader * loader) {
-    whisper_context * ctx = whisper_init_no_state(loader);
+struct whisper_context * whisper_init(struct whisper_model_loader * loader, whisper_context_params params) {
+    whisper_context * ctx = whisper_init_no_state(loader, params);
     if (!ctx) {
         return nullptr;
     }

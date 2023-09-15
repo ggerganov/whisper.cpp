@@ -102,6 +102,8 @@ struct whisper_params {
 
     std::vector<std::string> fname_inp = {};
     std::vector<std::string> fname_out = {};
+
+    bool use_gpu       = true;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -163,6 +165,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-f"    || arg == "--file")            { params.fname_inp.emplace_back(argv[++i]); }
         else if (arg == "-oved" || arg == "--ov-e-device")     { params.openvino_encode_device = argv[++i]; }
         else if (arg == "-ls"   || arg == "--log-score")       { params.log_score = true; }
+        else if (arg == "-ng"   || arg == "--no-gpu")          { params.use_gpu = false; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -841,7 +844,9 @@ int main(int argc, char ** argv) {
 
     // whisper init
 
-    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
+    struct whisper_context_params cparams;
+    cparams.use_gpu = params.use_gpu;
+    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str(), cparams);
 
     if (ctx == nullptr) {
         fprintf(stderr, "error: failed to initialize whisper context\n");

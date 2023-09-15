@@ -10,6 +10,7 @@ struct whisper_params {
     int32_t what = 0; // what to benchmark: 0 - whisper ecoder, 1 - memcpy, 2 - ggml_mul_mat
 
     std::string model = "models/ggml-base.en.bin";
+    bool use_gpu = true;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -24,7 +25,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         }
         else if (arg == "-t" || arg == "--threads") { params.n_threads = std::stoi(argv[++i]); }
         else if (arg == "-m" || arg == "--model")   { params.model     = argv[++i]; }
-        else if (arg == "-w" || arg == "--what")    { params.what     = atoi(argv[++i]); }
+        else if (arg == "-w" || arg == "--what")    { params.what      = atoi(argv[++i]); }
+        else if (arg == "-ng" || arg == "--no-gpu") { params.use_gpu   = false; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -53,7 +55,9 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
 int whisper_bench_full(const whisper_params & params) {
     // whisper init
 
-    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
+    struct whisper_context_params cparams;
+    cparams.use_gpu = params.use_gpu;
+    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str(), cparams);
 
     {
         fprintf(stderr, "\n");
