@@ -186,6 +186,7 @@ ifndef WHISPER_NO_METAL
 	ifeq ($(UNAME_S),Darwin)
 		WHISPER_METAL := 1
 
+		CFLAGS   += -DGGML_USE_METAL
 		CXXFLAGS += -DGGML_USE_METAL
 		LDFLAGS  += -framework Foundation -framework Metal -framework MetalKit
 	endif
