@@ -5745,6 +5745,7 @@ inline void ggml_cuda_op_rope(
     (void) dst;
     (void) src0_ddq_i;
     (void) src1_ddf_i;
+    (void) i02;
     (void) i1;
 }
 
@@ -5780,6 +5781,7 @@ inline void ggml_cuda_op_alibi(
     (void) src1;
     (void) src0_ddq_i;
     (void) src1_ddf_i;
+    (void) i02;
     (void) i1;
 }
 
