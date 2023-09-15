@@ -21,6 +21,14 @@
 #define UNUSED(x) (void)(x)
 
 #define GGML_MAX_CONCUR (2*GGML_MAX_NODES)
+#include <sys/utsname.h>
+
+NSString *GetMachineHardwareName(void) {
+    struct utsname sysinfo;
+    int retVal = uname(&sysinfo);
+    if (EXIT_SUCCESS != retVal) return nil;
+    return [NSString stringWithUTF8String:sysinfo.machine];
+}
 
 struct ggml_metal_buffer {
     const char * name;
@@ -251,16 +259,23 @@ struct ggml_metal_context * ggml_metal_init(int n_cb) {
         GGML_METAL_ADD_KERNEL(mul_mat_q4_K_f32);
         GGML_METAL_ADD_KERNEL(mul_mat_q5_K_f32);
         GGML_METAL_ADD_KERNEL(mul_mat_q6_K_f32);
-        GGML_METAL_ADD_KERNEL(mul_mm_f32_f32);
-        GGML_METAL_ADD_KERNEL(mul_mm_f16_f32);
-        GGML_METAL_ADD_KERNEL(mul_mm_q4_0_f32);
-        GGML_METAL_ADD_KERNEL(mul_mm_q8_0_f32);
-        GGML_METAL_ADD_KERNEL(mul_mm_q4_1_f32);
-        GGML_METAL_ADD_KERNEL(mul_mm_q2_K_f32);
-        GGML_METAL_ADD_KERNEL(mul_mm_q3_K_f32);
-        GGML_METAL_ADD_KERNEL(mul_mm_q4_K_f32);
-        GGML_METAL_ADD_KERNEL(mul_mm_q5_K_f32);
-        GGML_METAL_ADD_KERNEL(mul_mm_q6_K_f32);
+
+        NSString *hardwareName = GetMachineHardwareName();
+        const char *hardwareNameCString = [hardwareName UTF8String];
+        // if the hardware architecture is not x86_64
+        // add the problematic kernel metal functions
+        if (strcmp(hardwareNameCString, "x86_64") != 0) {
+            GGML_METAL_ADD_KERNEL(mul_mm_f32_f32);
+            GGML_METAL_ADD_KERNEL(mul_mm_f16_f32);
+            GGML_METAL_ADD_KERNEL(mul_mm_q4_0_f32);
+            GGML_METAL_ADD_KERNEL(mul_mm_q8_0_f32);
+            GGML_METAL_ADD_KERNEL(mul_mm_q4_1_f32);
+            GGML_METAL_ADD_KERNEL(mul_mm_q2_K_f32);
+            GGML_METAL_ADD_KERNEL(mul_mm_q3_K_f32);
+            GGML_METAL_ADD_KERNEL(mul_mm_q4_K_f32);
+            GGML_METAL_ADD_KERNEL(mul_mm_q5_K_f32);
+            GGML_METAL_ADD_KERNEL(mul_mm_q6_K_f32);
+        }
         GGML_METAL_ADD_KERNEL(rope);
         GGML_METAL_ADD_KERNEL(alibi_f32);
         GGML_METAL_ADD_KERNEL(cpy_f32_f16);
