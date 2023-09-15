@@ -19,7 +19,7 @@ brew install sdl2
 make talk-llama
 
 # Run it
-./talk-llama -mw ./models/ggml-small.en.bin -ml ../llama.cpp/models/13B/ggml-model-q4_0.bin -p "Georgi" -t 8
+./talk-llama -mw ./models/ggml-small.en.bin -ml ../llama.cpp/models/llama-13b/ggml-model-q4_0.gguf -p "Georgi" -t 8
 ```
 
 - The `-mw` argument specifies the Whisper model that you would like to use. Recommended `base` or `small` for real-time experience
@@ -36,7 +36,7 @@ This feature is especially helpful for maintaining context in long conversations
 Example usage:
 
 ```bash
-./talk-llama --session ./my-session-file -mw ./models/ggml-small.en.bin -ml ../llama.cpp/models/13B/ggml-model-q4_0.bin -p "Georgi" -t 8
+./talk-llama --session ./my-session-file -mw ./models/ggml-small.en.bin -ml ../llama.cpp/models/llama-13b/ggml-model-q4_0.gguf -p "Georgi" -t 8
 ```
 
 ## TTS
