@@ -1,25 +1,62 @@
 import subprocess
 import re
 import csv
+import wave
+import contextlib
 
 # Define the models, threads, and processor counts to benchmark
 models = [
     "ggml-tiny.en.bin",
+    "ggml-tiny.bin",
     "ggml-base.en.bin",
+    "ggml-base.bin",
     "ggml-small.en.bin",
+    "ggml-small.bin",
     "ggml-medium.bin",
     "ggml-medium.en.bin",
     "ggml-large.bin",
-    # "ggml-small.en-q5_1.bin",
-    # "ggml-medium.en-q5_0.bin",
-    # "ggml-large-q5_0.bin",
 ]
 
+sample_file = "samples/jfk.wav"
+
 threads = [4]
+
 processor_counts = [1]
+
+metal_device = ""
 
 # Initialize a dictionary to hold the results
 results = {}
+
+modelHeader = "Model"
+hardwareHeader = "Hardware"
+recordingLengthHeader = "Recording Length (seconds)"
+threadHeader = "Thread"
+processorCountHeader = "Processor Count"
+loadTimeHeader = "Load Time (ms)"
+sampleTimeHeader = "Sample Time (ms)"
+encodeTimeHeader = "Encode Time (ms)"
+decodeTimeHeader = "Decode Time (ms)"
+sampleTimePerRunHeader = "Sample Time per Run (ms)"
+encodeTimePerRunHeader = "Encode Time per Run (ms)"
+decodeTimePerRunHeader = "Decode Time per Run (ms)"
+totalTimeHeader = "Total Time (ms)"
+
+
+def check_file_exists(file: str) -> bool:
+    try:
+        with open(file, "r"):
+            return True
+    except FileNotFoundError:
+        return False
+
+
+def wav_file_length(file: str = sample_file):
+    with contextlib.closing(wave.open(file, "r")) as f:
+        frames = f.getnframes()
+        rate = f.getframerate()
+        duration = frames / float(rate)
+        return duration
 
 
 def extract_metrics(output: str, label: str) -> tuple[float, float]:
@@ -29,13 +66,32 @@ def extract_metrics(output: str, label: str) -> tuple[float, float]:
     return time, runs
 
 
+def extract_device(output: str) -> str:
+    match = re.search(r"picking default device: (.*)", output)
+    device = match.group(1) if match else "Not found"
+    return device
+
+
+# Check if the sample file exists
+if not check_file_exists(sample_file):
+    raise FileNotFoundError(f"Sample file {sample_file} not found")
+recording_length = wav_file_length()
+
+
+# Check that all models exist
+# Filter out models from list that are not downloaded
+for model in models:
+    if not check_file_exists(f"models/{model}"):
+        print(f"Model {model} not found, removing from list")
+        models.remove(model)
+
 # Loop over each combination of parameters
 for model in models:
     for thread in threads:
         for processor_count in processor_counts:
             print(f"{model} threads={thread} processor_count={processor_count}")
             # Construct the command to run
-            cmd = f"./main -m models/{model} -t {thread} -p {processor_count} -f samples/alice-40s.wav"
+            cmd = f"./main -m models/{model} -t {thread} -p {processor_count} -f {sample_file}"
             # Run the command and get the output
             process = subprocess.Popen(
                 cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -49,6 +105,7 @@ for model in models:
             load_time_match = re.search(r"load time\s*=\s*(\d+\.\d+)\s*ms", output)
             load_time = float(load_time_match.group(1)) if load_time_match else None
 
+            metal_device = extract_device(output)
             sample_time, sample_runs = extract_metrics(output, "sample time")
             encode_time, encode_runs = extract_metrics(output, "encode time")
             decode_time, decode_runs = extract_metrics(output, "decode time")
@@ -57,30 +114,32 @@ for model in models:
             total_time = float(total_time_match.group(1)) if total_time_match else None
             # Store the times in the results dictionary
             results[(model, thread, processor_count)] = {
-                "Load Time": load_time,
-                "Sample Time": sample_time,
-                "Encode Time": encode_time,
-                "Decode Time": decode_time,
-                "Sample Time per Run": sample_time / sample_runs,
-                "Encode Time per Run": encode_time / encode_runs,
-                "Decode Time per Run": decode_time / decode_runs,
-                "Total Time": total_time,
+                loadTimeHeader: load_time,
+                sampleTimeHeader: sample_time,
+                encodeTimeHeader: encode_time,
+                decodeTimeHeader: decode_time,
+                sampleTimePerRunHeader: sample_time / sample_runs,
+                encodeTimePerRunHeader: encode_time / encode_runs,
+                decodeTimePerRunHeader: decode_time / decode_runs,
+                totalTimeHeader: total_time,
             }
 
 # Write the results to a CSV file
 with open("benchmark_results.csv", "w", newline="") as csvfile:
     fieldnames = [
-        "Model",
-        "Thread",
-        "Processor Count",
-        "Load Time",
-        "Sample Time",
-        "Encode Time",
-        "Decode Time",
-        "Sample Time per Run",
-        "Encode Time per Run",
-        "Decode Time per Run",
-        "Total Time",
+        modelHeader,
+        hardwareHeader,
+        recordingLengthHeader,
+        threadHeader,
+        processorCountHeader,
+        loadTimeHeader,
+        sampleTimeHeader,
+        encodeTimeHeader,
+        decodeTimeHeader,
+        sampleTimePerRunHeader,
+        encodeTimePerRunHeader,
+        decodeTimePerRunHeader,
+        totalTimeHeader,
     ]
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
@@ -89,9 +148,11 @@ with open("benchmark_results.csv", "w", newline="") as csvfile:
     sorted_results = sorted(results.items(), key=lambda x: x[1].get("Total Time", 0))
     for params, times in sorted_results:
         row = {
-            "Model": params[0],
-            "Thread": params[1],
-            "Processor Count": params[2],
+            modelHeader: params[0],
+            hardwareHeader: metal_device,
+            recordingLengthHeader: recording_length,
+            threadHeader: params[1],
+            processorCountHeader: params[2],
         }
         row.update(times)
         writer.writerow(row)
