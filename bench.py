@@ -127,9 +127,9 @@ for model in models:
                 sampleTimeHeader: sample_time,
                 encodeTimeHeader: encode_time,
                 decodeTimeHeader: decode_time,
-                sampleTimePerRunHeader: sample_time / sample_runs,
-                encodeTimePerRunHeader: encode_time / encode_runs,
-                decodeTimePerRunHeader: decode_time / decode_runs,
+                sampleTimePerRunHeader: round(sample_time / sample_runs, 2),
+                encodeTimePerRunHeader: round(encode_time / encode_runs, 2),
+                decodeTimePerRunHeader: round(decode_time / decode_runs, 2),
                 totalTimeHeader: total_time,
             }
 

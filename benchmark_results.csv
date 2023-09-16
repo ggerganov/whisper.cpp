@@ -1,7 +1,7 @@
-Commit,Model,Hardware,Recording Length (seconds),Thread,Processor Count,Load Time (ms),Sample Time (ms),Encode Time (ms),Decode Time (ms),Sample Time per Run (ms),Encode Time per Run (ms),Decode Time per Run (ms),Total Time (ms)
-bb35cec,ggml-tiny.en.bin,Apple M1 Pro,11.0,4,1,43.64,13.51,53.2,47.68,0.5003703703703704,53.2,1.765925925925926,228.46
-bb35cec,ggml-base.en.bin,Apple M1 Pro,11.0,4,1,65.16,11.28,94.56,69.13,0.41777777777777775,94.56,2.56037037037037,314.39
-bb35cec,ggml-small.en.bin,Apple M1 Pro,11.0,4,1,164.38,12.21,252.85,174.26,0.40700000000000003,252.85,5.808666666666666,690.02
-bb35cec,ggml-medium.bin,Apple M1 Pro,11.0,4,1,478.39,13.27,698.15,357.27,0.4739285714285714,698.15,13.232222222222221,1674.12
-bb35cec,ggml-medium.en.bin,Apple M1 Pro,11.0,4,1,495.55,11.29,691.23,359.58,0.4181481481481481,691.23,13.317777777777778,1649.06
-bb35cec,ggml-large.bin,Apple M1 Pro,11.0,4,1,941.63,11.45,1253.68,565.56,0.42407407407407405,1253.68,21.75230769230769,2945.79
+Commit  ,Model              ,Hardware     ,Recording Length (seconds) ,Thread ,Processor Count ,Load Time (ms) ,Sample Time (ms) ,Encode Time (ms) ,Decode Time (ms) ,Sample Time per Run (ms) ,Encode Time per Run (ms) ,Decode Time per Run (ms) ,Total Time (ms)
+c9f02c2 ,ggml-tiny.en.bin   ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,         50.53 ,           13.38 ,           55.13 ,           47.63 ,                    0.5  ,                   55.13 ,                    1.76 ,         239.25
+c9f02c2 ,ggml-base.en.bin   ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,         73.22 ,           11.31 ,           93.36 ,           69.6  ,                    0.42 ,                   93.36 ,                    2.58 ,         324.1
+c9f02c2 ,ggml-small.en.bin  ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,        202.81 ,           12.37 ,          256.52 ,          173.2  ,                    0.41 ,                  256.52 ,                    5.77 ,         729.33
+c9f02c2 ,ggml-medium.bin    ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,        655.14 ,           13.34 ,          705.0  ,          370.83 ,                    0.48 ,                  705.0  ,                   13.73 ,        1884.92
+c9f02c2 ,ggml-medium.en.bin ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,        774.22 ,           11.31 ,          713.09 ,          357.81 ,                    0.42 ,                  713.09 ,                   13.25 ,        1986.39
+c9f02c2 ,ggml-large.bin     ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,       1367.25 ,           11.32 ,         1262.89 ,          562.71 ,                    0.42 ,                 1262.89 ,                   21.64 ,        3421.02
