@@ -28,6 +28,7 @@ metal_device = ""
 # Initialize a dictionary to hold the results
 results = {}
 
+gitHashHeader = "Commit"
 modelHeader = "Model"
 hardwareHeader = "Hardware"
 recordingLengthHeader = "Recording Length (seconds)"
@@ -49,6 +50,14 @@ def check_file_exists(file: str) -> bool:
             return True
     except FileNotFoundError:
         return False
+
+
+def get_git_short_hash():
+    return (
+        subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+        .decode()
+        .strip()
+    )
 
 
 def wav_file_length(file: str = sample_file):
@@ -127,6 +136,7 @@ for model in models:
 # Write the results to a CSV file
 with open("benchmark_results.csv", "w", newline="") as csvfile:
     fieldnames = [
+        gitHashHeader,
         modelHeader,
         hardwareHeader,
         recordingLengthHeader,
@@ -144,10 +154,13 @@ with open("benchmark_results.csv", "w", newline="") as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
     writer.writeheader()
+
+    shortHash = get_git_short_hash()
     # Sort the results by total time in ascending order
     sorted_results = sorted(results.items(), key=lambda x: x[1].get("Total Time", 0))
     for params, times in sorted_results:
         row = {
+            gitHashHeader: shortHash,
             modelHeader: params[0],
             hardwareHeader: metal_device,
             recordingLengthHeader: recording_length,
