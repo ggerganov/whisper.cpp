@@ -57,7 +57,7 @@ int whisper_bench_full(const whisper_params & params) {
 
     struct whisper_context_params cparams;
     cparams.use_gpu = params.use_gpu;
-    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str(), cparams);
+    struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
     {
         fprintf(stderr, "\n");

@@ -846,7 +846,7 @@ int main(int argc, char ** argv) {
 
     struct whisper_context_params cparams;
     cparams.use_gpu = params.use_gpu;
-    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str(), cparams);
+    struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
     if (ctx == nullptr) {
         fprintf(stderr, "error: failed to initialize whisper context\n");
