@@ -290,7 +290,7 @@ int main(int argc, char **argv) {
         wavWriter = new SimpleWavWriter(filename, WHISPER_SAMPLE_RATE, 16, 1);
     }
 
-    printf("[Start speaking]");
+    printf("[Start speaking]\n");
     fflush(stdout);
 
     auto t_last = std::chrono::high_resolution_clock::now();
@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
     while (is_running) {
         // handle Ctrl + C
         if (params.save_audio && wavWriter) {
-            wavWriter->writeData(pcmf32.data(), pcmf32.size());
+            wavWriter->writeData(pcmf32_new.data(), pcmf32_new.size());
         }
         is_running = sdl_poll_events();
 
@@ -311,6 +311,7 @@ int main(int argc, char **argv) {
         // process new audio
 
         if (!use_vad) {
+            //printf("no vad\n");
             while (true) {
                 audio.get(params.step_ms, pcmf32_new);
 
@@ -347,6 +348,7 @@ int main(int argc, char **argv) {
 
             pcmf32_old = pcmf32;
         } else {
+            //printf("vad\n");
             const auto t_now = std::chrono::high_resolution_clock::now();
             const auto t_diff = std::chrono::duration_cast<std::chrono::milliseconds>(t_now - t_last).count();
 
