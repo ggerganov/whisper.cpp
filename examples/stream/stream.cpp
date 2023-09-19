@@ -174,9 +174,9 @@ void whisper_print_usage(int /*argc*/, char **argv, const whisper_params &params
     fprintf(stderr, "  -l LANG,  --language LANG [%-7s] spoken language\n", params.language.c_str());
     fprintf(stderr, "  -m FNAME, --model FNAME   [%-7s] model path\n", params.model.c_str());
     fprintf(stderr, "  -f FNAME, --file FNAME    [%-7s] text output file name\n", params.fname_out.c_str());
-    fprintf(stderr, "  -tdrz,     --tinydiarize  [%-7s] enable tinydiarize (requires a tdrz model)\n",
+    fprintf(stderr, "  -tdrz,    --tinydiarize   [%-7s] enable tinydiarize (requires a tdrz model)\n",
             params.tinydiarize ? "true" : "false");
-    fprintf(stderr, "  -sc, --save-audio,        [%-7s] save the recorded audio to a file\n",
+    fprintf(stderr, "  -sc,      --save-audio    [%-7s] save the recorded audio to a file\n",
             params.tinydiarize ? "true" : "false");
 
     fprintf(stderr, "\n");
