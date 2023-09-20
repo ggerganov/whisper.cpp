@@ -1,4 +1,5 @@
 #include "whisper.h"
+#include "console.h"
 #ifdef WHISPER_USE_COREML
 #include "coreml/whisper-encoder.h"
 #endif
@@ -765,7 +766,7 @@ struct whisper_context {
 };
 
 static void whisper_default_log(const char * text) {
-    fprintf(stderr, "%s", text);
+    fuprintf(stderr, "%s", ConvertUTF8toUTF16(text).c_str());
 }
 
 static whisper_log_callback whisper_log = whisper_default_log;
@@ -5032,9 +5033,9 @@ int whisper_full_with_state(
 
                             if (params.print_realtime) {
                                 if (params.print_timestamps) {
-                                    printf("[%s --> %s]  %s\n", to_timestamp(tt0).c_str(), to_timestamp(tt1).c_str(), text.c_str());
+                                    uprintf("[%s --> %s]  %s\n", ConvertUTF8toUTF16(to_timestamp(tt0)).c_str(), ConvertUTF8toUTF16(to_timestamp(tt1)).c_str(), ConvertUTF8toUTF16(text).c_str());
                                 } else {
-                                    printf("%s", text.c_str());
+                                    uprintf("%s", ConvertUTF8toUTF16(text).c_str());
                                     fflush(stdout);
                                 }
                             }
@@ -5079,9 +5080,9 @@ int whisper_full_with_state(
 
                     if (params.print_realtime) {
                         if (params.print_timestamps) {
-                            printf("[%s --> %s]  %s\n", to_timestamp(tt0).c_str(), to_timestamp(tt1).c_str(), text.c_str());
+                            uprintf("[%s --> %s]  %s\n", ConvertUTF8toUTF16(to_timestamp(tt0)).c_str(), ConvertUTF8toUTF16(to_timestamp(tt1)).c_str(), ConvertUTF8toUTF16(text).c_str());
                         } else {
-                            printf("%s", text.c_str());
+                            uprintf("%s", ConvertUTF8toUTF16(text).c_str());
                             fflush(stdout);
                         }
                     }
