@@ -1,6 +1,7 @@
 #define _USE_MATH_DEFINES // for M_PI
 
 #include "common.h"
+#include "console.h"
 
 // third-party utilities
 // use your favorite implementations
@@ -607,7 +608,7 @@ gpt_vocab::id gpt_sample_top_k_top_p_repeat(
 
 }
 
-bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector<std::vector<float>>& pcmf32s, bool stereo) {
+bool read_wav(const std::string & fname, std::vector<float> & pcmf32, std::vector<std::vector<float>> & pcmf32s, bool stereo) {
     drwav wav;
     std::vector<uint8_t> wav_data; // used for pipe input from stdin
 
@@ -625,34 +626,41 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
         }
 
         if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), nullptr) == false) {
-            fprintf(stderr, "error: failed to open WAV file from stdin\n");
+            fuprintf(stderr, "error: failed to open WAV file from stdin\n");
             return false;
         }
 
-        fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
+        fuprintf(stderr, "%s: read %zu bytes from stdin\n", ConvertUTF8toUTF16(__func__).c_str(), wav_data.size());
     }
-    else if (drwav_init_file(&wav, fname.c_str(), nullptr) == false) {
-        fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname.c_str());
+#if WIN32
+    else if (drwav_init_file_w(&wav, ConvertUTF8toUTF16(fname).c_str(), nullptr) == false) {
+        fuprintf(stderr, "error: failed to open '%s' as WAV file\n", ConvertUTF8toUTF16(fname).c_str());
         return false;
     }
+#else
+    else if (drwav_init_file(&wav, fname.c_str(), nullptr) == false) {
+        fuprintf(stderr, "error: failed to open '%s' as WAV file\n", ConvertUTF8toUTF16(fname).c_str());
+        return false;
+    }
+#endif
 
     if (wav.channels != 1 && wav.channels != 2) {
-        fprintf(stderr, "%s: WAV file '%s' must be mono or stereo\n", __func__, fname.c_str());
+        fuprintf(stderr, "%s: WAV file '%s' must be mono or stereo\n", ConvertUTF8toUTF16(__func__).c_str(), ConvertUTF8toUTF16(fname).c_str());
         return false;
     }
 
     if (stereo && wav.channels != 2) {
-        fprintf(stderr, "%s: WAV file '%s' must be stereo for diarization\n", __func__, fname.c_str());
+        fuprintf(stderr, "%s: WAV file '%s' must be stereo for diarization\n", ConvertUTF8toUTF16(__func__).c_str(), ConvertUTF8toUTF16(fname).c_str());
         return false;
     }
 
     if (wav.sampleRate != COMMON_SAMPLE_RATE) {
-        fprintf(stderr, "%s: WAV file '%s' must be %i kHz\n", __func__, fname.c_str(), COMMON_SAMPLE_RATE/1000);
+        fuprintf(stderr, "%s: WAV file '%s' must be %i kHz\n", ConvertUTF8toUTF16(__func__).c_str(), ConvertUTF8toUTF16(fname).c_str(), COMMON_SAMPLE_RATE/1000);
         return false;
     }
 
     if (wav.bitsPerSample != 16) {
-        fprintf(stderr, "%s: WAV file '%s' must be 16-bit\n", __func__, fname.c_str());
+        fuprintf(stderr, "%s: WAV file '%s' must be 16-bit\n", ConvertUTF8toUTF16(__func__).c_str(), ConvertUTF8toUTF16(fname).c_str());
         return false;
     }
 
