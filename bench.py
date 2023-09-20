@@ -157,7 +157,7 @@ with open("benchmark_results.csv", "w", newline="") as csvfile:
 
     shortHash = get_git_short_hash()
     # Sort the results by total time in ascending order
-    sorted_results = sorted(results.items(), key=lambda x: x[1].get("Total Time", 0))
+    sorted_results = sorted(results.items(), key=lambda x: x[1].get(totalTimeHeader, 0))
     for params, times in sorted_results:
         row = {
             gitHashHeader: shortHash,
