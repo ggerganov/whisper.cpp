@@ -1045,6 +1045,6 @@ int wmain(int argc, wchar_t ** argv_UTF16LE) {
 #else
 int main(int argc, char ** argv_UTF8) {
     init_console();
-    return run(argc, argv_UTF8);
+    return run(argc, static_cast<const char**>(argv_UTF8));
 }
 #endif
