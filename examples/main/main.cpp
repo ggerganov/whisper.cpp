@@ -1032,7 +1032,7 @@ int run(int argc, const char ** argv) {
 }
 
 #if WIN32
-int wmain(int argc, wchar_t ** argv_UTF16LE) {
+int wmain(int argc, const wchar_t ** argv_UTF16LE) {
     init_console();
     std::vector<std::string> buffer(argc);
     std::vector<const char*> argv_UTF8(argc);
@@ -1043,8 +1043,8 @@ int wmain(int argc, wchar_t ** argv_UTF16LE) {
     return run(argc, argv_UTF8.data());
 }
 #else
-int main(int argc, char ** argv_UTF8) {
+int main(int argc, const char ** argv_UTF8) {
     init_console();
-    return run(argc, static_cast<const char**>(argv_UTF8));
+    return run(argc, argv_UTF8);
 }
 #endif
