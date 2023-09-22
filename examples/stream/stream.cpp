@@ -285,6 +285,7 @@ int main(int argc, char ** argv) {
         if (params.save_audio && wavWriter) {
             wavWriter->writeData(pcmf32_new.data(), pcmf32_new.size());
         }
+        // handle Ctrl + C
         is_running = sdl_poll_events();
 
         if (!is_running) {
