@@ -476,8 +476,5 @@ int main(int argc, char ** argv) {
     whisper_print_timings(ctx);
     whisper_free(ctx);
 
-    if (wavWriter) {
-        delete wavWriter;
-    }
     return 0;
 }
