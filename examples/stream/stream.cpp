@@ -282,7 +282,6 @@ int main(int argc, char ** argv) {
 
     // main audio loop
     while (is_running) {
-        // handle Ctrl + C
         if (params.save_audio && wavWriter) {
             wavWriter->writeData(pcmf32_new.data(), pcmf32_new.size());
         }
