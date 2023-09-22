@@ -133,7 +133,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-m"   || arg == "--model")         { params.model         = argv[++i]; }
         else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
         else if (arg == "-tdrz" || arg == "--tinydiarize")  { params.tinydiarize   = true; }
-        else if (arg == "-sc"  || arg == "--save-audio")    { params.save_audio    = true; }
+        else if (arg == "-sa"  || arg == "--save-audio")    { params.save_audio    = true; }
 
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
