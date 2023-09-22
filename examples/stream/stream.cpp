@@ -60,7 +60,6 @@ public:
             file.seekp(0, std::ios::end);
         }
     }
-    }
 
     ~SimpleWavWriter() {
         if (file.is_open()) {
