@@ -55,11 +55,6 @@ public:
 
     ~SimpleWavWriter() {
         if (file.is_open()) {
-            file.seekp(4, std::ios::beg);
-            int32_t fileSize = 36 + dataSize;
-            file.write(reinterpret_cast<char *>(&fileSize), 4);
-            file.seekp(40, std::ios::beg);
-            file.write(reinterpret_cast<char *>(&dataSize), 4);
             file.close();
         }
     }
