@@ -134,7 +134,7 @@ for model in models:
                 f"Ran model={model_name} threads={thread} processor_count={processor_count}, took {total_time}ms"
             )
             # Store the times in the results dictionary
-            results[(model, thread, processor_count)] = {
+            results[(model_name, thread, processor_count)] = {
                 loadTimeHeader: load_time,
                 sampleTimeHeader: sample_time,
                 encodeTimeHeader: encode_time,
