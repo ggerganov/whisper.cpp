@@ -1,3 +1,4 @@
+import os
 import subprocess
 import re
 import csv
@@ -104,7 +105,6 @@ for model in models:
 for model in models:
     for thread in threads:
         for processor_count in processor_counts:
-            print(f"{model} threads={thread} processor_count={processor_count}")
             # Construct the command to run
             cmd = f"./main -m models/{model} -t {thread} -p {processor_count} -f {sample_file}"
             # Run the command and get the output
@@ -127,6 +127,12 @@ for model in models:
 
             total_time_match = re.search(r"total time\s*=\s*(\d+\.\d+)\s*ms", output)
             total_time = float(total_time_match.group(1)) if total_time_match else None
+
+            model_name = model.replace("ggml-", "").replace(".bin", "")
+
+            print(
+                f"Ran model={model_name} threads={thread} processor_count={processor_count}, took {total_time}ms"
+            )
             # Store the times in the results dictionary
             results[(model, thread, processor_count)] = {
                 loadTimeHeader: load_time,
