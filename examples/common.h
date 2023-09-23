@@ -201,6 +201,7 @@ private:
         }
         if (!file.is_open()) {
             file.open(filename, std::ios::binary);
+            wav_filename = filename;
         }
         return file.is_open();
     }
