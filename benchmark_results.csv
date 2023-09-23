@@ -1,7 +1,7 @@
-Commit  ,Model              ,Hardware     ,Recording Length (seconds) ,Thread ,Processor Count ,Load Time (ms) ,Sample Time (ms) ,Encode Time (ms) ,Decode Time (ms) ,Sample Time per Run (ms) ,Encode Time per Run (ms) ,Decode Time per Run (ms) ,Total Time (ms)
-c9f02c2 ,ggml-tiny.en.bin   ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,         50.53 ,           13.38 ,           55.13 ,           47.63 ,                    0.5  ,                   55.13 ,                    1.76 ,         239.25
-c9f02c2 ,ggml-base.en.bin   ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,         73.22 ,           11.31 ,           93.36 ,           69.6  ,                    0.42 ,                   93.36 ,                    2.58 ,         324.1
-c9f02c2 ,ggml-small.en.bin  ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,        202.81 ,           12.37 ,          256.52 ,          173.2  ,                    0.41 ,                  256.52 ,                    5.77 ,         729.33
-c9f02c2 ,ggml-medium.bin    ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,        655.14 ,           13.34 ,          705.0  ,          370.83 ,                    0.48 ,                  705.0  ,                   13.73 ,        1884.92
-c9f02c2 ,ggml-medium.en.bin ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,        774.22 ,           11.31 ,          713.09 ,          357.81 ,                    0.42 ,                  713.09 ,                   13.25 ,        1986.39
-c9f02c2 ,ggml-large.bin     ,Apple M1 Pro ,                      11.0 ,     4 ,              1 ,       1367.25 ,           11.32 ,         1262.89 ,          562.71 ,                    0.42 ,                 1262.89 ,                   21.64 ,        3421.02
+Commit,Model,Hardware,Recording Length (seconds),Thread,Processor Count,Load Time (ms),Sample Time (ms),Encode Time (ms),Decode Time (ms),Sample Time per Run (ms),Encode Time per Run (ms),Decode Time per Run (ms),Total Time (ms)
+9615b4d,tiny.en,Apple M1 Pro,46.688,4,1,50.33,103.3,136.46,399.04,0.44,45.49,1.71,783.75
+9615b4d,base.en,Apple M1 Pro,46.688,4,1,75.21,94.59,255.98,575.58,0.41,85.33,2.54,1106.19
+9615b4d,small.en,Apple M1 Pro,46.688,4,1,204.36,96.52,725.23,1324.64,0.42,241.74,5.81,2486.59
+9615b4d,medium.en,Apple M1 Pro,46.688,4,1,588.64,96.67,1363.94,2370.21,0.54,681.97,13.39,4576.9
+9615b4d,medium,Apple M1 Pro,46.688,4,1,548.29,96.38,2007.35,2732.65,0.45,669.12,13.33,5676.5
+9615b4d,large,Apple M1 Pro,46.688,4,1,1127.19,106.1,2439.92,4094.66,0.57,1219.96,22.13,8059.04
