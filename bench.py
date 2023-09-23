@@ -55,11 +55,7 @@ totalTimeHeader = "Total Time (ms)"
 
 
 def check_file_exists(file: str) -> bool:
-    try:
-        with open(file, "r"):
-            return True
-    except FileNotFoundError:
-        return False
+    return os.path.isfile(file)
 
 
 def get_git_short_hash():
