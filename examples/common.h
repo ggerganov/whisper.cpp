@@ -222,10 +222,6 @@ public:
         return true;
     }
 
-    bool open(const std::string & filename) {
-        return open_wav(filename);
-    }
-
     bool close() {
         file.close();
         return true;
