@@ -6,16 +6,50 @@ import wave
 import contextlib
 import argparse
 
+
+# Custom action to handle comma-separated list
+class ListAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, [int(val) for val in values.split(",")])
+
+
 parser = argparse.ArgumentParser(description="Benchmark the speech recognition model")
 
+# Define the argument to accept a list
 parser.add_argument(
-    "-f", "--filename", type=str, default="./samples/jfk.wav", help="File to transcribe"
+    "-t",
+    "--threads",
+    dest="threads",
+    action=ListAction,
+    default=[4],
+    help="List of thread counts to benchmark (comma-separated, default: 4)",
+)
+
+parser.add_argument(
+    "-p",
+    "--processors",
+    dest="processors",
+    action=ListAction,
+    default=[1],
+    help="List of processor counts to benchmark (comma-separated, default: 1)",
+)
+
+
+parser.add_argument(
+    "-f",
+    "--filename",
+    type=str,
+    default="./samples/jfk.wav",
+    help="Relative path of the file to transcribe (default: ./samples/jfk.wav)",
 )
 
 # Parse the command line arguments
 args = parser.parse_args()
 
 sample_file = args.filename
+
+threads = args.threads
+processors = args.processors
 
 # Define the models, threads, and processor counts to benchmark
 models = [
@@ -30,9 +64,6 @@ models = [
     "ggml-large.bin",
 ]
 
-threads = [4]
-
-processor_counts = [1]
 
 metal_device = ""
 
@@ -104,7 +135,7 @@ for model in models:
 # Loop over each combination of parameters
 for model in models:
     for thread in threads:
-        for processor_count in processor_counts:
+        for processor_count in processors:
             # Construct the command to run
             cmd = f"./main -m models/{model} -t {thread} -p {processor_count} -f {sample_file}"
             # Run the command and get the output
