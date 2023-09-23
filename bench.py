@@ -3,6 +3,18 @@ import re
 import csv
 import wave
 import contextlib
+import argparse
+
+parser = argparse.ArgumentParser(description="Benchmark the speech recognition model")
+
+parser.add_argument(
+    "-f", "--filename", type=str, default="./samples/jfk.wav", help="File to transcribe"
+)
+
+# Parse the command line arguments
+args = parser.parse_args()
+
+sample_file = args.filename
 
 # Define the models, threads, and processor counts to benchmark
 models = [
@@ -16,8 +28,6 @@ models = [
     "ggml-medium.bin",
     "ggml-large.bin",
 ]
-
-sample_file = "samples/jfk.wav"
 
 threads = [4]
 
