@@ -90,15 +90,18 @@ def check_file_exists(file: str) -> bool:
     return os.path.isfile(file)
 
 
-def get_git_short_hash():
-    return (
-        subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
-        .decode()
-        .strip()
-    )
+def get_git_short_hash() -> str:
+    try:
+        return (
+            subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+            .decode()
+            .strip()
+        )
+    except subprocess.CalledProcessError as e:
+        return ""
 
 
-def wav_file_length(file: str = sample_file):
+def wav_file_length(file: str = sample_file) -> float:
     with contextlib.closing(wave.open(file, "r")) as f:
         frames = f.getnframes()
         rate = f.getframerate()
@@ -122,6 +125,7 @@ def extract_device(output: str) -> str:
 # Check if the sample file exists
 if not check_file_exists(sample_file):
     raise FileNotFoundError(f"Sample file {sample_file} not found")
+
 recording_length = wav_file_length()
 
 
@@ -137,7 +141,7 @@ for model in models:
 models = filtered_models
 
 # Loop over each combination of parameters
-for model in models:
+for model in filtered_models:
     for thread in threads:
         for processor_count in processors:
             # Construct the command to run
