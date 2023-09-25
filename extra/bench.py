@@ -131,8 +131,8 @@ recording_length = wav_file_length()
 
 # Check that all models exist
 # Filter out models from list that are not downloaded
+filtered_models = []
 for model in models:
-    filtered_models = []
     if check_file_exists(f"models/{model}"):
         filtered_models.append(model)
     else:
