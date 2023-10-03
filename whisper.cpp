@@ -5270,6 +5270,10 @@ int64_t whisper_full_get_segment_t1(struct whisper_context * ctx, int i_segment)
     return ctx->state->result_all[i_segment].t1;
 }
 
+bool whisper_full_get_segment_speaker_turn_next_from_state(struct whisper_state * state, int i_segment) {
+    return state->result_all[i_segment].speaker_turn_next;
+}
+
 bool whisper_full_get_segment_speaker_turn_next(struct whisper_context * ctx, int i_segment) {
     return ctx->state->result_all[i_segment].speaker_turn_next;
 }
