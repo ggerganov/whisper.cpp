@@ -2,7 +2,6 @@
 //
 // A very quick-n-dirty implementation serving mainly as a proof of concept.
 //
-#include <fstream>
 #include "common-sdl.h"
 #include "common.h"
 #include "whisper.h"
@@ -13,60 +12,8 @@
 #include <thread>
 #include <vector>
 #include <fstream>
-#include <ctime>
 
-class SimpleWavWriter {
-private:
-    std::ofstream file;
-    int32_t dataSize = 0;
 
-public:
-    SimpleWavWriter(const std::string &filename, int sampleRate, int bitsPerSample, int channels) {
-        file.open(filename, std::ios::binary);
-
-        file.write("RIFF", 4);
-        file.write("\0\0\0\0", 4);    // Placeholder for file size
-        file.write("WAVE", 4);
-        file.write("fmt ", 4);
-
-        int32_t subChunkSize = 16;
-        int16_t audioFormat = 1;      // PCM format
-        int32_t byteRate = sampleRate * channels * bitsPerSample / 8;
-        int16_t blockAlign = channels * bitsPerSample / 8;
-
-        file.write(reinterpret_cast<char *>(&subChunkSize), 4);
-        file.write(reinterpret_cast<char *>(&audioFormat), 2);
-        file.write(reinterpret_cast<char *>(&channels), 2);
-        file.write(reinterpret_cast<char *>(&sampleRate), 4);
-        file.write(reinterpret_cast<char *>(&byteRate), 4);
-        file.write(reinterpret_cast<char *>(&blockAlign), 2);
-        file.write(reinterpret_cast<char *>(&bitsPerSample), 2);
-        file.write("data", 4);
-        file.write("\0\0\0\0", 4);    // Placeholder for data size
-    }
-
-    void writeData(const float *data, size_t length) {
-        for (size_t i = 0; i < length; ++i) {
-            int16_t intSample = static_cast<int16_t>(data[i] * 32767);
-            file.write(reinterpret_cast<char *>(&intSample), sizeof(int16_t));
-            dataSize += sizeof(int16_t);
-        }
-        if (file.is_open()) {
-            file.seekp(4, std::ios::beg);
-            int32_t fileSize = 36 + dataSize;
-            file.write(reinterpret_cast<char *>(&fileSize), 4);
-            file.seekp(40, std::ios::beg);
-            file.write(reinterpret_cast<char *>(&dataSize), 4);
-            file.seekp(0, std::ios::end);
-        }
-    }
-
-    ~SimpleWavWriter() {
-        if (file.is_open()) {
-            file.close();
-        }
-    }
-};
 //  500 -> 00:05.000
 // 6000 -> 01:00.000
 std::string to_timestamp(int64_t t) {
@@ -266,8 +213,9 @@ int main(int argc, char ** argv) {
             return 1;
         }
     }
+
+    wav_writer wavWriter;
     // save wav file
-    SimpleWavWriter *wavWriter = nullptr;
     if (params.save_audio) {
         // Get current date/time for filename
         time_t now = time(0);
@@ -275,7 +223,7 @@ int main(int argc, char ** argv) {
         strftime(buffer, sizeof(buffer), "%Y%m%d%H%M%S", localtime(&now));
         std::string filename = std::string(buffer) + ".wav";
 
-        wavWriter = new SimpleWavWriter(filename, WHISPER_SAMPLE_RATE, 16, 1);
+        wavWriter.open(filename, WHISPER_SAMPLE_RATE, 16, 1);
     }
     printf("[Start speaking]\n");
     fflush(stdout);
@@ -285,8 +233,8 @@ int main(int argc, char ** argv) {
 
     // main audio loop
     while (is_running) {
-        if (params.save_audio && wavWriter) {
-            wavWriter->writeData(pcmf32_new.data(), pcmf32_new.size());
+        if (params.save_audio) {
+            wavWriter.write(pcmf32_new.data(), pcmf32_new.size());
         }
         // handle Ctrl + C
         is_running = sdl_poll_events();
