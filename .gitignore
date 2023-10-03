@@ -46,3 +46,5 @@ models/*.mlpackage
 bindings/java/.gradle/
 bindings/java/.idea/
 .idea/
+
+benchmark_results.csv

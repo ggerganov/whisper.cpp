@@ -709,6 +709,19 @@ took to execute it. The results are summarized in the following Github issue:
 
 [Benchmark results](https://github.com/ggerganov/whisper.cpp/issues/89)
 
+Additionally a script to run whisper.cpp with different models and audio files is provided [bench.py](bench.py).
+
+You can run it with the following command, by default it will run against any standard model in the models folder.
+
+```bash
+python3 extra/bench.py -f samples/jfk.wav -t 2,4,8 -p 1,2
+```
+
+It is written in python with the intention of being easy to modify and extend for your benchmarking use case.
+
+It outputs a csv file with the results of the benchmarking.
+
+
 ## ggml format
 
 The original models are converted to a custom binary format. This allows to pack everything needed into a single file:
