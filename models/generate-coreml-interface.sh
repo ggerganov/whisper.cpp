@@ -8,7 +8,7 @@
 wd=$(dirname "$0")
 cd "$wd/../"
 
-python3 models/convert-whisper-to-coreml.py --model tiny.en
+python3 models/convert-whisper-to-coreml.py --model tiny.en --optimize-ane True
 
 mv -v models/coreml-encoder-tiny.en.mlpackage models/whisper-encoder-impl.mlpackage
 xcrun coremlc generate models/whisper-encoder-impl.mlpackage coreml/

@@ -39,21 +39,21 @@
 
 @implementation whisper_decoder_implOutput
 
-- (instancetype)initWithVar_1346:(MLMultiArray *)var_1346 {
+- (instancetype)initWithVar_1195:(MLMultiArray *)var_1195 {
     self = [super init];
     if (self) {
-        _var_1346 = var_1346;
+        _var_1195 = var_1195;
     }
     return self;
 }
 
 - (NSSet<NSString *> *)featureNames {
-    return [NSSet setWithArray:@[@"var_1346"]];
+    return [NSSet setWithArray:@[@"var_1195"]];
 }
 
 - (nullable MLFeatureValue *)featureValueForName:(NSString *)featureName {
-    if ([featureName isEqualToString:@"var_1346"]) {
-        return [MLFeatureValue featureValueWithMultiArray:self.var_1346];
+    if ([featureName isEqualToString:@"var_1195"]) {
+        return [MLFeatureValue featureValueWithMultiArray:self.var_1195];
     }
     return nil;
 }
@@ -177,7 +177,7 @@
 - (nullable whisper_decoder_implOutput *)predictionFromFeatures:(whisper_decoder_implInput *)input options:(MLPredictionOptions *)options error:(NSError * _Nullable __autoreleasing * _Nullable)error {
     id<MLFeatureProvider> outFeatures = [self.model predictionFromFeatures:input options:options error:error];
     if (!outFeatures) { return nil; }
-    return [[whisper_decoder_implOutput alloc] initWithVar_1346:(MLMultiArray *)[outFeatures featureValueForName:@"var_1346"].multiArrayValue];
+    return [[whisper_decoder_implOutput alloc] initWithVar_1195:(MLMultiArray *)[outFeatures featureValueForName:@"var_1195"].multiArrayValue];
 }
 
 - (nullable whisper_decoder_implOutput *)predictionFromToken_data:(MLMultiArray *)token_data audio_data:(MLMultiArray *)audio_data error:(NSError * _Nullable __autoreleasing * _Nullable)error {
@@ -192,7 +192,7 @@
     NSMutableArray<whisper_decoder_implOutput*> *results = [NSMutableArray arrayWithCapacity:(NSUInteger)outBatch.count];
     for (NSInteger i = 0; i < outBatch.count; i++) {
         id<MLFeatureProvider> resultProvider = [outBatch featuresAtIndex:i];
-        whisper_decoder_implOutput * result = [[whisper_decoder_implOutput alloc] initWithVar_1346:(MLMultiArray *)[resultProvider featureValueForName:@"var_1346"].multiArrayValue];
+        whisper_decoder_implOutput * result = [[whisper_decoder_implOutput alloc] initWithVar_1195:(MLMultiArray *)[resultProvider featureValueForName:@"var_1195"].multiArrayValue];
         [results addObject:result];
     }
     return results;

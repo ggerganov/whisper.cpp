@@ -13,7 +13,7 @@ mname="$1"
 wd=$(dirname "$0")
 cd "$wd/../"
 
-python3 models/convert-whisper-to-coreml.py --model $mname --encoder-only True
+python3 models/convert-whisper-to-coreml.py --model $mname --encoder-only True --optimize-ane True
 
 xcrun coremlc compile models/coreml-encoder-${mname}.mlpackage models/
 rm -rf models/ggml-${mname}-encoder.mlmodelc

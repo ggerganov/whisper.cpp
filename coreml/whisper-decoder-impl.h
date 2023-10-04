@@ -31,10 +31,10 @@ API_AVAILABLE(macos(12.0), ios(15.0), watchos(8.0), tvos(15.0)) __attribute__((v
 API_AVAILABLE(macos(12.0), ios(15.0), watchos(8.0), tvos(15.0)) __attribute__((visibility("hidden")))
 @interface whisper_decoder_implOutput : NSObject<MLFeatureProvider>
 
-/// var_1346 as multidimensional array of floats
-@property (readwrite, nonatomic, strong) MLMultiArray * var_1346;
+/// var_1195 as multidimensional array of floats
+@property (readwrite, nonatomic, strong) MLMultiArray * var_1195;
 - (instancetype)init NS_UNAVAILABLE;
-- (instancetype)initWithVar_1346:(MLMultiArray *)var_1346 NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithVar_1195:(MLMultiArray *)var_1195 NS_DESIGNATED_INITIALIZER;
 
 @end
 
