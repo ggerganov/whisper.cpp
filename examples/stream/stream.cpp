@@ -2,7 +2,6 @@
 //
 // A very quick-n-dirty implementation serving mainly as a proof of concept.
 //
-
 #include "common-sdl.h"
 #include "common.h"
 #include "whisper.h"
@@ -13,6 +12,7 @@
 #include <thread>
 #include <vector>
 #include <fstream>
+
 
 //  500 -> 00:05.000
 // 6000 -> 01:00.000
@@ -52,6 +52,7 @@ struct whisper_params {
     std::string language  = "en";
     std::string model     = "models/ggml-base.en.bin";
     std::string fname_out;
+    bool save_audio = false; // save audio to wav file
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -82,6 +83,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-m"   || arg == "--model")         { params.model         = argv[++i]; }
         else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
         else if (arg == "-tdrz" || arg == "--tinydiarize")  { params.tinydiarize   = true; }
+        else if (arg == "-sa"  || arg == "--save-audio")    { params.save_audio    = true; }
 
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
@@ -117,6 +119,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -m FNAME, --model FNAME   [%-7s] model path\n",                                     params.model.c_str());
     fprintf(stderr, "  -f FNAME, --file FNAME    [%-7s] text output file name\n",                          params.fname_out.c_str());
     fprintf(stderr, "  -tdrz,     --tinydiarize  [%-7s] enable tinydiarize (requires a tdrz model)\n",     params.tinydiarize ? "true" : "false");
+    fprintf(stderr, "  -sa,      --save-audio    [%-7s] save the recorded audio to a file\n",              params.save_audio ? "true" : "false");
     fprintf(stderr, "\n");
 }
 
@@ -154,7 +157,6 @@ int main(int argc, char ** argv) {
     audio.resume();
 
     // whisper init
-
     if (params.language != "auto" && whisper_lang_id(params.language.c_str()) == -1){
         fprintf(stderr, "error: unknown language '%s'\n", params.language.c_str());
         whisper_print_usage(argc, argv, params);
@@ -212,14 +214,28 @@ int main(int argc, char ** argv) {
         }
     }
 
-    printf("[Start speaking]");
+    wav_writer wavWriter;
+    // save wav file
+    if (params.save_audio) {
+        // Get current date/time for filename
+        time_t now = time(0);
+        char buffer[80];
+        strftime(buffer, sizeof(buffer), "%Y%m%d%H%M%S", localtime(&now));
+        std::string filename = std::string(buffer) + ".wav";
+
+        wavWriter.open(filename, WHISPER_SAMPLE_RATE, 16, 1);
+    }
+    printf("[Start speaking]\n");
     fflush(stdout);
 
-          auto t_last  = std::chrono::high_resolution_clock::now();
+    auto t_last  = std::chrono::high_resolution_clock::now();
     const auto t_start = t_last;
 
     // main audio loop
     while (is_running) {
+        if (params.save_audio) {
+            wavWriter.write(pcmf32_new.data(), pcmf32_new.size());
+        }
         // handle Ctrl + C
         is_running = sdl_poll_events();
 
@@ -371,7 +387,7 @@ int main(int argc, char ** argv) {
                     fout << std::endl;
                 }
 
-                if (use_vad){
+                if (use_vad) {
                     printf("\n");
                     printf("### Transcription %d END\n", n_iter);
                 }

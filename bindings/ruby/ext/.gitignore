@@ -1,6 +1,8 @@
 Makefile
 ggml.c
 ggml.h
+ggml-alloc.c
+ggml-alloc.h
 whisper.bundle
 whisper.cpp
 whisper.h

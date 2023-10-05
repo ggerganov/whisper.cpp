@@ -113,30 +113,37 @@ options:
   -d  N,     --duration N        [0      ] duration of audio to process in milliseconds
   -mc N,     --max-context N     [-1     ] maximum number of text context tokens to store
   -ml N,     --max-len N         [0      ] maximum segment length in characters
-  -bo N,     --best-of N         [5      ] number of best candidates to keep
+  -sow,      --split-on-word     [false  ] split on word rather than on token
+  -bo N,     --best-of N         [2      ] number of best candidates to keep
   -bs N,     --beam-size N       [-1     ] beam size for beam search
   -wt N,     --word-thold N      [0.01   ] word timestamp probability threshold
   -et N,     --entropy-thold N   [2.40   ] entropy threshold for decoder fail
   -lpt N,    --logprob-thold N   [-1.00  ] log probability threshold for decoder fail
-  -su,       --speed-up          [false  ] speed up audio by x2 (reduced accuracy)
+  -debug,    --debug-mode        [false  ] enable debug mode (eg. dump log_mel)
   -tr,       --translate         [false  ] translate from source language to english
-  -tdrz,     --tinydiarize       [false  ] enable tinydiarize (requires a tdrz model)
   -di,       --diarize           [false  ] stereo audio diarization
+  -tdrz,     --tinydiarize       [false  ] enable tinydiarize (requires a tdrz model)
   -nf,       --no-fallback       [false  ] do not use temperature fallback while decoding
   -otxt,     --output-txt        [false  ] output result in a text file
   -ovtt,     --output-vtt        [false  ] output result in a vtt file
   -osrt,     --output-srt        [false  ] output result in a srt file
+  -olrc,     --output-lrc        [false  ] output result in a lrc file
   -owts,     --output-words      [false  ] output script for generating karaoke video
+  -fp,       --font-path         [/System/Library/Fonts/Supplemental/Courier New Bold.ttf] path to a monospace font for karaoke video
   -ocsv,     --output-csv        [false  ] output result in a CSV file
+  -oj,       --output-json       [false  ] output result in a JSON file
   -of FNAME, --output-file FNAME [       ] output file path (without file extension)
   -ps,       --print-special     [false  ] print special tokens
   -pc,       --print-colors      [false  ] print colors
   -pp,       --print-progress    [false  ] print progress
-  -nt,       --no-timestamps     [true   ] do not print timestamps
+  -nt,       --no-timestamps     [false  ] do not print timestamps
   -l LANG,   --language LANG     [en     ] spoken language ('auto' for auto-detect)
+  -dl,       --detect-language   [false  ] exit after automatically detecting language
              --prompt PROMPT     [       ] initial prompt
   -m FNAME,  --model FNAME       [models/ggml-base.en.bin] model path
   -f FNAME,  --file FNAME        [       ] input WAV file path
+  -oved D,   --ov-e-device DNAME [CPU    ] the OpenVINO device used for encode inference
+  -ls,       --log-score         [false  ] log best decoder scores of token
 
 
 bash ./models/download-ggml-model.sh base.en
@@ -702,6 +709,19 @@ took to execute it. The results are summarized in the following Github issue:
 
 [Benchmark results](https://github.com/ggerganov/whisper.cpp/issues/89)
 
+Additionally a script to run whisper.cpp with different models and audio files is provided [bench.py](bench.py).
+
+You can run it with the following command, by default it will run against any standard model in the models folder.
+
+```bash
+python3 extra/bench.py -f samples/jfk.wav -t 2,4,8 -p 1,2
+```
+
+It is written in python with the intention of being easy to modify and extend for your benchmarking use case.
+
+It outputs a csv file with the results of the benchmarking.
+
+
 ## ggml format
 
 The original models are converted to a custom binary format. This allows to pack everything needed into a single file:
@@ -723,7 +743,7 @@ in [models](models).
 ## [Bindings](https://github.com/ggerganov/whisper.cpp/discussions/categories/bindings)
 
 - [X] Rust: [tazz4843/whisper-rs](https://github.com/tazz4843/whisper-rs) | [#310](https://github.com/ggerganov/whisper.cpp/discussions/310)
-- [X] Javascript: [bindings/javascript](bindings/javascript) | [#309](https://github.com/ggerganov/whisper.cpp/discussions/309)
+- [X] JavaScript: [bindings/javascript](bindings/javascript) | [#309](https://github.com/ggerganov/whisper.cpp/discussions/309)
   - React Native (iOS / Android): [whisper.rn](https://github.com/mybigday/whisper.rn)
 - [X] Go: [bindings/go](bindings/go) | [#312](https://github.com/ggerganov/whisper.cpp/discussions/312)
 - [X] Java:
