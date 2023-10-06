@@ -318,7 +318,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   std::string language = whisper_params.Get("language").As<Napi::String>();
   std::string model = whisper_params.Get("model").As<Napi::String>();
   std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
-  std::string input = whisper_params.Get("use_gpu").As<Napi::Boolean>();
+  bool use_gpu = whisper_params.Get("use_gpu").As<Napi::Boolean>();
 
   params.language = language;
   params.model = model;
