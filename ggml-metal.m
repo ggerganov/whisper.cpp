@@ -150,34 +150,17 @@ struct ggml_metal_context * ggml_metal_init(int n_cb) {
 
     ctx->d_queue = dispatch_queue_create("ggml-metal", DISPATCH_QUEUE_CONCURRENT);
 
-#ifdef GGML_SWIFT
-    // load the default.metallib file
-    {
-        NSError * error = nil;
-
-        NSBundle * bundle = [NSBundle bundleForClass:[GGMLMetalClass class]];
-        NSString * llamaBundlePath = [bundle pathForResource:@"llama_llama" ofType:@"bundle"];
-        NSBundle * llamaBundle = [NSBundle bundleWithPath:llamaBundlePath];
-        NSString * libPath = [llamaBundle pathForResource:@"default" ofType:@"metallib"];
-        NSURL * libURL = [NSURL fileURLWithPath:libPath];
-
-        // Load the metallib file into a Metal library
-        ctx->library = [ctx->device newLibraryWithURL:libURL error:&error];
-
-        if (error) {
-            metal_printf("%s: error: %s\n", __func__, [[error description] UTF8String]);
-            return NULL;
-        }
-    }
-#else
     UNUSED(msl_library_source);
 
-    // read the source from "ggml-metal.metal" into a string and use newLibraryWithSource
+    NSBundle * bundle = nil;
+#ifdef GGML_SWIFT
+    bundle = SWIFTPM_MODULE_BUNDLE;
+#else
+    bundle = [NSBundle bundleForClass:[GGMLMetalClass class]];
+#endif
+
     {
         NSError * error = nil;
-
-        //NSString * path = [[NSBundle mainBundle] pathForResource:@"../../examples/metal/metal" ofType:@"metal"];
-        NSBundle * bundle = [NSBundle bundleForClass:[GGMLMetalClass class]];
         NSString * libPath = [bundle pathForResource:@"default" ofType:@"metallib"];
         if (libPath != nil) {
             NSURL * libURL = [NSURL fileURLWithPath:libPath];
@@ -207,7 +190,6 @@ struct ggml_metal_context * ggml_metal_init(int n_cb) {
             return NULL;
         }
     }
-#endif
 
     // load kernels
     {
