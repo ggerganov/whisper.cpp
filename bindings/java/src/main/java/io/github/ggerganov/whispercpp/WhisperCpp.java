@@ -15,8 +15,9 @@ import java.io.IOException;
 public class WhisperCpp implements AutoCloseable {
     private WhisperCppJnaLibrary lib = WhisperCppJnaLibrary.instance;
     private Pointer ctx = null;
-    private Pointer greedyPointer = null;
-    private Pointer beamPointer = null;
+    private Pointer paramPointer = null;
+    private Pointer greedyParamsPointer = null;
+    private Pointer beamParamsPointer = null;
 
     public File modelDir() {
         String modelDirPath = System.getenv("XDG_CACHE_HOME");
@@ -43,7 +44,8 @@ public class WhisperCpp implements AutoCloseable {
             modelPath = new File(modelDir(), modelPath).getAbsolutePath();
         }
 
-        ctx = lib.whisper_init_from_file(modelPath);
+        paramPointer = lib.whisper_context_default_params_by_ref();
+        ctx = lib.whisper_init_from_file_with_params(modelPath, paramPointer);
 
         if (ctx == null) {
             throw new FileNotFoundException(modelPath);
@@ -63,15 +65,15 @@ public class WhisperCpp implements AutoCloseable {
 
         // whisper_full_default_params_by_ref allocates memory which we need to delete, so only create max 1 pointer for each strategy.
         if (strategy == WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY) {
-            if (greedyPointer == null) {
-                greedyPointer = lib.whisper_full_default_params_by_ref(strategy.ordinal());
+            if (greedyParamsPointer == null) {
+                greedyParamsPointer = lib.whisper_full_default_params_by_ref(strategy.ordinal());
             }
-            pointer = greedyPointer;
+            pointer = greedyParamsPointer;
         } else {
-            if (beamPointer == null) {
-                beamPointer = lib.whisper_full_default_params_by_ref(strategy.ordinal());
+            if (beamParamsPointer == null) {
+                beamParamsPointer = lib.whisper_full_default_params_by_ref(strategy.ordinal());
             }
-            pointer = beamPointer;
+            pointer = beamParamsPointer;
         }
 
         WhisperFullParams params = new WhisperFullParams(pointer);
@@ -93,13 +95,17 @@ public class WhisperCpp implements AutoCloseable {
     }
 
     private void freeParams() {
-        if (greedyPointer != null) {
-            Native.free(Pointer.nativeValue(greedyPointer));
-            greedyPointer = null;
+        if (paramPointer != null) {
+            Native.free(Pointer.nativeValue(paramPointer));
+            paramPointer = null;
         }
-        if (beamPointer != null) {
-            Native.free(Pointer.nativeValue(beamPointer));
-            beamPointer = null;
+        if (greedyParamsPointer != null) {
+            Native.free(Pointer.nativeValue(greedyParamsPointer));
+            greedyParamsPointer = null;
+        }
+        if (beamParamsPointer != null) {
+            Native.free(Pointer.nativeValue(beamParamsPointer));
+            beamParamsPointer = null;
         }
     }
 

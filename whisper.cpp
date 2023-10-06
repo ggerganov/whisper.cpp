@@ -3267,6 +3267,12 @@ void whisper_free(struct whisper_context * ctx) {
     }
 }
 
+void whisper_free_context_params(struct whisper_context_params * params) {
+    if (params) {
+        delete params;
+    }
+}
+
 void whisper_free_params(struct whisper_full_params * params) {
     if (params) {
         delete params;

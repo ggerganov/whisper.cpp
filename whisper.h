@@ -170,6 +170,7 @@ extern "C" {
     WHISPER_API void whisper_free      (struct whisper_context * ctx);
     WHISPER_API void whisper_free_state(struct whisper_state * state);
     WHISPER_API void whisper_free_params(struct whisper_full_params * params);
+    WHISPER_API void whisper_free_context_params(struct whisper_context_params * params);
 
     // Convert RAW PCM audio to log mel spectrogram.
     // The resulting spectrogram is stored inside the default state of the provided whisper context.
