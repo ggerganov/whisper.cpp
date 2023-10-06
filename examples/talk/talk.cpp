@@ -36,6 +36,7 @@ struct whisper_params {
     std::string language  = "en";
     std::string model_wsp = "models/ggml-base.en.bin";
     std::string model_gpt = "models/ggml-gpt-2-117M.bin";
+    bool use_gpu = true;
     std::string speak     = "./examples/talk/speak";
     std::string fname_out;
 };
@@ -67,6 +68,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-mg"  || arg == "--model-gpt")     { params.model_gpt     = argv[++i]; }
         else if (arg == "-s"   || arg == "--speak")         { params.speak         = argv[++i]; }
         else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
+        else if (arg == "-ng"  || arg == "--no-gpu")        { params.use_gpu       = false; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -181,8 +183,9 @@ int main(int argc, char ** argv) {
     }
 
     // whisper init
-
-    struct whisper_context * ctx_wsp = whisper_init_from_file(params.model_wsp.c_str());
+    struct whisper_context_params cparams;
+    cparams.use_gpu = params.use_gpu;
+    struct whisper_context * ctx_wsp = whisper_init_from_file_with_params(params.model_wsp.c_str(), cparams);
 
     // gpt init
 

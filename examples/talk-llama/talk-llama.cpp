@@ -61,6 +61,7 @@ struct whisper_params {
     std::string language    = "en";
     std::string model_wsp   = "models/ggml-base.en.bin";
     std::string model_llama = "models/ggml-llama-7B.bin";
+    bool use_gpu = true;
     std::string speak       = "./examples/talk-llama/speak";
     std::string prompt      = "";
     std::string fname_out;
@@ -103,6 +104,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             }
         }
         else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
+        else if (arg == "-ng"  || arg == "--no-gpu")        { params.use_gpu       = false; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -245,7 +247,9 @@ int main(int argc, char ** argv) {
 
     // whisper init
 
-    struct whisper_context * ctx_wsp = whisper_init_from_file(params.model_wsp.c_str());
+    struct whisper_context_params cparams;
+    cparams.use_gpu = params.use_gpu;
+    struct whisper_context * ctx_wsp = whisper_init_from_file_with_params(params.model_wsp.c_str(), cparams);
 
     // llama init
 
@@ -257,6 +261,9 @@ int main(int argc, char ** argv) {
     lparams.n_ctx      = 2048;
     lparams.seed       = 1;
     lparams.f16_kv     = true;
+    if (!params.use_gpu) {
+        lparams.n_gpu_layers = 0;
+    }
 
     struct llama_model * model_llama = llama_load_model_from_file(params.model_llama.c_str(), lparams);
 
