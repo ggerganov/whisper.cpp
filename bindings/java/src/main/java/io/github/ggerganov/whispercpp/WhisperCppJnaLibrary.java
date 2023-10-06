@@ -5,6 +5,7 @@ import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import io.github.ggerganov.whispercpp.model.WhisperModelLoader;
 import io.github.ggerganov.whispercpp.model.WhisperTokenData;
+import io.github.ggerganov.whispercpp.params.WhisperContextParams;
 import io.github.ggerganov.whispercpp.params.WhisperFullParams;
 
 public interface WhisperCppJnaLibrary extends Library {
@@ -37,7 +38,7 @@ public interface WhisperCppJnaLibrary extends Library {
      * @param params     Pointer to whisper_context_params
      * @return Whisper context on success, null on failure
      */
-    Pointer whisper_init_from_file_with_params(String path_model, Pointer params);
+    Pointer whisper_init_from_file_with_params(String path_model, WhisperContextParams params);
 
     /**
      * Allocate (almost) all memory needed for the model by loading from a buffer.

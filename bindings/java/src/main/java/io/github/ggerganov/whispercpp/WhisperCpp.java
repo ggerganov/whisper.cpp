@@ -2,6 +2,7 @@ package io.github.ggerganov.whispercpp;
 
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
+import io.github.ggerganov.whispercpp.params.WhisperContextParams;
 import io.github.ggerganov.whispercpp.params.WhisperFullParams;
 import io.github.ggerganov.whispercpp.params.WhisperSamplingStrategy;
 
@@ -15,7 +16,7 @@ import java.io.IOException;
 public class WhisperCpp implements AutoCloseable {
     private WhisperCppJnaLibrary lib = WhisperCppJnaLibrary.instance;
     private Pointer ctx = null;
-    private Pointer paramPointer = null;
+    private Pointer paramsPointer = null;
     private Pointer greedyParamsPointer = null;
     private Pointer beamParamsPointer = null;
 
@@ -32,6 +33,18 @@ public class WhisperCpp implements AutoCloseable {
      * @param modelPath - absolute path, or just the name (eg: "base", "base-en" or "base.en")
      */
     public void initContext(String modelPath) throws FileNotFoundException {
+        initContextImpl(modelPath, getContextDefaultParams());
+    }
+
+    /**
+     * @param modelPath - absolute path, or just the name (eg: "base", "base-en" or "base.en")
+     * @param params - params to use when initialising the context
+     */
+    public void initContext(String modelPath, WhisperContextParams params) throws FileNotFoundException {
+        initContextImpl(modelPath, params);
+    }
+
+    private void initContextImpl(String modelPath, WhisperContextParams params) throws FileNotFoundException {
         if (ctx != null) {
             lib.whisper_free(ctx);
         }
@@ -44,14 +57,26 @@ public class WhisperCpp implements AutoCloseable {
             modelPath = new File(modelDir(), modelPath).getAbsolutePath();
         }
 
-        paramPointer = lib.whisper_context_default_params_by_ref();
-        ctx = lib.whisper_init_from_file_with_params(modelPath, paramPointer);
+        ctx = lib.whisper_init_from_file_with_params(modelPath, params);
 
         if (ctx == null) {
             throw new FileNotFoundException(modelPath);
         }
     }
 
+    /**
+     * Provides default params which can be used with `whisper_init_from_file_with_params()` etc.
+     * Because this function allocates memory for the params, the caller must call either:
+     * - call `whisper_free_context_params()`
+     * - `Native.free(Pointer.nativeValue(pointer));`
+     */
+    public WhisperContextParams getContextDefaultParams() {
+        paramsPointer = lib.whisper_context_default_params_by_ref();
+        WhisperContextParams params = new WhisperContextParams(paramsPointer);
+        params.read();
+        return params;
+    }
+    
     /**
      * Provides default params which can be used with `whisper_full()` etc.
      * Because this function allocates memory for the params, the caller must call either:
@@ -95,9 +120,9 @@ public class WhisperCpp implements AutoCloseable {
     }
 
     private void freeParams() {
-        if (paramPointer != null) {
-            Native.free(Pointer.nativeValue(paramPointer));
-            paramPointer = null;
+        if (paramsPointer != null) {
+            Native.free(Pointer.nativeValue(paramsPointer));
+            paramsPointer = null;
         }
         if (greedyParamsPointer != null) {
             Native.free(Pointer.nativeValue(greedyParamsPointer));
