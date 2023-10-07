@@ -268,91 +268,42 @@ void whisper_print_progress_callback(struct whisper_context * /*ctx*/, struct wh
     }
 }
 
-// split UTF-8 string into valid and invalid parts
-// eg. (a = "�123456", result = {"�", "123456", ""})
-// eg. (a = "123456�", result = {"", "123456", "�"})
-// result = {invalid, valid, invalid}
-std::vector<std::string> split_UTF8(const std::string & a) {
-    if (a.empty()) {return {"", "", ""};}
-    std::string str1;
-    std::string str2;
-    std::string str3;
+void whisper_print_colorized_token(utf8_buf & buf1, utf8_buf & buf2, const std::string & token_text, const float & token_p, const std::string & speaker) {
+    // calculate color index
+    int color_idx = std::max(0, std::min((int) k_colors.size() - 1, (int) (std::pow(token_p, 3)*float(k_colors.size()))));
 
-    // forward pass
-    for (int64_t i = 0; i < static_cast<int64_t>(a.length()); i++) {
-        auto value = static_cast<uint8_t>(a[i]);
-        if (value >= 0 && value <= 127 || value >= 192 && value <= 247) {
-            // 1, 2, 3, 4 byte head
-            break;
-        } else if (value >= 128 && value <= 191) {
-            // body byte
-            str1 += a[i];
+    // if token is valid UTF-8 print it directly
+    if (utf8_is_valid(token_text)) {
+        printf("%s%s%s%s", speaker.c_str(), k_colors[color_idx].c_str(), token_text.c_str(), "\033[0m");
+    } else {
+        // split token into valid and invalid parts
+        auto result = utf8_split(token_text);
+        // if first part (invalid part) is non-empty, add it to buf1
+        if (!result[0].empty()) {
+            buf1.buffer += result[0];
+            buf1.p_sum += token_p;
+            buf1.token_c++;
+        }
+        // if third part (invalid part) is non-empty, add it to buf2
+        if (!result[2].empty()) {
+            buf2.buffer += result[2];
+            buf2.p_sum += token_p;
+            buf2.token_c++;
+        }
+        // if buf1 is valid UTF-8, print it and move buf2 to buf1
+        if (utf8_is_valid(buf1.buffer)) {
+            // calculate color index use average token probability
+            const int avg_color_idx = std::max(0, std::min((int) k_colors.size() - 1, (int) (std::pow(buf1.p_sum / static_cast<float>(buf1.token_c), 3)*float(k_colors.size()))));
+            printf("%s%s%s%s", speaker.c_str(), k_colors[avg_color_idx].c_str(), buf1.buffer.c_str(), "\033[0m");
+            buf1 = buf2;
+            buf2.clear();
+        }
+        // if second part (valid part) is non-empty, print it
+        if (!result[1].empty()) {
+            printf("%s%s%s%s", speaker.c_str(), k_colors[color_idx].c_str(), result[1].c_str(), "\033[0m");
         }
     }
-
-    // backward pass
-    int length = 0;
-    int expect = 0;
-    for (int64_t i = static_cast<int64_t>(a.length()) - 1; i >= 0; i--) {
-        auto value = static_cast<uint8_t>(a[i]);
-        if (value >= 0 && value <= 127) {
-            // 1 byte head
-            expect = 1;
-            length++;
-            break;
-        } else if (value >= 128 && value <= 191){
-            // body byte
-            length++;
-        } else if (value >= 192 && value <= 223){
-            // 2 bytes head
-            expect = 2;
-            length++;
-            break;
-        } else if (value >= 224 && value <= 239){
-            // 3 bytes head
-            expect = 3;
-            length++;
-            break;
-        } else if (value >= 240 && value <= 247){
-            // 4 bytes head
-            expect = 4;
-            length++;
-            break;
-        }
-    }
-    if (expect != length) {
-        str3 = a.substr(a.length() - length, length);
-    }
-
-    str2 = a.substr(str1.length(), a.length() - str3.length());
-
-    if (str1 == str3 && str1.length() + str2.length() + str3.length() > a.length()) {
-        return {str1, str2, ""};
-    }
-    return {str1, str2, str3};
 }
-
-// check whether the start and the end of std::string is encoded in UTF-8
-bool valid_UTF8(const std::string & a) {
-    if (a.empty()) {return true;}
-    auto result = split_UTF8(a);
-    if (result[0].empty() && result[2].empty()) {
-        return true;
-    }
-    return false;
-}
-
-struct UTF8_buf {
-    std::string buffer;     // token buffer (Store incomplete UTF-8 token)
-    float p_sum = 0.0;      // token probability sum
-    int token_c = 0;        // total number of tokens in buffer
-
-    void clear() {
-        buffer = "";
-        p_sum = 0.0;
-        token_c = 0;
-    }
-};
 
 void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper_state * /*state*/, int n_new, void * user_data) {
     const auto & params  = *((whisper_print_user_data *) user_data)->params;
@@ -387,8 +338,8 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
         }
 
         if (params.print_colors) {
-            UTF8_buf buf1;
-            UTF8_buf buf2;
+            utf8_buf buf1;
+            utf8_buf buf2;
 
             for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
                 if (params.print_special == false) {
@@ -398,40 +349,11 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
                     }
                 }
 
-                const char * text = whisper_full_get_token_text(ctx, i, j);
-                const float  p    = whisper_full_get_token_p   (ctx, i, j);
-                const int col = std::max(0, std::min((int) k_colors.size() - 1, (int) (std::pow(p, 3)*float(k_colors.size()))));
+                const char * token_text = whisper_full_get_token_text(ctx, i, j);
+                const float  token_p    = whisper_full_get_token_p   (ctx, i, j);
 
-                // if token is valid UTF-8 print it directly
-                if (valid_UTF8(text)) {
-                    printf("%s%s%s%s", speaker.c_str(), k_colors[col].c_str(), text, "\033[0m");
-                } else {
-                    // split token into valid and invalid parts
-                    auto result = split_UTF8(text);
-                    // if first part (invalid part) is non-empty, add it to buf1
-                    if (!result[0].empty()) {
-                        buf1.buffer += result[0];
-                        buf1.p_sum += p;
-                        buf1.token_c++;
-                    }
-                    // if third part (invalid part) is non-empty, add it to buf2
-                    if (!result[2].empty()) {
-                        buf2.buffer += result[2];
-                        buf2.p_sum += p;
-                        buf2.token_c++;
-                    }
-                    // if buf1 is valid UTF-8 then print it
-                    if (valid_UTF8(buf1.buffer)) {
-                        const int col = std::max(0, std::min((int) k_colors.size() - 1, (int) (std::pow(buf1.p_sum / static_cast<float>(buf1.token_c), 3)*float(k_colors.size()))));
-                        printf("%s%s%s%s", speaker.c_str(), k_colors[col].c_str(), buf1.buffer.c_str(), "\033[0m");
-                        buf1 = buf2;
-                        buf2.clear();
-                    }
-                    // if second part (valid part) is non-empty, print it
-                    if (!result[1].empty()) {
-                        printf("%s%s%s%s", speaker.c_str(), k_colors[col].c_str(), result[1].c_str(), "\033[0m");
-                    }
-                }
+                whisper_print_colorized_token(buf1, buf2, token_text, token_p, speaker);
+
             }
         } else {
             const char * text = whisper_full_get_segment_text(ctx, i);
@@ -454,6 +376,8 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
     }
 }
 
+// convert UTF-8 path to UTF-16LE and open file with std::ofstream on Windows
+// use UTF-8 path open file with std::ofstream on other systems
 std::ofstream open(const std::string & path) {
 #if WIN32
     std::ofstream file_out(ConvertUTF8toUTF16(path));
