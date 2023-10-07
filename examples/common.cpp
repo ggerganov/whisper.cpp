@@ -256,6 +256,82 @@ std::wstring convert_to_wstring(const std::string & input) {
     return converter.from_bytes(input);
 }
 
+// split UTF-8 string into valid and invalid parts
+// eg. (a = "�123456", result = {"�", "123456", ""})
+// eg. (a = "123456�", result = {"", "123456", "�"})
+// eg. (a = "�123456�", result = {"�", "123456", "�"})
+// eg. (a = "�123�456�", result = {"�", "123�456", "�"})
+// result = {invalid, valid?, invalid}
+std::vector<std::string> utf8_split(const std::string & a) {
+    if (a.empty()) {return {"", "", ""};}
+    std::string str1;
+    std::string str2;
+    std::string str3;
+
+    // forward pass
+    for (int64_t i = 0; i < static_cast<int64_t>(a.length()); i++) {
+        auto value = static_cast<uint8_t>(a[i]);
+        if (value >= 0 && value <= 127 || value >= 192 && value <= 247) {
+            // 1, 2, 3, 4 byte head
+            break;
+        } else if (value >= 128 && value <= 191) {
+            // body byte
+            str1 += a[i];
+        }
+    }
+
+    // backward pass
+    int length = 0;
+    int expect = 0;
+    for (int64_t i = static_cast<int64_t>(a.length()) - 1; i >= 0; i--) {
+        auto value = static_cast<uint8_t>(a[i]);
+        if (value >= 0 && value <= 127) {
+            // 1 byte head
+            expect = 1;
+            length++;
+            break;
+        } else if (value >= 128 && value <= 191){
+            // body byte
+            length++;
+        } else if (value >= 192 && value <= 223){
+            // 2 bytes head
+            expect = 2;
+            length++;
+            break;
+        } else if (value >= 224 && value <= 239){
+            // 3 bytes head
+            expect = 3;
+            length++;
+            break;
+        } else if (value >= 240 && value <= 247){
+            // 4 bytes head
+            expect = 4;
+            length++;
+            break;
+        }
+    }
+    if (expect != length) {
+        str3 = a.substr(a.length() - length, length);
+    }
+
+    str2 = a.substr(str1.length(), a.length() - str3.length());
+
+    if (str1 == str3 && str1.length() + str2.length() + str3.length() > a.length()) {
+        return {str1, str2, ""};
+    }
+    return {str1, str2, str3};
+}
+
+// check if the start and end of the std::string are UTF-8 encoded
+bool utf8_is_valid(const std::string & a) {
+    if (a.empty()) {return true;}
+    auto result = utf8_split(a);
+    if (result[0].empty() && result[2].empty()) {
+        return true;
+    }
+    return false;
+}
+
 void gpt_split_words(std::string str, std::vector<std::string>& words) {
     const std::string pattern = R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[:alpha:][:digit:]]+|\s+(?!\S)|\s+)";
     const std::regex re(pattern);

@@ -76,6 +76,23 @@ std::string convert_to_utf8(const std::wstring & input);
 
 std::wstring convert_to_wstring(const std::string & input);
 
+std::vector<std::string> utf8_split(const std::string & a);
+
+bool utf8_is_valid(const std::string & a);
+
+// used to store incomplete parts of UFT-8 token
+struct utf8_buf {
+    std::string buffer;     // token buffer (Store incomplete UTF-8 token)
+    float p_sum = 0.0;      // token probability sum
+    int token_c = 0;        // total number of tokens in buffer
+
+    void clear() {
+        buffer = "";
+        p_sum = 0.0;
+        token_c = 0;
+    }
+};
+
 void gpt_split_words(std::string str, std::vector<std::string>& words);
 
 // split text into tokens
