@@ -152,14 +152,14 @@ struct ggml_metal_context * ggml_metal_init(int n_cb) {
 
     UNUSED(msl_library_source);
 
-    NSBundle * bundle = nil;
-#ifdef GGML_SWIFT
-    bundle = SWIFTPM_MODULE_BUNDLE;
-#else
-    bundle = [NSBundle bundleForClass:[GGMLMetalClass class]];
-#endif
-
+    // load library
     {
+        NSBundle * bundle = nil;
+#ifdef GGML_SWIFT
+        bundle = SWIFTPM_MODULE_BUNDLE;
+#else
+        bundle = [NSBundle bundleForClass:[GGMLMetalClass class]];
+#endif
         NSError * error = nil;
         NSString * libPath = [bundle pathForResource:@"default" ofType:@"metallib"];
         if (libPath != nil) {
