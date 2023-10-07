@@ -155,7 +155,7 @@ struct ggml_metal_context * ggml_metal_init(int n_cb) {
     // load library
     {
         NSBundle * bundle = nil;
-#ifdef GGML_SWIFT
+#ifdef SWIFT_PACKAGE
         bundle = SWIFTPM_MODULE_BUNDLE;
 #else
         bundle = [NSBundle bundleForClass:[GGMLMetalClass class]];
@@ -184,7 +184,7 @@ struct ggml_metal_context * ggml_metal_init(int n_cb) {
 #endif
             ctx->library = [ctx->device newLibraryWithSource:src options:options error:&error];
         }
-        
+
         if (error) {
             metal_printf("%s: error: %s\n", __func__, [[error description] UTF8String]);
             return NULL;
