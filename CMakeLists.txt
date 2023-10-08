@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 3.5)
 
 project(whisper.cpp VERSION 1.4.2)
+set(SOVERSION 1)
 
 # Add path to modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
@@ -470,6 +471,12 @@ add_library(${TARGET}
     whisper.h
     whisper.cpp
     )
+
+# Set the version numbers
+set_target_properties(whisper PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${SOVERSION}
+)
 
 include(DefaultTargetOptions)
 
