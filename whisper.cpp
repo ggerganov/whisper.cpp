@@ -3773,6 +3773,9 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.encoder_begin_callback           =*/ nullptr,
         /*.encoder_begin_callback_user_data =*/ nullptr,
 
+        /*.abort_callback           =*/ nullptr,
+        /*.abort_callback_user_data =*/ nullptr,
+
         /*.logits_filter_callback           =*/ nullptr,
         /*.logits_filter_callback_user_data =*/ nullptr,
     };
