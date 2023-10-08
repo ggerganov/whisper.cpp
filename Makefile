@@ -332,7 +332,7 @@ libwhisper.so: ggml.o $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o $(WHISPER_OBJ) $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream command talk talk-llama bench quantize lsp libwhisper.a libwhisper.so
+	rm -f *.o main stream stream_components command talk talk-llama bench quantize lsp libwhisper.a libwhisper.so
 
 #
 # Examples
@@ -355,6 +355,9 @@ quantize: examples/quantize/quantize.cpp ggml.o $(WHISPER_OBJ) $(SRC_COMMON)
 
 stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
+
+stream_components: examples/stream_components/stream_components.cpp examples/stream_components/stream_components_audio.cpp examples/stream_components/stream_components_output.cpp examples/stream_components/stream_components_server.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/stream_components/stream_components.cpp examples/stream_components/stream_components_audio.cpp examples/stream_components/stream_components_output.cpp examples/stream_components/stream_components_server.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o stream_components $(CC_SDL) $(LDFLAGS)
 
 command: examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
