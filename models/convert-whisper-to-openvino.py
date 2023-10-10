@@ -29,7 +29,7 @@ def convert_encoder(hparams, encoder, mname):
 
     # use model optimizer to convert onnx to OpenVINO IR format
     encoder_model = mo.convert_model(onnx_path, compress_to_fp16=True)
-    serialize(encoder_model, xml_path='ggml-' + mname + '-encoder-openvino.xml')
+    serialize(encoder_model, xml_path=os.path.join(os.path.dirname(__file__),"ggml-" + mname + "-encoder-openvino.xml"))
 
     #cleanup
     if os.path.isdir(onnx_folder):
