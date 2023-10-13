@@ -20,6 +20,7 @@
 #include <thread>
 #include <vector>
 #include <map>
+#include <cmath>
 
 // command-line parameters
 struct whisper_params {
@@ -44,6 +45,7 @@ struct whisper_params {
     std::string fname_out;
     std::string commands;
     std::string prompt;
+    std::string speak;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -73,6 +75,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
         else if (arg == "-cmd" || arg == "--commands")      { params.commands      = argv[++i]; }
         else if (arg == "-p"   || arg == "--prompt")        { params.prompt        = argv[++i]; }
+        else if (arg == "-s"   || arg == "--speak")         { params.speak         = argv[++i]; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -386,7 +389,7 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
                         fprintf(stdout, "\n");
                     }
                 }
-
+                const int voice_id = 1;
                 // best command
                 {
                     const auto t_end = std::chrono::high_resolution_clock::now();
@@ -395,10 +398,24 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
                     const int index = probs_id[0].second;
 
                     fprintf(stdout, "\n");
-                    fprintf(stdout, "%s: detected command: %s%s%s | p = %f | t = %d ms\n", __func__,
-                            "\033[1m", allowed_commands[index].c_str(), "\033[0m", prob,
-                            (int) std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count());
-                    fprintf(stdout, "\n");
+                    if (prob>0.6) {
+                        fprintf(stdout, "%s: detected command: %s%s%s | p = %f | t = %d ms\n", __func__,
+                                "\033[1m", allowed_commands[index].c_str(), "\033[0m", prob,
+                                (int) std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count());
+                        fprintf(stdout, "\n");
+                        if (!params.speak.empty()) {
+                            system((params.speak + " " + " \"" + allowed_commands[index].c_str() + "\"").c_str());
+                        }
+                    } else {
+                        fprintf(stdout, "%s: didnt find command, prob : %s%s%s | p = %f | t = %d ms\n", __func__,
+                                "\033[1m", allowed_commands[index].c_str(), "\033[0m", prob,
+                                (int) std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count());
+                        fprintf(stdout, "\n");
+                        if (!params.speak.empty()) {
+                            system((params.speak + " " + " \"" + "Wrong Command" + "\"").c_str());
+                        }
+                    }
+
                 }
             }
 
