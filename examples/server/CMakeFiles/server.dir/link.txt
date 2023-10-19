@@ -1,0 +1,1 @@
+/usr/bin/c++              -Wall                                       -Wextra                                     -Wpedantic                                  -Wcast-qual                              -O3 -DNDEBUG CMakeFiles/server.dir/server.cpp.o -o ../../bin/server  -Wl,-rpath,/home/yutani/prg/whisper.cpp ../libcommon.a ../../libwhisper.so -ldl 
