@@ -3,7 +3,7 @@
 # This script downloads Whisper model files that have already been converted to Core ML format.
 # This way you don't have to convert them yourself.
 
-src="https://huggingface.co/datasets/ggerganov/whisper.cpp-coreml"
+src="https://huggingface.co/ggerganov/whisper.cpp"
 pfx="resolve/main/ggml"
 
 # get the path of this script
@@ -58,15 +58,23 @@ if [ -f "ggml-$model.mlmodel" ]; then
     exit 0
 fi
 
+url=$src/$pfx-$model-encoder.mlmodelc.zip
+zipfile=ggml-$model.zip
 if [ -x "$(command -v wget)" ]; then
-    wget --quiet --show-progress -O ggml-$model.mlmodel $src/$pfx-$model.mlmodel
+    wget --quiet --show-progress -O $zipfile $url
 elif [ -x "$(command -v curl)" ]; then
-    curl -L --output ggml-$model.mlmodel $src/$pfx-$model.mlmodel
+    curl -L --output $zipfile $url
 else
     printf "Either wget or curl is required to download models.\n"
     exit 1
 fi
 
+if [ -x "$(command -v unzip)" ]; then
+    unzip $zipfile
+else
+    printf "unzip is required to extra models.\n"
+    exit 1
+fi
 
 if [ $? -ne 0 ]; then
     printf "Failed to download Core ML model $model \n"
