@@ -52,3 +52,4 @@ cmake-build-debug/
 *.bin
 .cxx/
 .gradle/
+local.properties
