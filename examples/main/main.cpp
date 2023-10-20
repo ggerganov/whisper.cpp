@@ -944,8 +944,9 @@ int main(int argc, char ** argv) {
                 wparams.progress_callback_user_data = &user_data;
             }
 
-            // example for abort mechanism
-            // in this example, we do not abort the processing, but we could if the flag is set to true
+            // examples for abort mechanism
+            // in examples below, we do not abort the processing, but we could if the flag is set to true
+
             // the callback is called before every encoder run - if it returns false, the processing is aborted
             {
                 static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
@@ -955,6 +956,17 @@ int main(int argc, char ** argv) {
                     return !is_aborted;
                 };
                 wparams.encoder_begin_callback_user_data = &is_aborted;
+            }
+
+            // the callback is called before every computation - if it returns true, the computation is aborted
+            {
+                static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
+
+                wparams.abort_callback = [](void * user_data) {
+                    bool is_aborted = *(bool*)user_data;
+                    return is_aborted;
+                };
+                wparams.abort_callback_user_data = &is_aborted;
             }
 
             if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), params.n_processors) != 0) {

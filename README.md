@@ -50,7 +50,7 @@ You can also easily make your own offline voice assistant application: [command]
 
 https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
 
-On Apply Silicon, the inference runs fully on the GPU via Metal:
+On Apple Silicon, the inference runs fully on the GPU via Metal:
 
 https://github.com/ggerganov/whisper.cpp/assets/1991296/c82e8f86-60dc-49f2-b048-d2fdbd6b5225
 
