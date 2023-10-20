@@ -48,3 +48,7 @@ bindings/java/.idea/
 .idea/
 
 benchmark_results.csv
+cmake-build-debug/
+*.bin
+.cxx/
+.gradle/
