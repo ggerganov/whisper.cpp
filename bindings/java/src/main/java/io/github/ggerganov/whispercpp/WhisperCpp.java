@@ -33,7 +33,7 @@ public class WhisperCpp implements AutoCloseable {
     /**
      * @param modelPath - absolute path, or just the name (eg: "base", "base-en" or "base.en")
      */
-    public Pointer initContext(String modelPath) throws FileNotFoundException {
+    public void initContext(String modelPath) throws FileNotFoundException {
         if (ctx != null) {
             lib.whisper_free(ctx);
         }
@@ -51,7 +51,6 @@ public class WhisperCpp implements AutoCloseable {
         if (ctx == null) {
             throw new FileNotFoundException(modelPath);
         }
-        return ctx;
     }
 
     /**
