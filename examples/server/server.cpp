@@ -58,7 +58,7 @@ void whisper_print_usage(int argc, char **argv, const whisper_params &params, co
     fprintf(stderr, "             --prompt PROMPT     [%-7s] initial prompt\n", params.prompt.c_str());
     fprintf(stderr, "  -m FNAME,  --model FNAME       [%-7s] model path\n", params.model.c_str());
     fprintf(stderr, "  -f FNAME,  --file FNAME        [%-7s] input WAV file path\n", "");
-    fprintf(stderr, "  --host                ip address to listen (default  (default: %s)\n",
+    fprintf(stderr, "  --host                ip address to listen (default: %s)\n",
             serverParams.hostname.c_str());
     fprintf(stderr, "  --port PORT           port to listen (default  (default: %d)\n", serverParams.port);
     fprintf(stderr, "  --path PUBLIC_PATH    path from which to serve static files (default %s)\n",
@@ -88,12 +88,12 @@ bool whisper_params_parse(int argc, char **argv, whisper_params &params, server_
         else if (arg == "--prompt") { params.prompt = argv[++i]; }
         else if (arg == "-m" || arg == "--model") { params.model = argv[++i]; }
         else if (arg == "--port") {
-            serverParams.port = std::stoi(argv[i]);
+            serverParams.port = std::stoi(argv[++i]);
         } else if (arg == "--host") {
-            serverParams.hostname = argv[i];
+            serverParams.hostname = argv[++i];
         } else if (arg == "--timeout" || arg == "-to") {
-            serverParams.read_timeout = std::stoi(argv[i]);
-            serverParams.write_timeout = std::stoi(argv[i]);
+            serverParams.read_timeout = std::stoi(argv[++i]);
+            serverParams.write_timeout = std::stoi(argv[++i]);
         } else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params, serverParams);
