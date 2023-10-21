@@ -48,4 +48,9 @@ dependencies {
   testImplementation 'junit:junit:4.+'
   androidTestImplementation 'androidx.test.ext:junit:1.1.5'
   androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+
+  //litongjava
+  implementation 'com.litongjava:android-view-inject:1.0'
+  implementation 'com.litongjava:jfinal-aop:1.0.1'
+  implementation 'com.litongjava:litongjava-android-utils:1.0.0'
 }

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration debug="false" xmlns="http://ch.qos.logback/xml/ns/logback"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://ch.qos.logback/xml/ns/logback https://raw.githubusercontent.com/enricopulatzo/logback-XSD/master/src/main/xsd/logback.xsd
+http://ch.qos.logback/xml/ns/logback ">
+  <!--定义日志文件的存储地址 勿在 LogBack 的配置中使用相对路径 -->
+  <property name="LOG_HOME" value="logs" />
+  <!--格式化输出：%d表示日期,%-6level：日志级别从左显示6个字符宽度,%m：日志消息，%n是换行符 -->
+  <property name="CONSOLE_LOG_PATTERN"
+    value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-6level%logger{0}.%M:%L - %m%n" />
+
+  <!-- 控制台输出 -->
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+      <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+    </encoder>
+  </appender>
+
+  <!-- 按照每天生成日志文件 -->
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+      <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <!--日志文件输出的文件名 -->
+      <fileNamePattern>${LOG_HOME}/project-name-%d{yyyy-MM-dd}.log</fileNamePattern>
+      <!--日志文件保留天数 -->
+      <maxHistory>180</maxHistory>
+    </rollingPolicy>
+    <!--日志文件最大的大小 -->
+    <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+      <maxFileSize>10MB</maxFileSize>
+    </triggeringPolicy>
+  </appender>
+  <!-- 日志输出级别 和输出源 -->
+  <root level="info">
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="FILE" />
+  </root>
+</configuration>
