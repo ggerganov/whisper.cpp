@@ -39,4 +39,9 @@ public class WhisperSegment {
   public void setSentence(String sentence) {
     this.sentence = sentence;
   }
+
+  @Override
+  public String toString() {
+    return "["+start+" --> "+end+"00:00:00.850]   "+sentence;
+  }
 }

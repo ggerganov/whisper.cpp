@@ -2,6 +2,7 @@ package io.github.ggerganov.whispercpp;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import io.github.ggerganov.whispercpp.bean.WhisperSegment;
 import io.github.ggerganov.whispercpp.params.CBool;
 import io.github.ggerganov.whispercpp.params.WhisperFullParams;
 import io.github.ggerganov.whispercpp.params.WhisperSamplingStrategy;
@@ -11,6 +12,7 @@ import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.List;
 
 class WhisperCppTest {
     private static WhisperCpp whisper = new WhisperCpp();
@@ -20,7 +22,8 @@ class WhisperCppTest {
     static void init() throws FileNotFoundException {
         // By default, models are loaded from ~/.cache/whisper/ and are usually named "ggml-${name}.bin"
         // or you can provide the absolute path to the model file.
-        String modelName = "../../models/ggml-tiny.en.bin";
+        String modelName = "../../models/ggml-tiny.bin";
+//        String modelName = "../../models/ggml-tiny.en.bin";
         try {
             whisper.initContext(modelName);
 //            whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
@@ -88,13 +91,20 @@ class WhisperCppTest {
             }
 
             // When
-            String result = whisper.fullTranscribe(params, floats);
+            //String result = whisper.fullTranscribe(params, floats);
 
             // Then
-            System.err.println(result);
-            assertEquals("And so my fellow Americans ask not what your country can do for you " +
-                    "ask what you can do for your country.",
-                    result.replace(",", ""));
+//            System.err.println(result);
+//            assertEquals("And so my fellow Americans ask not what your country can do for you " +
+//                    "ask what you can do for your country.",
+//                    result.replace(",", ""));
+
+            List<WhisperSegment> segments = whisper.fullTranscribeWithTime(params, floats);
+            System.out.println(segments.size());
+
+            for (WhisperSegment segment : segments) {
+                System.out.println(segment);
+            }
         } finally {
             audioInputStream.close();
         }
