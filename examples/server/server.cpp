@@ -117,7 +117,7 @@ char *escape_double_quotes_and_backslashes(const char *str) {
         }
     }
 
-    char *escaped = (char *)calloc(escaped_length, 1); // pre-zeroed
+    char *escaped = (char *) calloc(escaped_length, 1); // pre-zeroed
     if (escaped == NULL) {
         return NULL;
     }
@@ -150,7 +150,7 @@ std::string to_timestamp(int64_t t, bool comma = false) {
     return std::string(buf);
 }
 
-bool output_json(struct whisper_context * ctx, std::stringstream &fout, const whisper_params & params) {
+bool output_json(struct whisper_context *ctx, std::stringstream &fout, const whisper_params &params) {
     int indent = 0;
 
     auto doindent = [&]() {
@@ -192,7 +192,7 @@ bool output_json(struct whisper_context * ctx, std::stringstream &fout, const wh
 
     auto value_s = [&](const char *name, const char *val, bool end) {
         start_value(name);
-        char * val_escaped = escape_double_quotes_and_backslashes(val);
+        char *val_escaped = escape_double_quotes_and_backslashes(val);
         fout << "\"" << val_escaped << (end ? "\"\n" : "\",\n");
         free(val_escaped);
     };
@@ -245,7 +245,7 @@ bool output_json(struct whisper_context * ctx, std::stringstream &fout, const wh
 
     const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
-        const char * text = whisper_full_get_segment_text(ctx, i);
+        const char *text = whisper_full_get_segment_text(ctx, i);
 
         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
@@ -308,26 +308,34 @@ int main(int argc, char **argv) {
                                 {"Access-Control-Allow-Headers", "content-type"}});
 
     server.Post("/convert", [&ctx, &whisperParams](const Request &req, Response &res) {
+        // TODO add lock here, cannot process more than one file at a time
         fprintf(stderr, "Received request\n");
-        auto body = json::parse(req.body);
-        std::string file_in;
-
-        if (body.count("filename") != 0) {
-            file_in = body["filename"];
-        } else {
+        fprintf(stderr, "req: number of files attached: %ju\n", req.files.size());
+        if (!req.has_file("audio.wav")) {
+            fprintf(stderr, "Attachment 'audio.wav' is missing in http request");
             // TODO return error json
+            res.status = 400;
+            return 8;
         }
-
-        fprintf(stderr, "Reading %s\n", file_in.c_str());
+        auto file = req.get_file_value("audio.wav");
+        fprintf(stderr, "File is received: %s\n", file.content_type.c_str());
 
         std::vector<float> pcmf32;               // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
+        {
+            // TODO performance do we -have- to write the file to disk? We have it in-memory don't we?
+            std::ofstream InputFile("audio.wav");
+            InputFile << file.content;
+            InputFile.close();
 
-        if (!::read_wav(file_in, pcmf32, pcmf32s, false)) {
-            fprintf(stderr, "error: failed to read WAV file '%s'\n", file_in.c_str());
-            // TODO return error json
-            res.status = 404;
-            return 9;
+            fprintf(stderr, "File is written\n");
+
+            if (!::read_wav( "audio.wav", pcmf32, pcmf32s, false)) {
+                fprintf(stderr, "error: failed to read WAV file '%s'\n", file.filename.c_str());
+                // TODO return error json
+                res.status = 404;
+                return 9;
+            }
         }
 
         whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
@@ -343,8 +351,8 @@ int main(int argc, char **argv) {
 //            wparams.encoder_begin_callback_user_data = &is_aborted;
 //        }
 
-        fprintf(stderr, "processors: %i", whisperParams.n_processors);
-        if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), whisperParams.n_processors) != 0) {
+        if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), whisperParams.n_processors) !=
+            0) {
             fprintf(stderr, "%s: failed to process audio\n");
             res.status = 500;
             return 10;
