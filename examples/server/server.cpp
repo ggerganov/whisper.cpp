@@ -307,6 +307,11 @@ int main(int argc, char **argv) {
                                 {"Access-Control-Allow-Origin",  "*"},
                                 {"Access-Control-Allow-Headers", "content-type"}});
 
+    // TODO add streaming
+    //   https://github.com/yhirose/cpp-httplib#send-content-with-the-content-provider
+    //   and
+    //   wparams.new_segment_callback
+
     server.Post("/convert", [&ctx, &whisperParams](const Request &req, Response &res) {
         // TODO add lock here, cannot process more than one file at a time
         fprintf(stderr, "Received request\n");
@@ -327,29 +332,16 @@ int main(int argc, char **argv) {
             std::ofstream InputFile("audio.wav");
             InputFile << file.content;
             InputFile.close();
+        }
 
-            fprintf(stderr, "File is written\n");
-
-            if (!::read_wav( "audio.wav", pcmf32, pcmf32s, false)) {
-                fprintf(stderr, "error: failed to read WAV file '%s'\n", file.filename.c_str());
-                // TODO return error json
-                res.status = 404;
-                return 9;
-            }
+        if (!::read_wav( "audio.wav", pcmf32, pcmf32s, false)) {
+            fprintf(stderr, "error: failed to read WAV file '%s'\n", file.filename.c_str());
+            // TODO return error json
+            res.status = 404;
+            return 9;
         }
 
         whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-
-//        {
-//            static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
-//
-//            wparams.encoder_begin_callback = [](struct whisper_context * /*ctx*/, struct whisper_state * /*state*/,
-//                                                void *user_data) {
-//                bool is_aborted = *(bool *) user_data;
-//                return !is_aborted;
-//            };
-//            wparams.encoder_begin_callback_user_data = &is_aborted;
-//        }
 
         if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), whisperParams.n_processors) !=
             0) {
