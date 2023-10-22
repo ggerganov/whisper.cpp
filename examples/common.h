@@ -82,12 +82,12 @@ bool utf8_is_valid(const std::string & a);
 
 // used to store merged tokens
 struct utf8_token {
-    std::string text;               // text of tokens
-    float p_sum = 0.0;              // token probability sum
-    int token_c = 0;                // total number of tokens in buffer
-    int64_t t0 = 0;                 // start time
-    int64_t t1 = 0;                 // end time
-    bool start_of_seg = false;      // start of segment
+    std::string text;         // text of tokens
+    float p_sum;              // token probability sum
+    int token_c;              // total number of tokens in buffer
+    int64_t t0;               // start time
+    int64_t t1;               // end time
+    bool start_of_seg;        // start of segment
 
     void clear() {
         text = "";
@@ -97,6 +97,15 @@ struct utf8_token {
         t1 = 0;
         start_of_seg = false;
     }
+
+    utf8_token()
+            : text(""),
+              p_sum(0.0),
+              token_c(0),
+              t0(0),
+              t1(0),
+              start_of_seg(false)
+    {}
 
     utf8_token(const std::string& text, float p_sum, int token_c, int64_t t0, int64_t t1, bool start_of_seg)
             : text(text),
