@@ -42,6 +42,6 @@ public class WhisperSegment {
 
   @Override
   public String toString() {
-    return "["+start+" --> "+end+"00:00:00.850]   "+sentence;
+    return "[" + start + " --> " + end + "]:" + sentence;
   }
 }
