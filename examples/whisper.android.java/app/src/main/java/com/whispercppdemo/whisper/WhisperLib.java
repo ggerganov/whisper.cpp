@@ -17,8 +17,8 @@ public class WhisperLib {
     Log.d(LOG_TAG, "Primary ABI: " + Build.SUPPORTED_ABIS[0]);
     boolean loadVfpv4 = false;
     boolean loadV8fp16 = false;
-    if (Utils.isArmEabiV7a()) {
-      String cpuInfo = Utils.cpuInfo();
+    if (WhisperUtils.isArmEabiV7a()) {
+      String cpuInfo = WhisperUtils.cpuInfo();
       if (cpuInfo != null) {
         Log.d(LOG_TAG, "CPU info: " + cpuInfo);
         if (cpuInfo.contains("vfpv4")) {
@@ -26,8 +26,8 @@ public class WhisperLib {
           loadVfpv4 = true;
         }
       }
-    } else if (Utils.isArmEabiV8a()) {
-      String cpuInfo = Utils.cpuInfo();
+    } else if (WhisperUtils.isArmEabiV8a()) {
+      String cpuInfo = WhisperUtils.cpuInfo();
       if (cpuInfo != null) {
         Log.d(LOG_TAG, "CPU info: " + cpuInfo);
         if (cpuInfo.contains("fphp")) {
@@ -62,6 +62,10 @@ public class WhisperLib {
   public static native int getTextSegmentCount(long contextPtr);
 
   public static native String getTextSegment(long contextPtr, int index);
+
+  public static native long getTextSegmentT0(long contextPtr, int index);
+
+  public static native long getTextSegmentT1(long contextPtr, int index);
 
   public static native String getSystemInfo();
 

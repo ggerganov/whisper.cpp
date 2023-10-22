@@ -8,7 +8,7 @@ import androidx.annotation.RequiresApi;
 import java.io.File;
 import java.nio.file.Path;
 
-public class Utils {
+public class WhisperUtils {
   private static final String LOG_TAG = "LibWhisper";
 
 

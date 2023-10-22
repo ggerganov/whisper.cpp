@@ -6,7 +6,11 @@ import android.util.Log;
 
 import androidx.annotation.RequiresApi;
 
+import com.litongjava.whisper.android.java.bean.WhisperSegment;
+
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -33,13 +37,49 @@ public class WhisperContext {
         }
         int numThreads = WhisperCpuConfig.getPreferredThreadCount();
         Log.d(LOG_TAG, "Selecting " + numThreads + " threads");
-        WhisperLib.fullTranscribe(ptr, numThreads, data);
-        int textCount = WhisperLib.getTextSegmentCount(ptr);
+
         StringBuilder result = new StringBuilder();
-        for (int i = 0; i < textCount; i++) {
-          result.append(WhisperLib.getTextSegment(ptr, i));
+        synchronized (this) {
+
+          WhisperLib.fullTranscribe(ptr, numThreads, data);
+          int textCount = WhisperLib.getTextSegmentCount(ptr);
+          for (int i = 0; i < textCount; i++) {
+            String sentence = WhisperLib.getTextSegment(ptr, i);
+            result.append(sentence);
+          }
         }
         return result.toString();
+      }
+    }).get();
+  }
+
+  public List<WhisperSegment> transcribeDataWithTime(float[] data) throws ExecutionException, InterruptedException {
+    return executorService.submit(new Callable<List<WhisperSegment>>() {
+      @RequiresApi(api = Build.VERSION_CODES.O)
+      @Override
+      public List<WhisperSegment> call() throws Exception {
+        if (ptr == 0L) {
+          throw new IllegalStateException();
+        }
+        int numThreads = WhisperCpuConfig.getPreferredThreadCount();
+        Log.d(LOG_TAG, "Selecting " + numThreads + " threads");
+
+        List<WhisperSegment> segments = new ArrayList<>();
+        synchronized (this) {
+//          StringBuilder result = new StringBuilder();
+          WhisperLib.fullTranscribe(ptr, numThreads, data);
+          int textCount = WhisperLib.getTextSegmentCount(ptr);
+          for (int i = 0; i < textCount; i++) {
+            long start = WhisperLib.getTextSegmentT0(ptr, i);
+            String sentence = WhisperLib.getTextSegment(ptr, i);
+            long end = WhisperLib.getTextSegmentT1(ptr, i);
+//            result.append();
+            segments.add(new WhisperSegment(start, end, sentence));
+
+          }
+//          return result.toString();
+        }
+        return segments;
       }
     }).get();
   }

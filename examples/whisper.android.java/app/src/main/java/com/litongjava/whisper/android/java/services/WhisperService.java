@@ -7,6 +7,8 @@ import android.widget.TextView;
 import androidx.annotation.RequiresApi;
 
 import com.litongjava.jfinal.aop.AopManager;
+import com.litongjava.whisper.android.java.bean.WhisperSegment;
+import com.litongjava.whisper.android.java.single.LocalWhisper;
 import com.litongjava.whisper.android.java.utils.AssetUtils;
 import com.litongjava.whisper.android.java.utils.WaveEncoder;
 import com.whispercppdemo.whisper.WhisperContext;
@@ -16,48 +18,42 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 public class WhisperService {
   private Logger log = LoggerFactory.getLogger(this.getClass());
-  private WhisperContext whisperContext;
+
   private final Object lock = new Object();
 
   @RequiresApi(api = Build.VERSION_CODES.O)
   public void loadModel(Context context, TextView tv) {
-
-    File filesDir = context.getFilesDir();
-    String modelFilePath = "models/ggml-tiny.bin";
-    File modelFile = AssetUtils.copyFileIfNotExists(context, filesDir, modelFilePath);
-    modelFilePath = modelFile.getAbsolutePath();
-
+    String modelFilePath = LocalWhisper.modelFilePath;
     String msg = "load model from :" + modelFilePath + "\n";
-    log.info(msg);
-    tv.append(msg);
-    if (whisperContext == null) {
-      long start = System.currentTimeMillis();
+    outputMsg(tv, msg);
 
-      synchronized (lock){
-        whisperContext = WhisperContext.createContextFromFile(modelFilePath);
-      }
+    long start = System.currentTimeMillis();
+    LocalWhisper.INSTANCE.init();
+    long end = System.currentTimeMillis();
+    msg = "model load successful:" + (end - start) + "ms";
+    outputMsg(tv, msg);
 
-//      AopManager.me().addSingletonObject(whisperContext);
-      long end = System.currentTimeMillis();
-      msg = "model load successful:" + (end - start) + "ms\n";
-      log.info(msg);
-      tv.append(msg);
-    } else {
-      msg = "model loaded\n";
-      log.info(msg);
-      tv.append(msg);
-    }
   }
 
   public void transcribeSample(Context context, TextView tv) {
+    String msg = "";
+    long start = System.currentTimeMillis();
     String sampleFilePath = "samples/jfk.wav";
     File filesDir = context.getFilesDir();
     File sampleFile = AssetUtils.copyFileIfNotExists(context, filesDir, sampleFilePath);
-    log.info("transcribe file from :{}", sampleFile.getAbsolutePath());
+    long end = System.currentTimeMillis();
+    msg = "copy file:" + (end - start) + "ms";
+    outputMsg(tv, msg);
+
+    msg = "transcribe file from :" + sampleFile.getAbsolutePath();
+    outputMsg(tv, msg);
+
+    start = System.currentTimeMillis();
     float[] audioData = new float[0];  // 读取音频样本
     try {
       audioData = WaveEncoder.decodeWaveFile(sampleFile);
@@ -65,51 +61,35 @@ public class WhisperService {
       e.printStackTrace();
       return;
     }
+    end = System.currentTimeMillis();
+    msg = "decode wave file:" + (end - start) + "ms";
+    outputMsg(tv, msg);
 
-    String transcription = null;  // 转录音频数据
-
-    String msg = "";
+    start = System.currentTimeMillis();
+    List<WhisperSegment> transcription = null;
     try {
-      if (whisperContext == null) {
-        msg = "please load model or wait model loaded";
-        log.info(msg);
 
-      } else {
-        long start = System.currentTimeMillis();
-        synchronized (whisperContext){
-          transcription = whisperContext.transcribeData(audioData);
-        }
-        long end = System.currentTimeMillis();
-        msg = "Transcript successful:" + (end - start) + "ms";
-        log.info(msg);
-        tv.append(msg + "\n");
-
-        msg = "Transcription:" + transcription;
-        log.info(msg);
-        tv.append(msg + "\n");
-      }
-
-
+      //transcription = LocalWhisper.INSTANCE.transcribeData(audioData);
+      transcription = LocalWhisper.INSTANCE.transcribeDataWithTime(audioData);
     } catch (ExecutionException e) {
       e.printStackTrace();
     } catch (InterruptedException e) {
       e.printStackTrace();
     }
+    end = System.currentTimeMillis();
+    msg = "Transcript successful:" + (end - start) + "ms";
+    outputMsg(tv, msg);
 
+    msg = "Transcription:" + transcription.toString();
+    outputMsg(tv, msg);
+  }
 
+  private void outputMsg(TextView tv, String msg) {
+    tv.append(msg + "\n");
   }
 
   @RequiresApi(api = Build.VERSION_CODES.O)
   public void release() {
-    if (whisperContext != null) {
-      try {
-        whisperContext.release();
-      } catch (ExecutionException e) {
-        e.printStackTrace();
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
-      whisperContext = null;
-    }
+    //noting to do
   }
 }

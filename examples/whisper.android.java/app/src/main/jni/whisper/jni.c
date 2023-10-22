@@ -202,6 +202,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_getTextSegmentCount(
     return whisper_full_n_segments(context);
 }
 
+
 JNIEXPORT jstring JNICALL
 Java_com_whispercppdemo_whisper_WhisperLib_getTextSegment(
         JNIEnv *env, jobject thiz, jlong context_ptr, jint index) {
@@ -210,6 +211,22 @@ Java_com_whispercppdemo_whisper_WhisperLib_getTextSegment(
     const char *text = whisper_full_get_segment_text(context, index);
     jstring string = (*env)->NewStringUTF(env, text);
     return string;
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_whispercppdemo_whisper_WhisperLib_getTextSegmentT0(JNIEnv *env, jobject thiz,jlong context_ptr, jint index) {
+    UNUSED(thiz);
+    struct whisper_context *context = (struct whisper_context *) context_ptr;
+    const int64_t t0 = whisper_full_get_segment_t0(context, index);
+    return (jlong)t0;
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_whispercppdemo_whisper_WhisperLib_getTextSegmentT1(JNIEnv *env, jobject thiz,jlong context_ptr, jint index) {
+    UNUSED(thiz);
+    struct whisper_context *context = (struct whisper_context *) context_ptr;
+    const int64_t t1 = whisper_full_get_segment_t1(context, index);
+    return (jlong)t1;
 }
 
 JNIEXPORT jstring JNICALL
@@ -237,3 +254,4 @@ Java_com_whispercppdemo_whisper_WhisperLib_benchGgmlMulMat(JNIEnv *env, jobject 
     const char *bench_ggml_mul_mat = whisper_bench_ggml_mul_mat_str(n_threads);
     jstring string = (*env)->NewStringUTF(env, bench_ggml_mul_mat);
 }
+
