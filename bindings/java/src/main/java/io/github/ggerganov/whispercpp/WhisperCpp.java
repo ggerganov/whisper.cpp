@@ -148,7 +148,7 @@ public class WhisperCpp implements AutoCloseable {
         for (int i = 0; i < nSegments; i++) {
             long t0 = lib.whisper_full_get_segment_t0(ctx, i);
             String text = lib.whisper_full_get_segment_text(ctx, i);
-            long t1 = lib.whisper_full_get_segment_t0(ctx, i);
+            long t1 = lib.whisper_full_get_segment_t1(ctx, i);
             segments.add(new WhisperSegment(t0,t1,text));
         }
 
