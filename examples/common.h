@@ -97,6 +97,15 @@ struct utf8_token {
         t1 = 0;
         start_of_seg = false;
     }
+
+    utf8_token(const std::string& text, float p_sum, int token_c, int64_t t0, int64_t t1, bool start_of_seg)
+            : text(text),
+              p_sum(p_sum),
+              token_c(token_c),
+              t0(t0),
+              t1(t1),
+              start_of_seg(start_of_seg)
+    {}
 };
 
 void gpt_split_words(std::string str, std::vector<std::string>& words);
