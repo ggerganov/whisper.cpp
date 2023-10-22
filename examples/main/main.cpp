@@ -291,11 +291,6 @@ whisper_merged_tokens whisper_merge_tokens(struct whisper_context * ctx, const w
             const char * token_text = whisper_full_get_token_text(ctx, i, j);
             const float  token_p    = whisper_full_get_token_p   (ctx, i, j);
 
-            if (utf8_is_valid(buf.text)) {
-                result.push_back(buf);
-                buf.clear();
-            }
-
             if (utf8_is_valid(token_text)) {
                 result.emplace_back(std::string(token_text), token_p, 1, t0, t1, start_of_seg);
             } else {
@@ -308,6 +303,12 @@ whisper_merged_tokens whisper_merge_tokens(struct whisper_context * ctx, const w
                     buf.start_of_seg = start_of_seg;
                 }
             }
+
+            if (buf.token_c > 1 && utf8_is_valid(buf.text)) {
+                result.push_back(buf);
+                buf.clear();
+            }
+
             start_of_seg = false;
         }
     }
@@ -350,7 +351,7 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
         }
 
         // print suffix at the end of each segment
-        if (i < merged_tokens.size() - 1 && merged_tokens[i + 1].start_of_seg) {
+        if (i == merged_tokens.size() - 1 || (i < merged_tokens.size() - 1 && merged_tokens[i + 1].start_of_seg)) {
             if (params.tinydiarize) {
                 if (whisper_full_get_segment_speaker_turn_next(ctx, i)) {
                     printf("%s", params.tdrz_speaker_turn.c_str());
