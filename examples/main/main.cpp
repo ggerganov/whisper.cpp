@@ -297,7 +297,7 @@ whisper_merged_tokens whisper_merge_tokens(struct whisper_context * ctx, const w
             }
 
             if (utf8_is_valid(token_text)) {
-                result.push_back({std::string(token_text), token_p, 1, t0, t1, start_of_seg});
+                result.emplace_back(std::string(token_text), token_p, 1, t0, t1, start_of_seg);
             } else {
                 buf.text += std::string(token_text);
                 buf.p_sum += token_p;
