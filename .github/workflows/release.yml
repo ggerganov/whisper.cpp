@@ -1,0 +1,44 @@
+name: Release
+on:
+  push:
+    tags:
+    - '*'
+
+env:
+  ubuntu_image: "ubuntu:22.04"
+
+jobs:
+  ubuntu-latest:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [linux/amd64]
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Build ${{ matrix.arch }}
+        run: |
+          docker run --platform ${{ matrix.arch }} --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            apt update
+            apt install -y build-essential libsdl2-dev wget
+            make
+            mv main whisper
+            models/download-ggml-model.sh tiny
+            models/download-ggml-model.sh base
+            ./quantize models/ggml-base.bin ggml-base-q5_0.bin q5_0
+            '
+            
+      - name: Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "whisper, models/ggml-tiny.bin, ggml-base-q5_0.bin"
+
