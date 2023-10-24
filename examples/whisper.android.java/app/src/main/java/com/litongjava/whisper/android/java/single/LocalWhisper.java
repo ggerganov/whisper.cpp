@@ -8,12 +8,14 @@ import androidx.annotation.RequiresApi;
 import com.blankj.utilcode.util.Utils;
 import com.litongjava.whisper.android.java.bean.WhisperSegment;
 import com.litongjava.whisper.android.java.utils.AssetUtils;
-import com.whispercppdemo.whisper.WhisperContext;
+import com.whispercpp.java.whisper.WhisperContext;
 
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+
+@RequiresApi(api = Build.VERSION_CODES.O)
 public enum LocalWhisper {
   INSTANCE;
 

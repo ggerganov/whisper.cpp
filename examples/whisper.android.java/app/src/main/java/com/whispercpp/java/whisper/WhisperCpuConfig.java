@@ -1,4 +1,4 @@
-package com.whispercppdemo.whisper;
+package com.whispercpp.java.whisper;
 
 import android.os.Build;
 
