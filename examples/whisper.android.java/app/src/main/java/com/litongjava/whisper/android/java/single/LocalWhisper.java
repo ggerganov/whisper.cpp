@@ -2,10 +2,13 @@ package com.litongjava.whisper.android.java.single;
 
 import android.app.Application;
 import android.os.Build;
+import android.os.Handler;
 
 import androidx.annotation.RequiresApi;
 
+import com.blankj.utilcode.util.ToastUtils;
 import com.blankj.utilcode.util.Utils;
+import com.litongjava.jfinal.aop.Aop;
 import com.litongjava.whisper.android.java.bean.WhisperSegment;
 import com.litongjava.whisper.android.java.utils.AssetUtils;
 import com.whispercpp.java.whisper.WhisperContext;
@@ -32,11 +35,27 @@ public enum LocalWhisper {
   }
 
   public synchronized String transcribeData(float[] data) throws ExecutionException, InterruptedException {
-    return whisperContext.transcribeData(data);
+    if(whisperContext==null){
+        toastModelLoading();
+        return null;
+    }else{
+      return whisperContext.transcribeData(data);
+    }
   }
 
-  public List<WhisperSegment> transcribeDataWithTime(float[] audioData) throws ExecutionException, InterruptedException {
-    return whisperContext.transcribeDataWithTime(audioData);
+    private static void toastModelLoading() {
+        Aop.get(Handler.class).post(()->{
+          ToastUtils.showShort("please wait for model loading");
+        });
+    }
+
+    public List<WhisperSegment> transcribeDataWithTime(float[] audioData) throws ExecutionException, InterruptedException {
+    if(whisperContext==null){
+        toastModelLoading();
+      return null;
+    }else{
+      return whisperContext.transcribeDataWithTime(audioData);
+    }
   }
 
   public void init() {

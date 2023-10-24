@@ -6,6 +6,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.TextView;
 
@@ -15,6 +17,7 @@ import com.litongjava.android.view.inject.annotation.FindViewByIdLayout;
 import com.litongjava.android.view.inject.annotation.OnClick;
 import com.litongjava.android.view.inject.utils.ViewInjectUtils;
 import com.litongjava.jfinal.aop.Aop;
+import com.litongjava.jfinal.aop.AopManager;
 import com.litongjava.whisper.android.java.services.WhisperService;
 import com.litongjava.whisper.android.java.task.LoadModelTask;
 import com.litongjava.whisper.android.java.task.TranscriptionTask;
@@ -42,15 +45,20 @@ public class MainActivity extends AppCompatActivity {
     super.onCreate(savedInstanceState);
     //setContentView(R.layout.activity_main);
     ViewInjectUtils.injectActivity(this, this);
+    initAopBean();
     showSystemInfo();
+  }
+
+  private void initAopBean() {
+    Handler mainHandler = new Handler(Looper.getMainLooper());
+    AopManager.me().addSingletonObject(mainHandler);
   }
 
   @RequiresApi(api = Build.VERSION_CODES.O)
   @OnClick(R.id.loadModelBtn)
   public void loadModelBtn_OnClick(View v) {
     Context context = getBaseContext();
-    ThreadUtils.executeByIo(new LoadModelTask(context,tv));
-
+    ThreadUtils.executeByIo(new LoadModelTask(tv));
   }
 
   @OnClick(R.id.transcriptSampleBtn)

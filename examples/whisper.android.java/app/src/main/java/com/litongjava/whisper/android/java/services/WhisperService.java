@@ -2,12 +2,16 @@ package com.litongjava.whisper.android.java.services;
 
 import android.content.Context;
 import android.os.Build;
+import android.os.Handler;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
 
 import com.blankj.utilcode.util.ToastUtils;
+import com.blankj.utilcode.util.Utils;
+import com.litongjava.android.utils.dialog.AlertDialogUtils;
+import com.litongjava.jfinal.aop.Aop;
 import com.litongjava.whisper.android.java.bean.WhisperSegment;
 import com.litongjava.whisper.android.java.single.LocalWhisper;
 import com.litongjava.whisper.android.java.utils.WaveEncoder;
@@ -26,7 +30,7 @@ public class WhisperService {
   private final Object lock = new Object();
 
   @RequiresApi(api = Build.VERSION_CODES.O)
-  public void loadModel(Context context, TextView tv) {
+  public void loadModel(TextView tv) {
     String modelFilePath = LocalWhisper.modelFilePath;
     String msg = "load model from :" + modelFilePath + "\n";
     outputMsg(tv, msg);
@@ -71,7 +75,7 @@ public class WhisperService {
     end = System.currentTimeMillis();
     if(transcription!=null){
       ToastUtils.showLong(transcription.toString());
-
+      AlertDialogUtils.showWaringDialog(Utils.getApp(),msg);
       msg = "Transcript successful:" + (end - start) + "ms";
       outputMsg(tv, msg);
 
@@ -86,11 +90,10 @@ public class WhisperService {
   }
 
   private void outputMsg(TextView tv, String msg) {
-    if(tv!=null){
-      tv.append(msg + "\n");
-    }
     log.info(msg);
-
+    if(tv!=null){
+      Aop.get(Handler.class).post(()->{ tv.append(msg + "\n");});
+    }
   }
 
   @RequiresApi(api = Build.VERSION_CODES.O)
