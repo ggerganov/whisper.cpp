@@ -75,12 +75,10 @@ public class WhisperService {
     end = System.currentTimeMillis();
     if(transcription!=null){
       ToastUtils.showLong(transcription.toString());
-      AlertDialogUtils.showWaringDialog(Utils.getApp(),msg);
       msg = "Transcript successful:" + (end - start) + "ms";
       outputMsg(tv, msg);
 
-      msg = "Transcription:" + transcription.toString();
-      outputMsg(tv, msg);
+      outputMsg(tv, transcription.toString());
 
     }else{
       msg = "Transcript failed:" + (end - start) + "ms";
