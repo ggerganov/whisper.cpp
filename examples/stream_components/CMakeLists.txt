@@ -1,5 +1,5 @@
 if (WHISPER_SDL2)
-    # stream
+    # stream_components
     set(TARGET stream_components)
     add_executable(${TARGET} stream_components.cpp)
 

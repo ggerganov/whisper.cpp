@@ -6,6 +6,13 @@
 #include "whisper.h"
 #include "stream_components_params.h"
 
+/**
+ * Classes that support componentization of the server.
+ * These classes support encoding the server state and the transcription
+ * into JSON (and in the future, into other formats such as msgpack, 
+ * flexbuffers, etc.)
+ */
+
 namespace stream_components {
 
 class WhisperEncoder {

@@ -8,6 +8,10 @@
 
 namespace stream_components {
 
+/**
+ * Encapsulates audio capture and processing.
+ * Represents an SDL audio device
+ */ 
 class LocalSDLMicrophone {
 public:
     LocalSDLMicrophone(audio_params & params);

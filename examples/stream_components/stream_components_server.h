@@ -9,6 +9,9 @@ using std::shared_ptr;
 
 namespace stream_components {
 
+/**
+ * Encapsulates the Whisper server. 
+ */
 class WhisperServer {
 public:
     WhisperServer(
@@ -24,6 +27,8 @@ public:
     audio_params audio_params;
 
     struct whisper_context * ctx;
+
+protected:
     std::vector<whisper_token> prompt_tokens;
 };
 
