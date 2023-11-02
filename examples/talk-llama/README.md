@@ -4,6 +4,10 @@ Talk with an LLaMA AI in your terminal
 
 [Demo Talk](https://user-images.githubusercontent.com/1991296/228024237-848f998c-c334-46a6-bef8-3271590da83b.mp4)
 
+*Latest perf as of 2 Nov 2023 using Whisper Medium + LLaMA v2 13B Q8_0 on M2 Ultra:*
+
+https://github.com/ggerganov/whisper.cpp/assets/1991296/d97a3788-bf2a-4756-9a43-60c6b391649e
+
 ## Building
 
 The `talk-llama` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
