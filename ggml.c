@@ -42,12 +42,6 @@
 
 #include <windows.h>
 
-#undef MIN
-#undef MAX
-
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-
 typedef volatile LONG atomic_int;
 typedef atomic_int atomic_bool;
 
@@ -148,6 +142,12 @@ void ggml_print_backtrace(void) {
     // platform not supported
 }
 #endif
+
+#undef MIN
+#undef MAX
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 /*#define GGML_PERF*/
 #define GGML_DEBUG 0
