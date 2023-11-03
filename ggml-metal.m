@@ -179,6 +179,11 @@ struct ggml_metal_context * ggml_metal_init(int n_cb) {
         //NSString * path = [[NSBundle mainBundle] pathForResource:@"../../examples/metal/metal" ofType:@"metal"];
         NSBundle * bundle = [NSBundle bundleForClass:[GGMLMetalClass class]];
         NSString * path   = [bundle pathForResource:@"ggml-metal" ofType:@"metal"];
+        // In cases when we build with CMake, the actual path is
+        // bin/ggml-metal.
+        if (!path) {
+            path = [bundle pathForResource:@"bin/ggml-metal" ofType:@"metal"];
+        }
         metal_printf("%s: loading '%s'\n", __func__, [path UTF8String]);
 
         NSString * src  = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:&error];
