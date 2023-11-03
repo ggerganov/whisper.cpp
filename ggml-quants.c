@@ -270,6 +270,13 @@ static inline float hsum_float_4x4(const __m128 a, const __m128 b, const __m128 
 
 // 64-bit compatibility
 
+// vaddvq_s16
+// vpaddq_s16
+// vaddvq_s32
+// vaddvq_f32
+// vmaxvq_f32
+// vcvtnq_s32_f32
+
 inline static int32_t vaddvq_s16(int16x8_t v) {
     return
         (int32_t)vgetq_lane_s16(v, 0) + (int32_t)vgetq_lane_s16(v, 1) +
@@ -305,6 +312,82 @@ inline static int32x4_t vcvtnq_s32_f32(float32x4_t v) {
     res[1] = roundf(vgetq_lane_f32(v, 1));
     res[2] = roundf(vgetq_lane_f32(v, 2));
     res[3] = roundf(vgetq_lane_f32(v, 3));
+
+    return res;
+}
+
+// vld1q_s16_x2
+// vld1q_u8_x2
+// vld1q_u8_x4
+// vld1q_s8_x2
+// vld1q_s8_x4
+// TODO: double-check these work correctly
+
+struct int16x8x2_t {
+    int16x8_t val[2];
+};
+
+inline static int16x8x2_t vld1q_s16_x2(const int16_t * ptr) {
+    int16x8x2_t res;
+
+    res.val[0] = vld1q_s16(ptr + 0);
+    res.val[1] = vld1q_s16(ptr + 8);
+
+    return res;
+}
+
+struct uint8x16x2_t {
+    uint8x16_t val[2];
+};
+
+inline static uint8x16x2_t vld1q_u8_x2(const uint8_t * ptr) {
+    uint8x16x2_t res;
+
+    res.val[0] = vld1q_u8(ptr + 0);
+    res.val[1] = vld1q_u8(ptr + 16);
+
+    return res;
+}
+
+struct uint8x16x4_t {
+    uint8x16_t val[4];
+};
+
+inline static uint8x16x4_t vld1q_u8_x4(const uint8_t * ptr) {
+    uint8x16x4_t res;
+
+    res.val[0] = vld1q_u8(ptr + 0);
+    res.val[1] = vld1q_u8(ptr + 16);
+    res.val[2] = vld1q_u8(ptr + 32);
+    res.val[3] = vld1q_u8(ptr + 48);
+
+    return res;
+}
+
+struct int8x16x2_t {
+    int8x16_t val[2];
+};
+
+inline static int8x16x2_t vld1q_s8_x2(const int8_t * ptr) {
+    int8x16x2_t res;
+
+    res.val[0] = vld1q_s8(ptr + 0);
+    res.val[1] = vld1q_s8(ptr + 16);
+
+    return res;
+}
+
+struct int8x16x4_t {
+    int8x16_t val[4];
+};
+
+inline static int8x16x4_t vld1q_s8_x4(const int8_t * ptr) {
+    int8x16x4_t res;
+
+    res.val[0] = vld1q_s8(ptr + 0);
+    res.val[1] = vld1q_s8(ptr + 16);
+    res.val[2] = vld1q_s8(ptr + 32);
+    res.val[3] = vld1q_s8(ptr + 48);
 
     return res;
 }
