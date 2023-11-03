@@ -1,7 +1,9 @@
 *.o
 *.a
+.build/
 .cache/
 .coreml/
+.swiftpm/
 .test/
 .vs/
 .vscode/
