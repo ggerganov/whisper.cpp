@@ -464,6 +464,10 @@ add_library(${TARGET}
     ggml.c
     ggml-alloc.h
     ggml-alloc.c
+    ggml-backend.h
+    ggml-backend.c
+    ggml-quants.h
+    ggml-quants.c
     ${GGML_SOURCES_METAL}
     ${GGML_SOURCES_CUDA}
     ${GGML_SOURCES_OPENCL}
