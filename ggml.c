@@ -42,6 +42,12 @@
 
 #include <windows.h>
 
+#undef MIN
+#undef MAX
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 typedef volatile LONG atomic_int;
 typedef atomic_int atomic_bool;
 
