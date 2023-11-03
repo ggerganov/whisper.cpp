@@ -211,9 +211,9 @@ struct ggml_metal_context * ggml_metal_init(int n_cb) {
             GGML_METAL_LOG_INFO("%s: default.metallib not found, loading from source\n", __func__);
 
             NSString * sourcePath;
-            NSString * whisperMetalPathResources = [[NSProcessInfo processInfo].environment objectForKey:@"WHISPER_METAL_PATH_RESOURCES"];
-            if (whisperMetalPathResources) {
-                sourcePath = [whisperMetalPathResources stringByAppendingPathComponent:@"ggml-metal.metal"];
+            NSString * ggmlMetalPathResources = [[NSProcessInfo processInfo].environment objectForKey:@"GGML_METAL_PATH_RESOURCES"];
+            if (ggmlMetalPathResources) {
+                sourcePath = [ggmlMetalPathResources stringByAppendingPathComponent:@"ggml-metal.metal"];
             } else {
                 sourcePath = [bundle pathForResource:@"ggml-metal" ofType:@"metal"];
             }
