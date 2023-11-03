@@ -16,21 +16,28 @@
 #include <regex>
 
 std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos) {
-    // initialize to prompt numer of chars, since n_tokens <= n_prompt_chars
-    std::vector<llama_token> res(text.size() + (int)add_bos);
-    int n = llama_tokenize(ctx, text.c_str(), res.data(), res.size(), add_bos);
-    assert(n >= 0);
-    res.resize(n);
+    auto * model = llama_get_model(ctx);
 
-    return res;
+    // upper limit for the number of tokens
+    int n_tokens = text.length() + add_bos;
+    std::vector<llama_token> result(n_tokens);
+    n_tokens = llama_tokenize(model, text.data(), text.length(), result.data(), result.size(), add_bos, false);
+    if (n_tokens < 0) {
+        result.resize(-n_tokens);
+        int check = llama_tokenize(model, text.data(), text.length(), result.data(), result.size(), add_bos, false);
+        GGML_ASSERT(check == -n_tokens);
+    } else {
+        result.resize(n_tokens);
+    }
+    return result;
 }
 
 std::string llama_token_to_piece(const struct llama_context * ctx, llama_token token) {
     std::vector<char> result(8, 0);
-    const int n_tokens = llama_token_to_piece(ctx, token, result.data(), result.size());
+    const int n_tokens = llama_token_to_piece(llama_get_model(ctx), token, result.data(), result.size());
     if (n_tokens < 0) {
         result.resize(-n_tokens);
-        int check = llama_token_to_piece(ctx, token, result.data(), result.size());
+        int check = llama_token_to_piece(llama_get_model(ctx), token, result.data(), result.size());
         GGML_ASSERT(check == -n_tokens);
     } else {
         result.resize(n_tokens);
@@ -251,16 +258,19 @@ int main(int argc, char ** argv) {
 
     llama_backend_init(true);
 
-    auto lparams = llama_context_default_params();
+    auto lmparams = llama_model_default_params();
+
+    struct llama_model * model_llama = llama_load_model_from_file(params.model_llama.c_str(), lmparams);
+
+    llama_context_params lcparams = llama_context_default_params();
 
     // tune these to your liking
-    lparams.n_ctx      = 2048;
-    lparams.seed       = 1;
-    lparams.f16_kv     = true;
+    lcparams.n_ctx      = 2048;
+    lcparams.seed       = 1;
+    lcparams.f16_kv     = true;
+    lcparams.n_threads  = params.n_threads;
 
-    struct llama_model * model_llama = llama_load_model_from_file(params.model_llama.c_str(), lparams);
-
-    struct llama_context * ctx_llama = llama_new_context_with_model(model_llama, lparams);
+    struct llama_context * ctx_llama = llama_new_context_with_model(model_llama, lcparams);
 
     // print some info about the processing
     {
@@ -356,7 +366,7 @@ int main(int argc, char ** argv) {
         if (fp != NULL) {
             std::fclose(fp);
 
-            session_tokens.resize(lparams.n_ctx);
+            session_tokens.resize(llama_n_ctx(ctx_llama));
             size_t n_token_count_out = 0;
             if (!llama_load_session_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.capacity(), &n_token_count_out)) {
                 fprintf(stderr, "%s: error: failed to load session file '%s'\n", __func__, path_session.c_str());
@@ -378,7 +388,7 @@ int main(int argc, char ** argv) {
     printf("\n");
     printf("%s : initializing - please wait ...\n", __func__);
 
-    if (llama_eval(ctx_llama, embd_inp.data(), embd_inp.size(), 0, params.n_threads)) {
+    if (llama_eval(ctx_llama, embd_inp.data(), embd_inp.size(), 0)) {
         fprintf(stderr, "%s : failed to eval\n", __func__);
         return 1;
     }
@@ -561,7 +571,7 @@ int main(int argc, char ** argv) {
                             n_session_consumed = session_tokens.size();
                         }
 
-                        if (llama_eval(ctx_llama, embd.data(), embd.size(), n_past, params.n_threads)) {
+                        if (llama_eval(ctx_llama, embd.data(), embd.size(), n_past)) {
                             fprintf(stderr, "%s : failed to eval\n", __func__);
                             return 1;
                         }
@@ -593,9 +603,9 @@ int main(int argc, char ** argv) {
 
                         {
                             auto logits = llama_get_logits(ctx_llama);
-                            auto n_vocab = llama_n_vocab(ctx_llama);
+                            auto n_vocab = llama_n_vocab(model_llama);
 
-                            logits[llama_token_eos(ctx_llama)] = 0;
+                            logits[llama_token_eos(model_llama)] = 0;
 
                             std::vector<llama_token_data> candidates;
                             candidates.reserve(n_vocab);
@@ -606,13 +616,13 @@ int main(int argc, char ** argv) {
                             llama_token_data_array candidates_p = { candidates.data(), candidates.size(), false };
 
                             // apply repeat penalty
-                            const float nl_logit = logits[llama_token_nl(ctx_llama)];
+                            const float nl_logit = logits[llama_token_nl(model_llama)];
 
-                            llama_sample_repetition_penalty(ctx_llama, &candidates_p,
+                            llama_sample_repetition_penalties(ctx_llama, &candidates_p,
                                     embd_inp.data() + std::max(0, n_past - repeat_last_n),
-                                    repeat_last_n, repeat_penalty);
+                                    repeat_last_n, repeat_penalty, 0.0, 0.0f);
 
-                            logits[llama_token_nl(ctx_llama)] = nl_logit;
+                            logits[llama_token_nl(model_llama)] = nl_logit;
 
                             if (temp <= 0) {
                                 // Greedy sampling
@@ -621,12 +631,12 @@ int main(int argc, char ** argv) {
                                 // Temperature sampling
                                 llama_sample_top_k(ctx_llama, &candidates_p, top_k, 1);
                                 llama_sample_top_p(ctx_llama, &candidates_p, top_p, 1);
-                                llama_sample_temperature(ctx_llama, &candidates_p, temp);
+                                llama_sample_temp (ctx_llama, &candidates_p, temp);
                                 id = llama_sample_token(ctx_llama, &candidates_p);
                             }
                         }
 
-                        if (id != llama_token_eos(ctx_llama)) {
+                        if (id != llama_token_eos(model_llama)) {
                             // add it to the context
                             embd.push_back(id);
 
