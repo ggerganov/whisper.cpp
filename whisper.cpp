@@ -3940,6 +3940,7 @@ static void whisper_process_logits(
         // suppress task tokens
         logits[vocab.token_translate]  = -INFINITY;
         logits[vocab.token_transcribe] = -INFINITY;
+        logits[vocab.token_prev]       = -INFINITY;
 
         if (params.logits_filter_callback) {
             params.logits_filter_callback(&ctx, &state, tokens_cur.data(), tokens_cur.size(), logits.data(), params.logits_filter_callback_user_data);
@@ -4558,6 +4559,7 @@ int whisper_full_with_state(
 
     // these tokens determine the task that will be performed
     std::vector<whisper_token> prompt_init = { whisper_token_sot(ctx) };
+
     if (whisper_is_multilingual(ctx)) {
         const int lang_id = whisper_lang_id(params.language);
         state->lang_id = lang_id;
@@ -4566,6 +4568,17 @@ int whisper_full_with_state(
             prompt_init.push_back(whisper_token_translate(ctx));
         } else {
             prompt_init.push_back(whisper_token_transcribe(ctx));
+        }
+    }
+
+    {
+        const bool is_distil = ctx->model.hparams.n_text_layer == 2;
+
+        // distilled models require the "no_timestamps" token
+        // TODO: add input parameter (#1229)
+        if (is_distil) {
+            log("%s: using distilled model - forcing no_timestamps\n", __func__);
+            prompt_init.push_back(whisper_token_not(ctx));
         }
     }
 
