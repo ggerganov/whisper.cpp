@@ -1,12 +1,12 @@
 #!/bin/bash
 
 cp -rpv ../ggml/src/ggml.c              ./ggml.c
+cp -rpv ../ggml/src/ggml-impl.h         ./ggml-impl.h
 cp -rpv ../ggml/src/ggml-alloc.c        ./ggml-alloc.c
 cp -rpv ../ggml/src/ggml-backend-impl.h ./ggml-backend-impl.h
 cp -rpv ../ggml/src/ggml-backend.c      ./ggml-backend.c
 cp -rpv ../ggml/src/ggml-cuda.cu        ./ggml-cuda.cu
 cp -rpv ../ggml/src/ggml-cuda.h         ./ggml-cuda.h
-cp -rpv ../ggml/src/ggml-impl.h         ./ggml-impl.h
 cp -rpv ../ggml/src/ggml-metal.h        ./ggml-metal.h
 cp -rpv ../ggml/src/ggml-metal.m        ./ggml-metal.m
 cp -rpv ../ggml/src/ggml-metal.metal    ./ggml-metal.metal
