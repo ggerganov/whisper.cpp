@@ -4579,6 +4579,7 @@ int whisper_full_with_state(
         // distilled models require the "no_timestamps" token
         // TODO: add input parameter (#1229)
         if (is_distil) {
+            log("%s: using distilled model - forcing no_timestamps\n", __func__);
             prompt_init.push_back(whisper_token_not(ctx));
         }
     }
