@@ -16391,9 +16391,6 @@ struct ggml_compute_state_shared {
     // synchronization primitives
     atomic_int n_active; // num active threads
     atomic_int node_n;   // active graph node
-
-    bool (*abort_callback)(void * data); // abort ggml_graph_compute when true
-    void * abort_callback_data;
 };
 
 struct ggml_compute_state {
@@ -16744,6 +16741,10 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
 
                 node_n = atomic_load(&state->shared->node_n);
                 if (node_n != last) break;
+
+                if (cplan->abort_callback && cplan->abort_callback(cplan->abort_callback_data)) {
+                    break;
+                }
             };
         }
 
@@ -17037,8 +17038,6 @@ int ggml_graph_compute(struct ggml_cgraph * cgraph, struct ggml_cplan * cplan) {
         /*.n_threads               =*/ n_threads,
         /*.n_active                =*/ n_threads,
         /*.node_n                  =*/ -1,
-        /*.abort_callback          =*/ NULL,
-        /*.abort_callback_data     =*/ NULL,
     };
     struct ggml_compute_state * workers = alloca(sizeof(struct ggml_compute_state)*n_threads);
 
