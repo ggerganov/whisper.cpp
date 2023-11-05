@@ -90,6 +90,7 @@ struct whisper_params {
     bool print_progress  = false;
     bool no_timestamps   = false;
     bool log_score       = false;
+    bool use_gpu         = true;
 
     std::string language  = "en";
     std::string prompt;
@@ -103,8 +104,6 @@ struct whisper_params {
 
     std::vector<std::string> fname_inp = {};
     std::vector<std::string> fname_out = {};
-
-    bool use_gpu       = true;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -224,6 +223,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -f FNAME,  --file FNAME        [%-7s] input WAV file path\n",                            "");
     fprintf(stderr, "  -oved D,   --ov-e-device DNAME [%-7s] the OpenVINO device used for encode inference\n",  params.openvino_encode_device.c_str());
     fprintf(stderr, "  -ls,       --log-score         [%-7s] log best decoder scores of tokens\n",              params.log_score?"true":"false");
+    fprintf(stderr, "  -ng,       --no-gpu            [%-7s] disable GPU\n",                                    params.use_gpu ? "false" : "true");
     fprintf(stderr, "\n");
 }
 
@@ -882,6 +882,7 @@ int main(int argc, char ** argv) {
 
     struct whisper_context_params cparams;
     cparams.use_gpu = params.use_gpu;
+
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
     if (ctx == nullptr) {

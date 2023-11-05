@@ -36,11 +36,11 @@ struct whisper_params {
     bool print_colors   = false;
     bool print_progress = false;
     bool no_timestamps  = false;
+    bool use_gpu        = true;
 
     std::string language = "en";
     std::string prompt;
     std::string model    = "../../ggml-large.bin";
-    bool use_gpu         = true;
 
     std::vector<std::string> fname_inp = {};
     std::vector<std::string> fname_out = {};

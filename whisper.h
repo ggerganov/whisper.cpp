@@ -73,14 +73,15 @@ extern "C" {
     // understanding of how the model works.
     //
 
-    struct whisper_context_params {
-        bool  use_gpu;
-    };
     struct whisper_context;
     struct whisper_state;
     struct whisper_full_params;
 
     typedef int whisper_token;
+
+    struct whisper_context_params {
+        bool  use_gpu;
+    };
 
     typedef struct whisper_token_data {
         whisper_token id;  // token id
