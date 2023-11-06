@@ -88,7 +88,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             apt update
             apt install -y build-essential cmake libsdl2-dev
-            cmake . -DWHISPER_SUPPORT_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+            cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }}
             make
             ctest -L gh --output-on-failure'
 
@@ -115,7 +115,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             apt update
             apt install -y build-essential cmake libsdl2-dev
-            cmake . -DWHISPER_SUPPORT_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
+            cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
             make
             ctest -L gh --output-on-failure'
 
@@ -182,7 +182,7 @@ jobs:
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_SUPPORT_SDL2=${{ matrix.sdl2 }}
+          -DWHISPER_SDL2=${{ matrix.sdl2 }}
 
       - name: Build
         run: |
@@ -252,9 +252,9 @@ jobs:
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_SUPPORT_OPENBLAS=${{ matrix.blas }}
+          -DWHISPER_OPENBLAS=${{ matrix.blas }}
           -DCMAKE_LIBRARY_PATH="$env:blasdir/lib"
-          -DWHISPER_SUPPORT_SDL2=${{ matrix.sdl2 }}
+          -DWHISPER_SDL2=${{ matrix.sdl2 }}
 
       - name: Build
         run: |
