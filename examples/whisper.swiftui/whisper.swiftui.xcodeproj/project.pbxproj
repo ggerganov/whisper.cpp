@@ -16,13 +16,15 @@
 		0AAC5D9D29539CCF003032C3 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5D9C29539CCF003032C3 /* ContentView.swift */; };
 		0AAC5D9F29539CD0003032C3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0AAC5D9E29539CD0003032C3 /* Assets.xcassets */; };
 		0AAC5DA329539CD0003032C3 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0AAC5DA229539CD0003032C3 /* Preview Assets.xcassets */; };
-		0AAC5DCB29539EB1003032C3 /* whisper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5DC729539EB0003032C3 /* whisper.cpp */; settings = {COMPILER_FLAGS = "-Wno-shorten-64-to-32"; }; };
-		0AAC5DCC29539EB1003032C3 /* ggml.c in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5DC929539EB0003032C3 /* ggml.c */; settings = {COMPILER_FLAGS = "-DGGML_USE_ACCELERATE -Wno-shorten-64-to-32"; }; };
+		0AAC5DCB29539EB1003032C3 /* whisper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5DC729539EB0003032C3 /* whisper.cpp */; settings = {COMPILER_FLAGS = "-DGGML_USE_METAL -Wno-shorten-64-to-32"; }; };
+		0AAC5DCC29539EB1003032C3 /* ggml.c in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5DC929539EB0003032C3 /* ggml.c */; settings = {COMPILER_FLAGS = "-DGGML_USE_ACCELERATE -DGGML_USE_METAL -Wno-shorten-64-to-32"; }; };
 		0AAC5DCE2953A05C003032C3 /* WhisperState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5DCD2953A05C003032C3 /* WhisperState.swift */; };
 		0AAC5DD12953A394003032C3 /* LibWhisper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5DD02953A394003032C3 /* LibWhisper.swift */; };
 		18ABE1522AF555FA0044A204 /* ggml-backend.c in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE14C2AF555FA0044A204 /* ggml-backend.c */; };
 		18ABE1532AF555FA0044A204 /* ggml-quants.c in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE1512AF555FA0044A204 /* ggml-quants.c */; };
 		18AED4812AB21F2B009D854F /* ggml-alloc.c in Sources */ = {isa = PBXBuildFile; fileRef = 18AED47F2AB21F2B009D854F /* ggml-alloc.c */; };
+		7FCB08262ACFA3A400AF3530 /* ggml-metal.m in Sources */ = {isa = PBXBuildFile; fileRef = 7FCB08252ACFA3A400AF3530 /* ggml-metal.m */; settings = {COMPILER_FLAGS = "-framework Foundation -framework Metal -framework MetalKit -fno-objc-arc"; }; };
+		7FCB08282ACFA48500AF3530 /* ggml-metal.metal in Sources */ = {isa = PBXBuildFile; fileRef = 7FCB08272ACFA48500AF3530 /* ggml-metal.metal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +54,9 @@
 		18ABE1512AF555FA0044A204 /* ggml-quants.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "ggml-quants.c"; sourceTree = "<group>"; };
 		18AED47F2AB21F2B009D854F /* ggml-alloc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "ggml-alloc.c"; sourceTree = "<group>"; };
 		18AED4802AB21F2B009D854F /* ggml-alloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "ggml-alloc.h"; sourceTree = "<group>"; };
+		7FCB081E2ACFA04400AF3530 /* ggml-metal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "ggml-metal.h"; sourceTree = "<group>"; };
+		7FCB08252ACFA3A400AF3530 /* ggml-metal.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "ggml-metal.m"; sourceTree = "<group>"; };
+		7FCB08272ACFA48500AF3530 /* ggml-metal.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = "ggml-metal.metal"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,6 +140,9 @@
 		0AAC5DC529539E89003032C3 /* whisper.cpp */ = {
 			isa = PBXGroup;
 			children = (
+				7FCB08272ACFA48500AF3530 /* ggml-metal.metal */,
+				7FCB081E2ACFA04400AF3530 /* ggml-metal.h */,
+				7FCB08252ACFA3A400AF3530 /* ggml-metal.m */,
 				18ABE14E2AF555FA0044A204 /* ggml-backend-impl.h */,
 				18ABE14C2AF555FA0044A204 /* ggml-backend.c */,
 				18ABE14D2AF555FA0044A204 /* ggml-backend.h */,
@@ -258,10 +266,12 @@
 				0AAC5DCC29539EB1003032C3 /* ggml.c in Sources */,
 				18ABE1532AF555FA0044A204 /* ggml-quants.c in Sources */,
 				0AAC5DCE2953A05C003032C3 /* WhisperState.swift in Sources */,
+				7FCB08282ACFA48500AF3530 /* ggml-metal.metal in Sources */,
 				0AAC5DD12953A394003032C3 /* LibWhisper.swift in Sources */,
 				0AA7514C2953B569001EE061 /* RiffWaveUtils.swift in Sources */,
 				0AAC5DCB29539EB1003032C3 /* whisper.cpp in Sources */,
 				0AA7514E2953D958001EE061 /* Recorder.swift in Sources */,
+				7FCB08262ACFA3A400AF3530 /* ggml-metal.m in Sources */,
 				18AED4812AB21F2B009D854F /* ggml-alloc.c in Sources */,
 				18ABE1522AF555FA0044A204 /* ggml-backend.c in Sources */,
 			);
