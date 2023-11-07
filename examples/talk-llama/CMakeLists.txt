@@ -14,6 +14,8 @@ if (WHISPER_SDL2)
         ../common-sdl.cpp
         ../../ggml.c
         ../../ggml-alloc.c
+        ../../ggml-backend.c
+        ../../ggml-quants.c
         ../../whisper.cpp)
 
     target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS} ../../)
