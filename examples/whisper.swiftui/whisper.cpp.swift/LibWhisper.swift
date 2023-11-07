@@ -1,4 +1,5 @@
 import Foundation
+import whisper
 
 enum WhisperError: Error {
     case couldNotInitializeContext
