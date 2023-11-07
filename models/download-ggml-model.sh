@@ -41,6 +41,7 @@ models=(
     "medium-q5_0"
     "medium.en-q5_0"
     "large-v1"
+    "large-v2"
     "large"
     "large-q5_0"
 )
