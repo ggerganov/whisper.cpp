@@ -88,7 +88,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             apt update
             apt install -y build-essential cmake libsdl2-dev
-            cmake . -DWHISPER_SUPPORT_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+            cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }}
             make
             ctest -L gh --output-on-failure'
 
@@ -115,7 +115,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             apt update
             apt install -y build-essential cmake libsdl2-dev
-            cmake . -DWHISPER_SUPPORT_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
+            cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
             make
             ctest -L gh --output-on-failure'
 
@@ -182,7 +182,7 @@ jobs:
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_SUPPORT_SDL2=${{ matrix.sdl2 }}
+          -DWHISPER_SDL2=${{ matrix.sdl2 }}
 
       - name: Build
         run: |
@@ -217,10 +217,10 @@ jobs:
         sdl2: [ON]
         include:
           - arch: Win32
-            obzip: https://github.com/xianyi/OpenBLAS/releases/download/v0.3.21/OpenBLAS-0.3.21-x86.zip
+            obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.24/OpenBLAS-0.3.24-x86.zip
             s2arc: x86
           - arch: x64
-            obzip: https://github.com/xianyi/OpenBLAS/releases/download/v0.3.21/OpenBLAS-0.3.21-x64.zip
+            obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.24/OpenBLAS-0.3.24-x64.zip
             s2arc: x64
           - sdl2: ON
             s2ver: 2.26.0
@@ -239,7 +239,7 @@ jobs:
           7z x blas.zip -oblas -y
           copy blas/include/cblas.h .
           copy blas/include/openblas_config.h .
-          echo "blasdir=$env:GITHUB_WORKSPACE/blas" >> $env:GITHUB_ENV
+          echo "OPENBLAS_PATH=$env:GITHUB_WORKSPACE/blas" >> $env:GITHUB_ENV
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
@@ -252,9 +252,9 @@ jobs:
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_SUPPORT_OPENBLAS=${{ matrix.blas }}
-          -DCMAKE_LIBRARY_PATH="$env:blasdir/lib"
-          -DWHISPER_SUPPORT_SDL2=${{ matrix.sdl2 }}
+          -DWHISPER_OPENBLAS=${{ matrix.blas }}
+          -DCMAKE_LIBRARY_PATH="$env:OPENBLAS_PATH/lib"
+          -DWHISPER_SDL2=${{ matrix.sdl2 }}
 
       - name: Build
         run: |
@@ -263,7 +263,7 @@ jobs:
 
       - name: Copy libopenblas.dll
         if: matrix.blas == 'ON'
-        run: copy "$env:blasdir/bin/libopenblas.dll" build/bin/${{ matrix.build }}
+        run: copy "$env:OPENBLAS_PATH/bin/libopenblas.dll" build/bin/${{ matrix.build }}
 
       - name: Copy SDL2.dll
         if: matrix.sdl2 == 'ON'

@@ -39,6 +39,20 @@ brew install sdl2
 make stream
 ```
 
+Ensure you are at the root of the repo when running `make stream`.  Not within the `examples/stream` dir
+as the libraries needed like `common-sdl.h` are located within `examples`.  Attempting to compile within
+`examples/steam` means your compiler cannot find them and it gives an error it cannot find the file.
+
+```bash
+whisper.cpp/examples/stream$ make stream
+g++     stream.cpp   -o stream
+stream.cpp:6:10: fatal error: common/sdl.h: No such file or directory
+    6 | #include "common/sdl.h"
+      |          ^~~~~~~~~~~~~~
+compilation terminated.
+make: *** [<builtin>: stream] Error 1
+```
+
 ## Web version
 
 This tool can also run in the browser: [examples/stream.wasm](/examples/stream.wasm)
