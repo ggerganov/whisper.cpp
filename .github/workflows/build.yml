@@ -412,6 +412,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v2
+        with:
+          api-level: 30
+          build-tools-version: 30.0.3
 
       - name: Build
         run: |
