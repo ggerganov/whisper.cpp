@@ -73,9 +73,9 @@ int whisper_bench_full(const whisper_params & params) {
         return 2;
     }
 
-    const int n_mel = 80;
+    const int n_mels = whisper_model_n_mels(ctx);
 
-    if (int ret = whisper_set_mel(ctx, nullptr, 0, n_mel)) {
+    if (int ret = whisper_set_mel(ctx, nullptr, 0, n_mels)) {
         fprintf(stderr, "error: failed to set mel: %d\n", ret);
         return 3;
     }
