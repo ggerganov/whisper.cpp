@@ -143,12 +143,6 @@ void ggml_print_backtrace(void) {
 }
 #endif
 
-#undef MIN
-#undef MAX
-
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-
 /*#define GGML_PERF*/
 #define GGML_DEBUG 0
 #define GGML_GELU_FP16
@@ -276,6 +270,12 @@ inline static void * ggml_aligned_malloc(size_t size) {
 
 // floating point type used to accumulate sums
 typedef double ggml_float;
+
+#undef MIN
+#undef MAX
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 //
 // global data
