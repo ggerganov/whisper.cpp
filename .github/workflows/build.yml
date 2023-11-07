@@ -403,10 +403,10 @@ jobs:
       - name: Clone
         uses: actions/checkout@v3
 
-      - name: set up JDK 8
+      - name: set up JDK 11
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '11'
           distribution: 'temurin'
           cache: gradle
 
