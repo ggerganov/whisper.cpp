@@ -23,7 +23,9 @@ void bench_main(size_t index) {
 
     fprintf(stderr, "%s: running benchmark with %d threads - please wait...\n", __func__, n_threads);
 
-    if (int ret = whisper_set_mel(ctx, nullptr, 0, WHISPER_N_MEL)) {
+    const int n_mel = 80;
+
+    if (int ret = whisper_set_mel(ctx, nullptr, 0, n_mel)) {
         fprintf(stderr, "error: failed to set mel: %d\n", ret);
         return;
     }
