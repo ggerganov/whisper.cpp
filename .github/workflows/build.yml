@@ -217,10 +217,10 @@ jobs:
         sdl2: [ON]
         include:
           - arch: Win32
-            obzip: https://github.com/xianyi/OpenBLAS/releases/download/v0.3.21/OpenBLAS-0.3.21-x86.zip
+            obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.24/OpenBLAS-0.3.24-x86.zip
             s2arc: x86
           - arch: x64
-            obzip: https://github.com/xianyi/OpenBLAS/releases/download/v0.3.21/OpenBLAS-0.3.21-x64.zip
+            obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.24/OpenBLAS-0.3.24-x64.zip
             s2arc: x64
           - sdl2: ON
             s2ver: 2.26.0
