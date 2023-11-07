@@ -127,7 +127,7 @@ static struct whisper_context *whisper_init_from_asset(
             .close = &asset_close
     };
 
-    return whisper_init(&loader);
+    return whisper_init_with_params(&loader, whisper_context_default_params());
 }
 
 JNIEXPORT jlong JNICALL
@@ -147,7 +147,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_initContext(
     UNUSED(thiz);
     struct whisper_context *context = NULL;
     const char *model_path_chars = (*env)->GetStringUTFChars(env, model_path_str, NULL);
-    context = whisper_init_from_file(model_path_chars);
+    context = whisper_init_from_file_with_params(model_path_chars, whisper_context_default_params());
     (*env)->ReleaseStringUTFChars(env, model_path_str, model_path_chars);
     return (jlong) context;
 }

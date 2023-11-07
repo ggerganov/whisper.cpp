@@ -2,6 +2,7 @@ package io.github.ggerganov.whispercpp;
 
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
+import io.github.ggerganov.whispercpp.params.WhisperContextParams;
 import io.github.ggerganov.whispercpp.params.WhisperFullParams;
 import io.github.ggerganov.whispercpp.params.WhisperSamplingStrategy;
 
@@ -15,8 +16,9 @@ import java.io.IOException;
 public class WhisperCpp implements AutoCloseable {
     private WhisperCppJnaLibrary lib = WhisperCppJnaLibrary.instance;
     private Pointer ctx = null;
-    private Pointer greedyPointer = null;
-    private Pointer beamPointer = null;
+    private Pointer paramsPointer = null;
+    private Pointer greedyParamsPointer = null;
+    private Pointer beamParamsPointer = null;
 
     public File modelDir() {
         String modelDirPath = System.getenv("XDG_CACHE_HOME");
@@ -31,6 +33,18 @@ public class WhisperCpp implements AutoCloseable {
      * @param modelPath - absolute path, or just the name (eg: "base", "base-en" or "base.en")
      */
     public void initContext(String modelPath) throws FileNotFoundException {
+        initContextImpl(modelPath, getContextDefaultParams());
+    }
+
+    /**
+     * @param modelPath - absolute path, or just the name (eg: "base", "base-en" or "base.en")
+     * @param params - params to use when initialising the context
+     */
+    public void initContext(String modelPath, WhisperContextParams params) throws FileNotFoundException {
+        initContextImpl(modelPath, params);
+    }
+
+    private void initContextImpl(String modelPath, WhisperContextParams params) throws FileNotFoundException {
         if (ctx != null) {
             lib.whisper_free(ctx);
         }
@@ -43,13 +57,26 @@ public class WhisperCpp implements AutoCloseable {
             modelPath = new File(modelDir(), modelPath).getAbsolutePath();
         }
 
-        ctx = lib.whisper_init_from_file(modelPath);
+        ctx = lib.whisper_init_from_file_with_params(modelPath, params);
 
         if (ctx == null) {
             throw new FileNotFoundException(modelPath);
         }
     }
 
+    /**
+     * Provides default params which can be used with `whisper_init_from_file_with_params()` etc.
+     * Because this function allocates memory for the params, the caller must call either:
+     * - call `whisper_free_context_params()`
+     * - `Native.free(Pointer.nativeValue(pointer));`
+     */
+    public WhisperContextParams getContextDefaultParams() {
+        paramsPointer = lib.whisper_context_default_params_by_ref();
+        WhisperContextParams params = new WhisperContextParams(paramsPointer);
+        params.read();
+        return params;
+    }
+    
     /**
      * Provides default params which can be used with `whisper_full()` etc.
      * Because this function allocates memory for the params, the caller must call either:
@@ -63,15 +90,15 @@ public class WhisperCpp implements AutoCloseable {
 
         // whisper_full_default_params_by_ref allocates memory which we need to delete, so only create max 1 pointer for each strategy.
         if (strategy == WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY) {
-            if (greedyPointer == null) {
-                greedyPointer = lib.whisper_full_default_params_by_ref(strategy.ordinal());
+            if (greedyParamsPointer == null) {
+                greedyParamsPointer = lib.whisper_full_default_params_by_ref(strategy.ordinal());
             }
-            pointer = greedyPointer;
+            pointer = greedyParamsPointer;
         } else {
-            if (beamPointer == null) {
-                beamPointer = lib.whisper_full_default_params_by_ref(strategy.ordinal());
+            if (beamParamsPointer == null) {
+                beamParamsPointer = lib.whisper_full_default_params_by_ref(strategy.ordinal());
             }
-            pointer = beamPointer;
+            pointer = beamParamsPointer;
         }
 
         WhisperFullParams params = new WhisperFullParams(pointer);
@@ -93,13 +120,17 @@ public class WhisperCpp implements AutoCloseable {
     }
 
     private void freeParams() {
-        if (greedyPointer != null) {
-            Native.free(Pointer.nativeValue(greedyPointer));
-            greedyPointer = null;
+        if (paramsPointer != null) {
+            Native.free(Pointer.nativeValue(paramsPointer));
+            paramsPointer = null;
         }
-        if (beamPointer != null) {
-            Native.free(Pointer.nativeValue(beamPointer));
-            beamPointer = null;
+        if (greedyParamsPointer != null) {
+            Native.free(Pointer.nativeValue(greedyParamsPointer));
+            greedyParamsPointer = null;
+        }
+        if (beamParamsPointer != null) {
+            Native.free(Pointer.nativeValue(beamParamsPointer));
+            beamParamsPointer = null;
         }
     }
 
