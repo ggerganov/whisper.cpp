@@ -9,6 +9,8 @@ set(
         SOURCE_FILES
         ${WHISPER_LIB_DIR}/ggml.c
         ${WHISPER_LIB_DIR}/ggml-alloc.c
+        ${WHISPER_LIB_DIR}/ggml-backend.c
+        ${WHISPER_LIB_DIR}/ggml-quants.c
         ${WHISPER_LIB_DIR}/whisper.cpp
         ${CMAKE_SOURCE_DIR}/jni.c
 )
