@@ -19,7 +19,7 @@
 cd `dirname $0`
 
 # Whisper models
-models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large" )
+models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large-v2" "large" )
 
 # list available models
 function list_models {

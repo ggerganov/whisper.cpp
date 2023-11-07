@@ -1,4 +1,4 @@
-package com.whispercppdemo.whisper
+package com.whispercpp.whisper
 
 import android.util.Log
 import java.io.BufferedReader
