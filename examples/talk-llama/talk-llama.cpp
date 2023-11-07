@@ -266,6 +266,9 @@ int main(int argc, char ** argv) {
     llama_backend_init(true);
 
     auto lmparams = llama_model_default_params();
+    if (!params.use_gpu) {
+        lcparams.lmparams = 0;
+    }
 
     struct llama_model * model_llama = llama_load_model_from_file(params.model_llama.c_str(), lmparams);
 
@@ -276,9 +279,6 @@ int main(int argc, char ** argv) {
     lcparams.seed       = 1;
     lcparams.f16_kv     = true;
     lcparams.n_threads  = params.n_threads;
-    if (!params.use_gpu) {
-        lcparams.n_gpu_layers = 0;
-    }
 
     struct llama_context * ctx_llama = llama_new_context_with_model(model_llama, lcparams);
 
