@@ -234,6 +234,7 @@ make small
 make medium.en
 make medium
 make large-v1
+make large-v2
 make large
 ```
 
