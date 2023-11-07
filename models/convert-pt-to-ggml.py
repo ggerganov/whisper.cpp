@@ -228,7 +228,7 @@ with np.load(dir_whisper / "whisper" / "assets" / "mel_filters.npz") as f:
 # for backwards compatibility, also check for older hf_transformers format tokenizer files
 # old format: dir_whisper/whisper/assets/[multilingual/gpt2]/vocab.json
 # new format: dir_whisper/whisper/assets/[multilingual/gpt2].tiktoken
-multilingual = hparams["n_vocab"] == 51865
+multilingual = hparams["n_vocab"] >= 51865
 tokenizer = dir_whisper / "whisper" / "assets" / (multilingual and "multilingual.tiktoken" or "gpt2.tiktoken")
 tokenizer_type = "tiktoken"
 if not tokenizer.is_file():

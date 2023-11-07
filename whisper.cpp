@@ -193,6 +193,15 @@ enum e_model {
     MODEL_LARGE,
 };
 
+static const std::map<e_model, std::string> g_model_name = {
+    { MODEL_UNKNOWN,  "unknown"  },
+    { MODEL_TINY,     "tiny"     },
+    { MODEL_BASE,     "base"     },
+    { MODEL_SMALL,    "small"    },
+    { MODEL_MEDIUM,   "medium"   },
+    { MODEL_LARGE,    "large"    },
+};
+
 static const std::map<std::string, std::pair<int, std::string>> g_lang = {
     { "en",  { 0,  "english",         } },
     { "zh",  { 1,  "chinese",         } },
@@ -293,6 +302,7 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
     { "ba",  { 96,  "bashkir",        } },
     { "jw",  { 97,  "javanese",       } },
     { "su",  { 98,  "sundanese",      } },
+    { "yue", { 99,  "cantonese",      } },
 };
 
 static const size_t MB = 1ull*1024*1024;
@@ -402,7 +412,11 @@ struct whisper_vocab {
     id token_beg        = 50363; // begin timestamps
 
     bool is_multilingual() const {
-        return n_vocab == 51865;
+        return n_vocab >= 51865;
+    }
+
+    int num_languages() const {
+        return n_vocab - 51765 - (is_multilingual() ? 1 : 0);
     }
 };
 
@@ -922,6 +936,8 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
         assert(hparams.n_text_state == hparams.n_audio_state);
 
+        std::string mver = "";
+
         if (hparams.n_audio_layer == 4) {
             model.type = e_model::MODEL_TINY;
         }
@@ -940,6 +956,10 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
         if (hparams.n_audio_layer == 32) {
             model.type = e_model::MODEL_LARGE;
+
+            if (hparams.n_vocab == 51866) {
+                mver = " v3";
+            }
         }
 
         const int32_t qntvr = hparams.ftype / GGML_QNT_VERSION_FACTOR;
@@ -968,7 +988,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         log("%s: n_mels        = %d\n", __func__, hparams.n_mels);
         log("%s: ftype         = %d\n", __func__, model.hparams.ftype);
         log("%s: qntvr         = %d\n", __func__, qntvr);
-        log("%s: type          = %d\n", __func__, model.type);
+        log("%s: type          = %d (%s%s)\n", __func__, model.type, g_model_name.at(model.type).c_str(), mver.c_str());
 
         // print memory requirements
         {
@@ -1039,13 +1059,17 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         if (vocab.is_multilingual()) {
             vocab.token_eot++;
             vocab.token_sot++;
-            vocab.token_translate++;
-            vocab.token_transcribe++;
-            vocab.token_solm++;
-            vocab.token_prev++;
-            vocab.token_nosp++;
-            vocab.token_not++;
-            vocab.token_beg++;
+
+            // account for variable number of language tokens
+            const int dt = vocab.num_languages() - 98;
+
+            vocab.token_translate  += dt;
+            vocab.token_transcribe += dt;
+            vocab.token_solm       += dt;
+            vocab.token_prev       += dt;
+            vocab.token_nosp       += dt;
+            vocab.token_not        += dt;
+            vocab.token_beg        += dt;
         }
 
         if (n_vocab < model.hparams.n_vocab) {
@@ -1074,6 +1098,8 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                 vocab.id_to_token[i] = word;
             }
         }
+
+        log("%s: n_langs       = %d\n", __func__, vocab.num_languages());
     }
 
     size_t ctx_size = 0;
@@ -3281,7 +3307,7 @@ void whisper_free_params(struct whisper_full_params * params) {
 }
 
 int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
-    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, WHISPER_N_FFT, WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, false, state->mel)) {
+    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, WHISPER_N_FFT, WHISPER_HOP_LENGTH, ctx->model.filters.n_mel, n_threads, ctx->model.filters, false, state->mel)) {
         log("%s: failed to compute mel spectrogram\n", __func__);
         return -1;
     }
@@ -3295,7 +3321,7 @@ int whisper_pcm_to_mel(struct whisper_context * ctx, const float * samples, int 
 
 // same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2 (PV without phase lock is not good)
 int whisper_pcm_to_mel_phase_vocoder_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
-    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, 2 * WHISPER_N_FFT, 2 * WHISPER_HOP_LENGTH, WHISPER_N_MEL, n_threads, ctx->model.filters, false, state->mel)) {
+    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, 2 * WHISPER_N_FFT, 2 * WHISPER_HOP_LENGTH, ctx->model.filters.n_mel, n_threads, ctx->model.filters, false, state->mel)) {
         log("%s: failed to compute mel spectrogram\n", __func__);
         return -1;
     }
@@ -3318,13 +3344,13 @@ int whisper_pcm_to_mel_phase_vocoder(struct whisper_context * ctx, const float *
 // TODO
 
 int whisper_set_mel_with_state(
-        struct whisper_context * /*ctx*/,
+        struct whisper_context * ctx,
           struct whisper_state * state,
                    const float * data,
                            int   n_len,
                            int   n_mel) {
-    if (n_mel != WHISPER_N_MEL) {
-        log("%s: invalid number of mel bands: %d (expected %d)\n", __func__, n_mel, WHISPER_N_MEL);
+    if (n_mel != ctx->model.filters.n_mel) {
+        log("%s: invalid number of mel bands: %d (expected %d)\n", __func__, n_mel, ctx->model.filters.n_mel);
         return -1;
     }
 
