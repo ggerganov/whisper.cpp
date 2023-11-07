@@ -396,6 +396,28 @@ jobs:
           cd examples/whisper.android
           ./gradlew assembleRelease --no-daemon
 
+  android.java:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+
+      - name: Install Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: zulu
+          java-version: '8'
+          cache: gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Build
+        run: |
+          cd examples/whisper.android.java
+          ./gradlew assembleRelease
+
   java:
     needs: [ 'windows' ]
     runs-on: windows-latest

@@ -36,9 +36,9 @@ function(build_library target_name)
         target_compile_options(${target_name} PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
         target_compile_options(${target_name} PRIVATE -ffunction-sections -fdata-sections)
 
-        target_link_options(${target_name} PRIVATE -Wl,--gc-sections)
-        target_link_options(${target_name} PRIVATE -Wl,--exclude-libs,ALL)
-        target_link_options(${target_name} PRIVATE -flto)
+        #target_link_options(${target_name} PRIVATE -Wl,--gc-sections)
+        #target_link_options(${target_name} PRIVATE -Wl,--exclude-libs,ALL)
+        #target_link_options(${target_name} PRIVATE -flto)
 
     endif ()
 endfunction()
