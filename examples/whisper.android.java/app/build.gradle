@@ -26,7 +26,8 @@ android {
 
   buildTypes {
     release {
-      minifyEnabled false
+      signingConfig signingConfigs.debug
+      minifyEnabled true
       proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
     }
   }
@@ -35,6 +36,7 @@ android {
       path "src/main/jni/whisper/CMakeLists.txt"
     }
   }
+  ndkVersion "25.2.9519653"
   compileOptions {
     sourceCompatibility JavaVersion.VERSION_1_8
     targetCompatibility JavaVersion.VERSION_1_8
