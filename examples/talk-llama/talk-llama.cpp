@@ -267,7 +267,7 @@ int main(int argc, char ** argv) {
 
     auto lmparams = llama_model_default_params();
     if (!params.use_gpu) {
-        lcparams.lmparams = 0;
+        lmparams.n_gpu_layers = 0;
     }
 
     struct llama_model * model_llama = llama_load_model_from_file(params.model_llama.c_str(), lmparams);
