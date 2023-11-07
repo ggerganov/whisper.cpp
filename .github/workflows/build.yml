@@ -416,6 +416,7 @@ jobs:
       - name: Build
         run: |
           cd examples/whisper.android.java
+          chmod +x ./gradlew 
           ./gradlew assembleRelease
 
   java:
