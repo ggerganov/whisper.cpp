@@ -131,7 +131,7 @@ static struct whisper_context *whisper_init_from_asset(
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_initContextFromAsset(
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_initContextFromAsset(
         JNIEnv *env, jobject thiz, jobject assetManager, jstring asset_path_str) {
     UNUSED(thiz);
     struct whisper_context *context = NULL;
@@ -142,7 +142,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_initContextFromAsset(
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_initContext(
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_initContext(
         JNIEnv *env, jobject thiz, jstring model_path_str) {
     UNUSED(thiz);
     struct whisper_context *context = NULL;
@@ -153,7 +153,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_initContext(
 }
 
 JNIEXPORT void JNICALL
-Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_freeContext(
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_freeContext(
         JNIEnv *env, jobject thiz, jlong context_ptr) {
     UNUSED(env);
     UNUSED(thiz);
@@ -162,7 +162,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_freeContext(
 }
 
 JNIEXPORT void JNICALL
-Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_fullTranscribe(
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_fullTranscribe(
         JNIEnv *env, jobject thiz, jlong context_ptr, jint num_threads, jfloatArray audio_data) {
     UNUSED(thiz);
     struct whisper_context *context = (struct whisper_context *) context_ptr;
@@ -194,7 +194,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_fullTranscribe(
 }
 
 JNIEXPORT jint JNICALL
-Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_getTextSegmentCount(
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_getTextSegmentCount(
         JNIEnv *env, jobject thiz, jlong context_ptr) {
     UNUSED(env);
     UNUSED(thiz);
@@ -203,7 +203,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_getTextSegmentCount(
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_getTextSegment(
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_getTextSegment(
         JNIEnv *env, jobject thiz, jlong context_ptr, jint index) {
     UNUSED(thiz);
     struct whisper_context *context = (struct whisper_context *) context_ptr;
@@ -213,7 +213,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_getTextSegment(
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_getSystemInfo(
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_getSystemInfo(
         JNIEnv *env, jobject thiz
 ) {
     UNUSED(thiz);
@@ -223,7 +223,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_getSystemInfo(
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_benchMemcpy(JNIEnv *env, jobject thiz,
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_benchMemcpy(JNIEnv *env, jobject thiz,
                                                                       jint n_threads) {
     UNUSED(thiz);
     const char *bench_ggml_memcpy = whisper_bench_memcpy_str(n_threads);
@@ -231,7 +231,7 @@ Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_benchMemcpy(JNIEnv *en
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_whispercppdemo_whisper_WhisperLib_00024Companion_benchGgmlMulMat(JNIEnv *env, jobject thiz,
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_benchGgmlMulMat(JNIEnv *env, jobject thiz,
                                                                           jint n_threads) {
     UNUSED(thiz);
     const char *bench_ggml_mul_mat = whisper_bench_ggml_mul_mat_str(n_threads);

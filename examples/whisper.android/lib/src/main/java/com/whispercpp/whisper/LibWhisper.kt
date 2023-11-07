@@ -1,4 +1,4 @@
-package com.whispercppdemo.whisper
+package com.whispercpp.whisper
 
 import android.content.res.AssetManager
 import android.os.Build
