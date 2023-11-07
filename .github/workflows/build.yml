@@ -396,7 +396,7 @@ jobs:
           cd examples/whisper.android
           ./gradlew assembleRelease --no-daemon
 
-  android.java:
+  android_java:
     runs-on: ubuntu-latest
 
     steps:
