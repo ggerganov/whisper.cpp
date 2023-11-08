@@ -252,7 +252,7 @@ class WhisperANE(Whisper):
 def convert_encoder(hparams, model, quantize=False):
     model.eval()
 
-    input_shape = (1, 80, 3000)
+    input_shape = (1, hparams.n_mels, 3000)
     input_data = torch.randn(input_shape)
     traced_model = torch.jit.trace(model, input_data)
 
@@ -302,7 +302,7 @@ if __name__ == "__main__":
     parser.add_argument("--optimize-ane", type=bool, help="optimize for ANE execution (currently broken)", default=False)
     args = parser.parse_args()
 
-    if args.model not in ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "large-v1", "large-v2"]:
+    if args.model not in ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "small.en-tdrz", "medium", "medium.en", "large", "large-v1", "large-v2"]:
         raise ValueError("Invalid model name")
 
     whisper = load_model(args.model).cpu()
