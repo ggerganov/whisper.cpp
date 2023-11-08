@@ -1603,7 +1603,7 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         ggml_allocr_alloc(alloc, cur);
 
         if (!ggml_allocr_is_measure(alloc)) {
-            whisper_coreml_encode(wstate.ctx_coreml, (float *) mel->data, (float *) cur->data);
+            whisper_coreml_encode(wstate.ctx_coreml, mel->ne[0], mel->ne[1], (float *) mel->data, (float *) cur->data);
         }
 #endif
 #ifdef WHISPER_USE_OPENVINO
