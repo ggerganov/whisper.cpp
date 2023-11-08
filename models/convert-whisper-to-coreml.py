@@ -252,7 +252,7 @@ class WhisperANE(Whisper):
 def convert_encoder(hparams, model, quantize=False):
     model.eval()
 
-    input_shape = (1, 80, 3000)
+    input_shape = (1, hparams.n_mels, 3000)
     input_data = torch.randn(input_shape)
     traced_model = torch.jit.trace(model, input_data)
 
