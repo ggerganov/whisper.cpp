@@ -3716,6 +3716,7 @@ void whisper_print_timings(struct whisper_context * ctx) {
 void whisper_reset_timings(struct whisper_context * ctx) {
     ctx->t_start_us = ggml_time_us();
     if (ctx->state != nullptr) {
+        ctx->state->t_mel_us = 0;
         ctx->state->t_sample_us = 0;
         ctx->state->t_encode_us = 0;
         ctx->state->t_decode_us = 0;
