@@ -9,7 +9,7 @@ import shutil
 def convert_encoder(hparams, encoder, mname):
     encoder.eval()
 
-    mel = torch.zeros((1, 80, 3000))
+    mel = torch.zeros((1, hparams.n_mels, 3000))
 
     onnx_folder=os.path.join(os.path.dirname(__file__),"onnx_encoder")
 
