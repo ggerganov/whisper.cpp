@@ -333,75 +333,6 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
     { "yue", { 99,  "cantonese",      } },
 };
 
-static const size_t MB = 1ull*1024*1024;
-
-// TODO: avoid using GGUF
-static const std::map<ggml_type, std::map<e_model, size_t>> MEM_REQ_MODEL = {
-    { GGML_TYPE_F32,
-        {
-            { MODEL_TINY,     74ull*MB },
-            { MODEL_BASE,    142ull*MB },
-            { MODEL_SMALL,   466ull*MB },
-            { MODEL_MEDIUM, 1464ull*MB },
-            { MODEL_LARGE,  2952ull*MB },
-        },
-    },
-    { GGML_TYPE_F16,
-        {
-            { MODEL_TINY,     74ull*MB },
-            { MODEL_BASE,    142ull*MB },
-            { MODEL_SMALL,   466ull*MB },
-            { MODEL_MEDIUM, 1464ull*MB },
-            { MODEL_LARGE,  2952ull*MB },
-        },
-    },
-    { GGML_TYPE_Q4_0,
-        {
-            { MODEL_TINY,     26ull*MB },
-            { MODEL_BASE,     50ull*MB },
-            { MODEL_SMALL,   154ull*MB },
-            { MODEL_MEDIUM,  470ull*MB },
-            { MODEL_LARGE,   940ull*MB },
-        },
-    },
-    { GGML_TYPE_Q4_1,
-        {
-            { MODEL_TINY,     32ull*MB },
-            { MODEL_BASE,     58ull*MB },
-            { MODEL_SMALL,   182ull*MB },
-            { MODEL_MEDIUM,  562ull*MB },
-            { MODEL_LARGE,  1124ull*MB },
-        },
-    },
-    { GGML_TYPE_Q5_0,
-        {
-            { MODEL_TINY,     30ull*MB },
-            { MODEL_BASE,     54ull*MB },
-            { MODEL_SMALL,   170ull*MB },
-            { MODEL_MEDIUM,  516ull*MB },
-            { MODEL_LARGE,  1034ull*MB },
-        },
-    },
-    { GGML_TYPE_Q5_1,
-        {
-            { MODEL_TINY,     32ull*MB },
-            { MODEL_BASE,     58ull*MB },
-            { MODEL_SMALL,   182ull*MB },
-            { MODEL_MEDIUM,  562ull*MB },
-            { MODEL_LARGE,  1124ull*MB },
-        },
-    },
-    { GGML_TYPE_Q8_0,
-        {
-            { MODEL_TINY,     45ull*MB },
-            { MODEL_BASE,     84ull*MB },
-            { MODEL_SMALL,   268ull*MB },
-            { MODEL_MEDIUM,  834ull*MB },
-            { MODEL_LARGE,  1674ull*MB },
-        },
-    },
-};
-
 struct whisper_mel {
     int n_len;
     int n_len_org;
@@ -765,7 +696,7 @@ struct whisper_state {
     struct ggml_tensor * embd_conv = nullptr;
     struct ggml_tensor * embd_enc  = nullptr;
 
-    // TODO: helper until conv is implemented in CUDA
+    // helper for GPU offloading
     std::vector<float> inp_mel;
 
     // decode output (2-dimensional array: [n_tokens][n_vocab])
