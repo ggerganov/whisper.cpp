@@ -3276,6 +3276,12 @@ void whisper_free(struct whisper_context * ctx) {
 
         whisper_free_state(ctx->state);
 
+        ggml_backend_free(ctx->backend_cpu);
+
+        if (ctx->backend_gpu) {
+            ggml_backend_free(ctx->backend_gpu);
+        }
+
         delete ctx;
     }
 }
