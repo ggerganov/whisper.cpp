@@ -5131,13 +5131,15 @@ GGML_API struct ggml_tensor * ggml_conv_1d(
         int                   s0,
         int                   p0,
         int                   d0) {
-    struct ggml_tensor * result = ggml_im2col(ctx, a, b, s0, 0, p0, 0, d0, 0, false); // [N, OL, IC * K]
-    result =
-        ggml_reshape_3d(ctx,
-                ggml_mul_mat(ctx,
-                    ggml_reshape_2d(ctx, result, result->ne[0], (result->ne[2] * result->ne[1])), // [N, OL, IC * K] => [N*OL, IC * K]
-                    ggml_reshape_2d(ctx, a, (a->ne[0] * a->ne[1]), a->ne[2])),                    // [OC，IC, K] => [OC, IC * K]
-                result->ne[1], a->ne[2], result->ne[2]);                                          // [N, OC, OL]
+    struct ggml_tensor * im2col = ggml_im2col(ctx, a, b, s0, 0, p0, 0, d0, 0, false); // [N, OL, IC * K]
+
+    struct ggml_tensor * result =
+        ggml_mul_mat(ctx,
+                ggml_reshape_2d(ctx, im2col, im2col->ne[0], (im2col->ne[2] * im2col->ne[1])), // [N, OL, IC * K] => [N*OL, IC * K]
+                ggml_reshape_2d(ctx, a, (a->ne[0] * a->ne[1]), a->ne[2]));                    // [OC，IC, K] => [OC, IC * K]
+
+    result = ggml_reshape_3d(ctx, result, im2col->ne[1], a->ne[2], im2col->ne[2]); // [N, OC, OL]
+
     return result;
 }
 
@@ -5252,22 +5254,24 @@ struct ggml_tensor * ggml_im2col(
 // b: [N, IC, IH, IW]
 // result: [N, OC, OH, OW]
 struct ggml_tensor * ggml_conv_2d(
-    struct ggml_context * ctx,
-    struct ggml_tensor  * a,
-    struct ggml_tensor  * b,
-    int                  s0,
-    int                  s1,
-    int                  p0,
-    int                  p1,
-    int                  d0,
-    int                  d1) {
+        struct ggml_context * ctx,
+        struct ggml_tensor  * a,
+        struct ggml_tensor  * b,
+        int                  s0,
+        int                  s1,
+        int                  p0,
+        int                  p1,
+        int                  d0,
+        int                  d1) {
     struct ggml_tensor * result = ggml_im2col(ctx, a, b, s0, s1, p0, p1, d0, d1, true); // [N, OH, OW, IC * KH * KW]
+
     result =
         ggml_reshape_4d(ctx,
                 ggml_mul_mat(ctx,
                     ggml_reshape_2d(ctx, result, result->ne[0],  result->ne[3] * result->ne[2] * result->ne[1]), // [N, OH, OW, IC * KH * KW] => [N*OH*OW, IC * KH * KW]
                     ggml_reshape_2d(ctx, a, (a->ne[0] * a->ne[1] * a->ne[2]),  a->ne[3])),                       // [OC，IC, KH, KW] => [OC, IC * KH * KW]
                 result->ne[1], result->ne[2], a->ne[3], result->ne[3]);                                          // [N, OC, OH, OW]
+
     return result;
 }
 
@@ -11724,17 +11728,18 @@ static void ggml_compute_forward_im2col_f16(
 
     GGML_TENSOR_BINARY_OP_LOCALS;
 
-    const int32_t s0 = ((const int32_t*)(dst->op_params))[0];
-    const int32_t s1 = ((const int32_t*)(dst->op_params))[1];
-    const int32_t p0 = ((const int32_t*)(dst->op_params))[2];
-    const int32_t p1 = ((const int32_t*)(dst->op_params))[3];
-    const int32_t d0 = ((const int32_t*)(dst->op_params))[4];
-    const int32_t d1 = ((const int32_t*)(dst->op_params))[5];
-    const bool is_2D = ((const int32_t*)(dst->op_params))[6] == 1;
+    const int32_t s0 = ((const int32_t *)(dst->op_params))[0];
+    const int32_t s1 = ((const int32_t *)(dst->op_params))[1];
+    const int32_t p0 = ((const int32_t *)(dst->op_params))[2];
+    const int32_t p1 = ((const int32_t *)(dst->op_params))[3];
+    const int32_t d0 = ((const int32_t *)(dst->op_params))[4];
+    const int32_t d1 = ((const int32_t *)(dst->op_params))[5];
+    const bool is_2D = ((const int32_t *)(dst->op_params))[6] == 1;
 
     const int ith = params->ith;
     const int nth = params->nth;
-    const int64_t N = is_2D ? ne13 : ne12;
+
+    const int64_t N  = is_2D ? ne13 : ne12;
     const int64_t IC = is_2D ? ne12 : ne11;
     const int64_t IH = is_2D ? ne11 : 1;
     const int64_t IW = ne10;
