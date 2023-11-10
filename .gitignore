@@ -18,6 +18,11 @@ build-no-accel/
 build-sanitize-addr/
 build-sanitize-thread/
 
+# SPM
+.build/
+.swiftpm
+*.metallib
+
 /main
 /stream
 /command
