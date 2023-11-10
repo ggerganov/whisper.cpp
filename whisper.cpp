@@ -588,7 +588,6 @@ struct whisper_kv_cache {
 };
 
 struct whisper_model_data {
-    ggml_backend_buffer_t buffer_conv; // TODO: tmp until GPU support for conv
     ggml_backend_buffer_t buffer_main;
 };
 
@@ -827,9 +826,8 @@ struct whisper_context {
         return backend_gpu ? backend_gpu : backend_cpu;
     }
 
-    // TODO: always on CPU until we have a GPU support for conv
     ggml_backend_t backend_conv() const {
-        return backend_cpu;
+        return backend_gpu ? backend_gpu : backend_cpu;
     }
 
     ggml_backend_t backend_main() const {
@@ -1408,31 +1406,20 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         size_t size_main = 0;
 
         for (const auto & t : model.tensors) {
-            if (t.first.find("conv") != std::string::npos) {
-                size_conv += ggml_nbytes(t.second) + ggml_tensor_overhead();
-            } else {
                 size_main += ggml_nbytes(t.second) + ggml_tensor_overhead();
-            }
         }
 
-        model.data->buffer_conv = ggml_backend_alloc_buffer(wctx.backend_conv(), size_conv);
         model.data->buffer_main = ggml_backend_alloc_buffer(wctx.backend_main(), size_main);
 
-        WHISPER_LOG_INFO("%s: %8s buffer size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backend_conv()), size_conv / 1024.0 / 1024.0);
         WHISPER_LOG_INFO("%s: %8s buffer size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backend_main()), size_main / 1024.0 / 1024.0);
     }
 
-    ggml_allocr * alloc_conv = ggml_allocr_new_from_buffer(model.data->buffer_conv);
     ggml_allocr * alloc_main = ggml_allocr_new_from_buffer(model.data->buffer_main);
 
     // allocate tensors in the backend buffers
     {
         for (const auto & t : model.tensors) {
-            if (t.first.find("conv") != std::string::npos) {
-                ggml_allocr_alloc(alloc_conv, t.second);
-            } else {
                 ggml_allocr_alloc(alloc_main, t.second);
-            }
         }
     }
 
@@ -1496,9 +1483,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                 return false;
             }
 
-            const bool is_conv = name.find("conv") != std::string::npos;
-
-            ggml_backend * backend = is_conv ? wctx.backend_conv() : wctx.backend_main();
+            ggml_backend * backend = wctx.backend_main();
 
             //printf("%s: [%5.5s] %s\n", __func__, ggml_backend_name(backend), name.c_str());
 
@@ -1532,7 +1517,6 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         }
     }
 
-    ggml_allocr_free(alloc_conv);
     ggml_allocr_free(alloc_main);
 
     wctx.t_load_us = ggml_time_us() - t_start_us;
@@ -3273,7 +3257,6 @@ void whisper_free(struct whisper_context * ctx) {
             ggml_free(ctx->model.ctx);
         }
         if (ctx->model.data) {
-            ggml_backend_buffer_free(ctx->model.data->buffer_conv);
             ggml_backend_buffer_free(ctx->model.data->buffer_main);
 
             delete ctx->model.data;
