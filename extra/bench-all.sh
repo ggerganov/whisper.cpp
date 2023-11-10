@@ -83,6 +83,10 @@ for model in "${models[@]}"; do
         config="$config COREML"
     fi
 
+    if [[ $system_info == *"CUDA = 1"* ]]; then
+        config="$config CUDA"
+    fi
+
     if [[ $system_info == *"METAL = 1"* ]]; then
         config="$config METAL"
     fi
