@@ -2461,11 +2461,12 @@ static bool whisper_decode_internal(
     // extract logits for all N tokens
     //logits_out.resize(n_tokens*n_vocab);
     //memcpy(logits_out.data(), ggml_get_data(logits), sizeof(float)*n_tokens*n_vocab);
+    //ggml_backend_tensor_get(logits, logits_out.data(), (n_vocab*(n_tokens - 1))*sizeof(float), sizeof(float)*n_vocab);
 
     // extract logits only for the last token
     logits_out.resize(n_vocab);
     //memcpy(logits_out.data(), ggml_get_data(logits), sizeof(float)*n_vocab);
-    ggml_backend_tensor_get(logits, logits_out.data(), (n_vocab*(n_tokens - 1))*sizeof(float), sizeof(float)*n_vocab);
+    ggml_backend_tensor_get(logits, logits_out.data(), 0, sizeof(float)*n_vocab);
 
     if (n_tokens > 1) {
         //printf("%s: used_mem = %f MB, %f MB, %f MB %f MB %f MB\n", __func__,
