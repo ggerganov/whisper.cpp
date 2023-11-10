@@ -1939,7 +1939,12 @@ static struct ggml_cgraph * whisper_build_graph_cross(
 
     ggml_allocr * alloc = wstate.alloc_cross.alloc;
 
-    struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_enc);
+    struct ggml_tensor * cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
+    ggml_allocr_alloc(alloc, cur);
+
+    if (!ggml_allocr_is_measure(alloc)) {
+        ggml_backend_tensor_copy(wstate.embd_enc, cur);
+    }
 
     struct ggml_tensor * Kscale = ggml_new_tensor_1d(ctx0, GGML_TYPE_F32, 1);
     ggml_allocr_alloc(alloc, Kscale);
