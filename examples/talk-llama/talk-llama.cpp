@@ -248,7 +248,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    if (whisper_lang_id(params.language.c_str()) == -1) {
+    if (params.language != "auto" && whisper_lang_id(params.language.c_str()) == -1) {
         fprintf(stderr, "error: unknown language '%s'\n", params.language.c_str());
         whisper_print_usage(argc, argv, params);
         exit(0);

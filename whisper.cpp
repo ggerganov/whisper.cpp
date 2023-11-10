@@ -1639,7 +1639,7 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         ggml_allocr_alloc(alloc, cur);
 
         if (!ggml_allocr_is_measure(alloc)) {
-            whisper_coreml_encode(wstate.ctx_coreml, (float *) mel->data, (float *) cur->data);
+            whisper_coreml_encode(wstate.ctx_coreml, mel->ne[0], mel->ne[1], (float *) mel->data, (float *) cur->data);
         }
 #endif
 #ifdef WHISPER_USE_OPENVINO
@@ -3708,6 +3708,7 @@ void whisper_print_timings(struct whisper_context * ctx) {
 void whisper_reset_timings(struct whisper_context * ctx) {
     ctx->t_start_us = ggml_time_us();
     if (ctx->state != nullptr) {
+        ctx->state->t_mel_us = 0;
         ctx->state->t_sample_us = 0;
         ctx->state->t_encode_us = 0;
         ctx->state->t_decode_us = 0;
