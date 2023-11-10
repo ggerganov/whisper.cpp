@@ -48,17 +48,17 @@ jobs:
           make stream
 
   freeBSD-latest:
-    runs-on: macos-12
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Clone
         uses: actions/checkout@v3
 
       - name: Build
-        uses: cross-platform-actions/action@v0.15.0
+        uses: vmactions/freebsd-vm@v1
         with:
           operating_system: freebsd
-          version: '13.2'
+          release: 13.2
           run: |
             sudo pkg update
             sudo pkg install -y gmake sdl2
