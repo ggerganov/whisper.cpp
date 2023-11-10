@@ -2079,7 +2079,7 @@ static bool whisper_encode_internal(
     wstate.t_encode_us += ggml_time_us() - t_start_us;
     wstate.n_encode++;
 
-    return true;
+    return !(abort_callback && abort_callback(abort_callback_data));
 }
 
 static struct ggml_cgraph * whisper_build_graph_decoder(
@@ -2502,7 +2502,7 @@ static bool whisper_decode_internal(
         wstate.n_prompt++;
     }
 
-    return true;
+    return !(abort_callback && abort_callback(abort_callback_data));
 }
 
 
