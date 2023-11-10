@@ -1604,22 +1604,22 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         // convolution + gelu
         {
             cur = ggml_conv_1d_ph(ctx0, model.e_conv_1_w, mel, 1, 1);
-            //cur = ggml_add(ctx0, cur, model.e_conv_1_b);
-            cur = ggml_add(ctx0,
-                    ggml_repeat(ctx0,
-                        model.e_conv_1_b,
-                        cur),
-                    cur);
+            cur = ggml_add(ctx0, cur, model.e_conv_1_b);
+            //cur = ggml_add(ctx0,
+            //        ggml_repeat(ctx0,
+            //            model.e_conv_1_b,
+            //            cur),
+            //        cur);
 
             cur = ggml_gelu(ctx0, cur);
 
             cur = ggml_conv_1d_ph(ctx0, model.e_conv_2_w, cur, 2, 1);
-            //cur = ggml_add(ctx0, cur, model.e_conv_2_b);
-            cur = ggml_add(ctx0,
-                    ggml_repeat(ctx0,
-                        model.e_conv_2_b,
-                        cur),
-                    cur);
+            cur = ggml_add(ctx0, cur, model.e_conv_2_b);
+            //cur = ggml_add(ctx0,
+            //        ggml_repeat(ctx0,
+            //            model.e_conv_2_b,
+            //            cur),
+            //        cur);
 
             cur = ggml_gelu(ctx0, cur);
         }
