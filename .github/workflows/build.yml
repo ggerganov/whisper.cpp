@@ -57,7 +57,6 @@ jobs:
       - name: Build
         uses: vmactions/freebsd-vm@v1
         with:
-          operating_system: freebsd
           release: 13.2
           run: |
             sudo pkg update
