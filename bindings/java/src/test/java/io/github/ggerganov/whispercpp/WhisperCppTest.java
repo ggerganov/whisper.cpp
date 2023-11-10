@@ -91,17 +91,49 @@ class WhisperCppTest {
             }
 
             // When
-            //String result = whisper.fullTranscribe(params, floats);
+            String result = whisper.fullTranscribe(params, floats);
 
             // Then
-//            System.err.println(result);
-//            assertEquals("And so my fellow Americans ask not what your country can do for you " +
-//                    "ask what you can do for your country.",
-//                    result.replace(",", ""));
+            System.err.println(result);
+            assertEquals("And so my fellow Americans ask not what your country can do for you " +
+                    "ask what you can do for your country.",
+                    result.replace(",", ""));
+        } finally {
+            audioInputStream.close();
+        }
+    }
+
+    @Test
+    void testFullTranscribeWithTime() throws Exception {
+        if (!modelInitialised) {
+            System.out.println("Model not initialised, skipping test");
+            return;
+        }
+
+        // Given
+        File file = new File(System.getProperty("user.dir"), "../../samples/jfk.wav");
+        AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(file);
+
+        byte[] b = new byte[audioInputStream.available()];
+        float[] floats = new float[b.length / 2];
+
+//        WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
+        WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
+        params.setProgressCallback((ctx, state, progress, user_data) -> System.out.println("progress: " + progress));
+        params.print_progress = CBool.FALSE;
+//        params.initial_prompt = "and so my fellow Americans um, like";
+
+
+        try {
+            audioInputStream.read(b);
+
+            for (int i = 0, j = 0; i < b.length; i += 2, j++) {
+                int intSample = (int) (b[i + 1]) << 8 | (int) (b[i]) & 0xFF;
+                floats[j] = intSample / 32767.0f;
+            }
 
             List<WhisperSegment> segments = whisper.fullTranscribeWithTime(params, floats);
-            System.out.println(segments.size());
-
+            assertTrue(segments.size() > 0, "The size of segments should be greater than 0");
             for (WhisperSegment segment : segments) {
                 System.out.println(segment);
             }
@@ -109,4 +141,5 @@ class WhisperCppTest {
             audioInputStream.close();
         }
     }
+
 }
