@@ -817,22 +817,9 @@ struct whisper_context {
 
     whisper_state * state = nullptr;
 
-    ggml_backend_t backend_cpu = nullptr;
-    ggml_backend_t backend_gpu = nullptr;
+    ggml_backend_t backend = nullptr;
 
     std::string path_model; // populated by whisper_init_from_file_with_params()
-
-    ggml_backend_t backend_kv() const {
-        return backend_gpu ? backend_gpu : backend_cpu;
-    }
-
-    ggml_backend_t backend_conv() const {
-        return backend_gpu ? backend_gpu : backend_cpu;
-    }
-
-    ggml_backend_t backend_main() const {
-        return backend_gpu ? backend_gpu : backend_cpu;
-    }
 };
 
 struct whisper_global {
@@ -1190,16 +1177,16 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
         // encoder
         {
-            model.e_pe       = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, n_audio_state, n_audio_ctx);
+            model.e_pe = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, n_audio_state, n_audio_ctx);
 
-            model.e_conv_1_w = ggml_new_tensor_3d(ctx, vtype,         3, n_mels, n_audio_state);
-            model.e_conv_1_b = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 1, n_audio_state);
+            model.e_conv_1_w     = ggml_new_tensor_3d(ctx, vtype,         3, n_mels,     n_audio_state);
+            model.e_conv_1_b     = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 2*n_audio_ctx, n_audio_state);
 
-            model.e_conv_2_w = ggml_new_tensor_3d(ctx, vtype,         3, n_audio_state, n_audio_state);
-            model.e_conv_2_b = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 1, n_audio_state);
+            model.e_conv_2_w     = ggml_new_tensor_3d(ctx, vtype,         3, n_audio_state, n_audio_state);
+            model.e_conv_2_b     = ggml_new_tensor_2d(ctx, GGML_TYPE_F32,    n_audio_ctx,   n_audio_state);
 
-            model.e_ln_w     = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_audio_state);
-            model.e_ln_b     = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_audio_state);
+            model.e_ln_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_audio_state);
+            model.e_ln_b = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_audio_state);
 
             // map by name
             model.tensors["encoder.positional_embedding"] = model.e_pe;
@@ -1392,26 +1379,22 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 #endif
 
         if (backend_gpu) {
-            wctx.backend_gpu = backend_gpu;
+            wctx.backend = backend_gpu;
         } else {
-            wctx.backend_gpu = nullptr;
+            wctx.backend = ggml_backend_cpu_init();
         }
-
-        // always add the CPU backend as a fallback
-        wctx.backend_cpu = ggml_backend_cpu_init();
     }
 
     {
-        size_t size_conv = 0;
         size_t size_main = 0;
 
         for (const auto & t : model.tensors) {
-                size_main += ggml_nbytes(t.second) + ggml_tensor_overhead();
+            size_main += ggml_nbytes(t.second) + ggml_tensor_overhead();
         }
 
-        model.data->buffer_main = ggml_backend_alloc_buffer(wctx.backend_main(), size_main);
+        model.data->buffer_main = ggml_backend_alloc_buffer(wctx.backend, size_main);
 
-        WHISPER_LOG_INFO("%s: %8s buffer size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backend_main()), size_main / 1024.0 / 1024.0);
+        WHISPER_LOG_INFO("%s: %8s buffer size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backend), size_main / 1024.0 / 1024.0);
     }
 
     ggml_allocr * alloc_main = ggml_allocr_new_from_buffer(model.data->buffer_main);
@@ -1419,7 +1402,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
     // allocate tensors in the backend buffers
     {
         for (const auto & t : model.tensors) {
-                ggml_allocr_alloc(alloc_main, t.second);
+            ggml_allocr_alloc(alloc_main, t.second);
         }
     }
 
@@ -1462,43 +1445,67 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             }
 
             auto tensor = model.tensors[name.data()];
-            if (ggml_nelements(tensor) != nelements) {
-                WHISPER_LOG_ERROR("%s: tensor '%s' has wrong size in model file\n", __func__, name.data());
-                WHISPER_LOG_ERROR("%s: shape: [%d, %d, %d], expected: [%d, %d, %d]\n",
-                        __func__, ne[0], ne[1], ne[2], (int) tensor->ne[0], (int) tensor->ne[1], (int) tensor->ne[2]);
-                return false;
+
+            const bool is_conv_bias = (name == "encoder.conv1.bias" || name == "encoder.conv2.bias");
+
+            if (!is_conv_bias) {
+                if (ggml_nelements(tensor) != nelements) {
+                    WHISPER_LOG_ERROR("%s: tensor '%s' has wrong size in model file\n", __func__, name.data());
+                    WHISPER_LOG_ERROR("%s: shape: [%d, %d, %d], expected: [%d, %d, %d]\n",
+                            __func__, ne[0], ne[1], ne[2], (int) tensor->ne[0], (int) tensor->ne[1], (int) tensor->ne[2]);
+                    return false;
+                }
+
+                if (tensor->ne[0] != ne[0] || tensor->ne[1] != ne[1] || tensor->ne[2] != ne[2]) {
+                    WHISPER_LOG_ERROR("%s: tensor '%s' has wrong shape in model file: got [%d, %d, %d], expected [%d, %d, %d]\n",
+                            __func__, name.data(), (int) tensor->ne[0], (int) tensor->ne[1], (int) tensor->ne[2], ne[0], ne[1], ne[2]);
+                    return false;
+                }
+
+                const size_t bpe = ggml_type_size(ggml_type(ttype));
+
+                if ((nelements*bpe)/ggml_blck_size(tensor->type) != ggml_nbytes(tensor)) {
+                    WHISPER_LOG_ERROR("%s: tensor '%s' has wrong size in model file: got %zu, expected %zu\n",
+                            __func__, name.data(), ggml_nbytes(tensor), nelements*bpe);
+                    return false;
+                }
             }
 
-            if (tensor->ne[0] != ne[0] || tensor->ne[1] != ne[1] || tensor->ne[2] != ne[2]) {
-                WHISPER_LOG_ERROR("%s: tensor '%s' has wrong shape in model file: got [%d, %d, %d], expected [%d, %d, %d]\n",
-                        __func__, name.data(), (int) tensor->ne[0], (int) tensor->ne[1], (int) tensor->ne[2], ne[0], ne[1], ne[2]);
-                return false;
-            }
-
-            const size_t bpe = ggml_type_size(ggml_type(ttype));
-
-            if ((nelements*bpe)/ggml_blck_size(tensor->type) != ggml_nbytes(tensor)) {
-                WHISPER_LOG_ERROR("%s: tensor '%s' has wrong size in model file: got %zu, expected %zu\n",
-                        __func__, name.data(), ggml_nbytes(tensor), nelements*bpe);
-                return false;
-            }
-
-            ggml_backend * backend = wctx.backend_main();
+            ggml_backend_t backend = wctx.backend;
 
             //printf("%s: [%5.5s] %s\n", __func__, ggml_backend_name(backend), name.c_str());
 
-            if (ggml_backend_is_cpu(backend)
+            if ((ggml_backend_is_cpu(backend)
 #ifdef GGML_USE_METAL
                 || ggml_backend_is_metal(backend)
 #endif
-                ) {
+                ) && !is_conv_bias) {
                 // for the CPU and Metal backend, we can read directly into the tensor
                 loader->read(loader->context, tensor->data, ggml_nbytes(tensor));
                 BYTESWAP_TENSOR(tensor);
             } else {
                 // read into a temporary buffer first, then copy to device memory
                 read_buf.resize(ggml_nbytes(tensor));
-                loader->read(loader->context, read_buf.data(), read_buf.size());
+
+                // we repeat the 2 bias tensors along dim 0:
+                // [1, 512] -> [3000, 512] (conv1.bias)
+                // [1, 512] -> [1500, 512] (conv2.bias)
+                if (is_conv_bias) {
+                    loader->read(loader->context, read_buf.data(), read_buf.size() / tensor->ne[0]);
+
+                    float * data_f32 = (float *) read_buf.data();
+                    for (int64_t y = 0; y < tensor->ne[1]; ++y) {
+                        const int64_t yy = tensor->ne[1] - y - 1;
+                        const float val = data_f32[yy];
+
+                        for (int64_t x = 0; x < tensor->ne[0]; ++x) {
+                            data_f32[yy*tensor->ne[0] + x] = val;
+                        }
+                    }
+                } else {
+                    loader->read(loader->context, read_buf.data(), read_buf.size());
+                }
+
                 ggml_backend_tensor_set(tensor, read_buf.data(), 0, ggml_nbytes(tensor));
             }
 
@@ -1579,7 +1586,7 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         float * dst = wstate.inp_mel.data();
         memset(dst, 0, ggml_nbytes(mel));
 
-        const int i0 = std::min(mel_offset, mel_inp.n_len);
+        const int i0 = std::min(mel_offset,           mel_inp.n_len);
         const int i1 = std::min(mel_offset + 2*n_ctx, mel_inp.n_len);
 
         for (int j = 0; j < mel_inp.n_mel; ++j) {
@@ -1597,6 +1604,7 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         // convolution + gelu
         {
             cur = ggml_conv_1d_ph(ctx0, model.e_conv_1_w, mel, 1, 1);
+            //cur = ggml_add(ctx0, cur, model.e_conv_1_b);
             cur = ggml_add(ctx0,
                     ggml_repeat(ctx0,
                         model.e_conv_1_b,
@@ -1606,6 +1614,7 @@ static struct ggml_cgraph * whisper_build_graph_conv(
             cur = ggml_gelu(ctx0, cur);
 
             cur = ggml_conv_1d_ph(ctx0, model.e_conv_2_w, cur, 2, 1);
+            //cur = ggml_add(ctx0, cur, model.e_conv_2_b);
             cur = ggml_add(ctx0,
                     ggml_repeat(ctx0,
                         model.e_conv_2_b,
@@ -1669,19 +1678,20 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
 
     ggml_allocr * alloc = wstate.alloc_encode.alloc;
 
+    //struct ggml_tensor * cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_ctx, n_state);
+    //ggml_allocr_alloc(alloc, cur);
+
+    //if (!ggml_allocr_is_measure(alloc)) {
+    //    ggml_backend_tensor_copy(wstate.embd_conv, cur);
+    //}
+    struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_conv);
+
     struct ggml_tensor * KQscale = ggml_new_tensor_1d(ctx0, GGML_TYPE_F32, 1);
     ggml_allocr_alloc(alloc, KQscale);
 
     if (!ggml_allocr_is_measure(alloc)) {
         const float val = 1.0f/sqrtf(float(n_state)/n_head);
         ggml_backend_tensor_set(KQscale, &val, 0, sizeof(float));
-    }
-
-    struct ggml_tensor * cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_ctx, n_state);
-    ggml_allocr_alloc(alloc, cur);
-
-    if (!ggml_allocr_is_measure(alloc)) {
-        ggml_backend_tensor_copy(wstate.embd_conv, cur);
     }
 
     // ===================================================================
@@ -1923,12 +1933,13 @@ static struct ggml_cgraph * whisper_build_graph_cross(
 
     ggml_allocr * alloc = wstate.alloc_cross.alloc;
 
-    struct ggml_tensor * cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
-    ggml_allocr_alloc(alloc, cur);
+    //struct ggml_tensor * cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
+    //ggml_allocr_alloc(alloc, cur);
 
-    if (!ggml_allocr_is_measure(alloc)) {
-        ggml_backend_tensor_copy(wstate.embd_enc, cur);
-    }
+    //if (!ggml_allocr_is_measure(alloc)) {
+    //    ggml_backend_tensor_copy(wstate.embd_enc, cur);
+    //}
+    struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_enc);
 
     struct ggml_tensor * Kscale = ggml_new_tensor_1d(ctx0, GGML_TYPE_F32, 1);
     ggml_allocr_alloc(alloc, Kscale);
@@ -2006,15 +2017,15 @@ static bool whisper_encode_internal(
         ggml_allocr_alloc_graph(alloc, gf);
 
         if (!whisper_encode_external(wstate)) {
-            if (ggml_backend_is_cpu(wctx.backend_conv())) {
-                ggml_backend_cpu_set_n_threads(wctx.backend_conv(), n_threads);
+            if (ggml_backend_is_cpu(wctx.backend)) {
+                ggml_backend_cpu_set_n_threads(wctx.backend, n_threads);
             }
 #ifdef GGML_USE_METAL
-            if (ggml_backend_is_metal(wctx.backend_conv())) {
-                ggml_backend_metal_set_n_cb(wctx.backend_conv(), n_threads);
+            if (ggml_backend_is_metal(wctx.backend)) {
+                ggml_backend_metal_set_n_cb(wctx.backend, n_threads);
             }
 #endif
-            ggml_backend_graph_compute(wctx.backend_conv(), gf);
+            ggml_backend_graph_compute(wctx.backend, gf);
         }
     }
 
@@ -2028,15 +2039,15 @@ static bool whisper_encode_internal(
 
         ggml_allocr_alloc_graph(alloc, gf);
 
-        if (ggml_backend_is_cpu(wctx.backend_main())) {
-            ggml_backend_cpu_set_n_threads(wctx.backend_main(), n_threads);
+        if (ggml_backend_is_cpu(wctx.backend)) {
+            ggml_backend_cpu_set_n_threads(wctx.backend, n_threads);
         }
 #ifdef GGML_USE_METAL
-        if (ggml_backend_is_metal(wctx.backend_main())) {
-            ggml_backend_metal_set_n_cb(wctx.backend_main(), n_threads);
+        if (ggml_backend_is_metal(wctx.backend)) {
+            ggml_backend_metal_set_n_cb(wctx.backend, n_threads);
         }
 #endif
-        ggml_backend_graph_compute(wctx.backend_main(), gf);
+        ggml_backend_graph_compute(wctx.backend, gf);
     }
 
     // cross
@@ -2049,15 +2060,15 @@ static bool whisper_encode_internal(
 
         ggml_allocr_alloc_graph(alloc, gf);
 
-        if (ggml_backend_is_cpu(wctx.backend_main())) {
-            ggml_backend_cpu_set_n_threads(wctx.backend_main(), n_threads);
+        if (ggml_backend_is_cpu(wctx.backend)) {
+            ggml_backend_cpu_set_n_threads(wctx.backend, n_threads);
         }
 #ifdef GGML_USE_METAL
-        if (ggml_backend_is_metal(wctx.backend_main())) {
-            ggml_backend_metal_set_n_cb(wctx.backend_main(), n_threads);
+        if (ggml_backend_is_metal(wctx.backend)) {
+            ggml_backend_metal_set_n_cb(wctx.backend, n_threads);
         }
 #endif
-        ggml_backend_graph_compute(wctx.backend_main(), gf);
+        ggml_backend_graph_compute(wctx.backend, gf);
     }
 
     wstate.t_encode_us += ggml_time_us() - t_start_us;
@@ -2448,15 +2459,15 @@ static bool whisper_decode_internal(
 
         logits = gf->nodes[gf->n_nodes - 1];
 
-        if (ggml_backend_is_cpu(wctx.backend_main())) {
-            ggml_backend_cpu_set_n_threads(wctx.backend_main(), n_threads);
+        if (ggml_backend_is_cpu(wctx.backend)) {
+            ggml_backend_cpu_set_n_threads(wctx.backend, n_threads);
         }
 #ifdef GGML_USE_METAL
-        if (ggml_backend_is_metal(wctx.backend_main())) {
-            ggml_backend_metal_set_n_cb(wctx.backend_main(), n_threads);
+        if (ggml_backend_is_metal(wctx.backend)) {
+            ggml_backend_metal_set_n_cb(wctx.backend, n_threads);
         }
 #endif
-        ggml_backend_graph_compute(wctx.backend_main(), gf);
+        ggml_backend_graph_compute(wctx.backend, gf);
     }
 
     // extract logits for all N tokens
@@ -2899,7 +2910,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     whisper_state * state = new whisper_state;
 
-    if (!kv_cache_init(ctx->model.hparams, state->decoders[0].kv_self, ctx->backend_kv(), ctx->itype, ctx->model.hparams.n_text_ctx)) {
+    if (!kv_cache_init(ctx->model.hparams, state->decoders[0].kv_self, ctx->backend, ctx->itype, ctx->model.hparams.n_text_ctx)) {
         WHISPER_LOG_ERROR("%s: kv_cache_init() failed for self-attention cache\n", __func__);
         delete state;
         return nullptr;
@@ -2910,7 +2921,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         WHISPER_LOG_INFO("%s: kv self size  = %7.2f MB\n", __func__, memory_size / 1024.0 / 1024.0);
     }
 
-    if (!kv_cache_init(ctx->model.hparams, state->kv_cross, ctx->backend_kv(), ctx->itype, ctx->model.hparams.n_audio_ctx)) {
+    if (!kv_cache_init(ctx->model.hparams, state->kv_cross, ctx->backend, ctx->itype, ctx->model.hparams.n_audio_ctx)) {
         WHISPER_LOG_ERROR("%s: kv_cache_init() failed for cross-attention cache\n", __func__);
         delete state;
         return nullptr;
@@ -2952,7 +2963,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // conv allocator
     {
-        whisper_allocr_graph_init(state->alloc_conv, ctx->backend_conv(),
+        whisper_allocr_graph_init(state->alloc_conv, ctx->backend,
                 [&]() {
                     return whisper_build_graph_conv(*ctx, *state, 0);
                 });
@@ -2962,7 +2973,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // encoder allocator
     if (!whisper_encode_external(*state)) {
-        whisper_allocr_graph_init(state->alloc_encode, ctx->backend_main(),
+        whisper_allocr_graph_init(state->alloc_encode, ctx->backend,
                 [&]() {
                     return whisper_build_graph_encoder(*ctx, *state);
                 });
@@ -2972,7 +2983,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // cross allocator
     {
-        whisper_allocr_graph_init(state->alloc_cross, ctx->backend_main(),
+        whisper_allocr_graph_init(state->alloc_cross, ctx->backend,
                 [&]() {
                     return whisper_build_graph_cross(*ctx, *state);
                 });
@@ -2982,7 +2993,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // decoder allocator
     {
-        whisper_allocr_graph_init(state->alloc_decode, ctx->backend_main(),
+        whisper_allocr_graph_init(state->alloc_decode, ctx->backend,
                 [&]() {
                     const auto & hparams = ctx->model.hparams;
 
@@ -3264,11 +3275,7 @@ void whisper_free(struct whisper_context * ctx) {
 
         whisper_free_state(ctx->state);
 
-        ggml_backend_free(ctx->backend_cpu);
-
-        if (ctx->backend_gpu) {
-            ggml_backend_free(ctx->backend_gpu);
-        }
+        ggml_backend_free(ctx->backend);
 
         delete ctx;
     }
@@ -4566,7 +4573,7 @@ int whisper_full_with_state(
 
         if (decoder.kv_self.ctx == nullptr) {
             decoder.kv_self = state->decoders[0].kv_self;
-            if (!kv_cache_reinit(decoder.kv_self, ctx->backend_kv())) {
+            if (!kv_cache_reinit(decoder.kv_self, ctx->backend)) {
                 WHISPER_LOG_ERROR("%s: kv_cache_reinit() failed for self-attention, decoder %d\n", __func__, j);
                 return -4;
             }
