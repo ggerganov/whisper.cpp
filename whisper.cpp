@@ -207,6 +207,7 @@ static struct ggml_tensor * ggml_mul_mat_pad(struct ggml_context * ctx, struct g
 }
 
 // TODO: check if other platforms can benefit from this optimization
+// TODO: CUDA is currently broken - seems ggml_mul_mat does not handle views correctly
 #if defined(GGML_USE_METAL)
 #define ggml_mul_mat ggml_mul_mat_pad
 #endif
