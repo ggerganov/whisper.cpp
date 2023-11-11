@@ -59,8 +59,8 @@ jobs:
         with:
           release: 13.2
           prepare: |
-            sudo pkg update
-            sudo pkg install -y gmake sdl2
+            pkg update
+            pkg install -y gmake sdl2
           run: |
             gmake
             gmake stream
