@@ -4747,11 +4747,11 @@ static  __global__ void im2col_f32_f16(
         (threadIdx.x * gridDim.y * gridDim.z + blockIdx.y * gridDim.z + blockIdx.z) * CHW +
         (blockIdx.x * (blockDim.y * blockDim.z) + threadIdx.y * blockDim.z + threadIdx.z);
 
-    if (!(iih < 0 || iih >= IH || iiw < 0 || iiw >= IW)) {
+    if (iih < 0 || iih >= IH || iiw < 0 || iiw >= IW) {
+        dst[offset_dst] = __float2half(0.0f);
+    } else {
         const int offset_src =  threadIdx.x * ofs0 + blockIdx.x * ofs1;
         dst[offset_dst] = __float2half(x[offset_src + iih * IW + iiw]);
-    } else {
-        dst[offset_dst] = __float2half(0.0f);
     }
 }
 

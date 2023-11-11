@@ -1327,11 +1327,11 @@ kernel void kernel_im2col_f16(
         (tpitg[0] * tgpg[1] * tgpg[2] + tgpig[1] * tgpg[2] + tgpig[2]) * CHW +
         (tgpig[0] * (ntg[1] * ntg[2]) + tpitg[1] * ntg[2] + tpitg[2]);
 
-    if (!(iih < 0 || iih >= IH || iiw < 0 || iiw >= IW)) {
+    if (iih < 0 || iih >= IH || iiw < 0 || iiw >= IW) {
+        dst[offset_dst] = 0.0f;
+    } else {
         const int32_t offset_src = tpitg[0] * ofs0 + tgpig[0] * ofs1;
         dst[offset_dst] = x[offset_src + iih * IW + iiw];
-    } else {
-        dst[offset_dst] = 0.0f;
     }
 }
 
