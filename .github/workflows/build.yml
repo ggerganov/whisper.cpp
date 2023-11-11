@@ -58,9 +58,10 @@ jobs:
         uses: vmactions/freebsd-vm@v1
         with:
           release: 13.2
-          run: |
+          prepare: |
             sudo pkg update
             sudo pkg install -y gmake sdl2
+          run: |
             gmake
             gmake stream
 
