@@ -518,10 +518,6 @@ struct whisper_kv_cache {
     int n; // number of tokens currently in the cache
 };
 
-struct whisper_model_data {
-    ggml_backend_buffer_t buffer_main;
-};
-
 struct whisper_model {
     e_model type = MODEL_UNKNOWN;
 
@@ -556,11 +552,11 @@ struct whisper_model {
     std::vector<whisper_layer_encoder> layers_encoder;
     std::vector<whisper_layer_decoder> layers_decoder;
 
-    // context
+    // ggml context that contains all the meta information about the model tensors
     struct ggml_context * ctx;
 
     // the model backend data is read-only and can be shared between processors
-    struct whisper_model_data * data;
+    struct ggml_backend_buffer * buffer;
 
     // tensors
     int n_loaded;
@@ -1283,8 +1279,6 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
     // init backends
     {
-        model.data = new whisper_model_data;
-
         ggml_backend_t backend_gpu = NULL;
 
         // initialize the backends
@@ -1323,17 +1317,17 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             size_main += ggml_nbytes(t.second) + ggml_tensor_overhead();
         }
 
-        model.data->buffer_main = ggml_backend_alloc_buffer(wctx.backend, size_main);
+        model.buffer = ggml_backend_alloc_buffer(wctx.backend, size_main);
 
         WHISPER_LOG_INFO("%s: %8s buffer size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backend), size_main / 1024.0 / 1024.0);
     }
 
-    ggml_allocr * alloc_main = ggml_allocr_new_from_buffer(model.data->buffer_main);
+    ggml_allocr * alloc = ggml_allocr_new_from_buffer(model.buffer);
 
     // allocate tensors in the backend buffers
     {
         for (const auto & t : model.tensors) {
-            ggml_allocr_alloc(alloc_main, t.second);
+            ggml_allocr_alloc(alloc, t.second);
         }
     }
 
@@ -1455,7 +1449,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         }
     }
 
-    ggml_allocr_free(alloc_main);
+    ggml_allocr_free(alloc);
 
     wctx.t_load_us = ggml_time_us() - t_start_us;
 
@@ -3198,10 +3192,9 @@ void whisper_free(struct whisper_context * ctx) {
         if (ctx->model.ctx) {
             ggml_free(ctx->model.ctx);
         }
-        if (ctx->model.data) {
-            ggml_backend_buffer_free(ctx->model.data->buffer_main);
 
-            delete ctx->model.data;
+        if (ctx->model.buffer) {
+            ggml_backend_buffer_free(ctx->model.buffer);
         }
 
         whisper_free_state(ctx->state);
