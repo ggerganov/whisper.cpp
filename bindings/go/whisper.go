@@ -83,7 +83,6 @@ const (
 	SampleRate = C.WHISPER_SAMPLE_RATE                 // Expected sample rate, samples per second
 	SampleBits = uint16(unsafe.Sizeof(C.float(0))) * 8 // Sample size in bits
 	NumFFT     = C.WHISPER_N_FFT
-	NumMEL     = C.WHISPER_N_MEL
 	HopLength  = C.WHISPER_HOP_LENGTH
 	ChunkSize  = C.WHISPER_CHUNK_SIZE
 )
@@ -103,7 +102,7 @@ var (
 func Whisper_init(path string) *Context {
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
-	if ctx := C.whisper_init_from_file(cPath); ctx != nil {
+	if ctx := C.whisper_init_from_file_with_params(cPath, C.whisper_context_default_params()); ctx != nil {
 		return (*Context)(ctx)
 	} else {
 		return nil

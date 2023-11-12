@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.5)
 
-project(whisper.cpp VERSION 1.4.2)
+project(whisper.cpp VERSION 1.4.3)
 
 # Add path to modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
@@ -464,6 +464,10 @@ add_library(${TARGET}
     ggml.c
     ggml-alloc.h
     ggml-alloc.c
+    ggml-backend.h
+    ggml-backend.c
+    ggml-quants.h
+    ggml-quants.c
     ${GGML_SOURCES_METAL}
     ${GGML_SOURCES_CUDA}
     ${GGML_SOURCES_OPENCL}

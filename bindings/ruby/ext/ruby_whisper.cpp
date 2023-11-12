@@ -87,7 +87,7 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   if (!rb_respond_to(whisper_model_file_path, rb_intern("to_s"))) {
     rb_raise(rb_eRuntimeError, "Expected file path to model to initialize Whisper::Context");
   }
-  rw->context = whisper_init_from_file(StringValueCStr(whisper_model_file_path));
+  rw->context = whisper_init_from_file_with_params(StringValueCStr(whisper_model_file_path), whisper_context_default_params());
   if (rw->context == nullptr) {
     rb_raise(rb_eRuntimeError, "error: failed to initialize whisper context");
   }

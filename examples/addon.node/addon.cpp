@@ -36,6 +36,7 @@ struct whisper_params {
     bool print_colors   = false;
     bool print_progress = false;
     bool no_timestamps  = false;
+    bool use_gpu        = true;
 
     std::string language = "en";
     std::string prompt;
@@ -153,7 +154,9 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
 
     // whisper init
 
-    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
+    struct whisper_context_params cparams;
+    cparams.use_gpu = params.use_gpu;
+    struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
     if (ctx == nullptr) {
         fprintf(stderr, "error: failed to initialize whisper context\n");
@@ -315,10 +318,12 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   std::string language = whisper_params.Get("language").As<Napi::String>();
   std::string model = whisper_params.Get("model").As<Napi::String>();
   std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
+  bool use_gpu = whisper_params.Get("use_gpu").As<Napi::Boolean>();
 
   params.language = language;
   params.model = model;
   params.fname_inp.emplace_back(input);
+  params.use_gpu = use_gpu;
 
   Napi::Function callback = info[1].As<Napi::Function>();
   Worker* worker = new Worker(callback, params);

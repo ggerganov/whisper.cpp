@@ -18,11 +18,11 @@ else
 fi
 
 models=(                                               \
-      "tiny"   "tiny-q5_0"   "tiny-q5_1"   "tiny-q8_0" \
-      "base"   "base-q5_0"   "base-q5_1"   "base-q8_0" \
-     "small"  "small-q5_0"  "small-q5_1"  "small-q8_0" \
-    "medium" "medium-q5_0" "medium-q5_1" "medium-q8_0" \
-     "large"  "large-q5_0"  "large-q5_1"  "large-q8_0" \
+      "tiny"   "tiny-q4_0"   "tiny-q4_1"   "tiny-q5_0"   "tiny-q5_1"   "tiny-q8_0" \
+      "base"   "base-q4_0"   "base-q4_1"   "base-q5_0"   "base-q5_1"   "base-q8_0" \
+     "small"  "small-q4_0"  "small-q4_1"  "small-q5_0"  "small-q5_1"  "small-q8_0" \
+    "medium" "medium-q4_0" "medium-q4_1" "medium-q5_0" "medium-q5_1" "medium-q8_0" \
+     "large"  "large-q4_0"  "large-q4_1"  "large-q5_0"  "large-q5_1"  "large-q8_0" \
 )
 
 if [ "$encoder_only" -eq 0 ]; then
@@ -81,6 +81,10 @@ for model in "${models[@]}"; do
 
     if [[ $system_info == *"COREML = 1"* ]]; then
         config="$config COREML"
+    fi
+
+    if [[ $system_info == *"CUDA = 1"* ]]; then
+        config="$config CUDA"
     fi
 
     if [[ $system_info == *"METAL = 1"* ]]; then
