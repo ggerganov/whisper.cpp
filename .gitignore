@@ -8,6 +8,7 @@
 .DS_Store
 
 build/
+build-coreml/
 build-em/
 build-debug/
 build-release/

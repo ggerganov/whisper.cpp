@@ -479,6 +479,10 @@ static id<MTLBuffer> ggml_metal_get_buffer(struct ggml_metal_context * ctx, stru
 
     const int64_t tsize = ggml_nbytes(t);
 
+    if (t->buffer && t->buffer->backend && t->buffer->backend->context) {
+        ctx = t->buffer->backend->context;
+    }
+
     // find the view that contains the tensor fully
     for (int i = 0; i < ctx->n_buffers; ++i) {
         const int64_t ioffs = (int64_t) t->data - (int64_t) ctx->buffers[i].data;
