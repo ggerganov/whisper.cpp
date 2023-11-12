@@ -396,6 +396,32 @@ jobs:
           cd examples/whisper.android
           ./gradlew assembleRelease --no-daemon
 
+  android_java:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+
+      - name: set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 30
+          build-tools-version: 30.0.3
+
+      - name: Build
+        run: |
+          cd examples/whisper.android.java
+          chmod +x ./gradlew 
+          ./gradlew assembleRelease
+
   java:
     needs: [ 'windows' ]
     runs-on: windows-latest

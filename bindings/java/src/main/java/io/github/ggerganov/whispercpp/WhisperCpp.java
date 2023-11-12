@@ -2,6 +2,7 @@ package io.github.ggerganov.whispercpp;
 
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
+import io.github.ggerganov.whispercpp.bean.WhisperSegment;
 import io.github.ggerganov.whispercpp.params.WhisperContextParams;
 import io.github.ggerganov.whispercpp.params.WhisperFullParams;
 import io.github.ggerganov.whispercpp.params.WhisperSamplingStrategy;
@@ -9,6 +10,8 @@ import io.github.ggerganov.whispercpp.params.WhisperSamplingStrategy;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Before calling most methods, you must call `initContext(modelPath)` to initialise the `ctx` Pointer.
@@ -159,6 +162,28 @@ public class WhisperCpp implements AutoCloseable {
         }
 
         return str.toString().trim();
+    }
+    public List<WhisperSegment> fullTranscribeWithTime(WhisperFullParams whisperParams, float[] audioData) throws IOException {
+        if (ctx == null) {
+            throw new IllegalStateException("Model not initialised");
+        }
+
+        if (lib.whisper_full(ctx, whisperParams, audioData, audioData.length) != 0) {
+            throw new IOException("Failed to process audio");
+        }
+
+        int nSegments = lib.whisper_full_n_segments(ctx);
+        List<WhisperSegment> segments= new ArrayList<>(nSegments);
+
+
+        for (int i = 0; i < nSegments; i++) {
+            long t0 = lib.whisper_full_get_segment_t0(ctx, i);
+            String text = lib.whisper_full_get_segment_text(ctx, i);
+            long t1 = lib.whisper_full_get_segment_t1(ctx, i);
+            segments.add(new WhisperSegment(t0,t1,text));
+        }
+
+        return segments;
     }
 
 //    public int getTextSegmentCount(Pointer ctx) {
