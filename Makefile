@@ -362,8 +362,8 @@ quantize: examples/quantize/quantize.cpp $(WHISPER_OBJ) $(SRC_COMMON)
 stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
 
-stream_components: examples/stream_components/stream_components.cpp examples/stream_components/stream_components_audio.cpp examples/stream_components/stream_components_output.cpp examples/stream_components/stream_components_server.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/stream_components/stream_components.cpp examples/stream_components/stream_components_audio.cpp examples/stream_components/stream_components_output.cpp examples/stream_components/stream_components_server.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o stream_components $(CC_SDL) $(LDFLAGS)
+stream_components: examples/stream_components/stream_components.cpp examples/stream_components/stream_components_audio.cpp examples/stream_components/stream_components_output.cpp examples/stream_components/stream_components_server.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/stream_components/stream_components.cpp examples/stream_components/stream_components_audio.cpp examples/stream_components/stream_components_output.cpp examples/stream_components/stream_components_server.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream_components $(CC_SDL) $(LDFLAGS)
 
 command: examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
