@@ -3186,6 +3186,8 @@ void whisper_free_state(struct whisper_state * state)
         whisper_allocr_free(state->alloc_cross);
         whisper_allocr_free(state->alloc_decode);
 
+        ggml_backend_free(state->backend);
+
         delete state;
     }
 }
