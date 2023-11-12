@@ -23,7 +23,7 @@ add_library(${TARGET} STATIC
     common.cpp
     common-ggml.h
     common-ggml.cpp
-    )
+)
 
 include(DefaultTargetOptions)
 
@@ -67,6 +67,7 @@ else()
     add_subdirectory(command)
     add_subdirectory(bench)
     add_subdirectory(quantize)
+    add_subdirectory(server)
     add_subdirectory(talk)
     add_subdirectory(talk-llama)
     add_subdirectory(lsp)
