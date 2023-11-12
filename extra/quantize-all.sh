@@ -15,33 +15,13 @@ declare -a filedex
 cd `dirname $0`
 cd ../
 
-# Let's loop across all the objects in the 'models' dir:
-for i in ./models/*; do
-    # Check to see if it's a file or directory
-    if [ -d "$i" ]; then
-        # It's a directory! We should make sure it's not empty first:
-        if [ "$(ls -A $i)" ]; then
-            # Passed! Let's go searching for bin files (shouldn't need to go more than a layer deep here)
-            for f in "$i"/*.bin; do
-                # [Neuron Activation]
-                newfile=`echo "${f##*/}" | cut -d _ -f 1`;
-                if [ "$newfile" != "q5" ]; then
-                    ./quantize "${f}" "${i:-4}/${i:9:${#i}-4}-${qtype1}.bin" ${qtype1};
-                    ./quantize "${f}" "${i:-4}/${i:9:${#i}-4}-${qtype0}.bin" ${qtype0};
-                    filedex+=( "${i:-4}/${i:9:${#i}-4}-${qtype1}.bin" "${i:-4}/${i:9:${#i}-4}-${qtype0}.bin" )
-                fi
-            done
-        fi
-    else
-        # It's a file! Let's make sure it's the right type:
-        if [ "${i##*.}" == "bin" ]; then
-            # And we probably want to skip the testing files
-            if [ "${i:9:8}" != "for-test" ]; then
-                # [Neuron Activation]
-                ./quantize "${i}" "${i:-4}-${qtype1}.bin" ${qtype1};
-                ./quantize "${i}" "${i:-4}-${qtype0}.bin" ${qtype0};
-                filedex+=( "${i:-4}-${qtype1}.bin" "${i:-4}-${qtype0}.bin" )
-            fi
+for i in `ls ./models | grep ^ggml-.*.bin | grep -v "\-q"`; do
+    m="models/$i"
+    if [ -f "$m" ]; then
+        if [ "${m##*.}" == "bin" ]; then
+            ./quantize "${m}" "${m::${#m}-4}-${qtype1}.bin" ${qtype1};
+            ./quantize "${m}" "${m::${#m}-4}-${qtype0}.bin" ${qtype0};
+            filedex+=( "${m::${#m}-4}-${qtype1}.bin" "${m::${#m}-4}-${qtype0}.bin" )
         fi
     fi
 done
