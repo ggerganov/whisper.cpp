@@ -118,7 +118,7 @@ static void byteswap_tensor(ggml_tensor * tensor) {
 //
 
 WHISPER_ATTRIBUTE_FORMAT(2, 3)
-static void whisper_log_internal        (ggml_log_level level, const char* format, ...);
+static void whisper_log_internal        (ggml_log_level level, const char * format, ...);
 static void whisper_log_callback_default(ggml_log_level level, const char * text, void * user_data);
 
 #define WHISPER_LOG_INFO(...)  whisper_log_internal(GGML_LOG_LEVEL_INFO , __VA_ARGS__)
@@ -5848,27 +5848,21 @@ void whisper_log_set(ggml_log_callback log_callback, void * user_data) {
     g_state.log_callback_user_data = user_data;
 }
 
-static void whisper_log_internal_v(ggml_log_level level, const char * format, va_list args) {
-    va_list args_copy;
-    va_copy(args_copy, args);
-    char buffer[128];
-    int len = vsnprintf(buffer, 128, format, args);
-    if (len < 128) {
+GGML_ATTRIBUTE_FORMAT(2, 3)
+static void whisper_log_internal(ggml_log_level level, const char * format, ...) {
+    va_list args;
+    va_start(args, format);
+    char buffer[1024];
+    int len = vsnprintf(buffer, 1024, format, args);
+    if (len < 1024) {
         g_state.log_callback(level, buffer, g_state.log_callback_user_data);
     } else {
         char* buffer2 = new char[len+1];
-        vsnprintf(buffer2, len+1, format, args_copy);
+        vsnprintf(buffer2, len+1, format, args);
         buffer2[len] = 0;
         g_state.log_callback(level, buffer2, g_state.log_callback_user_data);
         delete[] buffer2;
     }
-    va_end(args_copy);
-}
-
-static void whisper_log_internal(ggml_log_level level, const char * format, ...) {
-    va_list args;
-    va_start(args, format);
-    whisper_log_internal_v(level, format, args);
     va_end(args);
 }
 
