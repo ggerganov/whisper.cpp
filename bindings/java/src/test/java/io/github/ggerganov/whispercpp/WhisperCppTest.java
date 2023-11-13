@@ -22,12 +22,12 @@ class WhisperCppTest {
     static void init() throws FileNotFoundException {
         // By default, models are loaded from ~/.cache/whisper/ and are usually named "ggml-${name}.bin"
         // or you can provide the absolute path to the model file.
-        String modelName = "../../models/ggml-tiny.bin";
-//        String modelName = "../../models/ggml-tiny.en.bin";
+        //String modelName = "../../models/ggml-tiny.bin";
+        String modelName = "../../models/ggml-tiny.en.bin";
         try {
             whisper.initContext(modelName);
-//            whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
-//            whisper.getJavaDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
+            //whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
+            //whisper.getJavaDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
             modelInitialised = true;
         } catch (FileNotFoundException ex) {
             System.out.println("Model " + modelName + " not found");
@@ -75,11 +75,11 @@ class WhisperCppTest {
         byte[] b = new byte[audioInputStream.available()];
         float[] floats = new float[b.length / 2];
 
-//        WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
+        //WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
         WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
         params.setProgressCallback((ctx, state, progress, user_data) -> System.out.println("progress: " + progress));
         params.print_progress = CBool.FALSE;
-//        params.initial_prompt = "and so my fellow Americans um, like";
+        //params.initial_prompt = "and so my fellow Americans um, like";
 
 
         try {
@@ -117,12 +117,11 @@ class WhisperCppTest {
         byte[] b = new byte[audioInputStream.available()];
         float[] floats = new float[b.length / 2];
 
-//        WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
+        //WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
         WhisperFullParams params = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH);
         params.setProgressCallback((ctx, state, progress, user_data) -> System.out.println("progress: " + progress));
         params.print_progress = CBool.FALSE;
-//        params.initial_prompt = "and so my fellow Americans um, like";
-
+        //params.initial_prompt = "and so my fellow Americans um, like";
 
         try {
             audioInputStream.read(b);
