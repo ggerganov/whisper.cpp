@@ -1,6 +1,7 @@
 #include "whisper.h"
 
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <thread>
 
@@ -10,6 +11,8 @@ struct whisper_params {
     int32_t what = 0; // what to benchmark: 0 - whisper ecoder, 1 - memcpy, 2 - ggml_mul_mat
 
     std::string model = "models/ggml-base.en.bin";
+
+    bool use_gpu = true;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -22,9 +25,10 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             whisper_print_usage(argc, argv, params);
             exit(0);
         }
-        else if (arg == "-t" || arg == "--threads") { params.n_threads = std::stoi(argv[++i]); }
-        else if (arg == "-m" || arg == "--model")   { params.model     = argv[++i]; }
-        else if (arg == "-w" || arg == "--what")    { params.what     = atoi(argv[++i]); }
+        else if (arg == "-t"  || arg == "--threads") { params.n_threads = std::stoi(argv[++i]); }
+        else if (arg == "-m"  || arg == "--model")   { params.model     = argv[++i]; }
+        else if (arg == "-w"  || arg == "--what")    { params.what      = atoi(argv[++i]); }
+        else if (arg == "-ng" || arg == "--no-gpu")  { params.use_gpu   = false; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -44,16 +48,20 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -t N,     --threads N   [%-7d] number of threads to use during computation\n", params.n_threads);
     fprintf(stderr, "  -m FNAME, --model FNAME [%-7s] model path\n",                                  params.model.c_str());
     fprintf(stderr, "  -w N,     --what N      [%-7d] what to benchmark:\n",                          params.what);
-    fprintf(stderr, "                           %-7s  0 - whisper encoder\n",                         "");
+    fprintf(stderr, "  -ng,      --no-gpu      [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
+    fprintf(stderr, "                           %-7s  0 - whisper\n",                                 "");
     fprintf(stderr, "                           %-7s  1 - memcpy\n",                                  "");
     fprintf(stderr, "                           %-7s  2 - ggml_mul_mat\n",                            "");
     fprintf(stderr, "\n");
 }
 
-int whisper_bench_encoder(const whisper_params & params) {
+int whisper_bench_full(const whisper_params & params) {
     // whisper init
 
-    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
+    struct whisper_context_params cparams;
+    cparams.use_gpu = params.use_gpu;
+
+    struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
     {
         fprintf(stderr, "\n");
@@ -65,14 +73,53 @@ int whisper_bench_encoder(const whisper_params & params) {
         return 2;
     }
 
-    if (int ret = whisper_set_mel(ctx, nullptr, 0, WHISPER_N_MEL)) {
+    const int n_mels = whisper_model_n_mels(ctx);
+
+    if (int ret = whisper_set_mel(ctx, nullptr, 0, n_mels)) {
         fprintf(stderr, "error: failed to set mel: %d\n", ret);
         return 3;
     }
-
+    // heat encoder
     if (int ret = whisper_encode(ctx, 0, params.n_threads) != 0) {
         fprintf(stderr, "error: failed to encode model: %d\n", ret);
         return 4;
+    }
+
+    whisper_token tokens[512];
+    memset(tokens, 0, sizeof(tokens));
+
+    // prompt heat
+    if (int ret = whisper_decode(ctx, tokens, 256, 0, params.n_threads) != 0) {
+        fprintf(stderr, "error: failed to encode model: %d\n", ret);
+        return 4;
+    }
+
+    // text-generation heat
+    if (int ret = whisper_decode(ctx, tokens, 1, 256, params.n_threads) != 0) {
+        fprintf(stderr, "error: failed to encode model: %d\n", ret);
+        return 4;
+    }
+
+    whisper_reset_timings(ctx);
+
+    // actual run
+    if (int ret = whisper_encode(ctx, 0, params.n_threads) != 0) {
+        fprintf(stderr, "error: failed to encode model: %d\n", ret);
+        return 4;
+    }
+
+    for (int i = 0; i < 16; i++) {
+        if (int ret = whisper_decode(ctx, tokens, 256, 0, params.n_threads) != 0) {
+            fprintf(stderr, "error: failed to encode model: %d\n", ret);
+            return 4;
+        }
+    }
+
+    for (int i = 0; i < 256; i++) {
+        if (int ret = whisper_decode(ctx, tokens, 1, i, params.n_threads) != 0) {
+            fprintf(stderr, "error: failed to encode model: %d\n", ret);
+            return 4;
+        }
     }
 
     whisper_print_timings(ctx);
@@ -103,7 +150,7 @@ int main(int argc, char ** argv) {
     int ret = -1;
 
     switch (params.what) {
-        case 0: ret = whisper_bench_encoder(params);                break;
+        case 0: ret = whisper_bench_full(params);                break;
         case 1: ret = whisper_bench_memcpy(params.n_threads);       break;
         case 2: ret = whisper_bench_ggml_mul_mat(params.n_threads); break;
         default: fprintf(stderr, "error: unknown benchmark: %d\n", params.what); break;

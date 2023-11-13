@@ -18,7 +18,7 @@ ifndef NVCC_VERSION
 	endif
 endif
 
-CCV := $(shell $(CC) --version | head -n 1)
+CCV  := $(shell $(CC) --version | head -n 1)
 CXXV := $(shell $(CXX) --version | head -n 1)
 
 # Mac OS + Arm can report x86_64
@@ -42,17 +42,54 @@ CFLAGS   = -I.              -O3 -DNDEBUG -std=c11   -fPIC
 CXXFLAGS = -I. -I./examples -O3 -DNDEBUG -std=c++11 -fPIC
 LDFLAGS  =
 
-# ref: https://github.com/ggerganov/whisper.cpp/issues/37
-ifneq ($(wildcard /usr/include/musl/*),)
-	CFLAGS += -D_POSIX_SOURCE -D_GNU_SOURCE
-	CXXFLAGS += -D_POSIX_SOURCE -D_GNU_SOURCE
+# clock_gettime came in POSIX.1b (1993)
+# CLOCK_MONOTONIC came in POSIX.1-2001 / SUSv3 as optional
+# posix_memalign came in POSIX.1-2001 / SUSv3
+# M_PI is an XSI extension since POSIX.1-2001 / SUSv3, came in XPG1 (1985)
+CFLAGS   += -D_XOPEN_SOURCE=600
+CXXFLAGS += -D_XOPEN_SOURCE=600
+
+# Somehow in OpenBSD whenever POSIX conformance is specified
+# some string functions rely on locale_t availability,
+# which was introduced in POSIX.1-2008, forcing us to go higher
+ifeq ($(UNAME_S),OpenBSD)
+	CFLAGS   += -U_XOPEN_SOURCE -D_XOPEN_SOURCE=700
+	CXXFLAGS += -U_XOPEN_SOURCE -D_XOPEN_SOURCE=700
+endif
+
+# Data types, macros and functions related to controlling CPU affinity
+# are available on Linux through GNU extensions in libc
+ifeq ($(UNAME_S),Linux)
+	CFLAGS   += -D_GNU_SOURCE
+	CXXFLAGS += -D_GNU_SOURCE
 endif
 
 # RLIMIT_MEMLOCK came in BSD, is not specified in POSIX.1,
 # and on macOS its availability depends on enabling Darwin extensions
+# similarly on DragonFly, enabling BSD extensions is necessary
 ifeq ($(UNAME_S),Darwin)
 	CFLAGS   += -D_DARWIN_C_SOURCE
 	CXXFLAGS += -D_DARWIN_C_SOURCE
+endif
+ifeq ($(UNAME_S),DragonFly)
+	CFLAGS   += -D__BSD_VISIBLE
+	CXXFLAGS += -D__BSD_VISIBLE
+endif
+
+# alloca is a non-standard interface that is not visible on BSDs when
+# POSIX conformance is specified, but not all of them provide a clean way
+# to enable it in such cases
+ifeq ($(UNAME_S),FreeBSD)
+	CFLAGS   += -D__BSD_VISIBLE
+	CXXFLAGS += -D__BSD_VISIBLE
+endif
+ifeq ($(UNAME_S),NetBSD)
+	CFLAGS   += -D_NETBSD_SOURCE
+	CXXFLAGS += -D_NETBSD_SOURCE
+endif
+ifeq ($(UNAME_S),OpenBSD)
+	CFLAGS   += -D_BSD_SOURCE
+	CXXFLAGS += -D_BSD_SOURCE
 endif
 
 # OS specific
@@ -67,7 +104,7 @@ endif
 #       feel free to update the Makefile for your architecture and send a pull request or issue
 ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 	ifeq ($(UNAME_S),Darwin)
-		CPUINFO_CMD := sysctl machdep.cpu.features
+		CPUINFO_CMD := sysctl machdep.cpu.features machdep.cpu.leaf7_features
 	else ifeq ($(UNAME_S),Linux)
 		CPUINFO_CMD := cat /proc/cpuinfo
 	else ifneq (,$(filter MINGW32_NT% MINGW64_NT%,$(UNAME_S)))
@@ -143,6 +180,16 @@ ifdef WHISPER_COREML
 ifdef WHISPER_COREML_ALLOW_FALLBACK
 	CXXFLAGS += -DWHISPER_COREML_ALLOW_FALLBACK
 endif
+endif
+
+ifndef WHISPER_NO_METAL
+	ifeq ($(UNAME_S),Darwin)
+		WHISPER_METAL := 1
+
+		CFLAGS   += -DGGML_USE_METAL
+		CXXFLAGS += -DGGML_USE_METAL
+		LDFLAGS  += -framework Foundation -framework Metal -framework MetalKit
+	endif
 endif
 
 ifdef WHISPER_OPENBLAS
@@ -251,6 +298,17 @@ $(info )
 ggml.o: ggml.c ggml.h ggml-cuda.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
+ggml-alloc.o: ggml-alloc.c ggml.h ggml-alloc.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
+
+ggml-backend.o: ggml-backend.c ggml.h ggml-backend.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
+
+ggml-quants.o: ggml-quants.c ggml.h ggml-quants.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
+
+WHISPER_OBJ += ggml.o ggml-alloc.o ggml-backend.o ggml-quants.o
+
 whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -266,11 +324,18 @@ whisper-encoder-impl.o: coreml/whisper-encoder-impl.m coreml/whisper-encoder-imp
 WHISPER_OBJ += whisper.o whisper-encoder.o whisper-encoder-impl.o
 endif
 
-libwhisper.a: ggml.o $(WHISPER_OBJ)
-	$(AR) rcs libwhisper.a ggml.o $(WHISPER_OBJ)
+ifdef WHISPER_METAL
+ggml-metal.o: ggml-metal.m ggml-metal.h
+	$(CC) $(CFLAGS) -c $< -o $@
 
-libwhisper.so: ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o $(WHISPER_OBJ) $(LDFLAGS)
+WHISPER_OBJ += ggml-metal.o
+endif
+
+libwhisper.a: $(WHISPER_OBJ)
+	$(AR) rcs libwhisper.a $(WHISPER_OBJ)
+
+libwhisper.so: $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so $(WHISPER_OBJ) $(LDFLAGS)
 
 clean:
 	rm -f *.o main stream command talk talk-llama bench quantize lsp libwhisper.a libwhisper.so
@@ -284,30 +349,30 @@ CC_SDL=`sdl2-config --cflags --libs`
 SRC_COMMON     = examples/common.cpp examples/common-ggml.cpp
 SRC_COMMON_SDL = examples/common-sdl.cpp
 
-main: examples/main/main.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/main/main.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ) -o main $(LDFLAGS)
+main: examples/main/main.cpp $(SRC_COMMON) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/main/main.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o main $(LDFLAGS)
 	./main -h
 
-bench: examples/bench/bench.cpp ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp ggml.o $(WHISPER_OBJ) -o bench $(LDFLAGS)
+bench: examples/bench/bench.cpp $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp $(WHISPER_OBJ) -o bench $(LDFLAGS)
 
-quantize: examples/quantize/quantize.cpp ggml.o $(WHISPER_OBJ) $(SRC_COMMON)
-	$(CXX) $(CXXFLAGS) examples/quantize/quantize.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ) -o quantize $(LDFLAGS)
+quantize: examples/quantize/quantize.cpp $(WHISPER_OBJ) $(SRC_COMMON)
+	$(CXX) $(CXXFLAGS) examples/quantize/quantize.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o quantize $(LDFLAGS)
 
-stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
+stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
 
-command: examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
+command: examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
 
-lsp: examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o lsp $(CC_SDL) $(LDFLAGS)
+lsp: examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o lsp $(CC_SDL) $(LDFLAGS)
 
-talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o talk $(CC_SDL) $(LDFLAGS)
+talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o talk $(CC_SDL) $(LDFLAGS)
 
-talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o talk-llama $(CC_SDL) $(LDFLAGS)
+talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o talk-llama $(CC_SDL) $(LDFLAGS)
 
 #
 # Audio samples
@@ -352,9 +417,10 @@ samples:
 .PHONY: medium.en
 .PHONY: medium
 .PHONY: large-v1
+.PHONY: large-v2
 .PHONY: large
 
-tiny.en tiny base.en base small.en small medium.en medium large-v1 large: main
+tiny.en tiny base.en base small.en small medium.en medium large-v1 large-v2 large: main
 	bash ./models/download-ggml-model.sh $@
 	@echo ""
 	@echo "==============================================="

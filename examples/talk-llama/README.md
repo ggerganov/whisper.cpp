@@ -2,6 +2,12 @@
 
 Talk with an LLaMA AI in your terminal
 
+*Latest perf as of 2 Nov 2023 using Whisper Medium + LLaMA v2 13B Q8_0 on M2 Ultra:*
+
+https://github.com/ggerganov/whisper.cpp/assets/1991296/d97a3788-bf2a-4756-9a43-60c6b391649e
+
+*Previous demo running on CPUs*
+
 [Demo Talk](https://user-images.githubusercontent.com/1991296/228024237-848f998c-c334-46a6-bef8-3271590da83b.mp4)
 
 ## Building
@@ -19,7 +25,7 @@ brew install sdl2
 make talk-llama
 
 # Run it
-./talk-llama -mw ./models/ggml-small.en.bin -ml ../llama.cpp/models/13B/ggml-model-q4_0.bin -p "Georgi" -t 8
+./talk-llama -mw ./models/ggml-small.en.bin -ml ../llama.cpp/models/llama-13b/ggml-model-q4_0.gguf -p "Georgi" -t 8
 ```
 
 - The `-mw` argument specifies the Whisper model that you would like to use. Recommended `base` or `small` for real-time experience
@@ -36,7 +42,7 @@ This feature is especially helpful for maintaining context in long conversations
 Example usage:
 
 ```bash
-./talk-llama --session ./my-session-file -mw ./models/ggml-small.en.bin -ml ../llama.cpp/models/13B/ggml-model-q4_0.bin -p "Georgi" -t 8
+./talk-llama --session ./my-session-file -mw ./models/ggml-small.en.bin -ml ../llama.cpp/models/llama-13b/ggml-model-q4_0.gguf -p "Georgi" -t 8
 ```
 
 ## TTS

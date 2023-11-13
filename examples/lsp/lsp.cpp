@@ -30,6 +30,7 @@ struct whisper_params {
     bool translate     = false;
     bool print_special = false;
     bool print_energy  = false;
+    bool use_gpu       = true;
 
     std::string language  = "en";
     std::string model     = "models/ggml-base.en.bin";
@@ -72,6 +73,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-tr"  || arg == "--translate")     { params.translate     = true; }
         else if (arg == "-ps"  || arg == "--print-special") { params.print_special = true; }
         else if (arg == "-pe"  || arg == "--print-energy")  { params.print_energy  = true; }
+        else if (arg == "-ng"  || arg == "--no-gpu")        { params.use_gpu       = false; }
         else if (arg == "-l"   || arg == "--language")      { params.language      = argv[++i]; }
         else if (arg == "-m"   || arg == "--model")         { params.model         = argv[++i]; }
         else {
@@ -102,6 +104,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -tr,        --translate      [%-7s] translate from source language to english\n",   params.translate ? "true" : "false");
     fprintf(stderr, "  -ps,        --print-special  [%-7s] print special tokens\n",                        params.print_special ? "true" : "false");
     fprintf(stderr, "  -pe,        --print-energy   [%-7s] print sound energy (for debugging)\n",          params.print_energy ? "true" : "false");
+    fprintf(stderr, "  -ng,        --no-gpu         [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
     fprintf(stderr, "  -l LANG,    --language LANG  [%-7s] spoken language\n",                             params.language.c_str());
     fprintf(stderr, "  -m FNAME,   --model FNAME    [%-7s] model path\n",                                  params.model.c_str());
     fprintf(stderr, "\n");
@@ -324,12 +327,12 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
     commandset_list.push_back(cs);
     return json{{"index",index}};
 }
-json seek(struct whisper_context * ctx, audio_async &audio, json params) {
+json seek(struct whisper_context * /*ctx*/, audio_async & /*audio*/, json /*params*/) {
     // whisper_state has the pertinent offsets, but there also seem to be a large
     // number of scratch buffers that would prevent rewinding context in a manner similar to llama
     // I'll give this a another pass once everything else is implemented,
     // but for now, it's unsupported
-    throw json{
+    throw json {
         {"code", -32601},
             {"message", "Seeking is not yet supported."}
     };
@@ -412,7 +415,7 @@ void process_loop(struct whisper_context * ctx, audio_async &audio, const whispe
             jobqueue.pop_front();
             // send response
             std::string data = resp.dump(-1, ' ', false, json::error_handler_t::replace);
-            fprintf(stdout, "Content-Length: %d\r\n\r\n%s\n", data.length()+1, data.c_str());
+            fprintf(stdout, "Content-Length: %d\r\n\r\n%s\n", (int)data.length()+1, data.c_str());
             std::cout.flush();
 
         }
@@ -432,7 +435,9 @@ int main(int argc, char ** argv) {
     }
 
     // whisper init
-    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
+    struct whisper_context_params cparams;
+    cparams.use_gpu = params.use_gpu;
+    struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
     // init audio
 
     audio_async audio(30*1000);

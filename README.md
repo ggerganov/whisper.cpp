@@ -6,22 +6,20 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![npm](https://img.shields.io/npm/v/whisper.cpp.svg)](https://www.npmjs.com/package/whisper.cpp/)
 
-Beta: [v1.4.2](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.4.2) / Stable: [v1.2.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.2.1) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
+Beta: [v1.4.3](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.4.3) / Stable: [v1.2.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.2.1) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
 
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
 - Plain C/C++ implementation without dependencies
-- Apple silicon first-class citizen - optimized via ARM NEON, Accelerate framework and [Core ML](https://github.com/ggerganov/whisper.cpp#core-ml-support)
+- Apple Silicon first-class citizen - optimized via ARM NEON, Accelerate framework, Metal and [Core ML](https://github.com/ggerganov/whisper.cpp#core-ml-support)
 - AVX intrinsics support for x86 architectures
 - VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
 - [4-bit and 5-bit integer quantization support](https://github.com/ggerganov/whisper.cpp#quantization)
-- Low memory usage (Flash Attention)
 - Zero memory allocations at runtime
-- Runs on the CPU
-- [Partial GPU support for NVIDIA via cuBLAS](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
+- Support for CPU-only inference
+- [Efficient GPU support for NVIDIA](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
 - [Partial OpenCL GPU support via CLBlast](https://github.com/ggerganov/whisper.cpp#opencl-gpu-support-via-clblast)
-- [BLAS CPU support via OpenBLAS](https://github.com/ggerganov/whisper.cpp#blas-cpu-support-via-openblas)
 - [OpenVINO Support](https://github.com/ggerganov/whisper.cpp#openvino-support)
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 
@@ -36,10 +34,8 @@ Supported platforms:
 - [x] Windows ([MSVC](https://github.com/ggerganov/whisper.cpp/blob/master/.github/workflows/build.yml#L117-L144) and [MinGW](https://github.com/ggerganov/whisper.cpp/issues/168)]
 - [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/discussions/166)
 
-The entire implementation of the model is contained in 2 source files:
-
-- Tensor operations: [ggml.h](ggml.h) / [ggml.c](ggml.c)
-- Transformer inference: [whisper.h](whisper.h) / [whisper.cpp](whisper.cpp)
+The entire high-level implementation of the model is contained in [whisper.h](whisper.h) and [whisper.cpp](whisper.cpp).
+The rest of the code is part of the [ggml](https://github.com/ggerganov/ggml) machine learning library.
 
 Having such a lightweight implementation of the model allows to easily integrate it in different platforms and applications.
 As an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device: [whisper.objc](examples/whisper.objc)
@@ -49,6 +45,10 @@ https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-b
 You can also easily make your own offline voice assistant application: [command](examples/command)
 
 https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
+
+On Apple Silicon, the inference runs fully on the GPU via Metal:
+
+https://github.com/ggerganov/whisper.cpp/assets/1991296/c82e8f86-60dc-49f2-b048-d2fdbd6b5225
 
 Or you can even run it straight in the browser: [talk.wasm](examples/talk.wasm)
 
@@ -109,30 +109,37 @@ options:
   -d  N,     --duration N        [0      ] duration of audio to process in milliseconds
   -mc N,     --max-context N     [-1     ] maximum number of text context tokens to store
   -ml N,     --max-len N         [0      ] maximum segment length in characters
-  -bo N,     --best-of N         [5      ] number of best candidates to keep
+  -sow,      --split-on-word     [false  ] split on word rather than on token
+  -bo N,     --best-of N         [2      ] number of best candidates to keep
   -bs N,     --beam-size N       [-1     ] beam size for beam search
   -wt N,     --word-thold N      [0.01   ] word timestamp probability threshold
   -et N,     --entropy-thold N   [2.40   ] entropy threshold for decoder fail
   -lpt N,    --logprob-thold N   [-1.00  ] log probability threshold for decoder fail
-  -su,       --speed-up          [false  ] speed up audio by x2 (reduced accuracy)
+  -debug,    --debug-mode        [false  ] enable debug mode (eg. dump log_mel)
   -tr,       --translate         [false  ] translate from source language to english
-  -tdrz,     --tinydiarize       [false  ] enable tinydiarize (requires a tdrz model)
   -di,       --diarize           [false  ] stereo audio diarization
+  -tdrz,     --tinydiarize       [false  ] enable tinydiarize (requires a tdrz model)
   -nf,       --no-fallback       [false  ] do not use temperature fallback while decoding
   -otxt,     --output-txt        [false  ] output result in a text file
   -ovtt,     --output-vtt        [false  ] output result in a vtt file
   -osrt,     --output-srt        [false  ] output result in a srt file
+  -olrc,     --output-lrc        [false  ] output result in a lrc file
   -owts,     --output-words      [false  ] output script for generating karaoke video
+  -fp,       --font-path         [/System/Library/Fonts/Supplemental/Courier New Bold.ttf] path to a monospace font for karaoke video
   -ocsv,     --output-csv        [false  ] output result in a CSV file
+  -oj,       --output-json       [false  ] output result in a JSON file
   -of FNAME, --output-file FNAME [       ] output file path (without file extension)
   -ps,       --print-special     [false  ] print special tokens
   -pc,       --print-colors      [false  ] print colors
   -pp,       --print-progress    [false  ] print progress
-  -nt,       --no-timestamps     [true   ] do not print timestamps
+  -nt,       --no-timestamps     [false  ] do not print timestamps
   -l LANG,   --language LANG     [en     ] spoken language ('auto' for auto-detect)
+  -dl,       --detect-language   [false  ] exit after automatically detecting language
              --prompt PROMPT     [       ] initial prompt
   -m FNAME,  --model FNAME       [models/ggml-base.en.bin] model path
   -f FNAME,  --file FNAME        [       ] input WAV file path
+  -oved D,   --ov-e-device DNAME [CPU    ] the OpenVINO device used for encode inference
+  -ls,       --log-score         [false  ] log best decoder scores of token
 
 
 bash ./models/download-ggml-model.sh base.en
@@ -223,6 +230,7 @@ make small
 make medium.en
 make medium
 make large-v1
+make large-v2
 make large
 ```
 
@@ -234,7 +242,7 @@ make large
 | base   | 142 MB | ~210 MB | `465707469ff3a37a2b9b8d8f89f2f99de7299dac` |
 | small  | 466 MB | ~600 MB | `55356645c2b361a969dfd0ef2c5a50d530afd8d5` |
 | medium | 1.5 GB | ~1.7 GB | `fd9727b6e1217c2f614f9b698455c4ffd82463b4` |
-| large  | 2.9 GB | ~3.3 GB | `0f4c8e34f21cf1a914c59d8b3ce882345ad349d6` |
+| large  | 2.9 GB | ~3.3 GB | `ad82bf6a9043ceed055076d0fd39f5f186ff8062` |
 
 ## Quantization
 
@@ -388,12 +396,12 @@ This can result in significant speedup in encoder performance. Here are the inst
 
   The first time run on an OpenVINO device is slow, since the OpenVINO framework will compile the IR (Intermediate Representation) model to a device-specific 'blob'. This device-specific blob will get
   cached for the next run.
-  
+
 For more information about the Core ML implementation please refer to PR [#1037](https://github.com/ggerganov/whisper.cpp/pull/1037).
 
-## NVIDIA GPU support via cuBLAS
+## NVIDIA GPU support
 
-With NVIDIA cards the Encoder processing can to a large extent be offloaded to the GPU through cuBLAS.
+With NVIDIA cards the processing of the models is done efficiently on the GPU via cuBLAS and custom CUDA kernels.
 First, make sure you have installed `cuda`: https://developer.nvidia.com/cuda-downloads
 
 Now build `whisper.cpp` with cuBLAS support:
@@ -698,6 +706,19 @@ took to execute it. The results are summarized in the following Github issue:
 
 [Benchmark results](https://github.com/ggerganov/whisper.cpp/issues/89)
 
+Additionally a script to run whisper.cpp with different models and audio files is provided [bench.py](bench.py).
+
+You can run it with the following command, by default it will run against any standard model in the models folder.
+
+```bash
+python3 extra/bench.py -f samples/jfk.wav -t 2,4,8 -p 1,2
+```
+
+It is written in python with the intention of being easy to modify and extend for your benchmarking use case.
+
+It outputs a csv file with the results of the benchmarking.
+
+
 ## ggml format
 
 The original models are converted to a custom binary format. This allows to pack everything needed into a single file:
@@ -719,7 +740,7 @@ in [models](models).
 ## [Bindings](https://github.com/ggerganov/whisper.cpp/discussions/categories/bindings)
 
 - [X] Rust: [tazz4843/whisper-rs](https://github.com/tazz4843/whisper-rs) | [#310](https://github.com/ggerganov/whisper.cpp/discussions/310)
-- [X] Javascript: [bindings/javascript](bindings/javascript) | [#309](https://github.com/ggerganov/whisper.cpp/discussions/309)
+- [X] JavaScript: [bindings/javascript](bindings/javascript) | [#309](https://github.com/ggerganov/whisper.cpp/discussions/309)
   - React Native (iOS / Android): [whisper.rn](https://github.com/mybigday/whisper.rn)
 - [X] Go: [bindings/go](bindings/go) | [#312](https://github.com/ggerganov/whisper.cpp/discussions/312)
 - [X] Java:

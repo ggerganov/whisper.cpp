@@ -1,6 +1,6 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.5)
 
-project(whisper.cpp VERSION 1.4.2)
+project(whisper.cpp VERSION 1.4.3)
 
 # Add path to modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
@@ -35,6 +35,12 @@ endif()
 
 # options
 
+if (APPLE)
+    set(WHISPER_METAL_DEFAULT ON)
+else()
+    set(WHISPER_METAL_DEFAULT OFF)
+endif()
+
 option(BUILD_SHARED_LIBS              "whisper: build shared libs" ${BUILD_SHARED_LIBS_DEFAULT})
 
 option(WHISPER_ALL_WARNINGS           "whisper: enable all compiler warnings"                   ON)
@@ -58,6 +64,8 @@ option(WHISPER_OPENVINO               "whisper: support for OpenVINO" OFF)
 
 if (APPLE)
     option(WHISPER_NO_ACCELERATE         "whisper: disable Accelerate framework" OFF)
+    option(WHISPER_METAL                 "whisper: use Metal"                    ${WHISPER_METAL_DEFAULT})
+    option(WHISPER_METAL_NDEBUG          "whisper: disable Metal debugging"      OFF)
     option(WHISPER_COREML                "whisper: enable Core ML framework"     OFF)
     option(WHISPER_COREML_ALLOW_FALLBACK "whisper: allow non-CoreML fallback"    OFF)
 else()
@@ -109,8 +117,36 @@ if (APPLE)
             set(WHISPER_EXTRA_LIBS  ${WHISPER_EXTRA_LIBS}  ${ACCELERATE_FRAMEWORK})
             set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_ACCELERATE)
         else()
-            message(WARNING "Accelerate framework not found")
+            message(FATAL_ERROR "Accelerate framework not found")
         endif()
+    endif()
+
+    if (WHISPER_METAL)
+        find_library(FOUNDATION_LIBRARY         Foundation              REQUIRED)
+        find_library(METAL_FRAMEWORK            Metal                   REQUIRED)
+        find_library(METALKIT_FRAMEWORK         MetalKit                REQUIRED)
+
+        if (METAL_FRAMEWORK)
+            message(STATUS "Metal framework found")
+
+            set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS}
+                ${FOUNDATION_LIBRARY}
+                ${METAL_FRAMEWORK}
+                ${METALKIT_FRAMEWORK}
+                )
+            set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_METAL)
+
+            if (WHISPER_METAL_NDEBUG)
+                set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_METAL_NDEBUG)
+            endif()
+        else()
+            message(FATAL_ERROR "Metal framework not found")
+        endif()
+
+        set(GGML_SOURCES_METAL ggml-metal.m ggml-metal.h)
+
+        # copy ggml-metal.metal to bin directory
+        configure_file(ggml-metal.metal bin/ggml-metal.metal COPYONLY)
     endif()
 
     if (WHISPER_COREML)
@@ -122,7 +158,7 @@ if (APPLE)
 
             set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_USE_COREML)
         else()
-            message(WARNING "CoreML framework not found")
+            message(FATAL_ERROR "CoreML framework not found")
         endif()
 
         if (WHISPER_COREML_ALLOW_FALLBACK)
@@ -145,13 +181,13 @@ if (WHISPER_BLAS)
             include_directories($ENV{OPENBLAS_PATH}/include)
             set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} ${BLAS_LIBRARIES})
         else ()
-            message(WARNING "BLAS library was not found. Environment variable OPENBLAS_PATH not defined.")
+            message(FATAL_ERROR "BLAS library was not found. Environment variable OPENBLAS_PATH not defined.")
         endif ()
     else ()
         set(BLA_STATIC 1)
         set(BLA_VENDOR ${WHISPER_BLAS_VENDOR})
-        #    set(BLA_PREFER_PKGCONFIG 1)
         set(BLA_SIZEOF_INTEGER 8)
+        set(BLA_PREFER_PKGCONFIG 1)
         find_package(BLAS)
 
         if(BLAS_FOUND)
@@ -162,7 +198,7 @@ if (WHISPER_BLAS)
             include_directories(${BLAS_INCLUDE_DIRS})
             set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} ${BLAS_LIBRARIES})
         else()
-            message(WARNING "BLAS library was not found")
+            message(FATAL_ERROR "BLAS library was not found")
         endif()
     endif ()
 endif ()
@@ -177,7 +213,7 @@ if (WHISPER_CUBLAS)
 
         enable_language(CUDA)
 
-        set(GGML_CUDA_SOURCES ggml-cuda.cu ggml-cuda.h)
+        set(GGML_SOURCES_CUDA ggml-cuda.cu ggml-cuda.h)
 
         add_compile_definitions(GGML_USE_CUBLAS)
 
@@ -188,7 +224,7 @@ if (WHISPER_CUBLAS)
         endif()
 
     else()
-        message(WARNING "cuBLAS not found")
+        message(FATAL_ERROR "cuBLAS not found")
     endif()
 endif()
 
@@ -219,7 +255,7 @@ if (WHISPER_HIPBLAS)
         endif()
         set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} ggml-rocm)
     else()
-        message(WARNING "hipBLAS or HIP not found. Try setting CMAKE_PREFIX_PATH=/opt/rocm")
+        message(FATAL_ERROR "hipBLAS or HIP not found. Try setting CMAKE_PREFIX_PATH=/opt/rocm")
     endif()
 endif()
 
@@ -228,13 +264,13 @@ if (WHISPER_CLBLAST)
     if (CLBlast_FOUND)
         message(STATUS "CLBlast found")
 
-        set(GGML_OPENCL_SOURCES ggml-opencl.cpp ggml-opencl.h)
+        set(GGML_SOURCES_OPENCL ggml-opencl.cpp ggml-opencl.h)
 
         add_compile_definitions(GGML_USE_CLBLAST)
 
         set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} clblast)
     else()
-        message(WARNING "CLBlast not found")
+        message(FATAL_ERROR "CLBlast not found")
     endif()
 endif()
 
@@ -321,6 +357,53 @@ else()
     endif()
 endif()
 
+#
+# POSIX conformance
+#
+
+# clock_gettime came in POSIX.1b (1993)
+# CLOCK_MONOTONIC came in POSIX.1-2001 / SUSv3 as optional
+# posix_memalign came in POSIX.1-2001 / SUSv3
+# M_PI is an XSI extension since POSIX.1-2001 / SUSv3, came in XPG1 (1985)
+add_compile_definitions(_XOPEN_SOURCE=600)
+
+# Somehow in OpenBSD whenever POSIX conformance is specified
+# some string functions rely on locale_t availability,
+# which was introduced in POSIX.1-2008, forcing us to go higher
+if (CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
+    remove_definitions(-D_XOPEN_SOURCE=600)
+    add_compile_definitions(_XOPEN_SOURCE=700)
+endif()
+
+# Data types, macros and functions related to controlling CPU affinity
+# are available on Linux through GNU extensions in libc
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    add_compile_definitions(_GNU_SOURCE)
+endif()
+
+# RLIMIT_MEMLOCK came in BSD, is not specified in POSIX.1,
+# and on macOS its availability depends on enabling Darwin extensions
+# similarly on DragonFly, enabling BSD extensions is necessary
+if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+    add_compile_definitions(_DARWIN_C_SOURCE)
+endif()
+if (CMAKE_SYSTEM_NAME MATCHES "DragonFly")
+    add_compile_definitions(_DARWIN_C_SOURCE)
+endif()
+
+# alloca is a non-standard interface that is not visible on BSDs when
+# POSIX conformance is specified, but not all of them provide a clean way
+# to enable it in such cases
+if (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+    add_compile_definitions(__BSD_VISIBLE)
+endif()
+if (CMAKE_SYSTEM_NAME MATCHES "NetBSD")
+    add_compile_definitions(_NETBSD_SOURCE)
+endif()
+if (CMAKE_SYSTEM_NAME MATCHES "OpenBSD")
+    add_compile_definitions(_BSD_SOURCE)
+endif()
+
 if (WHISPER_PERF)
     set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_PERF)
 endif()
@@ -379,8 +462,15 @@ set(TARGET whisper)
 add_library(${TARGET}
     ggml.h
     ggml.c
-    ${GGML_CUDA_SOURCES}
-    ${GGML_OPENCL_SOURCES}
+    ggml-alloc.h
+    ggml-alloc.c
+    ggml-backend.h
+    ggml-backend.c
+    ggml-quants.h
+    ggml-quants.c
+    ${GGML_SOURCES_METAL}
+    ${GGML_SOURCES_CUDA}
+    ${GGML_SOURCES_OPENCL}
     whisper.h
     whisper.cpp
     )
@@ -421,9 +511,15 @@ if (BUILD_SHARED_LIBS)
         WHISPER_BUILD
         GGML_BUILD
         )
+
+    if (WHISPER_METAL)
+        # TODO: I think this should make ggml-metal.m "see" the ggml-metal.metal file from the "bin" directory
+        #       but for some reason it does not work here like it does in llama.cpp
+        set_target_properties(${TARGET} PROPERTIES RESOURCE "${CMAKE_CURRENT_SOURCE_DIR}/ggml-metal.metal")
+    endif()
 endif()
 
-if (GGML_CUDA_SOURCES)
+if (GGML_SOURCES_CUDA)
     message(STATUS "GGML CUDA sources found, configuring CUDA architecture")
     set_property(TARGET whisper PROPERTY CUDA_ARCHITECTURES OFF)
     set_property(TARGET whisper PROPERTY CUDA_SELECT_NVCC_ARCH_FLAGS "Auto")
@@ -439,10 +535,13 @@ target_compile_definitions(${TARGET} PUBLIC
 
 set_target_properties(${TARGET} PROPERTIES PUBLIC_HEADER "whisper.h")
 
+include(GNUInstallDirs)
+
 install(TARGETS ${TARGET}
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib/static
-    RUNTIME DESTINATION bin
+    LIBRARY  DESTINATION lib
+    ARCHIVE  DESTINATION lib/static
+    RUNTIME  DESTINATION bin
+    RESOURCE DESTINATION bin
     PUBLIC_HEADER DESTINATION include
     )
 

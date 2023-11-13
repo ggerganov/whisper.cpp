@@ -6,8 +6,8 @@
 // ref: https://github.com/ggerganov/whisper.cpp/issues/171
 //
 
-#include "common.h"
 #include "common-sdl.h"
+#include "common.h"
 #include "whisper.h"
 #include "grammar-parser.h"
 
@@ -48,6 +48,7 @@ struct whisper_params {
     bool print_special = false;
     bool print_energy  = false;
     bool no_timestamps = true;
+    bool use_gpu       = true;
 
     std::string language  = "en";
     std::string model     = "models/ggml-base.en.bin";
@@ -80,6 +81,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-tr"  || arg == "--translate")     { params.translate     = true; }
         else if (arg == "-ps"  || arg == "--print-special") { params.print_special = true; }
         else if (arg == "-pe"  || arg == "--print-energy")  { params.print_energy  = true; }
+        else if (arg == "-ng"  || arg == "--no-gpu")        { params.use_gpu       = false; }
         else if (arg == "-l"   || arg == "--language")      { params.language      = argv[++i]; }
         else if (arg == "-m"   || arg == "--model")         { params.model         = argv[++i]; }
         else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
@@ -116,6 +118,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -tr,        --translate      [%-7s] translate from source language to english\n",   params.translate ? "true" : "false");
     fprintf(stderr, "  -ps,        --print-special  [%-7s] print special tokens\n",                        params.print_special ? "true" : "false");
     fprintf(stderr, "  -pe,        --print-energy   [%-7s] print sound energy (for debugging)\n",          params.print_energy ? "true" : "false");
+    fprintf(stderr, "  -ng,        --no-gpu         [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
     fprintf(stderr, "  -l LANG,    --language LANG  [%-7s] spoken language\n",                             params.language.c_str());
     fprintf(stderr, "  -m FNAME,   --model FNAME    [%-7s] model path\n",                                  params.model.c_str());
     fprintf(stderr, "  -f FNAME,   --file FNAME     [%-7s] text output file name\n",                       params.fname_out.c_str());
@@ -173,10 +176,14 @@ std::string transcribe(
     auto grammar_rules = grammar_parsed.c_rules();
 
     if (!params.grammar_parsed.rules.empty() && !grammar_rule.empty()) {
-        wparams.grammar_rules   = grammar_rules.data();
-        wparams.n_grammar_rules = grammar_rules.size();
-        wparams.i_start_rule    = grammar_parsed.symbol_ids.at(grammar_rule);
-        wparams.grammar_penalty = params.grammar_penalty;
+        if (grammar_parsed.symbol_ids.find(grammar_rule) == grammar_parsed.symbol_ids.end()) {
+            fprintf(stderr, "%s: warning: grammar rule '%s' not found - skipping grammar sampling\n", __func__, grammar_rule.c_str());
+        } else {
+            wparams.grammar_rules   = grammar_rules.data();
+            wparams.n_grammar_rules = grammar_rules.size();
+            wparams.i_start_rule    = grammar_parsed.symbol_ids.at(grammar_rule);
+            wparams.grammar_penalty = params.grammar_penalty;
+        }
     }
 
     if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
@@ -686,7 +693,10 @@ int main(int argc, char ** argv) {
 
     // whisper init
 
-    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
+    struct whisper_context_params cparams;
+    cparams.use_gpu = params.use_gpu;
+
+    struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
     // print some info about the processing
     {

@@ -11,6 +11,7 @@ const whisperParams = {
   language: "en",
   model: path.join(__dirname, "../../models/ggml-base.en.bin"),
   fname_inp: "../../samples/jfk.wav",
+  use_gpu: true,
 };
 
 const arguments = process.argv.slice(2);

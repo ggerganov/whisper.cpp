@@ -15,7 +15,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.whispercppdemo.media.decodeWaveFile
 import com.whispercppdemo.recorder.Recorder
-import com.whispercppdemo.whisper.WhisperContext
+import com.whispercpp.whisper.WhisperContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -35,7 +35,7 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
     private val modelsPath = File(application.filesDir, "models")
     private val samplesPath = File(application.filesDir, "samples")
     private var recorder: Recorder = Recorder()
-    private var whisperContext: WhisperContext? = null
+    private var whisperContext: com.whispercpp.whisper.WhisperContext? = null
     private var mediaPlayer: MediaPlayer? = null
     private var recordedFile: File? = null
 
@@ -47,7 +47,7 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
     }
 
     private suspend fun printSystemInfo() {
-        printMessage(String.format("System Info: %s\n", WhisperContext.getSystemInfo()));
+        printMessage(String.format("System Info: %s\n", com.whispercpp.whisper.WhisperContext.getSystemInfo()))
     }
 
     private suspend fun loadData() {
@@ -78,7 +78,7 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
         printMessage("Loading model...\n")
         val models = application.assets.list("models/")
         if (models != null) {
-            whisperContext = WhisperContext.createContextFromAsset(application.assets, "models/" + models[0])
+            whisperContext = com.whispercpp.whisper.WhisperContext.createContextFromAsset(application.assets, "models/" + models[0])
             printMessage("Loaded model ${models[0]}.\n")
         }
 

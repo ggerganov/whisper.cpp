@@ -66,7 +66,7 @@ private fun MainScreen(
 
 @Composable
 private fun MessageLog(log: String) {
-    SelectionContainer() {
+    SelectionContainer {
         Text(modifier = Modifier.verticalScroll(rememberScrollState()), text = log)
     }
 }

@@ -11,6 +11,7 @@ const whisperParamsMock = {
   language: "en",
   model: path.join(__dirname, "../../../models/ggml-base.en.bin"),
   fname_inp: path.join(__dirname, "../../../samples/jfk.wav"),
+  use_gpu: true,
 };
 
 describe("Run whisper.node", () => {
