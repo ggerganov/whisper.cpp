@@ -614,6 +614,9 @@ extern "C" {
 
     WHISPER_API void whisper_log_set(ggml_log_callback log_callback, void * user_data);
 
+    // test dtw
+    WHISPER_API void whisper_test_dtw(float* in, size_t in_ne0, size_t in_ne1, int32_t **out, size_t *out_ne0, size_t *out_ne1);
+
 #ifdef __cplusplus
 }
 #endif

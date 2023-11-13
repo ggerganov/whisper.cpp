@@ -6599,6 +6599,175 @@ static void whisper_exp_compute_token_level_timestamps(
     //}
 }
 
+//
+// token level timestamps - dtw version
+//
+
+// dtw + backtrace to return found path
+// based on
+// https://github.com/openai/whisper/blob/main/whisper/timing.py#L83
+static ggml_tensor * dtw_and_backtrace(ggml_context *ctx, ggml_tensor *x) {
+    WHISPER_ASSERT(x->n_dims == 2);
+
+    int64_t N = x->ne[0];
+    int64_t M = x->ne[1];
+    struct ggml_tensor * cost = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, N + 1, M + 1);
+    struct ggml_tensor * trace = ggml_new_tensor_2d(ctx, GGML_TYPE_I32, N + 1, M + 1);
+
+    cost = ggml_set_f32(cost, INFINITY);
+    trace = ggml_set_f32(trace, -1);
+    ggml_set_f32_nd(cost, 0, 0, 0, 0, 0.0);
+
+    // dtw
+    // supposedly can be optmized by computing diagonals in parallel ?
+    // Not sure it is worth it since x will be GENERATED_TOKENS*1500 size at most.
+    for (int64_t j = 1; j < M + 1; ++j) {
+        for (int64_t i = 1; i < N + 1; ++i) {
+            float c0 = ggml_get_f32_nd(cost, i - 1, j - 1, 0, 0);
+            float c1 = ggml_get_f32_nd(cost, i - 1, j, 0, 0);
+            float c2 = ggml_get_f32_nd(cost, i, j - 1, 0, 0);
+
+            float c;
+            int32_t t;
+            if (c0 < c1 && c0 < c2) {
+                c = c0;
+                t = 0;
+            } else if (c1 < c0 && c1 < c2) {
+                c = c1;
+                t = 1;
+            } else {
+                c = c2;
+                t = 2;
+            }
+
+            c = ggml_get_f32_nd(x, i - 1, j - 1, 0, 0) + c;
+            ggml_set_f32_nd(cost, i, j, 0, 0, c);
+            ggml_set_i32_nd(trace, i, j, 0, 0, t);
+        }
+    }
+
+    // Backtrace
+    const int64_t BT_MAX_ROWS = N + M - 1;
+    struct ggml_tensor * bt = ggml_new_tensor_2d(ctx, GGML_TYPE_I32, BT_MAX_ROWS, 2);
+    // trace[0, :] = 2;
+    for (int64_t i = 0; i < M + 1; ++i)
+        ggml_set_i32_nd(trace, 0, i, 0, 0, 2);
+    //trace[:, 0] = 1;
+    for (int64_t i = 0; i < N + 1; ++i)
+        ggml_set_i32_nd(trace, i, 0, 0, 0, 1);
+    int bt_row_idx = BT_MAX_ROWS - 1;
+    int64_t i = N;
+    int64_t j = M;
+    while (i > 0 || j > 0) {
+        ggml_set_i32_nd(bt, bt_row_idx, 0, 0, 0, i - 1);
+        ggml_set_i32_nd(bt, bt_row_idx, 1, 0, 0, j - 1);
+        --bt_row_idx;
+
+        int32_t t = ggml_get_i32_nd(trace, i, j, 0, 0);
+        if (t == 0) {
+            --i;
+            --j;
+        } else if (t == 1) {
+            --i;
+        } else if (t == 2) {
+            --j;
+        } else {
+            WHISPER_ASSERT(0);
+        }
+    }
+
+    // Clip + transpose
+    // This might not be entirely necessary for our case, but leaving it for now so output matrix
+    // is identical to dtw on openAI timing.py
+    const int64_t result_n_cols = BT_MAX_ROWS-bt_row_idx-1;
+    ggml_tensor * r = ggml_new_tensor_2d(ctx, GGML_TYPE_I32, 2, result_n_cols);
+    for (int64_t i = 0; i < 2; ++i) {
+        for (int64_t j = 0; j < result_n_cols; ++j) {
+            int32_t v = ggml_get_i32_nd(bt, j+bt_row_idx+1, i, 0, 0);
+            ggml_set_i32_nd(r, i, j, 0, 0, v);
+        }
+    }
+
+    return r;
+}
+
+void whisper_test_dtw(float* in, size_t in_ne0, size_t in_ne1, int32_t **out, size_t *out_ne0, size_t *out_ne1) {
+    struct ggml_init_params params = {
+        /*.mem_size   =*/ 32*1024*1024,
+        /*.mem_buffer =*/ NULL,
+        /*.no_alloc   =*/ false,
+    };
+    struct ggml_context * ctx = ggml_init(params);
+
+    struct ggml_tensor * x = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, in_ne0, in_ne1);
+    for (int i = 0; i < in_ne0; i++) {
+        for (int j = 0; j < in_ne1; j++) {
+            ggml_set_f32_nd(x, i, j, 0, 0, in[j + i * in_ne1]);
+        }
+    }
+    struct ggml_tensor * r = dtw_and_backtrace(ctx, x);
+
+    *out = (int32_t*) malloc(sizeof(int32_t) * r->ne[0] * r->ne[1]);
+    for (int i = 0; i < r->ne[0]; ++i) {
+        for (int j = 0; j < r->ne[1]; ++j) {
+            (*out)[j + i * r->ne[1]] = ggml_get_i32_nd(r, i, j, 0, 0);
+        }
+    }
+    *out_ne0 = r->ne[0];
+    *out_ne1 = r->ne[1];
+    ggml_free(ctx);
+}
+
+static void whisper_exp_compute_token_level_timestamps_dtw(
+        struct whisper_context & ctx,
+        struct whisper_state & state,
+        int n_frames,
+        int medfilt_width,
+        float qk_scale)
+{
+
+    // - Get and stack QKs from alignment heads
+    // - Suppose we produced 15 tokens
+    // This should yield a N_HEADS*15*FRAMES tensor
+    // FRAMES=1500 with max segment length = 30s (30/(FRAME_SIZE)=30/(0,02)=1500)
+
+    // - Discard third dimensions parts that are audio padding
+    // e.g. actual audio is 10 seconds, so 1000 frames are padding, only 500 contain audio
+    // So output would be a tensor with N_HEADS*15*500 dimension
+
+    // - Scale matrix by qk_scale, than apply softmax
+    // Output still N_HEADS*15*500
+
+    // - Normalize - subtract by mean, divide by std (not sure how to, original code
+    // takes mean and std with dim=-2, torch.std_mean(weights, dim=-2, keepdim=True, unbiased=False))
+    // Still N_HEADS*15*500
+
+    // - Pass median filter
+    // Still N_HEADS*15*500
+
+    // - Take mean over rows (matrix = weights.mean(axis=0))
+    // Out now is 15*500
+
+    // - Skip start of sentence sequence (matrix = matrix[len(tokenizer.sot_sequence) : -1])
+    // Discard first len(tokenizer.sot_sequence) tokens over first dimension
+    // Suppose len(tokenier.sot_sequence) = 3, so
+    // Output now is 12*500
+
+    // Multiply by -1, pass to dtw to get text and time indices
+    // Output will map each token index to a time index. Each time index corresponds to 20mS (audio
+    // frame size). From here, it is trivial to place a timestamp on each token.
+    // This timestamp seems to be more like "start of token" timestamp, roughly the audio moment
+    // the model outputed a certain token.
+    // Heuristics are needed to extrapolate a "end of token" time by using the time start of
+    // the next token.
+
+    // After this point, OpenAI code extends this with heuristics to place start/end times
+    // on each word instead of tokens. I find this to be a sort of decoupled second step.
+    // Without this, whisper users can still retrieve start times for each token and come up
+    // with heuristics that better serve their case.
+
+}
+
 void whisper_log_set(ggml_log_callback log_callback, void * user_data) {
     g_state.log_callback = log_callback ? log_callback : whisper_log_callback_default;
     g_state.log_callback_user_data = user_data;
