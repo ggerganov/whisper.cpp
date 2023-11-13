@@ -579,6 +579,25 @@ struct whisper_model {
     std::map<std::string, struct ggml_tensor *> tensors;
 };
 
+struct whisper_partial_utf8 {
+    uint32_t value;    // bit value so far (unshifted)
+    int      n_remain; // num bytes remaining; -1 indicates invalid sequence
+};
+
+struct whisper_grammar {
+    /*const*/ std::vector<std::vector<whisper_grammar_element>>   rules;
+    std::vector<std::vector<const whisper_grammar_element *>> stacks;
+
+    // buffer for partially generated UTF-8 sequence from accepted tokens
+    whisper_partial_utf8                                      partial_utf8;
+};
+
+struct whisper_grammar_candidate {
+    whisper_token          id;
+    const uint32_t       * code_points;
+    whisper_partial_utf8   partial_utf8;
+};
+
 struct whisper_sequence {
     std::vector<whisper_token_data> tokens;
 
@@ -599,6 +618,9 @@ struct whisper_decoder {
 
     // the currently generated sequence of tokens
     whisper_sequence sequence;
+
+    // grammar parse state of generated sequence of tokens
+    whisper_grammar  grammar;
 
     int seek_delta; // the window shift found so far based on the decoded timestamp tokens
 
@@ -3685,6 +3707,425 @@ const char * whisper_print_system_info(void) {
     return s.c_str();
 }
 
+//////////////////////////////////
+// Grammar - ported from llama.cpp
+//////////////////////////////////
+
+// Decodes a UTF-8 string which may end in an incomplete sequence. Adds a terminating 0 for use as
+// pointer. If an invalid sequence is encountered, returns `whisper_partial_utf8.n_remain == -1`.
+std::pair<std::vector<uint32_t>, whisper_partial_utf8> decode_utf8(
+        const char         * src,
+        whisper_partial_utf8   partial_start) {
+    static const int      lookup[] = { 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 2, 2, 3, 4 };
+    const char          * pos      = src;
+    std::vector<uint32_t> code_points;
+    uint32_t              value    = partial_start.value;
+    int                   n_remain = partial_start.n_remain;
+
+    // continue previous decode, if applicable
+    while (*pos != 0 && n_remain > 0) {
+        uint8_t next_byte = static_cast<uint8_t>(*pos);
+        if ((next_byte >> 6) != 2) {
+            // invalid sequence, abort
+            code_points.push_back(0);
+            return std::make_pair(std::move(code_points), whisper_partial_utf8{ 0, -1 });
+        }
+        value = (value << 6) + (next_byte & 0x3F);
+        ++pos;
+        --n_remain;
+    }
+
+    if (partial_start.n_remain > 0 && n_remain == 0) {
+        code_points.push_back(value);
+    }
+
+    // decode any subsequent utf-8 sequences, which may end in an incomplete one
+    while (*pos != 0) {
+        uint8_t  first_byte = static_cast<uint8_t>(*pos);
+        uint8_t  highbits   = first_byte >> 4;
+                 n_remain   = lookup[highbits] - 1;
+
+        if (n_remain < 0) {
+            // invalid sequence, abort
+            code_points.clear();
+            code_points.push_back(0);
+            return std::make_pair(std::move(code_points), whisper_partial_utf8{ 0, n_remain });
+        }
+
+        uint8_t  mask       = (1 << (7 - n_remain)) - 1;
+                 value      = first_byte & mask;
+        ++pos;
+        while (*pos != 0 && n_remain > 0) {
+            value = (value << 6) + (static_cast<uint8_t>(*pos) & 0x3F);
+            ++pos;
+            --n_remain;
+        }
+        if (n_remain == 0) {
+            code_points.push_back(value);
+        }
+    }
+    code_points.push_back(0);
+
+    return std::make_pair(std::move(code_points), whisper_partial_utf8{ value, n_remain });
+}
+
+// returns true iff pos points to the end of one of the definitions of a rule
+static bool whisper_grammar_is_end_of_sequence(const whisper_grammar_element * pos) {
+    switch (pos->type) {
+        case WHISPER_GRETYPE_END: return true;  // NOLINT
+        case WHISPER_GRETYPE_ALT: return true;  // NOLINT
+        default:                return false;
+    }
+}
+
+// returns true iff chr satisfies the char range at pos (regular or inverse range)
+// asserts that pos is pointing to a char range element
+static std::pair<bool, const whisper_grammar_element *> whisper_grammar_match_char(
+        const whisper_grammar_element * pos,
+        const uint32_t                chr) {
+
+    bool found            = false;
+    bool is_positive_char = pos->type == WHISPER_GRETYPE_CHAR;
+
+    WHISPER_ASSERT(is_positive_char || pos->type == WHISPER_GRETYPE_CHAR_NOT); // NOLINT
+
+    do {
+        if (pos[1].type == WHISPER_GRETYPE_CHAR_RNG_UPPER) {
+            // inclusive range, e.g. [a-z]
+            found = found || (pos->value <= chr && chr <= pos[1].value);
+            pos += 2;
+        } else {
+            // exact char match, e.g. [a] or "a"
+            found = found || pos->value == chr;
+            pos += 1;
+        }
+    } while (pos->type == WHISPER_GRETYPE_CHAR_ALT);
+
+    return std::make_pair(found == is_positive_char, pos);
+}
+
+// returns true iff some continuation of the given partial UTF-8 sequence could satisfy the char
+// range at pos (regular or inverse range)
+// asserts that pos is pointing to a char range element
+static bool whisper_grammar_match_partial_char(
+        const whisper_grammar_element * pos,
+        const whisper_partial_utf8      partial_utf8) {
+
+    bool is_positive_char = pos->type == WHISPER_GRETYPE_CHAR;
+    WHISPER_ASSERT(is_positive_char || pos->type == WHISPER_GRETYPE_CHAR_NOT);
+
+    uint32_t partial_value = partial_utf8.value;
+    int      n_remain      = partial_utf8.n_remain;
+
+    // invalid sequence or 7-bit char split across 2 bytes (overlong)
+    if (n_remain < 0 || (n_remain == 1 && partial_value < 2)) {
+        return false;
+    }
+
+    // range of possible code points this partial UTF-8 sequence could complete to
+    uint32_t low  = partial_value << (n_remain * 6);
+    uint32_t high = low | ((1 << (n_remain * 6)) - 1);
+
+    if (low == 0) {
+        if (n_remain == 2) {
+            low = 1 << 11;
+        } else if (n_remain == 3) {
+            low = 1 << 16;
+        }
+    }
+
+    do {
+        if (pos[1].type == WHISPER_GRETYPE_CHAR_RNG_UPPER) {
+            // inclusive range, e.g. [a-z]
+            if (pos->value <= high && low <= pos[1].value) {
+                return is_positive_char;
+            }
+            pos += 2;
+        } else {
+            // exact char match, e.g. [a] or "a"
+            if (low <= pos->value && pos->value <= high) {
+                return is_positive_char;
+            }
+            pos += 1;
+        }
+    } while (pos->type == WHISPER_GRETYPE_CHAR_ALT);
+
+    return !is_positive_char;
+}
+
+
+// transforms a grammar pushdown stack into N possible stacks, all ending
+// at a character range (terminal element)
+static void whisper_grammar_advance_stack(
+        const std::vector<std::vector<whisper_grammar_element>>   & rules,
+        const std::vector<const whisper_grammar_element *>        & stack,
+        std::vector<std::vector<const whisper_grammar_element *>> & new_stacks) {
+
+    if (stack.empty()) {
+        new_stacks.push_back(stack);
+        return;
+    }
+
+    const whisper_grammar_element * pos = stack.back();
+
+    switch (pos->type) {
+        case WHISPER_GRETYPE_RULE_REF: {
+            const size_t                  rule_id = static_cast<size_t>(pos->value);
+            const whisper_grammar_element * subpos  = rules[rule_id].data();
+            do {
+                // init new stack without the top (pos)
+                std::vector<const whisper_grammar_element *> new_stack(stack.begin(), stack.end() - 1);
+                if (!whisper_grammar_is_end_of_sequence(pos + 1)) {
+                    // if this rule ref is followed by another element, add that to stack
+                    new_stack.push_back(pos + 1);
+                }
+                if (!whisper_grammar_is_end_of_sequence(subpos)) {
+                    // if alternate is nonempty, add to stack
+                    new_stack.push_back(subpos);
+                }
+                whisper_grammar_advance_stack(rules, new_stack, new_stacks);
+                while (!whisper_grammar_is_end_of_sequence(subpos)) {
+                    // scan to end of alternate def
+                    subpos++;
+                }
+                if (subpos->type == WHISPER_GRETYPE_ALT) {
+                    // there's another alternate def of this rule to process
+                    subpos++;
+                } else {
+                    break;
+                }
+            } while (true);
+            break;
+        }
+        case WHISPER_GRETYPE_CHAR:
+        case WHISPER_GRETYPE_CHAR_NOT:
+            new_stacks.push_back(stack);
+            break;
+        default:
+            // end of alternate (WHISPER_GRETYPE_END, WHISPER_GRETYPE_ALT) or middle of char range
+            // (WHISPER_GRETYPE_CHAR_ALT, WHISPER_GRETYPE_CHAR_RNG_UPPER); stack should never be left on
+            // those
+            WHISPER_ASSERT(false);
+    }
+}
+
+// takes a set of possible pushdown stacks on a grammar, which are required to
+// be positioned at a character range (see `whisper_grammar_advance_stack`), and
+// produces the N possible stacks if the given char is accepted at those
+// positions
+static std::vector<std::vector<const whisper_grammar_element *>> whisper_grammar_accept(
+        const std::vector<std::vector<whisper_grammar_element>>         & rules,
+        const std::vector<std::vector<const whisper_grammar_element *>> & stacks,
+        const uint32_t                                                  chr) {
+
+    std::vector<std::vector<const whisper_grammar_element *>> new_stacks;
+
+    for (const auto & stack : stacks) {
+        if (stack.empty()) {
+            continue;
+        }
+
+        auto match = whisper_grammar_match_char(stack.back(), chr);
+        if (match.first) {
+            const whisper_grammar_element * pos = match.second;
+
+            // update top of stack to next element, if any
+            std::vector<const whisper_grammar_element *> new_stack(stack.begin(), stack.end() - 1);
+            if (!whisper_grammar_is_end_of_sequence(pos)) {
+                new_stack.push_back(pos);
+            }
+            whisper_grammar_advance_stack(rules, new_stack, new_stacks);
+        }
+    }
+
+    return new_stacks;
+}
+
+static std::vector<whisper_grammar_candidate> whisper_grammar_reject_candidates(
+        const std::vector<std::vector<whisper_grammar_element>>         & rules,
+        const std::vector<std::vector<const whisper_grammar_element *>> & stacks,
+        const std::vector<whisper_grammar_candidate>                    & candidates);
+
+static std::vector<whisper_grammar_candidate> whisper_grammar_reject_candidates_for_stack(
+        const std::vector<std::vector<whisper_grammar_element>> & rules,
+        const std::vector<const whisper_grammar_element *>      & stack,
+        const std::vector<whisper_grammar_candidate>            & candidates) {
+
+    std::vector<whisper_grammar_candidate> rejects;
+
+    if (stack.empty()) {
+        for (auto tok : candidates) {
+            if (*tok.code_points != 0 || tok.partial_utf8.n_remain != 0) {
+                rejects.push_back(tok);
+            }
+        }
+        return rejects;
+    }
+
+    const whisper_grammar_element * stack_pos = stack.back();
+
+    std::vector<whisper_grammar_candidate> next_candidates;
+    for (auto tok : candidates) {
+        if (*tok.code_points == 0) {
+            // reached end of full codepoints in token, reject iff it ended in a partial sequence
+            // that cannot satisfy this position in grammar
+            if (tok.partial_utf8.n_remain != 0 &&
+                    !whisper_grammar_match_partial_char(stack_pos, tok.partial_utf8)) {
+                rejects.push_back(tok);
+            }
+        } else if (whisper_grammar_match_char(stack_pos, *tok.code_points).first) {
+            next_candidates.push_back({ tok.id, tok.code_points + 1, tok.partial_utf8 });
+        } else {
+            rejects.push_back(tok);
+        }
+    }
+
+    const auto * stack_pos_after = whisper_grammar_match_char(stack_pos, 0).second;
+
+    // update top of stack to next element, if any
+    std::vector<const whisper_grammar_element *> stack_after(stack.begin(), stack.end() - 1);
+    if (!whisper_grammar_is_end_of_sequence(stack_pos_after)) {
+        stack_after.push_back(stack_pos_after);
+    }
+    std::vector<std::vector<const whisper_grammar_element *>> next_stacks;
+    whisper_grammar_advance_stack(rules, stack_after, next_stacks);
+
+    auto next_rejects = whisper_grammar_reject_candidates(rules, next_stacks, next_candidates);
+    for (auto tok : next_rejects) {
+        rejects.push_back({ tok.id, tok.code_points - 1, tok.partial_utf8 });
+    }
+
+    return rejects;
+}
+
+static std::vector<whisper_grammar_candidate> whisper_grammar_reject_candidates(
+        const std::vector<std::vector<whisper_grammar_element>>         & rules,
+        const std::vector<std::vector<const whisper_grammar_element *>> & stacks,
+        const std::vector<whisper_grammar_candidate>                    & candidates) {
+    if (candidates.empty() || stacks.empty()) {
+        return std::vector<whisper_grammar_candidate>();
+    }
+
+    auto rejects = whisper_grammar_reject_candidates_for_stack(rules, stacks.front(), candidates);
+
+    for (size_t i = 1, size = stacks.size(); i < size; ++i) {
+        rejects = whisper_grammar_reject_candidates_for_stack(rules, stacks[i], rejects);
+    }
+    return rejects;
+}
+
+static struct whisper_grammar whisper_grammar_init(
+            const whisper_grammar_element ** rules,
+                                 size_t      n_rules,
+                                 size_t      i_start_rule) {
+    const whisper_grammar_element * pos;
+
+    // copy rule definitions into vectors
+    std::vector<std::vector<whisper_grammar_element>> vec_rules(n_rules);
+    for (size_t i = 0; i < n_rules; i++) {
+        for (pos = rules[i]; pos->type != WHISPER_GRETYPE_END; pos++) {
+            vec_rules[i].push_back(*pos);
+        }
+        vec_rules[i].push_back({WHISPER_GRETYPE_END, 0});
+    }
+
+    // loop over alternates of start rule to build initial stacks
+    std::vector<std::vector<const whisper_grammar_element *>> stacks;
+    pos = rules[i_start_rule];
+    do {
+        std::vector<const whisper_grammar_element *> stack;
+        if (!whisper_grammar_is_end_of_sequence(pos)) {
+            // if alternate is nonempty, add to stack
+            stack.push_back(pos);
+        }
+        whisper_grammar_advance_stack(vec_rules, stack, stacks);
+        while (!whisper_grammar_is_end_of_sequence(pos)) {
+            // scan to end of alternate def
+            pos++;
+        }
+        if (pos->type == WHISPER_GRETYPE_ALT) {
+            // there's another alternate def of this rule to process
+            pos++;
+        } else {
+            break;
+        }
+    } while (true);
+
+    return { std::move(vec_rules), std::move(stacks), {} };
+}
+
+static void whisper_suppress_invalid_grammar(
+             whisper_context  & ctx,
+    const whisper_full_params & params,
+           std::vector<float> & logits,
+    const     whisper_grammar & grammar) {
+
+    if (grammar.rules.empty() || grammar.stacks.empty()) {
+        return;
+    }
+
+    //bool allow_eot = false;
+    //for (const auto & stack : grammar.stacks) {
+    //    if (stack.empty()) {
+    //        allow_eot = true;
+    //        break;
+    //    }
+    //}
+
+    const whisper_token eot = whisper_token_eot(&ctx);
+
+    std::vector<std::pair<std::vector<uint32_t>, whisper_partial_utf8>> candidates_decoded;
+    std::vector<whisper_grammar_candidate>                              candidates_grammar;
+
+    for (whisper_token id = 0; id < eot; ++id) {
+        const std::string & text = ctx.vocab.id_to_token[id];
+        if (!text.empty()) {
+            candidates_decoded.push_back(decode_utf8(text.c_str(), grammar.partial_utf8));
+            candidates_grammar.push_back({ id, candidates_decoded.back().first.data(), candidates_decoded.back().second });
+        }
+    }
+
+    const auto rejects = whisper_grammar_reject_candidates(grammar.rules, grammar.stacks, candidates_grammar);
+
+    for (const auto & reject : rejects) {
+        logits[reject.id] -= params.grammar_penalty;
+    }
+
+    // when the grammar allows a continuation, we penalize the end-of-text token
+    //if (!allow_eot) {
+    //    logits[eot] -= params.grammar_penalty;
+    //}
+    //fprintf(stderr, "Allowed: (%zu tokens)\n", size - rejects.size());
+}
+
+static void whisper_grammar_accept_token(whisper_context & ctx, whisper_grammar & grammar, whisper_token token) {
+    if (grammar.rules.empty() || grammar.stacks.empty()) {
+        return;
+    }
+
+    //fprintf(stderr, "Accept: '%s'\n", ctx.vocab.id_to_token[token].c_str());
+
+    const std::string & text = ctx.vocab.id_to_token[token];
+
+    if (text.rfind("[_", 0) == 0) {
+        // fprintf(stderr, " (skipped)\n");
+        return;
+    }
+    // fprintf(stderr, "\n");
+
+    // Note terminating 0 in decoded string
+    const auto   decoded     = decode_utf8(text.c_str(), grammar.partial_utf8);
+    const auto & code_points = decoded.first;
+    for (auto it = code_points.begin(), end = code_points.end() - 1; it != end; ++it) {
+        grammar.stacks = whisper_grammar_accept(grammar.rules, grammar.stacks, *it);
+    }
+    grammar.partial_utf8 = decoded.second;
+}
+
+//////////////
+// END grammar
+//////////////
+
 ////////////////////////////////////////////////////////////////////////////
 
 struct whisper_context_params * whisper_context_default_params_by_ref() {
@@ -3714,6 +4155,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
         /*.translate         =*/ false,
         /*.no_context        =*/ true,
+        /*.no_timestamps     =*/ false,
         /*.single_segment    =*/ false,
         /*.print_special     =*/ false,
         /*.print_progress    =*/ true,
@@ -3776,6 +4218,11 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
         /*.logits_filter_callback           =*/ nullptr,
         /*.logits_filter_callback_user_data =*/ nullptr,
+
+        /*.grammar_rules   =*/ nullptr,
+        /*.n_grammar_rules =*/ 0,
+        /*.i_start_rule    =*/ 0,
+        /*.grammar_penalty =*/ 100.0f,
     };
 
     switch (strategy) {
@@ -3927,6 +4374,11 @@ static void whisper_process_logits(
         // suppress <|notimestamps|> token
         // ref: https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L410-L412
         logits[vocab.token_not] = -INFINITY;
+        if (params.no_timestamps) {
+            for (int i = vocab.token_beg; i < n_logits; ++i) {
+                logits[i] = -INFINITY;
+            }
+        }
 
         // suppress sot and nosp tokens
         logits[vocab.token_sot]  = -INFINITY;
@@ -3941,6 +4393,14 @@ static void whisper_process_logits(
         logits[vocab.token_translate]  = -INFINITY;
         logits[vocab.token_transcribe] = -INFINITY;
         logits[vocab.token_prev]       = -INFINITY;
+
+        // suppress lang tokens
+        for (size_t i = 0; i < g_lang.size(); ++i) {
+            logits[whisper_token_lang(&ctx, i)] = -INFINITY;
+        }
+
+        // suppress prev token
+        logits[vocab.token_prev] = -INFINITY;
 
         if (params.logits_filter_callback) {
             params.logits_filter_callback(&ctx, &state, tokens_cur.data(), tokens_cur.size(), logits.data(), params.logits_filter_callback_user_data);
@@ -4052,9 +4512,32 @@ static void whisper_process_logits(
             //WHISPER_LOG_INFO("timestamp_logprob=%f max_text_token_logprob=%f\n", timestamp_logprob, max_text_token_logprob);
 
             if (timestamp_logprob > max_text_token_logprob) {
+                //printf("sampling timestamp\n");
                 for (int i = 0; i < vocab.token_beg; ++i) {
                     logits[i]   = -INFINITY;
                     logprobs[i] = -INFINITY;
+                }
+            } else if (params.n_grammar_rules > 0) {
+                whisper_suppress_invalid_grammar(ctx, params, logits, decoder.grammar);
+
+                // populate the logprobs array (log_softmax)
+                {
+                    const float logit_max = *std::max_element(logits.begin(), logits.end());
+                    float logsumexp = 0.0f;
+                    for (int i = 0; i < n_logits; ++i) {
+                        if (logits[i] > -INFINITY) {
+                            logsumexp += expf(logits[i] - logit_max);
+                        }
+                    }
+                    logsumexp = logf(logsumexp) + logit_max;
+
+                    for (int i = 0; i < n_logits; ++i) {
+                        if (logits[i] > -INFINITY) {
+                            logprobs[i] = logits[i] - logsumexp;
+                        } else {
+                            logprobs[i] = -INFINITY;
+                        }
+                    }
                 }
             }
         }
@@ -4073,32 +4556,55 @@ static void whisper_process_logits(
 
 #if 0
     // print first 100 logits - token string : logit
-    for (int i = 0; i < 100; i++) {
-        const auto token   = vocab.id_to_token.at(i);
-        const auto prob    = probs[i];
-        const auto logit   = logits[i];
-        const auto logprob = logprobs[i];
-        printf("%s : prob=%9.5f logit=%9.5f logprob=%9.5f\n", token.c_str(), prob, logit, logprob);
+    //for (int i = 0; i < 10; i++) {
+    //    const auto token   = vocab.id_to_token.at(i);
+    //    const auto prob    = probs[i];
+    //    const auto logit   = logits[i];
+    //    const auto logprob = logprobs[i];
+    //    printf("%16s : prob=%9.5f logit=%9.5f logprob=%9.5f\n", token.c_str(), prob, logit, logprob);
+    //}
+
+    // print sorted
+    {
+        std::vector<std::pair<float, int>> pairs;
+
+        for (int i = 0; i < n_logits; ++i) {
+            pairs.push_back(std::make_pair(probs[i], i));
+        }
+
+        std::sort(pairs.begin(), pairs.end(), [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
+            return a.first > b.first;
+        });
+
+        for (int i = 0; i < 10; i++) {
+            const auto token   = vocab.id_to_token.at(pairs[i].second);
+            const auto prob    = pairs[i].first;
+            const auto logit   = logits[pairs[i].second];
+            const auto logprob = logprobs[pairs[i].second];
+            printf("%16s : id=%6d prob=%9.5f logit=%9.5f logprob=%9.5f '%s'\n", token.c_str(), pairs[i].second, prob, logit, logprob, token.c_str());
+        }
+
+        printf("----------------\n");
     }
 
     // "And", "and", " And", " and"
-    printf("logits[\"and\"]  = %f\n", logits[vocab.token_to_id.at("and")]);
-    printf("logits[\"And\"]  = %f\n", logits[vocab.token_to_id.at("And")]);
-    printf("logits[\" and\"] = %f\n", logits[vocab.token_to_id.at(" and")]);
-    printf("logits[\" And\"] = %f\n", logits[vocab.token_to_id.at(" And")]);
-    printf("logits[\" so\"]  = %f\n", logits[vocab.token_to_id.at(" so")]);
+    //printf("logits[\"and\"]  = %f\n", logits[vocab.token_to_id.at("and")]);
+    //printf("logits[\"And\"]  = %f\n", logits[vocab.token_to_id.at("And")]);
+    //printf("logits[\" and\"] = %f\n", logits[vocab.token_to_id.at(" and")]);
+    //printf("logits[\" And\"] = %f\n", logits[vocab.token_to_id.at(" And")]);
+    //printf("logits[\" so\"]  = %f\n", logits[vocab.token_to_id.at(" so")]);
 
-    printf("logprobs[\"and\"]  = %f\n", logprobs[vocab.token_to_id.at("and")]);
-    printf("logprobs[\"And\"]  = %f\n", logprobs[vocab.token_to_id.at("And")]);
-    printf("logprobs[\" and\"] = %f\n", logprobs[vocab.token_to_id.at(" and")]);
-    printf("logprobs[\" And\"] = %f\n", logprobs[vocab.token_to_id.at(" And")]);
-    printf("logprobs[\" so\"]  = %f\n", logprobs[vocab.token_to_id.at(" so")]);
+    //printf("logprobs[\"and\"]  = %f\n", logprobs[vocab.token_to_id.at("and")]);
+    //printf("logprobs[\"And\"]  = %f\n", logprobs[vocab.token_to_id.at("And")]);
+    //printf("logprobs[\" and\"] = %f\n", logprobs[vocab.token_to_id.at(" and")]);
+    //printf("logprobs[\" And\"] = %f\n", logprobs[vocab.token_to_id.at(" And")]);
+    //printf("logprobs[\" so\"]  = %f\n", logprobs[vocab.token_to_id.at(" so")]);
 
-    printf("probs[\"and\"]  = %f\n", probs[vocab.token_to_id.at("and")]);
-    printf("probs[\"And\"]  = %f\n", probs[vocab.token_to_id.at("And")]);
-    printf("probs[\" and\"] = %f\n", probs[vocab.token_to_id.at(" and")]);
-    printf("probs[\" And\"] = %f\n", probs[vocab.token_to_id.at(" And")]);
-    printf("probs[\" so\"]  = %f\n", probs[vocab.token_to_id.at(" so")]);
+    //printf("probs[\"and\"]  = %f\n", probs[vocab.token_to_id.at("and")]);
+    //printf("probs[\"And\"]  = %f\n", probs[vocab.token_to_id.at("And")]);
+    //printf("probs[\" and\"] = %f\n", probs[vocab.token_to_id.at(" and")]);
+    //printf("probs[\" And\"] = %f\n", probs[vocab.token_to_id.at(" And")]);
+    //printf("probs[\" so\"]  = %f\n", probs[vocab.token_to_id.at(" so")]);
 #endif
 }
 
@@ -4223,8 +4729,11 @@ static std::vector<whisper_token_data> whisper_sample_token_topk(
         ptsum = sum_ts;
     }
 
+    std::discrete_distribution<> dist(probs.begin(), probs.end());
+
     for (int i = 0; i < k; ++i) {
-        const auto id = logits_id[i].second;
+        const auto id = dist(state.rng);
+        //printf("XXX %d %d %f %f %f %f\n", id, tid, probs[id], logprobs[id], pt, ptsum);
 
         result.push_back({ id, tid, probs[id], logprobs[id], pt, ptsum, -1, -1, 0.0f, });
 
@@ -4553,7 +5062,7 @@ int whisper_full_with_state(
     state->exp_n_audio_ctx = params.audio_ctx;
 
     // these tokens determine the task that will be performed
-    std::vector<whisper_token> prompt_init = { whisper_token_sot(ctx) };
+    std::vector<whisper_token> prompt_init = { whisper_token_sot(ctx), };
 
     if (whisper_is_multilingual(ctx)) {
         const int lang_id = whisper_lang_id(params.language);
@@ -4566,15 +5075,17 @@ int whisper_full_with_state(
         }
     }
 
+    // distilled models require the "no_timestamps" token
     {
         const bool is_distil = ctx->model.hparams.n_text_layer == 2;
-
-        // distilled models require the "no_timestamps" token
-        // TODO: add input parameter (#1229)
-        if (is_distil) {
+        if (is_distil && !params.no_timestamps) {
             WHISPER_LOG_WARN("%s: using distilled model - forcing no_timestamps\n", __func__);
-            prompt_init.push_back(whisper_token_not(ctx));
+            params.no_timestamps = true;
         }
+    }
+
+    if (params.no_timestamps) {
+        prompt_init.push_back(whisper_token_not(ctx));
     }
 
     int seek = seek_start;
@@ -4652,7 +5163,7 @@ int whisper_full_with_state(
 
             n_decoders_cur = std::max(1, n_decoders_cur);
 
-            WHISPER_PRINT_DEBUG("\n%s: decoding with %d decoders, temperature = %.2f\n", __func__, n_decoders_cur, t_cur);
+            WHISPER_PRINT_DEBUG("\n%s: strategy = %d, decoding with %d decoders, temperature = %.2f\n", __func__, params.strategy, n_decoders_cur, t_cur);
 
             // TAGS: WHISPER_DECODER_INIT
             for (int j = 0; j < n_decoders_cur; ++j) {
@@ -4673,6 +5184,13 @@ int whisper_full_with_state(
                 decoder.failed    = false;
                 decoder.completed = false;
                 decoder.has_ts    = false;
+
+                if (params.grammar_rules != nullptr) {
+                    decoder.grammar = whisper_grammar_init(
+                        params.grammar_rules, params.n_grammar_rules, params.i_start_rule);
+                } else {
+                    decoder.grammar = {};
+                }
             }
 
             // init prompt and kv cache for the current iteration
@@ -4790,6 +5308,10 @@ int whisper_full_with_state(
                             continue;
                         }
 
+                        if (cur_c >= beam_candidates.size()) {
+                            cur_c = 0;
+                        }
+
                         auto & cur = beam_candidates[cur_c++];
 
                         while (beam_candidates.size() > cur_c && beam_candidates[cur_c].sequence.sum_logprobs_all == cur.sequence.sum_logprobs_all && i > 0) {
@@ -4843,6 +5365,8 @@ int whisper_full_with_state(
                             result_len = i + 1;
                             has_ts = true;
                         }
+
+                        whisper_grammar_accept_token(*ctx, decoder.grammar, token.id);
 
 #ifdef WHISPER_DEBUG
                         {

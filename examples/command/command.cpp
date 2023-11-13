@@ -9,6 +9,7 @@
 #include "common-sdl.h"
 #include "common.h"
 #include "whisper.h"
+#include "grammar-parser.h"
 
 #include <sstream>
 #include <cassert>
@@ -21,6 +22,11 @@
 #include <vector>
 #include <map>
 
+bool file_exists(const std::string & fname) {
+    std::ifstream f(fname.c_str());
+    return f.good();
+}
+
 // command-line parameters
 struct whisper_params {
     int32_t n_threads  = std::min(4, (int32_t) std::thread::hardware_concurrency());
@@ -30,8 +36,12 @@ struct whisper_params {
     int32_t max_tokens = 32;
     int32_t audio_ctx  = 0;
 
-    float vad_thold    = 0.6f;
-    float freq_thold   = 100.0f;
+    float vad_thold  = 0.6f;
+    float freq_thold = 100.0f;
+
+    float grammar_penalty = 100.0f;
+
+    grammar_parser::parse_state grammar_parsed;
 
     bool speed_up      = false;
     bool translate     = false;
@@ -45,6 +55,8 @@ struct whisper_params {
     std::string fname_out;
     std::string commands;
     std::string prompt;
+    std::string context;
+    std::string grammar;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -75,6 +87,9 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
         else if (arg == "-cmd" || arg == "--commands")      { params.commands      = argv[++i]; }
         else if (arg == "-p"   || arg == "--prompt")        { params.prompt        = argv[++i]; }
+        else if (arg == "-ctx" || arg == "--context")       { params.context       = argv[++i]; }
+        else if (                 arg == "--grammar")       { params.grammar       = argv[++i]; }
+        else if (                 arg == "--grammar-penalty") { params.grammar_penalty = std::stof(argv[++i]); }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -109,16 +124,30 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -f FNAME,   --file FNAME     [%-7s] text output file name\n",                       params.fname_out.c_str());
     fprintf(stderr, "  -cmd FNAME, --commands FNAME [%-7s] text file with allowed commands\n",             params.commands.c_str());
     fprintf(stderr, "  -p,         --prompt         [%-7s] the required activation prompt\n",              params.prompt.c_str());
+    fprintf(stderr, "  -ctx,       --context        [%-7s] sample text to help the transcription\n",       params.context.c_str());
+    fprintf(stderr, "  --grammar GRAMMAR            [%-7s] GBNF grammar to guide decoding\n",              params.grammar.c_str());
+    fprintf(stderr, "  --grammar-penalty N          [%-7.1f] scales down logits of nongrammar tokens\n",   params.grammar_penalty);
     fprintf(stderr, "\n");
 }
 
-std::string transcribe(whisper_context * ctx, const whisper_params & params, const std::vector<float> & pcmf32, float & prob, int64_t & t_ms) {
+std::string transcribe(
+                 whisper_context * ctx,
+            const whisper_params & params,
+        const std::vector<float> & pcmf32,
+               const std::string & grammar_rule,
+                           float & logprob_min,
+                           float & logprob_sum,
+                             int & n_tokens,
+                         int64_t & t_ms) {
     const auto t_start = std::chrono::high_resolution_clock::now();
 
-    prob = 0.0f;
+    logprob_min = 0.0f;
+    logprob_sum = 0.0f;
+    n_tokens    = 0;
     t_ms = 0;
 
-    whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    //whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_BEAM_SEARCH);
 
     wparams.print_progress   = false;
     wparams.print_special    = params.print_special;
@@ -126,19 +155,41 @@ std::string transcribe(whisper_context * ctx, const whisper_params & params, con
     wparams.print_timestamps = !params.no_timestamps;
     wparams.translate        = params.translate;
     wparams.no_context       = true;
+    wparams.no_timestamps    = params.no_timestamps;
     wparams.single_segment   = true;
     wparams.max_tokens       = params.max_tokens;
     wparams.language         = params.language.c_str();
     wparams.n_threads        = params.n_threads;
 
-    wparams.audio_ctx        = params.audio_ctx;
-    wparams.speed_up         = params.speed_up;
+    wparams.audio_ctx = params.audio_ctx;
+    wparams.speed_up  = params.speed_up;
+
+    wparams.temperature     = 0.4f;
+    wparams.temperature_inc = 1.0f;
+    wparams.greedy.best_of  = 5;
+
+    wparams.beam_search.beam_size = 5;
+
+    wparams.initial_prompt = params.context.data();
+
+    const auto & grammar_parsed = params.grammar_parsed;
+    auto grammar_rules = grammar_parsed.c_rules();
+
+    if (!params.grammar_parsed.rules.empty() && !grammar_rule.empty()) {
+        if (grammar_parsed.symbol_ids.find(grammar_rule) == grammar_parsed.symbol_ids.end()) {
+            fprintf(stderr, "%s: warning: grammar rule '%s' not found - skipping grammar sampling\n", __func__, grammar_rule.c_str());
+        } else {
+            wparams.grammar_rules   = grammar_rules.data();
+            wparams.n_grammar_rules = grammar_rules.size();
+            wparams.i_start_rule    = grammar_parsed.symbol_ids.at(grammar_rule);
+            wparams.grammar_penalty = params.grammar_penalty;
+        }
+    }
 
     if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
         return "";
     }
 
-    int prob_n = 0;
     std::string result;
 
     const int n_segments = whisper_full_n_segments(ctx);
@@ -147,17 +198,15 @@ std::string transcribe(whisper_context * ctx, const whisper_params & params, con
 
         result += text;
 
-        const int n_tokens = whisper_full_n_tokens(ctx, i);
-        for (int j = 0; j < n_tokens; ++j) {
+        const int n = whisper_full_n_tokens(ctx, i);
+        for (int j = 0; j < n; ++j) {
             const auto token = whisper_full_get_token_data(ctx, i, j);
 
-            prob += token.p;
-            ++prob_n;
+            if(token.plog > 0.0f) exit(0);
+            logprob_min = std::min(logprob_min, token.plog);
+            logprob_sum += token.plog;
+            ++n_tokens;
         }
-    }
-
-    if (prob_n > 0) {
-        prob /= prob_n;
     }
 
     const auto t_end = std::chrono::high_resolution_clock::now();
@@ -250,7 +299,7 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
         fprintf(stderr, " ]\n");
     }
 
-    std::string  k_prompt = "select one from the available words: ";
+    std::string k_prompt = "select one from the available words: ";
     for (int i = 0; i < (int) allowed_commands.size(); ++i) {
         if (i > 0) {
             k_prompt += ", ";
@@ -418,7 +467,9 @@ int always_prompt_transcription(struct whisper_context * ctx, audio_async & audi
     bool is_running = true;
     bool ask_prompt = true;
 
-    float prob = 0.0f;
+    float logprob_min = 0.0f;
+    float logprob_sum = 0.0f;
+    int   n_tokens    = 0;
 
     std::vector<float> pcmf32_cur;
 
@@ -456,7 +507,7 @@ int always_prompt_transcription(struct whisper_context * ctx, audio_async & audi
                 // detect the commands
                 audio.get(params.command_ms, pcmf32_cur);
 
-                const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob, t_ms));
+                const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, "", logprob_min, logprob_sum, n_tokens, t_ms));
 
                 const auto words = get_words(txt);
 
@@ -492,18 +543,27 @@ int always_prompt_transcription(struct whisper_context * ctx, audio_async & audi
 
 // general-purpose mode
 // freely transcribe the voice into text
-int process_general_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params) {
+int process_general_transcription(struct whisper_context * ctx, audio_async & audio, const whisper_params & params) {
     bool is_running  = true;
     bool have_prompt = false;
     bool ask_prompt  = true;
 
-    float prob0 = 0.0f;
-    float prob  = 0.0f;
+    float logprob_min0 = 0.0f;
+    float logprob_min  = 0.0f;
+
+    float logprob_sum0 = 0.0f;
+    float logprob_sum  = 0.0f;
+
+    int n_tokens0 = 0;
+    int n_tokens  = 0;
 
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;
 
-    const std::string k_prompt = "Ok Whisper, start listening for commands.";
+    std::string k_prompt = "Ok Whisper, start listening for commands.";
+    if (!params.prompt.empty()) {
+        k_prompt = params.prompt;
+    }
 
     fprintf(stderr, "\n");
     fprintf(stderr, "%s: general-purpose mode\n", __func__);
@@ -536,9 +596,11 @@ int process_general_transcription(struct whisper_context * ctx, audio_async &aud
                     // wait for activation phrase
                     audio.get(params.prompt_ms, pcmf32_cur);
 
-                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob0, t_ms));
+                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, "prompt", logprob_min0, logprob_sum0, n_tokens0, t_ms));
 
-                    fprintf(stdout, "%s: Heard '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", txt.c_str(), "\033[0m", (int) t_ms);
+                    const float p = 100.0f * std::exp(logprob_min0);
+
+                    fprintf(stdout, "%s: Heard '%s%s%s', (t = %d ms, p = %.2f%%)\n", __func__, "\033[1m", txt.c_str(), "\033[0m", (int) t_ms, p);
 
                     const float sim = similarity(txt, k_prompt);
 
@@ -559,19 +621,30 @@ int process_general_transcription(struct whisper_context * ctx, audio_async &aud
                     // we have heard the activation phrase, now detect the commands
                     audio.get(params.command_ms, pcmf32_cur);
 
+                    //printf("len prompt:  %.4f\n", pcmf32_prompt.size() / (float) WHISPER_SAMPLE_RATE);
+                    //printf("len command: %.4f\n", pcmf32_cur.size() / (float) WHISPER_SAMPLE_RATE);
+
+                    // prepend 3 second of silence
+                    pcmf32_cur.insert(pcmf32_cur.begin(), 3.0f*WHISPER_SAMPLE_RATE, 0.0f);
+
                     // prepend the prompt audio
                     pcmf32_cur.insert(pcmf32_cur.begin(), pcmf32_prompt.begin(), pcmf32_prompt.end());
 
-                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, prob, t_ms));
+                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, "root", logprob_min, logprob_sum, n_tokens, t_ms));
 
-                    prob = 100.0f*(prob - prob0);
+                    //const float p = 100.0f * std::exp((logprob - logprob0) / (n_tokens - n_tokens0));
+                    const float p = 100.0f * std::exp(logprob_min);
 
                     //fprintf(stdout, "%s: heard '%s'\n", __func__, txt.c_str());
 
                     // find the prompt in the text
                     float best_sim = 0.0f;
                     size_t best_len = 0;
-                    for (int n = 0.8*k_prompt.size(); n <= 1.2*k_prompt.size(); ++n) {
+                    for (size_t n = 0.8*k_prompt.size(); n <= 1.2*k_prompt.size(); ++n) {
+                        if (n >= txt.size()) {
+                            break;
+                        }
+
                         const auto prompt = txt.substr(0, n);
 
                         const float sim = similarity(prompt, k_prompt);
@@ -584,9 +657,16 @@ int process_general_transcription(struct whisper_context * ctx, audio_async &aud
                         }
                     }
 
-                    const std::string command = ::trim(txt.substr(best_len));
+                    fprintf(stdout, "%s:   DEBUG: txt = '%s', prob = %.2f%%\n", __func__, txt.c_str(), p);
+                    if (best_len == 0) {
+                        fprintf(stdout, "%s: WARNING: command not recognized, try again\n", __func__);
+                    } else {
+                        // cut the prompt from the decoded text
+                        const std::string command = ::trim(txt.substr(best_len));
 
-                    fprintf(stdout, "%s: Command '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", command.c_str(), "\033[0m", (int) t_ms);
+                        fprintf(stdout, "%s: Command '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", command.c_str(), "\033[0m", (int) t_ms);
+                    }
+
                     fprintf(stdout, "\n");
                 }
 
@@ -654,12 +734,36 @@ int main(int argc, char ** argv) {
 
     int  ret_val = 0;
 
-    if (!params.commands.empty()) {
-        ret_val = process_command_list(ctx, audio, params);
-    } else if (!params.prompt.empty()) {
-        ret_val = always_prompt_transcription(ctx, audio, params);
-    } else {
-        ret_val = process_general_transcription(ctx, audio, params);
+    if (!params.grammar.empty()) {
+        auto & grammar = params.grammar_parsed;
+        if (file_exists(params.grammar.c_str())) {
+            // read grammar from file
+            std::ifstream ifs(params.grammar.c_str());
+            const std::string txt = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+            grammar = grammar_parser::parse(txt.c_str());
+        } else {
+            // read grammar from string
+            grammar = grammar_parser::parse(params.grammar.c_str());
+        }
+
+        // will be empty (default) if there are parse errors
+        if (grammar.rules.empty()) {
+            ret_val = 1;
+        } else {
+            fprintf(stderr, "%s: grammar:\n", __func__);
+            grammar_parser::print_grammar(stderr, grammar);
+            fprintf(stderr, "\n");
+        }
+    }
+
+    if (ret_val == 0) {
+        if (!params.commands.empty()) {
+            ret_val = process_command_list(ctx, audio, params);
+        } else if (!params.prompt.empty() && params.grammar_parsed.rules.empty()) {
+            ret_val = always_prompt_transcription(ctx, audio, params);
+        } else {
+            ret_val = process_general_transcription(ctx, audio, params);
+        }
     }
 
     audio.pause();

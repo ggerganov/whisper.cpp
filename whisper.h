@@ -109,6 +109,37 @@ extern "C" {
         void  (*close)(void * ctx);
     } whisper_model_loader;
 
+    // grammar element type
+    enum whisper_gretype {
+        // end of rule definition
+        WHISPER_GRETYPE_END            = 0,
+
+        // start of alternate definition for rule
+        WHISPER_GRETYPE_ALT            = 1,
+
+        // non-terminal element: reference to rule
+        WHISPER_GRETYPE_RULE_REF       = 2,
+
+        // terminal element: character (code point)
+        WHISPER_GRETYPE_CHAR           = 3,
+
+        // inverse char(s) ([^a], [^a-b] [^abc])
+        WHISPER_GRETYPE_CHAR_NOT       = 4,
+
+        // modifies a preceding WHISPER_GRETYPE_CHAR or LLAMA_GRETYPE_CHAR_ALT to
+        // be an inclusive range ([a-z])
+        WHISPER_GRETYPE_CHAR_RNG_UPPER = 5,
+
+        // modifies a preceding WHISPER_GRETYPE_CHAR or
+        // WHISPER_GRETYPE_CHAR_RNG_UPPER to add an alternate char to match ([ab], [a-zA])
+        WHISPER_GRETYPE_CHAR_ALT       = 6,
+    };
+
+    typedef struct whisper_grammar_element {
+        enum whisper_gretype type;
+        uint32_t             value; // Unicode code point or rule ID
+    } whisper_grammar_element;
+
     // Various functions for loading a ggml whisper model.
     // Allocate (almost) all memory needed for the model.
     // Return NULL on failure
@@ -402,6 +433,7 @@ extern "C" {
 
         bool translate;
         bool no_context;        // do not use past transcription (if any) as initial prompt for the decoder
+        bool no_timestamps;     // do not generate timestamps
         bool single_segment;    // force single segment output (useful for streaming)
         bool print_special;     // print special tokens (e.g. <SOT>, <EOT>, <BEG>, etc.)
         bool print_progress;    // print progress information
@@ -479,6 +511,11 @@ extern "C" {
         // called by each decoder to filter obtained logits
         whisper_logits_filter_callback logits_filter_callback;
         void * logits_filter_callback_user_data;
+
+        const whisper_grammar_element ** grammar_rules;
+        size_t                           n_grammar_rules;
+        size_t                           i_start_rule;
+        float                            grammar_penalty;
     };
 
     // NOTE: this function allocates memory, and it is the responsibility of the caller to free the pointer - see whisper_free_context_params & whisper_free_params()
