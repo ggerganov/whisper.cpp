@@ -3516,6 +3516,8 @@ int whisper_encode(struct whisper_context * ctx, int offset, int n_threads) {
 int whisper_decode_with_state(struct whisper_context * ctx, struct whisper_state * state, const whisper_token * tokens, int n_tokens, int n_past, int n_threads) {
     whisper_batch_prep_legacy(state->batch, tokens, n_tokens, n_past, 0);
 
+    whisper_kv_cache_seq_rm(ctx->state->kv_self, 0, n_past, -1);
+
     if (!whisper_decode_internal(*ctx, *state, state->batch, n_threads, nullptr, nullptr)) {
         WHISPER_LOG_ERROR("%s: failed to eval\n", __func__);
         return 1;
@@ -3529,6 +3531,8 @@ int whisper_decode(struct whisper_context * ctx, const whisper_token * tokens, i
         WHISPER_LOG_ERROR("%s: ERROR state was not loaded.\n", __func__);
         return false;
     }
+
+    whisper_kv_cache_seq_rm(ctx->state->kv_self, 0, n_past, -1);
 
     whisper_batch_prep_legacy(ctx->state->batch, tokens, n_tokens, n_past, 0);
 
