@@ -412,22 +412,22 @@ struct whisper_batch {
     whisper_token  *  token;
     whisper_pos    *  pos;
     int32_t        *  n_seq_id;
-    whisper_seq_id ** seq_id;
+    whisper_seq_id ** seq_id;   // null terminated
     int8_t         *  logits;
 };
 
 static struct whisper_batch whisper_batch_init(int32_t n_tokens, int32_t n_seq_max) {
     whisper_batch batch = { 0, nullptr, nullptr, nullptr, nullptr, nullptr, };
 
-    batch.token = (whisper_token *) malloc(sizeof(whisper_token) * n_tokens);
-
+    batch.token    = (whisper_token *  ) malloc(sizeof(whisper_token)    * n_tokens);
     batch.pos      = (whisper_pos *)     malloc(sizeof(whisper_pos)      * n_tokens);
-    batch.n_seq_id = (int32_t *)       malloc(sizeof(int32_t)        * n_tokens);
-    batch.seq_id   = (whisper_seq_id **) malloc(sizeof(whisper_seq_id *) * n_tokens);
+    batch.n_seq_id = (int32_t *)         malloc(sizeof(int32_t)          * n_tokens);
+    batch.seq_id   = (whisper_seq_id **) malloc(sizeof(whisper_seq_id *) * n_tokens + 1);
     for (int i = 0; i < n_tokens; ++i) {
-        batch.seq_id[i] = (whisper_seq_id *) malloc(sizeof(whisper_seq_id) * n_seq_max);
+        batch.seq_id[i] = (whisper_seq_id *) malloc(sizeof(whisper_seq_id)   * n_seq_max);
     }
-    batch.logits   = (int8_t *)        malloc(sizeof(int8_t)         * n_tokens);
+    batch.seq_id[n_tokens] = nullptr;
+    batch.logits   = (int8_t *)          malloc(sizeof(int8_t)           * n_tokens);
 
     return batch;
 }
@@ -437,7 +437,7 @@ static void whisper_batch_free(struct whisper_batch batch) {
     if (batch.pos)      free(batch.pos);
     if (batch.n_seq_id) free(batch.n_seq_id);
     if (batch.seq_id) {
-        for (int i = 0; i < batch.n_tokens; ++i) {
+        for (int i = 0; batch.seq_id[i]; ++i) {
             free(batch.seq_id[i]);
         }
         free(batch.seq_id);
