@@ -3040,8 +3040,9 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     state->backend = whisper_backend_init(ctx->params);
 
-    // TODO: determine how large the cache should be
-    const int factor = 2;
+    // at this point, we don't know yet how many decoders will be used, so we overallocate 3x ctx
+    // in theory, there can be a case where this is not enough, but in practice it should always be enough
+    const int factor = 3;
 
     if (!kv_cache_init(ctx->model.hparams, state->kv_self, ctx->backend, ctx->itype, factor*ctx->model.hparams.n_text_ctx)) {
         WHISPER_LOG_ERROR("%s: kv_cache_init() failed for self-attention cache\n", __func__);
