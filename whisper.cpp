@@ -419,10 +419,10 @@ struct whisper_batch {
 static struct whisper_batch whisper_batch_init(int32_t n_tokens, int32_t n_seq_max) {
     whisper_batch batch = { 0, nullptr, nullptr, nullptr, nullptr, nullptr, };
 
-    batch.token    = (whisper_token *  ) malloc(sizeof(whisper_token)    * n_tokens);
-    batch.pos      = (whisper_pos *)     malloc(sizeof(whisper_pos)      * n_tokens);
-    batch.n_seq_id = (int32_t *)         malloc(sizeof(int32_t)          * n_tokens);
-    batch.seq_id   = (whisper_seq_id **) malloc(sizeof(whisper_seq_id *) * n_tokens + 1);
+    batch.token    = (whisper_token *  ) malloc(sizeof(whisper_token)    * (n_tokens));
+    batch.pos      = (whisper_pos *)     malloc(sizeof(whisper_pos)      * (n_tokens));
+    batch.n_seq_id = (int32_t *)         malloc(sizeof(int32_t)          * (n_tokens));
+    batch.seq_id   = (whisper_seq_id **) malloc(sizeof(whisper_seq_id *) * (n_tokens + 1));
     for (int i = 0; i < n_tokens; ++i) {
         batch.seq_id[i] = (whisper_seq_id *) malloc(sizeof(whisper_seq_id)   * n_seq_max);
     }
@@ -933,49 +933,6 @@ static void kv_cache_free(struct whisper_kv_cache & cache) {
         ggml_backend_buffer_free(cache.buffer);
         cache.ctx = nullptr;
     }
-}
-
-// TODO: remove after batched decoding
-static bool kv_cache_reinit(struct whisper_kv_cache & cache, ggml_backend_t backend) {
-    WHISPER_ASSERT(cache.ctx);
-
-    const int n_elements = ggml_nelements(cache.k);
-    WHISPER_ASSERT(n_elements == ggml_nelements(cache.v));
-
-    const ggml_type wtype = cache.k->type;
-    WHISPER_ASSERT(wtype == cache.v->type);
-
-    struct ggml_init_params params = {
-        /*.mem_size   =*/ 2*ggml_tensor_overhead(),
-        /*.mem_buffer =*/ nullptr,
-        /*.no_alloc   =*/ true,
-    };
-
-    cache.ctx = ggml_init(params);
-
-    if (!cache.ctx) {
-        WHISPER_LOG_ERROR("%s: failed to allocate memory for kv cache\n", __func__);
-        return false;
-    }
-
-    cache.k = ggml_new_tensor_1d(cache.ctx, wtype, n_elements);
-    cache.v = ggml_new_tensor_1d(cache.ctx, wtype, n_elements);
-
-    const size_t mem_bytes = ggml_nbytes(cache.k) + ggml_nbytes(cache.v);
-
-    cache.buffer = ggml_backend_alloc_buffer(backend, mem_bytes);
-
-    // allocate the tensors into the backend buffer
-    {
-        ggml_allocr * alloc = ggml_allocr_new_from_buffer(cache.buffer);
-
-        ggml_allocr_alloc(alloc, cache.k);
-        ggml_allocr_alloc(alloc, cache.v);
-
-        ggml_allocr_free(alloc);
-    }
-
-    return true;
 }
 
 static bool whisper_kv_cache_find_slot(
