@@ -45,7 +45,7 @@ class WhisperCppTest {
         assertEquals(16384, params.n_max_text_ctx);
         assertFalse(params.translate);
         assertEquals(0.01f, params.thold_pt);
-        assertEquals(2, params.beam_search.beam_size);
+        assertEquals(5, params.beam_search.beam_size);
         assertEquals(-1.0f, params.beam_search.patience);
     }
 
@@ -58,7 +58,7 @@ class WhisperCppTest {
         assertEquals(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY.ordinal(), params.strategy);
         assertNotEquals(0, params.n_threads);
         assertEquals(16384, params.n_max_text_ctx);
-        assertEquals(2, params.greedy.best_of);
+        assertEquals(5, params.greedy.best_of);
     }
 
     @Test
