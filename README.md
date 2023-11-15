@@ -231,18 +231,18 @@ make medium.en
 make medium
 make large-v1
 make large-v2
-make large
+make large-v3
 ```
 
 ## Memory usage
 
-| Model  | Disk   | Mem     | SHA                                        |
-| ---    | ---    | ---     | ---                                        |
-| tiny   |  75 MB | ~125 MB | `bd577a113a864445d4c299885e0cb97d4ba92b5f` |
-| base   | 142 MB | ~210 MB | `465707469ff3a37a2b9b8d8f89f2f99de7299dac` |
-| small  | 466 MB | ~600 MB | `55356645c2b361a969dfd0ef2c5a50d530afd8d5` |
-| medium | 1.5 GB | ~1.7 GB | `fd9727b6e1217c2f614f9b698455c4ffd82463b4` |
-| large  | 2.9 GB | ~3.3 GB | `ad82bf6a9043ceed055076d0fd39f5f186ff8062` |
+| Model  | Disk    | Mem      |
+| ---    | ---     | ---      |
+| tiny   |  75 MiB | ~273 MB |
+| base   | 142 MiB | ~388 MB |
+| small  | 466 MiB | ~852 MB |
+| medium | 1.5 GiB | ~2.1 GB |
+| large  | 2.9 GiB | ~3.9 GB |
 
 ## Quantization
 

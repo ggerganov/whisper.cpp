@@ -1522,7 +1522,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
         model.buffer = ggml_backend_alloc_buffer(wctx.backend, size_main);
 
-        WHISPER_LOG_INFO("%s: %8s buffer size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backend), size_main / 1024.0 / 1024.0);
+        WHISPER_LOG_INFO("%s: %8s buffer size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backend), size_main / 1e6);
     }
 
     ggml_allocr * alloc = ggml_allocr_new_from_buffer(model.buffer);
@@ -1637,12 +1637,12 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                 ggml_backend_tensor_set(tensor, read_buf.data(), 0, ggml_nbytes(tensor));
             }
 
-            //printf("%48s - [%5d, %5d, %5d], type = %6s, %6.2f MB\n", name.data(), ne[0], ne[1], ne[2], ggml_type_name((ggml_type) ttype), ggml_nbytes(tensor)/1024.0/1024.0);
+            //printf("%48s - [%5d, %5d, %5d], type = %6s, %6.2f MB\n", name.data(), ne[0], ne[1], ne[2], ggml_type_name((ggml_type) ttype), ggml_nbytes(tensor)/1e6);
             total_size += ggml_nbytes(tensor);
             model.n_loaded++;
         }
 
-        WHISPER_LOG_INFO("%s: model size    = %7.2f MB\n", __func__, total_size/1024.0/1024.0);
+        WHISPER_LOG_INFO("%s: model size    = %7.2f MB\n", __func__, total_size/1e6);
 
         if (model.n_loaded == 0) {
             WHISPER_LOG_WARN("%s: WARN no tensors loaded from model file - assuming empty model for testing\n", __func__);
@@ -2027,11 +2027,11 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
     ////////////////////////////////////////////////////////////////////////////
 
     //printf("%s: used_mem = %f MB, %f MB, %f MB %f MB %f MB\n", __func__,
-    //        ggml_used_mem(ctx0)/1024.0/1024.0,
-    //        wstate.get_buf_max_mem(0)/1024.0/1024.0,
-    //        wstate.get_buf_max_mem(1)/1024.0/1024.0,
-    //        wstate.get_buf_max_mem(2)/1024.0/1024.0,
-    //        wstate.get_buf_max_mem(3)/1024.0/1024.0);
+    //        ggml_used_mem(ctx0)/1e6,
+    //        wstate.get_buf_max_mem(0)/1e6,
+    //        wstate.get_buf_max_mem(1)/1e6,
+    //        wstate.get_buf_max_mem(2)/1e6,
+    //        wstate.get_buf_max_mem(3)/1e6);
 
     ggml_free(ctx0);
 
@@ -2613,11 +2613,11 @@ static bool whisper_decode_internal(
 
     if (batch.n_tokens > 1) {
         //printf("%s: used_mem = %f MB, %f MB, %f MB %f MB %f MB\n", __func__,
-        //        ggml_used_mem(ctx0)/1024.0/1024.0,
-        //        wstate.get_buf_max_mem(0)/1024.0/1024.0,
-        //        wstate.get_buf_max_mem(1)/1024.0/1024.0,
-        //        wstate.get_buf_max_mem(2)/1024.0/1024.0,
-        //        wstate.get_buf_max_mem(3)/1024.0/1024.0);
+        //        ggml_used_mem(ctx0)/1e6,
+        //        wstate.get_buf_max_mem(0)/1e6,
+        //        wstate.get_buf_max_mem(1)/1e6,
+        //        wstate.get_buf_max_mem(2)/1e6,
+        //        wstate.get_buf_max_mem(3)/1e6);
     }
 
     if (batch.n_tokens == 1) {
@@ -3057,7 +3057,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     {
         const size_t memory_size = ggml_nbytes(state->kv_self.k) + ggml_nbytes(state->kv_self.v);
-        WHISPER_LOG_INFO("%s: kv self size  = %7.2f MB\n", __func__, memory_size / 1024.0 / 1024.0);
+        WHISPER_LOG_INFO("%s: kv self size  = %7.2f MB\n", __func__, memory_size / 1e6);
     }
 
     if (!kv_cache_init(ctx->model.hparams, state->kv_cross, ctx->backend, ctx->itype, ctx->model.hparams.n_audio_ctx)) {
@@ -3068,7 +3068,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     {
         const size_t memory_size = ggml_nbytes(state->kv_cross.k) + ggml_nbytes(state->kv_cross.v);
-        WHISPER_LOG_INFO("%s: kv cross size = %7.2f MB\n", __func__, memory_size / 1024.0 / 1024.0);
+        WHISPER_LOG_INFO("%s: kv cross size = %7.2f MB\n", __func__, memory_size / 1e6);
     }
 
 #ifdef WHISPER_USE_COREML
@@ -3110,7 +3110,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
                     return whisper_build_graph_conv(*ctx, *state, 0);
                 });
 
-        WHISPER_LOG_INFO("%s: compute buffer (conv)   = %7.2f MB\n", __func__, whisper_allocr_size(state->alloc_conv) / 1024.0 / 1024.0);
+        WHISPER_LOG_INFO("%s: compute buffer (conv)   = %7.2f MB\n", __func__, whisper_allocr_size(state->alloc_conv) / 1e6);
     }
 
     // encoder allocator
@@ -3120,7 +3120,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
                     return whisper_build_graph_encoder(*ctx, *state);
                 });
 
-        WHISPER_LOG_INFO("%s: compute buffer (encode) = %7.2f MB\n", __func__, whisper_allocr_size(state->alloc_encode) / 1024.0 / 1024.0);
+        WHISPER_LOG_INFO("%s: compute buffer (encode) = %7.2f MB\n", __func__, whisper_allocr_size(state->alloc_encode) / 1e6);
     }
 
     // cross allocator
@@ -3130,7 +3130,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
                     return whisper_build_graph_cross(*ctx, *state);
                 });
 
-        WHISPER_LOG_INFO("%s: compute buffer (cross)  = %7.2f MB\n", __func__, whisper_allocr_size(state->alloc_cross) / 1024.0 / 1024.0);
+        WHISPER_LOG_INFO("%s: compute buffer (cross)  = %7.2f MB\n", __func__, whisper_allocr_size(state->alloc_cross) / 1e6);
     }
 
     // decoder allocator
@@ -3148,7 +3148,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
                     return whisper_build_graph_decoder(*ctx, *state, state->batch);
                 });
 
-        WHISPER_LOG_INFO("%s: compute buffer (decode) = %7.2f MB\n", __func__, whisper_allocr_size(state->alloc_decode) / 1024.0 / 1024.0);
+        WHISPER_LOG_INFO("%s: compute buffer (decode) = %7.2f MB\n", __func__, whisper_allocr_size(state->alloc_decode) / 1e6);
     }
 
     whisper_allocr_graph_realloc(state->alloc_conv,   ctx->backend);
@@ -6072,8 +6072,8 @@ WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
     size_t n    = 20;
     size_t arr  = n_threads > 0 ? 1024llu : n_threads; // trick to avoid compiler optimizations
 
-    // 1GB MB array
-    const size_t size = arr*1024llu*1024llu;
+    // 1GB array
+    const size_t size = arr*1e9;
 
     // single-thread
     {
@@ -6099,7 +6099,7 @@ WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
             src[rand() % size] = rand() % 256;
         }
 
-        snprintf(strbuf, sizeof(strbuf), "memcpy: %.2f GB/s (1 thread)\n", (double) (n*size)/(tsum*1024llu*1024llu*1024llu));
+        snprintf(strbuf, sizeof(strbuf), "memcpy: %.2f GB/s (1 thread)\n", (double) (n*size)/(tsum*1e9));
         s += strbuf;
 
         // needed to prevent the compiler from optimizing the memcpy away
