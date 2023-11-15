@@ -148,7 +148,7 @@ static void whisper_log_callback_default(ggml_log_level level, const char * text
 
 //#define WHISPER_USE_FLASH_ATTN
 //#define WHISPER_USE_FLASH_FF
-#define WHISPER_MAX_DECODERS 16
+#define WHISPER_MAX_DECODERS 8
 #define WHISPER_MAX_NODES 4096
 
 //
@@ -5074,6 +5074,11 @@ int whisper_full_with_state(
     };
 
     n_decoders = std::max(1, n_decoders);
+
+    if (n_decoders > WHISPER_MAX_DECODERS) {
+        WHISPER_LOG_ERROR("%s: too many decoders requested (%d), max = %d\n", __func__, n_decoders, WHISPER_MAX_DECODERS);
+        return -4;
+    }
 
     // TAGS: WHISPER_DECODER_INIT
     for (int j = 1; j < n_decoders; j++) {
