@@ -78,7 +78,9 @@ extern "C" {
     struct whisper_state;
     struct whisper_full_params;
 
-    typedef int whisper_token;
+    typedef int32_t whisper_pos;
+    typedef int32_t whisper_token;
+    typedef int32_t whisper_seq_id;
 
     struct whisper_context_params {
         bool  use_gpu;
