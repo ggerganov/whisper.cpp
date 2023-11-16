@@ -850,8 +850,9 @@ struct whisper_context {
     int64_t t_load_us  = 0;
     int64_t t_start_us = 0;
 
-    ggml_type wtype = ggml_type::GGML_TYPE_F16; // weight type (FP32 / FP16 / QX)
-    ggml_type itype = ggml_type::GGML_TYPE_F16; // intermediate type (FP32 or FP16)
+    ggml_type wtype_e = ggml_type::GGML_TYPE_F16; // weight type (FP32 / FP16 / QX) Encoder
+    ggml_type wtype_d = ggml_type::GGML_TYPE_F16; // weight type (FP32 / FP16 / QX) Decoder
+    ggml_type itype   = ggml_type::GGML_TYPE_F16; // intermediate type (FP32 or FP16)
 
     whisper_context_params params;
 
@@ -1168,8 +1169,8 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
 
         // for the big tensors, we have the option to store the data in 16-bit floats or quantized
         // in order to save memory and also to speed up the computation
-        wctx.wtype = ggml_ftype_to_ggml_type((ggml_ftype) (model.hparams.ftype));
-        if (wctx.wtype == GGML_TYPE_COUNT) {
+        wctx.wtype_e = ggml_ftype_to_ggml_type((ggml_ftype) (model.hparams.ftype));
+        if (wctx.wtype_e == GGML_TYPE_COUNT) {
             WHISPER_LOG_ERROR("%s: invalid model (bad ftype value %d)\n", __func__, model.hparams.ftype);
             return false;
         }
@@ -1290,8 +1291,9 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         WHISPER_LOG_INFO("%s: n_langs       = %d\n", __func__, vocab.num_languages());
     }
 
-    const ggml_type wtype = wctx.wtype;
-    const ggml_type vtype = wctx.wtype == GGML_TYPE_F32 ? GGML_TYPE_F32 : GGML_TYPE_F16; // conv type
+    const ggml_type wtype_e = wctx.wtype_e;
+    const ggml_type wtype_d = wctx.wtype_d;
+    const ggml_type vtype   = wctx.wtype_e == GGML_TYPE_F32 ? GGML_TYPE_F32 : GGML_TYPE_F16; // conv type
 
     // create the ggml context
     {
@@ -1367,24 +1369,24 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                 layer.mlp_ln_w    = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_audio_state);
                 layer.mlp_ln_b    = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_audio_state);
 
-                layer.mlp_0_w     = ggml_new_tensor_2d(ctx, wtype,           n_audio_state, 4*n_audio_state);
+                layer.mlp_0_w     = ggml_new_tensor_2d(ctx, wtype_e,         n_audio_state, 4*n_audio_state);
                 layer.mlp_0_b     = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, 4*n_audio_state);
 
-                layer.mlp_1_w     = ggml_new_tensor_2d(ctx, wtype,         4*n_audio_state, n_audio_state);
+                layer.mlp_1_w     = ggml_new_tensor_2d(ctx, wtype_e,       4*n_audio_state, n_audio_state);
                 layer.mlp_1_b     = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_audio_state);
 
                 layer.attn_ln_0_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_audio_state);
                 layer.attn_ln_0_b = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_audio_state);
 
-                layer.attn_q_w    = ggml_new_tensor_2d(ctx, wtype,           n_audio_state, n_audio_state);
+                layer.attn_q_w    = ggml_new_tensor_2d(ctx, wtype_e,         n_audio_state, n_audio_state);
                 layer.attn_q_b    = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_audio_state);
 
-                layer.attn_k_w    = ggml_new_tensor_2d(ctx, wtype,           n_audio_state, n_audio_state);
+                layer.attn_k_w    = ggml_new_tensor_2d(ctx, wtype_e,         n_audio_state, n_audio_state);
 
-                layer.attn_v_w    = ggml_new_tensor_2d(ctx, wtype,           n_audio_state, n_audio_state);
+                layer.attn_v_w    = ggml_new_tensor_2d(ctx, wtype_e,         n_audio_state, n_audio_state);
                 layer.attn_v_b    = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_audio_state);
 
-                layer.attn_ln_1_w = ggml_new_tensor_2d(ctx, wtype,           n_audio_state, n_audio_state);
+                layer.attn_ln_1_w = ggml_new_tensor_2d(ctx, wtype_e,         n_audio_state, n_audio_state);
                 layer.attn_ln_1_b = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_audio_state);
 
                 // map by name
@@ -1417,7 +1419,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         {
             model.d_pe   = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, n_text_state, n_text_ctx);
 
-            model.d_te   = ggml_new_tensor_2d(ctx, wtype,         n_text_state, n_vocab);
+            model.d_te   = ggml_new_tensor_2d(ctx, wtype_d,       n_text_state, n_vocab);
 
             model.d_ln_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_text_state);
             model.d_ln_b = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_text_state);
@@ -1436,38 +1438,38 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                 layer.mlp_ln_w          = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
                 layer.mlp_ln_b          = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
 
-                layer.mlp_0_w           = ggml_new_tensor_2d(ctx, wtype,           n_text_state, 4*n_text_state);
+                layer.mlp_0_w           = ggml_new_tensor_2d(ctx, wtype_d,         n_text_state, 4*n_text_state);
                 layer.mlp_0_b           = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, 4*n_text_state);
 
-                layer.mlp_1_w           = ggml_new_tensor_2d(ctx, wtype,         4*n_text_state, n_text_state);
+                layer.mlp_1_w           = ggml_new_tensor_2d(ctx, wtype_d,       4*n_text_state, n_text_state);
                 layer.mlp_1_b           = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
 
                 layer.attn_ln_0_w       = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
                 layer.attn_ln_0_b       = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
 
-                layer.attn_q_w          = ggml_new_tensor_2d(ctx, wtype,           n_text_state, n_text_state);
+                layer.attn_q_w          = ggml_new_tensor_2d(ctx, wtype_d,         n_text_state, n_text_state);
                 layer.attn_q_b          = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
 
-                layer.attn_k_w          = ggml_new_tensor_2d(ctx, wtype,           n_text_state, n_text_state);
+                layer.attn_k_w          = ggml_new_tensor_2d(ctx, wtype_d,         n_text_state, n_text_state);
 
-                layer.attn_v_w          = ggml_new_tensor_2d(ctx, wtype,           n_text_state, n_text_state);
+                layer.attn_v_w          = ggml_new_tensor_2d(ctx, wtype_d,         n_text_state, n_text_state);
                 layer.attn_v_b          = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
 
-                layer.attn_ln_1_w       = ggml_new_tensor_2d(ctx, wtype,           n_text_state, n_text_state);
+                layer.attn_ln_1_w       = ggml_new_tensor_2d(ctx, wtype_d,         n_text_state, n_text_state);
                 layer.attn_ln_1_b       = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
 
                 layer.cross_attn_ln_0_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
                 layer.cross_attn_ln_0_b = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
 
-                layer.cross_attn_q_w    = ggml_new_tensor_2d(ctx, wtype,           n_text_state, n_text_state);
+                layer.cross_attn_q_w    = ggml_new_tensor_2d(ctx, wtype_d,         n_text_state, n_text_state);
                 layer.cross_attn_q_b    = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
 
-                layer.cross_attn_k_w    = ggml_new_tensor_2d(ctx, wtype,           n_text_state, n_text_state);
+                layer.cross_attn_k_w    = ggml_new_tensor_2d(ctx, wtype_d,         n_text_state, n_text_state);
 
-                layer.cross_attn_v_w    = ggml_new_tensor_2d(ctx, wtype,           n_text_state, n_text_state);
+                layer.cross_attn_v_w    = ggml_new_tensor_2d(ctx, wtype_d,         n_text_state, n_text_state);
                 layer.cross_attn_v_b    = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
 
-                layer.cross_attn_ln_1_w = ggml_new_tensor_2d(ctx, wtype,           n_text_state, n_text_state);
+                layer.cross_attn_ln_1_w = ggml_new_tensor_2d(ctx, wtype_d,         n_text_state, n_text_state);
                 layer.cross_attn_ln_1_b = ggml_new_tensor_1d(ctx, GGML_TYPE_F32,   n_text_state);
 
                 // map by name
