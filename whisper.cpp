@@ -6073,7 +6073,7 @@ WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
     size_t arr  = n_threads > 0 ? 1024llu : n_threads; // trick to avoid compiler optimizations
 
     // 1GB array
-    const size_t size = arr*1e9;
+    const size_t size = arr*1e6;
 
     // single-thread
     {
