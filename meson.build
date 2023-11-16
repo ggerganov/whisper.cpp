@@ -1,4 +1,4 @@
-project('whisper.cpp', ['cpp', 'c'], version: '1.4.3')
+project('whisper.cpp', ['cpp', 'c'], version: '1.5.0')
 
 cc = meson.get_compiler('c')
 
