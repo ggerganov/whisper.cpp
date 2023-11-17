@@ -58,6 +58,9 @@ public class WhisperFullParams extends Structure {
         no_context = enable ? CBool.FALSE : CBool.TRUE;
     }
 
+    /** Generate timestamps or not? */
+    public CBool no_timestamps;
+
     /** Flag to force single segment output (useful for streaming). (default = false) */
     public CBool single_segment;
 
@@ -304,10 +307,16 @@ public class WhisperFullParams extends Structure {
         logits_filter_callback = CallbackReference.getFunctionPointer(callback);
     }
 
+    /** Grammar stuff */
+    public Pointer grammar_rules;
+    public long n_grammar_rules;
+    public long i_start_rule;
+    public float grammar_penalty;
+
     @Override
     protected List<String> getFieldOrder() {
         return Arrays.asList("strategy", "n_threads", "n_max_text_ctx", "offset_ms", "duration_ms", "translate",
-                "no_context", "single_segment",
+                "no_context", "single_segment", "no_timestamps",
                 "print_special", "print_progress", "print_realtime", "print_timestamps",  "token_timestamps",
                 "thold_pt", "thold_ptsum", "max_len", "split_on_word", "max_tokens", "speed_up", "audio_ctx",
                 "tdrz_enable", "initial_prompt", "prompt_tokens", "prompt_n_tokens", "language", "detect_language",
@@ -316,6 +325,7 @@ public class WhisperFullParams extends Structure {
                 "new_segment_callback", "new_segment_callback_user_data",
                 "progress_callback", "progress_callback_user_data",
                 "encoder_begin_callback", "encoder_begin_callback_user_data",
-                "logits_filter_callback", "logits_filter_callback_user_data");
+                "logits_filter_callback", "logits_filter_callback_user_data",
+                "grammar_rules", "n_grammar_rules", "i_start_rule", "grammar_penalty");
     }
 }

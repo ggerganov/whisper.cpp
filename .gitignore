@@ -8,6 +8,7 @@
 .DS_Store
 
 build/
+build-coreml/
 build-em/
 build-debug/
 build-release/
@@ -53,3 +54,7 @@ bindings/java/.idea/
 .idea/
 
 benchmark_results.csv
+cmake-build-debug/
+.cxx/
+.gradle/
+local.properties

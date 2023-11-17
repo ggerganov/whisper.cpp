@@ -121,13 +121,13 @@ bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & 
             return false;
         }
 
-        std::string word;
+        char word[129];
+
         for (int i = 0; i < n_vocab; i++) {
             uint32_t len;
             fin.read((char *) &len, sizeof(len));
-
-            word.resize(len);
-            fin.read((char *) word.data(), len);
+            word[len] = '\0';
+            fin.read((char *) word, len);
 
             vocab.token_to_id[word] = i;
             vocab.id_to_token[i] = word;
