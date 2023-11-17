@@ -16,10 +16,6 @@
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
 
-#ifndef SERVER_VERBOSE
-#define SERVER_VERBOSE 1
-#endif
-
 using namespace httplib;
 using json = nlohmann::json;
 
@@ -58,16 +54,6 @@ std::string to_timestamp(int64_t t, bool comma = false) {
 
 int timestamp_to_sample(int64_t t, int n_samples) {
     return std::max(0, std::min((int) n_samples - 1, (int) ((t*WHISPER_SAMPLE_RATE)/100)));
-}
-
-// helper function to replace substrings
-void replace_all(std::string & s, const std::string & search, const std::string & replace) {
-    for (size_t pos = 0; ; pos += replace.length()) {
-        pos = s.find(search, pos);
-        if (pos == std::string::npos) break;
-        s.erase(pos, search.length());
-        s.insert(pos, replace);
-    }
 }
 
 // command-line parameters
@@ -112,56 +98,8 @@ struct whisper_params {
     std::string openvino_encode_device = "CPU";
 };
 
-void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
-
-bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
-    for (int i = 1; i < argc; i++) {
-        std::string arg = argv[i];
-
-        if (arg == "-h" || arg == "--help") {
-            whisper_print_usage(argc, argv, params);
-            exit(0);
-        }
-        else if (arg == "-t"    || arg == "--threads")         { params.n_threads       = std::stoi(argv[++i]); }
-        else if (arg == "-p"    || arg == "--processors")      { params.n_processors    = std::stoi(argv[++i]); }
-        else if (arg == "-ot"   || arg == "--offset-t")        { params.offset_t_ms     = std::stoi(argv[++i]); }
-        else if (arg == "-on"   || arg == "--offset-n")        { params.offset_n        = std::stoi(argv[++i]); }
-        else if (arg == "-d"    || arg == "--duration")        { params.duration_ms     = std::stoi(argv[++i]); }
-        else if (arg == "-mc"   || arg == "--max-context")     { params.max_context     = std::stoi(argv[++i]); }
-        else if (arg == "-ml"   || arg == "--max-len")         { params.max_len         = std::stoi(argv[++i]); }
-        else if (arg == "-bo"   || arg == "--best-of")         { params.best_of         = std::stoi(argv[++i]); }
-        else if (arg == "-bs"   || arg == "--beam-size")       { params.beam_size       = std::stoi(argv[++i]); }
-        else if (arg == "-wt"   || arg == "--word-thold")      { params.word_thold      = std::stof(argv[++i]); }
-        else if (arg == "-et"   || arg == "--entropy-thold")   { params.entropy_thold   = std::stof(argv[++i]); }
-        else if (arg == "-lpt"  || arg == "--logprob-thold")   { params.logprob_thold   = std::stof(argv[++i]); }
-        // else if (arg == "-su"   || arg == "--speed-up")        { params.speed_up        = true; }
-        else if (arg == "-debug"|| arg == "--debug-mode")      { params.debug_mode      = true; }
-        else if (arg == "-tr"   || arg == "--translate")       { params.translate       = true; }
-        else if (arg == "-di"   || arg == "--diarize")         { params.diarize         = true; }
-        else if (arg == "-tdrz" || arg == "--tinydiarize")     { params.tinydiarize     = true; }
-        else if (arg == "-sow"  || arg == "--split-on-word")   { params.split_on_word   = true; }
-        else if (arg == "-nf"   || arg == "--no-fallback")     { params.no_fallback     = true; }
-        else if (arg == "-fp"   || arg == "--font-path")       { params.font_path       = argv[++i]; }
-        else if (arg == "-ps"   || arg == "--print-special")   { params.print_special   = true; }
-        else if (arg == "-pc"   || arg == "--print-colors")    { params.print_colors    = true; }
-        else if (arg == "-pp"   || arg == "--print-progress")  { params.print_progress  = true; }
-        else if (arg == "-nt"   || arg == "--no-timestamps")   { params.no_timestamps   = true; }
-        else if (arg == "-l"    || arg == "--language")        { params.language        = argv[++i]; }
-        else if (arg == "-dl"   || arg == "--detect-language") { params.detect_language = true; }
-        else if (                  arg == "--prompt")          { params.prompt          = argv[++i]; }
-        else if (arg == "-m"    || arg == "--model")           { params.model           = argv[++i]; }
-        else if (arg == "-oved" || arg == "--ov-e-device")     { params.openvino_encode_device = argv[++i]; }
-        else {
-            fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
-            whisper_print_usage(argc, argv, params);
-            exit(0);
-        }
-    }
-
-    return true;
-}
-
-void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params) {
+void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params,
+                         const server_params& sparams) {
     fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options] \n", argv[0]);
     fprintf(stderr, "\n");
@@ -195,7 +133,61 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "             --prompt PROMPT     [%-7s] initial prompt\n",                                 params.prompt.c_str());
     fprintf(stderr, "  -m FNAME,  --model FNAME       [%-7s] model path\n",                                     params.model.c_str());
     fprintf(stderr, "  -oved D,   --ov-e-device DNAME [%-7s] the OpenVINO device used for encode inference\n",  params.openvino_encode_device.c_str());
+    // server params
+    fprintf(stderr, "  --host HOST,                   [%-7s] Hostname/ip-adress for the server\n", sparams.hostname.c_str());
+    fprintf(stderr, "  --port PORT,                   [%-7d] Port number for the server\n", sparams.port);
     fprintf(stderr, "\n");
+}
+
+bool whisper_params_parse(int argc, char ** argv, whisper_params & params, server_params & sparams) {
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+
+        if (arg == "-h" || arg == "--help") {
+            whisper_print_usage(argc, argv, params, sparams);
+            exit(0);
+        }
+        else if (arg == "-t"    || arg == "--threads")         { params.n_threads       = std::stoi(argv[++i]); }
+        else if (arg == "-p"    || arg == "--processors")      { params.n_processors    = std::stoi(argv[++i]); }
+        else if (arg == "-ot"   || arg == "--offset-t")        { params.offset_t_ms     = std::stoi(argv[++i]); }
+        else if (arg == "-on"   || arg == "--offset-n")        { params.offset_n        = std::stoi(argv[++i]); }
+        else if (arg == "-d"    || arg == "--duration")        { params.duration_ms     = std::stoi(argv[++i]); }
+        else if (arg == "-mc"   || arg == "--max-context")     { params.max_context     = std::stoi(argv[++i]); }
+        else if (arg == "-ml"   || arg == "--max-len")         { params.max_len         = std::stoi(argv[++i]); }
+        else if (arg == "-bo"   || arg == "--best-of")         { params.best_of         = std::stoi(argv[++i]); }
+        else if (arg == "-bs"   || arg == "--beam-size")       { params.beam_size       = std::stoi(argv[++i]); }
+        else if (arg == "-wt"   || arg == "--word-thold")      { params.word_thold      = std::stof(argv[++i]); }
+        else if (arg == "-et"   || arg == "--entropy-thold")   { params.entropy_thold   = std::stof(argv[++i]); }
+        else if (arg == "-lpt"  || arg == "--logprob-thold")   { params.logprob_thold   = std::stof(argv[++i]); }
+        // else if (arg == "-su"   || arg == "--speed-up")        { params.speed_up        = true; }
+        else if (arg == "-debug"|| arg == "--debug-mode")      { params.debug_mode      = true; }
+        else if (arg == "-tr"   || arg == "--translate")       { params.translate       = true; }
+        else if (arg == "-di"   || arg == "--diarize")         { params.diarize         = true; }
+        else if (arg == "-tdrz" || arg == "--tinydiarize")     { params.tinydiarize     = true; }
+        else if (arg == "-sow"  || arg == "--split-on-word")   { params.split_on_word   = true; }
+        else if (arg == "-nf"   || arg == "--no-fallback")     { params.no_fallback     = true; }
+        else if (arg == "-fp"   || arg == "--font-path")       { params.font_path       = argv[++i]; }
+        else if (arg == "-ps"   || arg == "--print-special")   { params.print_special   = true; }
+        else if (arg == "-pc"   || arg == "--print-colors")    { params.print_colors    = true; }
+        else if (arg == "-pp"   || arg == "--print-progress")  { params.print_progress  = true; }
+        else if (arg == "-nt"   || arg == "--no-timestamps")   { params.no_timestamps   = true; }
+        else if (arg == "-l"    || arg == "--language")        { params.language        = argv[++i]; }
+        else if (arg == "-dl"   || arg == "--detect-language") { params.detect_language = true; }
+        else if (                  arg == "--prompt")          { params.prompt          = argv[++i]; }
+        else if (arg == "-m"    || arg == "--model")           { params.model           = argv[++i]; }
+        else if (arg == "-oved" || arg == "--ov-e-device")     { params.openvino_encode_device = argv[++i]; }
+        // server params
+        else if (                  arg == "--port")            { sparams.port = std::stoi(argv[++i]); }
+        else if (                  arg == "--host")            { sparams.hostname = argv[++i]; }
+        else if (arg == "-ad" || arg == "--port")     { params.openvino_encode_device = argv[++i]; }
+        else {
+            fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
+            whisper_print_usage(argc, argv, params, sparams);
+            exit(0);
+        }
+    }
+
+    return true;
 }
 
 struct whisper_print_user_data {
@@ -367,23 +359,24 @@ char *escape_double_quotes_and_backslashes(const char *str) {
 
 int main(int argc, char ** argv) {
     whisper_params params;
+    server_params sparams;
 
     std::mutex whisper_mutex;
 
-    if (whisper_params_parse(argc, argv, params) == false) {
-        whisper_print_usage(argc, argv, params);
+    if (whisper_params_parse(argc, argv, params, sparams) == false) {
+        whisper_print_usage(argc, argv, params, sparams);
         return 1;
     }
 
     if (params.language != "auto" && whisper_lang_id(params.language.c_str()) == -1) {
         fprintf(stderr, "error: unknown language '%s'\n", params.language.c_str());
-        whisper_print_usage(argc, argv, params);
+        whisper_print_usage(argc, argv, params, sparams);
         exit(0);
     }
 
     if (params.diarize && params.tinydiarize) {
         fprintf(stderr, "error: cannot use both --diarize and --tinydiarize\n");
-        whisper_print_usage(argc, argv, params);
+        whisper_print_usage(argc, argv, params, sparams);
         exit(0);
     }
 
@@ -400,7 +393,7 @@ int main(int argc, char ** argv) {
 
     Server svr;
 
-    std::string default_content = "<html>hello</html>";
+    std::string const default_content = "<html>hello</html>";
 
     // this is only called if no index.html is found in the public --path
     svr.Get("/", [&default_content](const Request &, Response &res){
@@ -408,14 +401,33 @@ int main(int argc, char ** argv) {
         return false;
     });
 
-    svr.Post("/whisper", [&](const Request &req, Response &res){
+    svr.Post("/inference", [&](const Request &req, Response &res){
 
         // aquire whisper model mutex lock
         whisper_mutex.lock();
 
         // user audio file
-
         auto audio_file = req.get_file_value("audio_file");
+
+        // user model configuration
+        if (req.has_param("offset-t"))
+        {
+            params.offset_t_ms = std::stoi(req.get_param_value("offset-t"));
+        }
+        if (req.has_param("offset-n"))
+        {
+            params.offset_n = std::stoi(req.get_param_value("offset-n"));
+        }
+        if (req.has_param("duration"))
+        {
+            params.duration_ms = std::stoi(req.get_param_value("duration"));
+        }
+        if (req.has_param("max-context"))
+        {
+            params.max_context = std::stoi(req.get_param_value("max-context"));
+        }
+        // TODO add all
+
         std::string filename{audio_file.filename};
         printf("Received request: %s\n", filename.c_str());
 
@@ -434,6 +446,7 @@ int main(int argc, char ** argv) {
             whisper_mutex.unlock();
             return;
         }
+        // remove temp file
         std::remove(filename.c_str());
 
         printf("Successfully loaded %s\n", filename.c_str());
@@ -569,26 +582,21 @@ int main(int argc, char ** argv) {
     });
 
     // set timeouts and change hostname and port
-    int read_timeout = 600;
-    int write_timeout = 600;
-    std::string hostname = "localhost";
-    std::string public_path = "examples/server/public";
-    int port = 8080;
+    svr.set_read_timeout(sparams.read_timeout);
+    svr.set_write_timeout(sparams.write_timeout);
 
-    svr.set_read_timeout(read_timeout);
-    svr.set_write_timeout(write_timeout);
-
-    if (!svr.bind_to_port(hostname, port))
+    if (!svr.bind_to_port(sparams.hostname, sparams.port))
     {
-        fprintf(stderr, "\ncouldn't bind to server socket: hostname=%s port=%d\n\n", hostname.c_str(), port);
+        fprintf(stderr, "\ncouldn't bind to server socket: hostname=%s port=%d\n\n",
+                sparams.hostname.c_str(), sparams.port);
         return 1;
     }
 
     // Set the base directory for serving static files
-    svr.set_base_dir(public_path);
+    svr.set_base_dir(sparams.public_path);
 
     // to make it ctrl+clickable:
-    printf("\nllama server listening at http://%s:%d\n\n", hostname.c_str(), port);
+    printf("\nllama server listening at http://%s:%d\n\n", sparams.hostname.c_str(), sparams.port);
 
     if (!svr.listen_after_bind())
     {
