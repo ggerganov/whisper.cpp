@@ -343,35 +343,6 @@ std::string output_str(struct whisper_context * ctx, const whisper_params & para
     return result.str();
 }
 
-char *escape_double_quotes_and_backslashes(const char *str) {
-    if (str == NULL) {
-        return NULL;
-    }
-
-    size_t escaped_length = strlen(str) + 1;
-
-    for (size_t i = 0; str[i] != '\0'; i++) {
-        if (str[i] == '"' || str[i] == '\\') {
-            escaped_length++;
-        }
-    }
-
-    char *escaped = (char *)calloc(escaped_length, 1); // pre-zeroed
-    if (escaped == NULL) {
-        return NULL;
-    }
-
-    size_t pos = 0;
-    for (size_t i = 0; str[i] != '\0'; i++) {
-        if (str[i] == '"' || str[i] == '\\') {
-            escaped[pos++] = '\\';
-        }
-        escaped[pos++] = str[i];
-    }
-    // no need to set zero due to calloc() being used prior
-    return escaped;
-}
-
 void getReqParameters(const Request& req, whisper_params& params)
 {
     // user model configu.has_fileion
