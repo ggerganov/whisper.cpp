@@ -19,6 +19,22 @@
 using namespace httplib;
 using json = nlohmann::json;
 
+namespace {
+
+// Terminal color map. 10 colors grouped in ranges [0.0, 0.1, ..., 0.9]
+// Lowest is red, middle is yellow, highest is green.
+const std::vector<std::string> k_colors = {
+    "\033[38;5;196m", "\033[38;5;202m", "\033[38;5;208m", "\033[38;5;214m", "\033[38;5;220m",
+    "\033[38;5;226m", "\033[38;5;190m", "\033[38;5;154m", "\033[38;5;118m", "\033[38;5;82m",
+};
+
+// output formats
+const std::string json_format   = "json";
+const std::string text_format   = "text";
+const std::string srt_format    = "srt";
+const std::string vjson_format  = "verbose_json";
+const std::string vtt_format    = "vtt";
+
 struct server_params
 {
     std::string hostname = "127.0.0.1";
@@ -28,11 +44,48 @@ struct server_params
     int32_t write_timeout = 600;
 };
 
-// Terminal color map. 10 colors grouped in ranges [0.0, 0.1, ..., 0.9]
-// Lowest is red, middle is yellow, highest is green.
-const std::vector<std::string> k_colors = {
-    "\033[38;5;196m", "\033[38;5;202m", "\033[38;5;208m", "\033[38;5;214m", "\033[38;5;220m",
-    "\033[38;5;226m", "\033[38;5;190m", "\033[38;5;154m", "\033[38;5;118m", "\033[38;5;82m",
+struct whisper_params {
+    int32_t n_threads    = std::min(4, (int32_t) std::thread::hardware_concurrency());
+    int32_t n_processors =  1;
+    int32_t offset_t_ms  =  0;
+    int32_t offset_n     =  0;
+    int32_t duration_ms  =  0;
+    int32_t progress_step =  5;
+    int32_t max_context  = -1;
+    int32_t max_len      =  0;
+    int32_t best_of      =  2;
+    int32_t beam_size    = -1;
+
+    float word_thold    =  0.01f;
+    float entropy_thold =  2.40f;
+    float logprob_thold = -1.00f;
+    float userdef_temp  =  0.20f;
+
+    bool speed_up        = false;
+    bool debug_mode      = false;
+    bool translate       = false;
+    bool detect_language = false;
+    bool diarize         = false;
+    bool tinydiarize     = false;
+    bool split_on_word   = false;
+    bool no_fallback     = false;
+    bool print_special   = false;
+    bool print_colors    = false;
+    bool print_progress  = false;
+    bool no_timestamps   = false;
+    bool log_score       = false;
+
+    std::string language        = "en";
+    std::string prompt          = "";
+    std::string font_path       = "/System/Library/Fonts/Supplemental/Courier New Bold.ttf";
+    std::string model           = "models/ggml-base.en.bin";
+
+    std::string response_format     = json_format;
+
+    // [TDRZ] speaker turn string
+    std::string tdrz_speaker_turn = " [SPEAKER_TURN]"; // TODO: set from command line
+
+    std::string openvino_encode_device = "CPU";
 };
 
 //  500 -> 00:05.000
@@ -56,47 +109,11 @@ int timestamp_to_sample(int64_t t, int n_samples) {
     return std::max(0, std::min((int) n_samples - 1, (int) ((t*WHISPER_SAMPLE_RATE)/100)));
 }
 
-// command-line parameters
-struct whisper_params {
-    int32_t n_threads    = std::min(4, (int32_t) std::thread::hardware_concurrency());
-    int32_t n_processors =  1;
-    int32_t offset_t_ms  =  0;
-    int32_t offset_n     =  0;
-    int32_t duration_ms  =  0;
-    int32_t progress_step =  5;
-    int32_t max_context  = -1;
-    int32_t max_len      =  0;
-    int32_t best_of      =  2;
-    int32_t beam_size    = -1;
-
-    float word_thold    =  0.01f;
-    float entropy_thold =  2.40f;
-    float logprob_thold = -1.00f;
-
-    bool speed_up        = false;
-    bool debug_mode      = false;
-    bool translate       = false;
-    bool detect_language = false;
-    bool diarize         = false;
-    bool tinydiarize     = false;
-    bool split_on_word   = false;
-    bool no_fallback     = false;
-    bool print_special   = false;
-    bool print_colors    = false;
-    bool print_progress  = false;
-    bool no_timestamps   = false;
-    bool log_score       = false;
-
-    std::string language  = "en";
-    std::string prompt;
-    std::string font_path = "/System/Library/Fonts/Supplemental/Courier New Bold.ttf";
-    std::string model     = "models/ggml-base.en.bin";
-
-    // [TDRZ] speaker turn string
-    std::string tdrz_speaker_turn = " [SPEAKER_TURN]"; // TODO: set from command line
-
-    std::string openvino_encode_device = "CPU";
-};
+bool is_file_exist(const char *fileName)
+{
+    std::ifstream infile(fileName);
+    return infile.good();
+}
 
 void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params,
                          const server_params& sparams) {
@@ -229,6 +246,7 @@ std::string estimate_diarization_speaker(std::vector<std::vector<float>> pcmf32s
 
     return speaker;
 }
+
 void whisper_print_progress_callback(struct whisper_context * /*ctx*/, struct whisper_state * /*state*/, int progress, void * user_data) {
     int progress_step = ((whisper_print_user_data *) user_data)->params->progress_step;
     int * progress_prev  = &(((whisper_print_user_data *) user_data)->progress_prev);
@@ -302,7 +320,6 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
         if (!params.no_timestamps || params.diarize) {
             printf("\n");
         }
-
         fflush(stdout);
     }
 }
@@ -351,11 +368,44 @@ char *escape_double_quotes_and_backslashes(const char *str) {
         }
         escaped[pos++] = str[i];
     }
-
     // no need to set zero due to calloc() being used prior
-
     return escaped;
 }
+
+void getReqParameters(const Request& req, whisper_params& params)
+{
+    // user model configu.has_fileion
+    if (req.has_file("offset-t"))
+    {
+        params.offset_t_ms = std::stoi(req.get_file_value("offset-t").content);
+    }
+    if (req.has_file("offset-n"))
+    {
+        params.offset_n = std::stoi(req.get_file_value("offset-n").content);
+    }
+    if (req.has_file("duration"))
+    {
+        params.duration_ms = std::stoi(req.get_file_value("duration").content);
+    }
+    if (req.has_file("max-context"))
+    {
+        params.max_context = std::stoi(req.get_file_value("max-context").content);
+    }
+    if (req.has_file("prompt"))
+    {
+        params.prompt = req.get_file_value("prompt").content;
+    }
+    if (req.has_file("response-format"))
+    {
+        params.response_format = req.get_file_value("response-format").content;
+    }
+    if (req.has_file("temerature"))
+    {
+        params.userdef_temp = std::stof(req.get_file_value("temperature").content);
+    }
+}
+
+}  // namespace
 
 int main(int argc, char ** argv) {
     whisper_params params;
@@ -397,36 +447,27 @@ int main(int argc, char ** argv) {
 
     // this is only called if no index.html is found in the public --path
     svr.Get("/", [&default_content](const Request &, Response &res){
-        res.set_content(default_content.c_str(), default_content.size(), "text/html");
+        res.set_content(default_content, "text/html");
         return false;
     });
 
     svr.Post("/inference", [&](const Request &req, Response &res){
-
         // aquire whisper model mutex lock
         whisper_mutex.lock();
 
-        // user audio file
-        auto audio_file = req.get_file_value("audio_file");
+        // first check user requested fields of the request
+        if (!req.has_file("file"))
+        {
+            fprintf(stderr, "error: no 'file' field in the request\n");
+            const std::string error_resp = "{\"error\":\"no 'file' field in the request\"}";
+            res.set_content(error_resp, "application/json");
+            whisper_mutex.unlock();
+            return;
+        }
+        auto audio_file = req.get_file_value("file");
 
-        // user model configuration
-        if (req.has_param("offset-t"))
-        {
-            params.offset_t_ms = std::stoi(req.get_param_value("offset-t"));
-        }
-        if (req.has_param("offset-n"))
-        {
-            params.offset_n = std::stoi(req.get_param_value("offset-n"));
-        }
-        if (req.has_param("duration"))
-        {
-            params.duration_ms = std::stoi(req.get_param_value("duration"));
-        }
-        if (req.has_param("max-context"))
-        {
-            params.max_context = std::stoi(req.get_param_value("max-context"));
-        }
-        // TODO add all
+        // check non-required fields
+        getReqParameters(req, params);
 
         std::string filename{audio_file.filename};
         printf("Received request: %s\n", filename.c_str());
@@ -442,7 +483,8 @@ int main(int argc, char ** argv) {
         // read wav content into pcmf32
         if (!::read_wav(filename, pcmf32, pcmf32s, params.diarize)) {
             fprintf(stderr, "error: failed to read WAV file '%s'\n", filename.c_str());
-            res.set_content(default_content.c_str(), default_content.size(), "text/html");
+            const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
+            res.set_content(error_resp, "application/json");
             whisper_mutex.unlock();
             return;
         }
@@ -515,7 +557,7 @@ int main(int argc, char ** argv) {
             wparams.greedy.best_of        = params.best_of;
             wparams.beam_search.beam_size = params.beam_size;
 
-            wparams.temperature_inc  = params.no_fallback ? 0.0f : wparams.temperature_inc;
+            wparams.temperature_inc  = params.userdef_temp;
             wparams.entropy_thold    = params.entropy_thold;
             wparams.logprob_thold    = params.logprob_thold;
 
@@ -541,7 +583,6 @@ int main(int argc, char ** argv) {
 
                 wparams.encoder_begin_callback = [](struct whisper_context * /*ctx*/, struct whisper_state * /*state*/, void * user_data) {
                     bool is_aborted = *(bool*)user_data;
-
                     return !is_aborted;
                 };
                 wparams.encoder_begin_callback_user_data = &is_aborted;
@@ -560,24 +601,72 @@ int main(int argc, char ** argv) {
 
             if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), params.n_processors) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
-                res.set_content(default_content.c_str(), default_content.size(), "text/html");
+                const std::string error_resp = "{\"error\":\"failed to process audio\"}";
+                res.set_content(error_resp, "application/json");
                 whisper_mutex.unlock();
                 return;
             }
         }
 
         // return results to user
-        json jres;
+        if (params.response_format == text_format)
         {
             std::string results = output_str(ctx, params, pcmf32s);
-            jres = json{
-                {"content", results}
-            };
+            res.set_content(results.c_str(), "text/html");
         }
-        res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
-                        "application/json");
+        // TODO add more output formats
+        else
+        {
+            std::string results = output_str(ctx, params, pcmf32s);
+            json jres = json{
+                {"text", results}
+            };
+            res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
+                            "application/json");
+        }
 
         // return whisper model mutex lock
+        whisper_mutex.unlock();
+    });
+    svr.Post("/load", [&](const Request &req, Response &res){
+        whisper_mutex.lock();
+        if (!req.has_file("model"))
+        {
+            fprintf(stderr, "error: no 'model' field in the request\n");
+            const std::string error_resp = "{\"error\":\"no 'model' field in the request\"}";
+            res.set_content(error_resp, "application/json");
+            whisper_mutex.unlock();
+            return;
+        }
+        std::string model = req.get_file_value("model").content;
+        if (!is_file_exist(model.c_str()))
+        {
+            fprintf(stderr, "error: 'model': %s not found!\n", model.c_str());
+            const std::string error_resp = "{\"error\":\"model not found!\"}";
+            res.set_content(error_resp, "application/json");
+            whisper_mutex.unlock();
+            return;
+        }
+
+        // clean up
+        whisper_free(ctx);
+
+        // whisper init
+        ctx = whisper_init_from_file(model.c_str());
+
+        // TODO perhaps load prior model here instead of exit
+        if (ctx == nullptr) {
+            fprintf(stderr, "error: model init  failed, no model loaded must exit\n");
+            exit(1);
+        }
+
+        // initialize openvino encoder. this has no effect on whisper.cpp builds that don't have OpenVINO configured
+        whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
+
+        const std::string success = "Load was successful!";
+        res.set_content(success, "application/text");
+
+        // check if the model is in the file system
         whisper_mutex.unlock();
     });
 
@@ -596,7 +685,7 @@ int main(int argc, char ** argv) {
     svr.set_base_dir(sparams.public_path);
 
     // to make it ctrl+clickable:
-    printf("\nllama server listening at http://%s:%d\n\n", sparams.hostname.c_str(), sparams.port);
+    printf("\nwhisper server listening at http://%s:%d\n\n", sparams.hostname.c_str(), sparams.port);
 
     if (!svr.listen_after_bind())
     {
