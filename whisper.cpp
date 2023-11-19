@@ -3525,7 +3525,7 @@ int whisper_encode(struct whisper_context * ctx, int offset, int n_threads) {
 int whisper_decode_with_state(struct whisper_context * ctx, struct whisper_state * state, const whisper_token * tokens, int n_tokens, int n_past, int n_threads) {
     whisper_batch_prep_legacy(state->batch, tokens, n_tokens, n_past, 0);
 
-    whisper_kv_cache_seq_rm(ctx->state->kv_self, 0, n_past, -1);
+    whisper_kv_cache_seq_rm(state->kv_self, 0, n_past, -1);
 
     if (!whisper_decode_internal(*ctx, *state, state->batch, n_threads, nullptr, nullptr)) {
         WHISPER_LOG_ERROR("%s: failed to eval\n", __func__);
@@ -5186,7 +5186,7 @@ int whisper_full_with_state(
             const int progress_cur = (100*(seek - seek_start))/(seek_end - seek_start);
 
             params.progress_callback(
-                ctx, ctx->state, progress_cur, params.progress_callback_user_data);
+                ctx, state, progress_cur, params.progress_callback_user_data);
         }
 
         // of only 1 second left, then stop
