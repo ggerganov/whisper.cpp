@@ -641,6 +641,29 @@ int main(int argc, char ** argv) {
         whisper_mutex.unlock();
     });
 
+    svr.set_exception_handler([](const Request &, Response &res, std::exception_ptr ep) {
+        const char fmt[] = "500 Internal Server Error\n%s";
+        char buf[BUFSIZ];
+        try {
+            std::rethrow_exception(std::move(ep));
+        } catch (std::exception &e) {
+            snprintf(buf, sizeof(buf), fmt, e.what());
+        } catch (...) {
+            snprintf(buf, sizeof(buf), fmt, "Unknown Exception");
+        }
+        res.set_content(buf, "text/plain");
+        res.status = 500;
+    });
+
+    svr.set_error_handler([](const Request &, Response &res) {
+        if (res.status == 400) {
+            res.set_content("Invalid request", "text/plain");
+        } else if (res.status != 500) {
+            res.set_content("File Not Found", "text/plain");
+            res.status = 404;
+        }
+    });
+
     // set timeouts and change hostname and port
     svr.set_read_timeout(sparams.read_timeout);
     svr.set_write_timeout(sparams.write_timeout);
