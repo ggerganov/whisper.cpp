@@ -2,9 +2,8 @@
 
 This is a guide on Python bindings for whisper.cpp. It has been tested on:
 
-  * Darwin (OS X) 12.6 on x64_64
-  * Debian Linux on arm64
-  * Ubuntu x86_64
+  * Darwin (OS X) 14.0 on arm64 - not working, library won't load!
+  * Ubuntu x86_64 - works, also with CUDA acceleration and the distil model!
 
 
 ## Usage
