@@ -3538,19 +3538,10 @@ int whisper_decode_with_state(struct whisper_context * ctx, struct whisper_state
 int whisper_decode(struct whisper_context * ctx, const whisper_token * tokens, int n_tokens, int n_past, int n_threads) {
     if (ctx->state == nullptr) {
         WHISPER_LOG_ERROR("%s: ERROR state was not loaded.\n", __func__);
-        return false;
+        return -1;
     }
 
-    whisper_kv_cache_seq_rm(ctx->state->kv_self, 0, n_past, -1);
-
-    whisper_batch_prep_legacy(ctx->state->batch, tokens, n_tokens, n_past, 0);
-
-    if (!whisper_decode_internal(*ctx, *ctx->state, ctx->state->batch, n_threads, nullptr, nullptr)) {
-        WHISPER_LOG_ERROR("%s: failed to eval\n", __func__);
-        return 1;
-    }
-
-    return 0;
+    return whisper_decode_with_state(ctx, ctx->state, tokens, n_tokens, n_past, n_threads);
 }
 
 int whisper_tokenize(struct whisper_context * ctx, const char * text, whisper_token * tokens, int n_max_tokens) {
