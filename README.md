@@ -751,9 +751,7 @@ in [models](models).
 - [X] .NET: | [#422](https://github.com/ggerganov/whisper.cpp/discussions/422)
   - [sandrohanea/whisper.net](https://github.com/sandrohanea/whisper.net)
   - [NickDarvey/whisper](https://github.com/NickDarvey/whisper)
-- [X] Python: | [#9](https://github.com/ggerganov/whisper.cpp/issues/9)
-  - [stlukey/whispercpp.py](https://github.com/stlukey/whispercpp.py) (Cython)
-  - [aarnphm/whispercpp](https://github.com/aarnphm/whispercpp) (Pybind11)
+- [X] Python: [bindings/python](bindings/python) | [#9](https://github.com/ggerganov/whisper.cpp/issues/9)
 - [X] R: [bnosac/audio.whisper](https://github.com/bnosac/audio.whisper)
 - [X] Unity: [macoron/whisper.unity](https://github.com/Macoron/whisper.unity)
 
