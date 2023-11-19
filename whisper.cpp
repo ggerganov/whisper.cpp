@@ -1732,22 +1732,20 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         // convolution + gelu
         {
             cur = ggml_conv_1d_ph(ctx0, model.e_conv_1_w, mel, 1, 1);
-            cur = ggml_add(ctx0, cur, model.e_conv_1_b);
-            //cur = ggml_add(ctx0,
-            //        ggml_repeat(ctx0,
-            //            model.e_conv_1_b,
-            //            cur),
-            //        cur);
+            if (n_ctx == hparams.n_audio_ctx) {
+                cur = ggml_add(ctx0, cur, model.e_conv_1_b);
+            } else {
+                cur = ggml_add(ctx0, cur, ggml_cont(ctx0, ggml_view_2d(ctx0, model.e_conv_1_b, cur->ne[0], cur->ne[1], model.e_conv_1_b->nb[1], 0)));
+            }
 
             cur = ggml_gelu(ctx0, cur);
 
             cur = ggml_conv_1d_ph(ctx0, model.e_conv_2_w, cur, 2, 1);
-            cur = ggml_add(ctx0, cur, model.e_conv_2_b);
-            //cur = ggml_add(ctx0,
-            //        ggml_repeat(ctx0,
-            //            model.e_conv_2_b,
-            //            cur),
-            //        cur);
+            if (n_ctx == hparams.n_audio_ctx) {
+                cur = ggml_add(ctx0, cur, model.e_conv_2_b);
+            } else {
+                cur = ggml_add(ctx0, cur, ggml_cont(ctx0, ggml_view_2d(ctx0, model.e_conv_2_b, cur->ne[0], cur->ne[1], model.e_conv_2_b->nb[1], 0)));
+            }
 
             cur = ggml_gelu(ctx0, cur);
         }
