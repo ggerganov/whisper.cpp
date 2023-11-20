@@ -50,7 +50,9 @@ extern "C" {
     //
     //     ...
     //
-    //     struct whisper_context * ctx = whisper_init_from_file("/path/to/ggml-base.en.bin");
+    //     whisper_context_params cparams = whisper_context_default_params();
+    // 
+    //     struct whisper_context * ctx = whisper_init_from_file_with_params("/path/to/ggml-base.en.bin", cparams);
     //
     //     if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
     //         fprintf(stderr, "failed to process audio\n");
