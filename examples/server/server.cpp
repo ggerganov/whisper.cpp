@@ -343,7 +343,7 @@ std::string output_str(struct whisper_context * ctx, const whisper_params & para
     return result.str();
 }
 
-void getReqParameters(const Request& req, whisper_params& params)
+void get_req_parameters(const Request & req, whisper_params & params)
 {
     // user model configu.has_fileion
     if (req.has_file("offset-t"))
