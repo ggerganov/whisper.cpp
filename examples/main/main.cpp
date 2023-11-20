@@ -165,8 +165,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-m"    || arg == "--model")           { params.model           = argv[++i]; }
         else if (arg == "-f"    || arg == "--file")            { params.fname_inp.emplace_back(argv[++i]); }
         else if (arg == "-oved" || arg == "--ov-e-device")     { params.openvino_encode_device = argv[++i]; }
-        else if (arg == "-ls"   || arg == "--log-score")       { params.log_score = true; }
-        else if (arg == "-ng"   || arg == "--no-gpu")          { params.use_gpu = false; }
+        else if (arg == "-ls"   || arg == "--log-score")       { params.log_score       = true; }
+        else if (arg == "-ng"   || arg == "--no-gpu")          { params.use_gpu         = false; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
