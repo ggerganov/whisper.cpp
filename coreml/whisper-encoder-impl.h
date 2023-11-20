@@ -123,7 +123,7 @@ API_AVAILABLE(macos(12.0), ios(15.0), watchos(8.0), tvos(15.0)) __attribute__((v
 
 /**
     Make a prediction using the convenience interface
-    @param logmel_data as 1 × 80 × 3000 3-dimensional array of floats:
+    @param logmel_data as 1 × n_mel × 3000 3-dimensional array of floats:
     @param error If an error occurs, upon return contains an NSError object that describes the problem. If you are not interested in possible errors, pass in NULL.
     @return the prediction as whisper_encoder_implOutput
 */

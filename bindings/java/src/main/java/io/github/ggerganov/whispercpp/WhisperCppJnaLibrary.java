@@ -5,6 +5,7 @@ import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import io.github.ggerganov.whispercpp.model.WhisperModelLoader;
 import io.github.ggerganov.whispercpp.model.WhisperTokenData;
+import io.github.ggerganov.whispercpp.params.WhisperContextParams;
 import io.github.ggerganov.whispercpp.params.WhisperFullParams;
 
 public interface WhisperCppJnaLibrary extends Library {
@@ -13,12 +14,31 @@ public interface WhisperCppJnaLibrary extends Library {
     String whisper_print_system_info();
 
     /**
-     * Allocate (almost) all memory needed for the model by loading from a file.
+     * DEPRECATED. Allocate (almost) all memory needed for the model by loading from a file.
      *
      * @param path_model Path to the model file
      * @return Whisper context on success, null on failure
      */
     Pointer whisper_init_from_file(String path_model);
+    
+    /**
+     * Provides default params which can be used with `whisper_init_from_file_with_params()` etc.
+     * Because this function allocates memory for the params, the caller must call either:
+     * - call `whisper_free_context_params()`
+     * - `Native.free(Pointer.nativeValue(pointer));`
+     */
+    Pointer whisper_context_default_params_by_ref();
+
+    void whisper_free_context_params(Pointer params);
+
+    /**
+     * Allocate (almost) all memory needed for the model by loading from a file.
+     *
+     * @param path_model Path to the model file
+     * @param params     Pointer to whisper_context_params
+     * @return Whisper context on success, null on failure
+     */
+    Pointer whisper_init_from_file_with_params(String path_model, WhisperContextParams params);
 
     /**
      * Allocate (almost) all memory needed for the model by loading from a buffer.

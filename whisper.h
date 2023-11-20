@@ -1,9 +1,19 @@
 #ifndef WHISPER_H
 #define WHISPER_H
 
+#include "ggml.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+#ifdef __GNUC__
+#    define WHISPER_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+#elif defined(_MSC_VER)
+#    define WHISPER_DEPRECATED(func, hint) __declspec(deprecated(hint)) func
+#else
+#    define WHISPER_DEPRECATED(func, hint) func
+#endif
 
 #ifdef WHISPER_SHARED
 #    ifdef _WIN32
@@ -21,7 +31,6 @@
 
 #define WHISPER_SAMPLE_RATE 16000
 #define WHISPER_N_FFT       400
-#define WHISPER_N_MEL       80
 #define WHISPER_HOP_LENGTH  160
 #define WHISPER_CHUNK_SIZE  30
 
@@ -41,7 +50,9 @@ extern "C" {
     //
     //     ...
     //
-    //     struct whisper_context * ctx = whisper_init_from_file("/path/to/ggml-base.en.bin");
+    //     whisper_context_params cparams = whisper_context_default_params();
+    // 
+    //     struct whisper_context * ctx = whisper_init_from_file_with_params("/path/to/ggml-base.en.bin", cparams);
     //
     //     if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
     //         fprintf(stderr, "failed to process audio\n");
@@ -69,7 +80,13 @@ extern "C" {
     struct whisper_state;
     struct whisper_full_params;
 
-    typedef int whisper_token;
+    typedef int32_t whisper_pos;
+    typedef int32_t whisper_token;
+    typedef int32_t whisper_seq_id;
+
+    struct whisper_context_params {
+        bool  use_gpu;
+    };
 
     typedef struct whisper_token_data {
         whisper_token id;  // token id
@@ -96,18 +113,74 @@ extern "C" {
         void  (*close)(void * ctx);
     } whisper_model_loader;
 
+    // grammar element type
+    enum whisper_gretype {
+        // end of rule definition
+        WHISPER_GRETYPE_END            = 0,
+
+        // start of alternate definition for rule
+        WHISPER_GRETYPE_ALT            = 1,
+
+        // non-terminal element: reference to rule
+        WHISPER_GRETYPE_RULE_REF       = 2,
+
+        // terminal element: character (code point)
+        WHISPER_GRETYPE_CHAR           = 3,
+
+        // inverse char(s) ([^a], [^a-b] [^abc])
+        WHISPER_GRETYPE_CHAR_NOT       = 4,
+
+        // modifies a preceding WHISPER_GRETYPE_CHAR or LLAMA_GRETYPE_CHAR_ALT to
+        // be an inclusive range ([a-z])
+        WHISPER_GRETYPE_CHAR_RNG_UPPER = 5,
+
+        // modifies a preceding WHISPER_GRETYPE_CHAR or
+        // WHISPER_GRETYPE_CHAR_RNG_UPPER to add an alternate char to match ([ab], [a-zA])
+        WHISPER_GRETYPE_CHAR_ALT       = 6,
+    };
+
+    typedef struct whisper_grammar_element {
+        enum whisper_gretype type;
+        uint32_t             value; // Unicode code point or rule ID
+    } whisper_grammar_element;
+
     // Various functions for loading a ggml whisper model.
     // Allocate (almost) all memory needed for the model.
     // Return NULL on failure
-    WHISPER_API struct whisper_context * whisper_init_from_file(const char * path_model);
-    WHISPER_API struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size);
-    WHISPER_API struct whisper_context * whisper_init(struct whisper_model_loader * loader);
+    WHISPER_API struct whisper_context * whisper_init_from_file_with_params  (const char * path_model,              struct whisper_context_params params);
+    WHISPER_API struct whisper_context * whisper_init_from_buffer_with_params(void * buffer, size_t buffer_size,    struct whisper_context_params params);
+    WHISPER_API struct whisper_context * whisper_init_with_params            (struct whisper_model_loader * loader, struct whisper_context_params params);
 
     // These are the same as the above, but the internal state of the context is not allocated automatically
     // It is the responsibility of the caller to allocate the state using whisper_init_state() (#523)
-    WHISPER_API struct whisper_context * whisper_init_from_file_no_state(const char * path_model);
-    WHISPER_API struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t buffer_size);
-    WHISPER_API struct whisper_context * whisper_init_no_state(struct whisper_model_loader * loader);
+    WHISPER_API struct whisper_context * whisper_init_from_file_with_params_no_state  (const char * path_model,              struct whisper_context_params params);
+    WHISPER_API struct whisper_context * whisper_init_from_buffer_with_params_no_state(void * buffer, size_t buffer_size,    struct whisper_context_params params);
+    WHISPER_API struct whisper_context * whisper_init_with_params_no_state            (struct whisper_model_loader * loader, struct whisper_context_params params);
+
+    WHISPER_DEPRECATED(
+        WHISPER_API struct whisper_context * whisper_init_from_file(const char * path_model),
+        "use whisper_init_from_file_with_params instead"
+    );
+    WHISPER_DEPRECATED(
+        WHISPER_API struct whisper_context * whisper_init_from_buffer(void * buffer, size_t buffer_size),
+        "use whisper_init_from_buffer_with_params instead"
+    );
+    WHISPER_DEPRECATED(
+        WHISPER_API struct whisper_context * whisper_init(struct whisper_model_loader * loader),
+        "use whisper_init_with_params instead"
+    );
+    WHISPER_DEPRECATED(
+        WHISPER_API struct whisper_context * whisper_init_from_file_no_state(const char * path_model),
+        "use whisper_init_from_file_with_params_no_state instead"
+    );
+    WHISPER_DEPRECATED(
+        WHISPER_API struct whisper_context * whisper_init_from_buffer_no_state(void * buffer, size_t buffer_size),
+        "use whisper_init_from_buffer_with_params_no_state instead"
+    );
+    WHISPER_DEPRECATED(
+        WHISPER_API struct whisper_context * whisper_init_no_state(struct whisper_model_loader * loader),
+        "use whisper_init_with_params_no_state instead"
+    );
 
     WHISPER_API struct whisper_state * whisper_init_state(struct whisper_context * ctx);
 
@@ -132,6 +205,7 @@ extern "C" {
     WHISPER_API void whisper_free      (struct whisper_context * ctx);
     WHISPER_API void whisper_free_state(struct whisper_state * state);
     WHISPER_API void whisper_free_params(struct whisper_full_params * params);
+    WHISPER_API void whisper_free_context_params(struct whisper_context_params * params);
 
     // Convert RAW PCM audio to log mel spectrogram.
     // The resulting spectrogram is stored inside the default state of the provided whisper context.
@@ -363,6 +437,7 @@ extern "C" {
 
         bool translate;
         bool no_context;        // do not use past transcription (if any) as initial prompt for the decoder
+        bool no_timestamps;     // do not generate timestamps
         bool single_segment;    // force single segment output (useful for streaming)
         bool print_special;     // print special tokens (e.g. <SOT>, <EOT>, <BEG>, etc.)
         bool print_progress;    // print progress information
@@ -440,9 +515,16 @@ extern "C" {
         // called by each decoder to filter obtained logits
         whisper_logits_filter_callback logits_filter_callback;
         void * logits_filter_callback_user_data;
+
+        const whisper_grammar_element ** grammar_rules;
+        size_t                           n_grammar_rules;
+        size_t                           i_start_rule;
+        float                            grammar_penalty;
     };
 
-    // NOTE: this function allocates memory, and it is the responsibility of the caller to free the pointer - see whisper_free_params()
+    // NOTE: this function allocates memory, and it is the responsibility of the caller to free the pointer - see whisper_free_context_params & whisper_free_params()
+    WHISPER_API struct whisper_context_params * whisper_context_default_params_by_ref();
+    WHISPER_API struct whisper_context_params whisper_context_default_params(void);
     WHISPER_API struct whisper_full_params * whisper_full_default_params_by_ref(enum whisper_sampling_strategy strategy);
     WHISPER_API struct whisper_full_params whisper_full_default_params(enum whisper_sampling_strategy strategy);
 
@@ -531,8 +613,7 @@ extern "C" {
 
     // Control logging output; default behavior is to print to stderr
 
-    typedef void (*whisper_log_callback)(const char * line);
-    WHISPER_API void whisper_set_log_callback(whisper_log_callback callback);
+    WHISPER_API void whisper_log_set(ggml_log_callback log_callback, void * user_data);
 
 #ifdef __cplusplus
 }

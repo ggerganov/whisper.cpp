@@ -23,6 +23,7 @@ add_library(${TARGET} STATIC
     common.cpp
     common-ggml.h
     common-ggml.cpp
+    grammar-parser.cpp
     )
 
 include(DefaultTargetOptions)

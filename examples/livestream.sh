@@ -48,7 +48,7 @@ if [ -n "$3" ]; then
 fi
 
 # Whisper models
-models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large" )
+models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large-v2" "large-v3" )
 
 # list available models
 function list_models {

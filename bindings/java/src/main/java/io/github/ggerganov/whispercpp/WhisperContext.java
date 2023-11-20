@@ -4,6 +4,7 @@ import com.sun.jna.Structure;
 import com.sun.jna.ptr.PointerByReference;
 import io.github.ggerganov.whispercpp.ggml.GgmlType;
 import io.github.ggerganov.whispercpp.WhisperModel;
+import io.github.ggerganov.whispercpp.params.WhisperContextParams;
 
 import java.util.List;
 
@@ -23,8 +24,9 @@ public class WhisperContext extends Structure {
     public PointerByReference vocab;
     public PointerByReference state;
 
-    /** populated by whisper_init_from_file() */
+    /** populated by whisper_init_from_file_with_params() */
     String path_model;
+    WhisperContextParams params;
 
 //    public static class ByReference extends WhisperContext implements Structure.ByReference {
 //    }

@@ -39,8 +39,9 @@ struct server_params
 {
     std::string hostname = "127.0.0.1";
     std::string public_path = "examples/server/public";
-    int32_t port = 8080;
-    int32_t read_timeout = 600;
+
+    int32_t port          = 8080;
+    int32_t read_timeout  = 600;
     int32_t write_timeout = 600;
 };
 
@@ -73,7 +74,7 @@ struct whisper_params {
     bool print_colors    = false;
     bool print_progress  = false;
     bool no_timestamps   = false;
-    bool log_score       = false;
+    bool use_gpu         = true;
 
     std::string language        = "en";
     std::string prompt          = "";
@@ -153,6 +154,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     // server params
     fprintf(stderr, "  --host HOST,                   [%-7s] Hostname/ip-adress for the server\n", sparams.hostname.c_str());
     fprintf(stderr, "  --port PORT,                   [%-7d] Port number for the server\n", sparams.port);
+    fprintf(stderr, "  --public PATH,                 [%-7s] Path to the public folder\n", sparams.public_path.c_str());
     fprintf(stderr, "\n");
 }
 
@@ -193,10 +195,11 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
         else if (                  arg == "--prompt")          { params.prompt          = argv[++i]; }
         else if (arg == "-m"    || arg == "--model")           { params.model           = argv[++i]; }
         else if (arg == "-oved" || arg == "--ov-e-device")     { params.openvino_encode_device = argv[++i]; }
+        else if (arg == "-ng"   || arg == "--no-gpu")          { params.use_gpu         = false; }
         // server params
-        else if (                  arg == "--port")            { sparams.port = std::stoi(argv[++i]); }
-        else if (                  arg == "--host")            { sparams.hostname = argv[++i]; }
-        else if (arg == "-ad" || arg == "--port")     { params.openvino_encode_device = argv[++i]; }
+        else if (                  arg == "--port")            { sparams.port        = std::stoi(argv[++i]); }
+        else if (                  arg == "--host")            { sparams.hostname    = argv[++i]; }
+        else if (                  arg == "--public")          { sparams.public_path = argv[++i]; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params, sparams);
@@ -402,7 +405,10 @@ int main(int argc, char ** argv) {
     }
 
     // whisper init
-    struct whisper_context * ctx = whisper_init_from_file(params.model.c_str());
+    struct whisper_context_params cparams;
+    cparams.use_gpu = params.use_gpu;
+
+    struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
     if (ctx == nullptr) {
         fprintf(stderr, "error: failed to initialize whisper context\n");
@@ -438,7 +444,7 @@ int main(int argc, char ** argv) {
         auto audio_file = req.get_file_value("file");
 
         // check non-required fields
-        getReqParameters(req, params);
+        get_req_parameters(req, params);
 
         std::string filename{audio_file.filename};
         printf("Received request: %s\n", filename.c_str());
@@ -623,7 +629,7 @@ int main(int argc, char ** argv) {
         whisper_free(ctx);
 
         // whisper init
-        ctx = whisper_init_from_file(model.c_str());
+        ctx = whisper_init_from_file_with_params(model.c_str(), cparams);
 
         // TODO perhaps load prior model here instead of exit
         if (ctx == nullptr) {

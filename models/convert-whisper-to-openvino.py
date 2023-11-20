@@ -9,7 +9,7 @@ import shutil
 def convert_encoder(hparams, encoder, mname):
     encoder.eval()
 
-    mel = torch.zeros((1, 80, 3000))
+    mel = torch.zeros((1, hparams.n_mels, 3000))
 
     onnx_folder=os.path.join(os.path.dirname(__file__),"onnx_encoder")
 
@@ -29,7 +29,7 @@ def convert_encoder(hparams, encoder, mname):
 
     # use model optimizer to convert onnx to OpenVINO IR format
     encoder_model = mo.convert_model(onnx_path, compress_to_fp16=True)
-    serialize(encoder_model, xml_path='ggml-' + mname + '-encoder-openvino.xml')
+    serialize(encoder_model, xml_path=os.path.join(os.path.dirname(__file__),"ggml-" + mname + "-encoder-openvino.xml"))
 
     #cleanup
     if os.path.isdir(onnx_folder):
@@ -38,10 +38,10 @@ def convert_encoder(hparams, encoder, mname):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, help="model to convert (e.g. tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large, large-v1)", required=True)
+    parser.add_argument("--model", type=str, help="model to convert (e.g. tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large-v1, large-v2, large-v3)", required=True)
     args = parser.parse_args()
 
-    if args.model not in ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "large-v1"]:
+    if args.model not in ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large-v1", "large-v2", "large-v3"]:
         raise ValueError("Invalid model name")
 
     whisper = load_model(args.model).cpu()
