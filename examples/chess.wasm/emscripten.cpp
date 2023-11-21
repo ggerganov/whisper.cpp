@@ -108,7 +108,7 @@ void command_main(size_t index) {
     wparams.print_special    = false;
 
     wparams.max_tokens       = 32;
-    wparams.audio_ctx        = 768; // partial encoder context for better performance
+    // wparams.audio_ctx        = 768; // partial encoder context for better performance
 
     wparams.temperature     = 0.4f;
     wparams.temperature_inc = 1.0f;
