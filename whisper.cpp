@@ -6064,7 +6064,9 @@ WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
     // 1GB array
     const size_t size = arr*1e6;
 
-    // single-thread
+    double sum  = 0.0;
+
+    // heat-up
     {
         char * src = (char *) malloc(size);
         char * dst = (char *) malloc(size);
@@ -6074,7 +6076,6 @@ WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
         memcpy(dst, src, size); // heat-up
 
         double tsum = 0.0;
-        double sum  = 0.0;
 
         for (size_t i = 0; i < n; i++) {
             const int64_t t0 = ggml_time_us();
@@ -6088,20 +6089,107 @@ WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
             src[rand() % size] = rand() % 256;
         }
 
-        snprintf(strbuf, sizeof(strbuf), "memcpy: %.2f GB/s (1 thread)\n", (double) (n*size)/(tsum*1e9));
+        snprintf(strbuf, sizeof(strbuf), "memcpy: %7.2f GB/s (heat-up)\n", (double) (n*size)/(tsum*1e9));
         s += strbuf;
 
         // needed to prevent the compiler from optimizing the memcpy away
         {
             for (size_t i = 0; i < size; i++) sum += dst[i];
-
-            snprintf(strbuf, sizeof(strbuf), "sum:    %f\n", sum);
-            s += strbuf;
         }
 
         free(src);
         free(dst);
     }
+
+    // single-thread
+    {
+        char * src = (char *) malloc(size);
+        char * dst = (char *) malloc(size);
+
+        for (size_t i = 0; i < size; i++) src[i] = i;
+
+        memcpy(dst, src, size); // heat-up
+
+        double tsum = 0.0;
+
+        for (size_t i = 0; i < n; i++) {
+            const int64_t t0 = ggml_time_us();
+
+            memcpy(dst, src, size);
+
+            const int64_t t1 = ggml_time_us();
+
+            tsum += (t1 - t0)*1e-6;
+
+            src[rand() % size] = rand() % 256;
+        }
+
+        snprintf(strbuf, sizeof(strbuf), "memcpy: %7.2f GB/s ( 1 thread)\n", (double) (n*size)/(tsum*1e9));
+        s += strbuf;
+
+        // needed to prevent the compiler from optimizing the memcpy away
+        {
+            for (size_t i = 0; i < size; i++) sum += dst[i];
+        }
+
+        free(src);
+        free(dst);
+    }
+
+    // multi-thread
+
+    for (uint32_t n_threads = 1; n_threads <= std::thread::hardware_concurrency(); n_threads++) {
+        char * src = (char *) malloc(size);
+        char * dst = (char *) malloc(size);
+
+        for (size_t i = 0; i < size; i++) src[i] = i;
+
+        memcpy(dst, src, size); // heat-up
+
+        double tsum = 0.0;
+
+        auto helper = [&](int th) {
+            const int64_t i0 = (th + 0)*size/n_threads;
+            const int64_t i1 = (th + 1)*size/n_threads;
+
+            for (size_t i = 0; i < n; i++) {
+                memcpy(dst + i0, src + i0, i1 - i0);
+
+                src[i0 + rand() % (i1 - i0)] = rand() % 256;
+            };
+        };
+
+        const int64_t t0 = ggml_time_us();
+
+        std::vector<std::thread> threads(n_threads - 1);
+        for (uint32_t th = 0; th < n_threads - 1; ++th) {
+            threads[th] = std::thread(helper, th);
+        }
+
+        helper(n_threads - 1);
+
+        for (uint32_t th = 0; th < n_threads - 1; ++th) {
+            threads[th].join();
+        }
+
+        const int64_t t1 = ggml_time_us();
+
+        tsum += (t1 - t0)*1e-6;
+
+        snprintf(strbuf, sizeof(strbuf), "memcpy: %7.2f GB/s (%2d thread)\n", (double) (n*size)/(tsum*1e9), n_threads);
+        s += strbuf;
+
+        // needed to prevent the compiler from optimizing the memcpy away
+        {
+            for (size_t i = 0; i < size; i++) sum += dst[i];
+        }
+
+        free(src);
+        free(dst);
+    }
+
+    snprintf(strbuf, sizeof(strbuf), "sum:    %f\n", sum);
+    s += strbuf;
 
     return s.c_str();
 }
