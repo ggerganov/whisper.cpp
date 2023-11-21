@@ -456,6 +456,7 @@ int main(int argc, char ** argv) {
         // write file to temporary file
         std::ofstream temp_file{filename, std::ios::binary};
         temp_file << audio_file.content;
+        temp_file.close();
 
         // read wav content into pcmf32
         if (!::read_wav(filename, pcmf32, pcmf32s, params.diarize)) {
