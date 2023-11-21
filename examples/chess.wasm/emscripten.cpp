@@ -95,7 +95,7 @@ void command_get_audio(int ms, int sample_rate, std::vector<float> & audio) {
 void command_main(size_t index) {
     command_set_status("loading data ...");
 
-    struct whisper_full_params wparams = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH);
+    struct whisper_full_params wparams = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
 
     wparams.n_threads        = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
     wparams.offset_ms        = 0;
@@ -112,7 +112,7 @@ void command_main(size_t index) {
 
     wparams.temperature     = 0.4f;
     wparams.temperature_inc = 1.0f;
-    wparams.greedy.best_of  = 5;
+    wparams.greedy.best_of  = 1;
 
     wparams.beam_search.beam_size = 5;
 
