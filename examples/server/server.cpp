@@ -230,11 +230,10 @@ std::string executeConvertToWAV(const std::string& cmd) {
     }
     pclose(versionCheckPipe);
 
-    // Execute the provided FFmpeg command
     FILE* pipe = popen(cmd.c_str(), "r");
     if (!pipe) {
         std::cerr << "Couldn't start the command." << std::endl;
-        return "ERROR"; // You can handle the error as needed
+        return "ERROR";
     }
 
     char buffer[128];
@@ -504,7 +503,7 @@ int main(int argc, char ** argv) {
 
             filename = converted_filename;
         }
-        
+
         // read wav content into pcmf32
         if (!::read_wav(filename, pcmf32, pcmf32s, params.diarize)) {
             fprintf(stderr, "error: failed to read WAV file '%s'\n", filename.c_str());
