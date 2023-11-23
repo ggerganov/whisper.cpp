@@ -373,7 +373,7 @@ void get_req_parameters(const Request & req, whisper_params & params)
     {
         params.response_format = req.get_file_value("response-format").content;
     }
-    if (req.has_file("temerature"))
+    if (req.has_file("temperature"))
     {
         params.userdef_temp = std::stof(req.get_file_value("temperature").content);
     }
@@ -429,7 +429,7 @@ int main(int argc, char ** argv) {
     });
 
     svr.Post("/inference", [&](const Request &req, Response &res){
-        // aquire whisper model mutex lock
+        // acquire whisper model mutex lock
         whisper_mutex.lock();
 
         // first check user requested fields of the request
