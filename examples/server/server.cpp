@@ -221,34 +221,30 @@ struct whisper_print_user_data {
     int progress_prev;
 };
 
-std::string executeConvertToWAV(const std::string& cmd) {
-    // Check if FFmpeg is installed
-    FILE* versionCheckPipe = popen("ffmpeg -version", "r");
-    if (!versionCheckPipe) {
-        std::cerr << "FFmpeg is not installed." << std::endl;
-        return "ERROR: FFmpeg not installed";
-    }
-    pclose(versionCheckPipe);
+bool convert_to_WAV( std::string& temp_filename, std::string &error_resp) {
+    std::ostringstream cmd_stream;
+    std::string converted_filename_temp = temp_filename + "_temp.wav";
+    cmd_stream << "ffmpeg -i \"" << temp_filename << "\" -ar 16000 -ac 1 -c:a pcm_s16le \"" << converted_filename_temp << "\" 2>&1";
+    std::string cmd = cmd_stream.str();
 
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe) {
-        std::cerr << "Couldn't start the command." << std::endl;
-        return "ERROR";
+    int status = std::system(cmd.c_str());
+    if (status != 0) {
+        error_resp = "{\"error\":\"FFmpeg conversion failed. Check if FFmpeg is installed\"}";
+        return false;
     }
 
-    char buffer[128];
-    std::string result = "";
-
-    while (!feof(pipe)) {
-        if (fgets(buffer, 128, pipe) != nullptr)
-            result += buffer;
+    // Remove the original file
+    if (remove(temp_filename.c_str()) != 0) {
+        error_resp = "{\"error\":\"Failed to remove the original file.\"}";
+        return false;
     }
 
-    int returnCode = pclose(pipe);
-    std::cout << "Command output: \n" << result << std::endl;
-    std::cout << "Command process returned " << returnCode << std::endl;
-
-    return result;
+    // Rename the temporary file to match the original filename
+    if (rename(converted_filename_temp.c_str(), temp_filename.c_str()) != 0) {
+        error_resp = "{\"error\":\"Failed to rename the temporary file.\"}";
+        return false;
+    }
+    return true;
 }
 
 std::string estimate_diarization_speaker(std::vector<std::vector<float>> pcmf32s, int64_t t0, int64_t t1, bool id_only = false) {
@@ -488,32 +484,33 @@ int main(int argc, char ** argv) {
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
         // write file to temporary file
-        std::ofstream temp_file{filename, std::ios::binary};
+        std::string temp_filename = "whisper_server_temp_file.wav";
+        std::ofstream temp_file{temp_filename, std::ios::binary};
         temp_file << audio_file.content;
         temp_file.close();
 
         // if file is not wav, convert to wav
         if(sparams.ffmpeg_converter) {
-            std::string converted_filename = "converted_" + filename;
-            // ffmpeg command
-            std::string ffmpeg_cmd = "ffmpeg -i " + filename + " -ar 16000 -ac 1 -c:a pcm_s16le " + converted_filename + " 2>&1"; // Redirect stderr to stdout
-
-            executeConvertToWAV(ffmpeg_cmd);
-            std::remove(filename.c_str());
-
-            filename = converted_filename;
+            std::string error_resp = "{\"error\":\"Failed to execute ffmpeg command.\"}";
+            bool isConverted = convert_to_WAV(temp_filename, error_resp);
+            // if isConverted is false, return error response and unlock mutex and print error
+            if(!isConverted) {
+                res.set_content(error_resp, "application/json");
+                whisper_mutex.unlock();
+                return;
+            }
         }
 
         // read wav content into pcmf32
-        if (!::read_wav(filename, pcmf32, pcmf32s, params.diarize)) {
-            fprintf(stderr, "error: failed to read WAV file '%s'\n", filename.c_str());
+        if (!::read_wav(temp_filename, pcmf32, pcmf32s, params.diarize)) {
+            fprintf(stderr, "error: failed to read WAV file '%s'\n", temp_filename.c_str());
             const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
             res.set_content(error_resp, "application/json");
             whisper_mutex.unlock();
             return;
         }
         // remove temp file
-        std::remove(filename.c_str());
+        std::remove(temp_filename.c_str());
 
         printf("Successfully loaded %s\n", filename.c_str());
 
@@ -637,12 +634,12 @@ int main(int argc, char ** argv) {
             std::string results = output_str(ctx, params, pcmf32s);
             res.set_content(results.c_str(), "text/html");
         }
-        // TODO add more output formats
+            // TODO add more output formats
         else
         {
             std::string results = output_str(ctx, params, pcmf32s);
             json jres = json{
-                {"text", results}
+                    {"text", results}
             };
             res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
                             "application/json");
@@ -677,7 +674,7 @@ int main(int argc, char ** argv) {
         // whisper init
         ctx = whisper_init_from_file_with_params(model.c_str(), cparams);
 
-        // TODO perhaps load prior model here instead of exit
+        // TODO perhaps load prior model here instead off exit
         if (ctx == nullptr) {
             fprintf(stderr, "error: model init  failed, no model loaded must exit\n");
             exit(1);
