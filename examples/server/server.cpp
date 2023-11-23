@@ -505,6 +505,7 @@ int main(int argc, char ** argv) {
             fprintf(stderr, "error: failed to read WAV file '%s'\n", temp_filename.c_str());
             const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
             res.set_content(error_resp, "application/json");
+            std::remove(temp_filename.c_str());
             whisper_mutex.unlock();
             return;
         }
