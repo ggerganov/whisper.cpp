@@ -119,7 +119,7 @@ bool is_file_exist(const char *fileName)
 }
 
 void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params,
-                        const server_params& sparams) {
+                         const server_params& sparams) {
     fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options] \n", argv[0]);
     fprintf(stderr, "\n");
@@ -506,6 +506,7 @@ int main(int argc, char ** argv) {
         temp_file.close();
 
         // if file is not wav, convert to wav
+        
         if(sparams.ffmpeg_converter) {
             std::string error_resp = "{\"error\":\"Failed to execute ffmpeg command.\"}";
             bool isConverted = convert_to_WAV(temp_filename, error_resp);
