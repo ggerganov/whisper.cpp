@@ -119,7 +119,7 @@ bool is_file_exist(const char *fileName)
 }
 
 void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params,
-                         const server_params& sparams) {
+                        const server_params& sparams) {
     fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options] \n", argv[0]);
     fprintf(stderr, "\n");
@@ -221,6 +221,19 @@ struct whisper_print_user_data {
     int progress_prev;
 };
 
+void check_FFmpeg_availibility() {
+    int result = system("ffmpeg -version");
+
+    if (result == 0) {
+        std::cout << "ffmpeg is available." << std::endl;
+    } else {
+        // ffmpeg is not available
+        std::cout << "ffmpeg is not found. Please ensure that ffmpeg is installed ";
+        std::cout << "and that its executable is included in your system's PATH. ";
+        exit(0);
+    }
+}
+
 bool convert_to_WAV(const std::string& temp_filename, std::string &error_resp) {
     std::ostringstream cmd_stream;
     std::string converted_filename_temp = temp_filename + "_temp.wav";
@@ -229,7 +242,7 @@ bool convert_to_WAV(const std::string& temp_filename, std::string &error_resp) {
 
     int status = std::system(cmd.c_str());
     if (status != 0) {
-        error_resp = "{\"error\":\"FFmpeg conversion failed. Check if FFmpeg is installed\"}";
+        error_resp = "{\"error\":\"FFmpeg conversion failed.\"}";
         return false;
     }
 
@@ -434,6 +447,9 @@ int main(int argc, char ** argv) {
         exit(0);
     }
 
+    if (sparams.ffmpeg_converter) {
+        check_FFmpeg_availibility();
+    }
     // whisper init
     struct whisper_context_params cparams;
     cparams.use_gpu = params.use_gpu;
