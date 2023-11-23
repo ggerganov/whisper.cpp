@@ -372,18 +372,11 @@
                     var transcribed = Module.get_transcribed();
 
                     if (transcribed != null && transcribed.length > 1) {
-                        const map = {
-                            queen: 'wQ',
-                            king: 'wK',
-                            bishop: 'wB',
-                            rook: 'wR',
-                            knight: 'wN',
-                            pawn: 'wP'
-                        };
-                        let [piece, _, pos] = transcribed.split(' ')
-                        pos = pos.replace(',', '').replace('.', '')
-
-                        board.position({[pos]: map[piece]})
+                        var moves = Module.get_moves();
+                        for (move of moves) {
+                            board.move(move);
+                        }
+                        Module.commit_moves();
 
 
                         transcribedAll += transcribed + '<br>';

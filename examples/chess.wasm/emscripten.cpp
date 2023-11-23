@@ -92,6 +92,293 @@ void command_get_audio(int ms, int sample_rate, std::vector<float> & audio) {
     std::copy(g_pcmf32.end() - n_take, g_pcmf32.end(), audio.begin());
 }
 
+static constexpr std::array<const char*, 64> positions = {
+    "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+    "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+    "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+    "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+    "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+    "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+    "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+    "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
+};
+
+static constexpr std::array<const char*, 6> pieceNames =  {
+    "pawn", "knight", "bishop", "rook", "queen", "king",
+};
+
+
+class Board {
+public:
+    struct Piece {
+        enum Types {
+            Pawn,
+            Knight,
+            Bishop,
+            Rook,
+            Queen,
+            King,
+            Taken,
+        };
+        static_assert(pieceNames.size() == Piece::Taken, "Mismatch between piece names and types");
+
+        enum Colors {
+            Black,
+            White
+        };
+
+        Types type;
+        Colors color;
+        int pos;
+    };
+
+
+    std::array<Piece, 16> blackPieces = {{
+        {Piece::Pawn, Piece::Black, 48 },
+        {Piece::Pawn, Piece::Black, 49 },
+        {Piece::Pawn, Piece::Black, 50 },
+        {Piece::Pawn, Piece::Black, 51 },
+        {Piece::Pawn, Piece::Black, 52 },
+        {Piece::Pawn, Piece::Black, 53 },
+        {Piece::Pawn, Piece::Black, 54 },
+        {Piece::Pawn, Piece::Black, 55 },
+        {Piece::Rook, Piece::Black, 56 },
+        {Piece::Knight, Piece::Black, 57 },
+        {Piece::Bishop, Piece::Black, 58 },
+        {Piece::Queen, Piece::Black, 59 },
+        {Piece::King, Piece::Black, 60 },
+        {Piece::Bishop, Piece::Black, 61 },
+        {Piece::Knight, Piece::Black, 62 },
+        {Piece::Rook, Piece::Black, 63 },
+    }};
+
+    std::array<Piece, 16> whitePieces = {{
+        {Piece::Pawn, Piece::White, 8 },
+        {Piece::Pawn, Piece::White, 9 },
+        {Piece::Pawn, Piece::White, 10 },
+        {Piece::Pawn, Piece::White, 11 },
+        {Piece::Pawn, Piece::White, 12 },
+        {Piece::Pawn, Piece::White, 13 },
+        {Piece::Pawn, Piece::White, 14 },
+        {Piece::Pawn, Piece::White, 15 },
+        {Piece::Rook, Piece::White, 0 },
+        {Piece::Knight, Piece::White, 1 },
+        {Piece::Bishop, Piece::White, 2 },
+        {Piece::Queen, Piece::White, 3 },
+        {Piece::King, Piece::White, 4 },
+        {Piece::Bishop, Piece::White, 5 },
+        {Piece::Knight, Piece::White, 6 },
+        {Piece::Rook, Piece::White, 7 },
+    }};
+
+    using BB = std::array<Piece*, 64>;
+    BB board = {{
+        &whitePieces[ 8], &whitePieces[ 9], &whitePieces[10], &whitePieces[11], &whitePieces[12], &whitePieces[13], &whitePieces[14], &whitePieces[15],
+        &whitePieces[ 0], &whitePieces[ 1], &whitePieces[ 2], &whitePieces[ 3], &whitePieces[ 4], &whitePieces[ 5], &whitePieces[ 6], &whitePieces[ 7],
+        nullptr,          nullptr,          nullptr,          nullptr,          nullptr,          nullptr,          nullptr,          nullptr,
+        nullptr,          nullptr,          nullptr,          nullptr,          nullptr,          nullptr,          nullptr,          nullptr,
+        &blackPieces[ 0], &blackPieces[ 1], &blackPieces[ 2], &blackPieces[ 3], &blackPieces[ 4], &blackPieces[ 5], &blackPieces[ 6], &blackPieces[ 7],
+        &blackPieces[ 8], &blackPieces[ 9], &blackPieces[10], &blackPieces[11], &blackPieces[12], &blackPieces[13], &blackPieces[14], &blackPieces[15],
+    }};
+
+    bool checkNext(const Piece& piece, int pos, bool kingCheck = false) {
+        if (piece.type == Piece::Taken) return false;
+        if (piece.pos == pos) return false;
+        int i = piece.pos / 8;
+        int j = piece.pos - i * 8;
+
+        int ii = pos / 8;
+        int jj = pos - ii * 8;
+
+        if (piece.type == Piece::Pawn) {
+            if (piece.color == Piece::White) {
+                int direction = piece.color == Piece::White ? 1 : -1;
+                if (j == jj) {
+                    if (i == ii - direction) return board[pos] == nullptr;
+                    if (i == ii - direction * 2) return board[(ii - direction) * 8 + jj] == nullptr && board[pos] == nullptr;
+                }
+                else if (j + 1 == jj || j - 1 == jj) {
+                    if (i == ii - direction) return board[pos] != nullptr && board[pos]->color != piece.color;
+                }
+            }
+            return false;
+        }
+        if (piece.type == Piece::Knight) {
+            int di = std::abs(i - ii);
+            int dj = std::abs(j - jj);
+            if ((di == 2 && dj == 1) || (di == 1 && dj == 2)) return board[pos] == nullptr || board[pos]->color != piece.color;
+            return false;
+        }
+        if (piece.type == Piece::Bishop) {
+            if (i - j == ii - jj) {
+                int direction = i < ii ? 1 : -1;
+                i += direction;
+                j += direction;
+                while (i != ii) {
+                    if (board[i * 8 + j]) return false;
+                    i += direction;
+                    j += direction;
+                }
+                return board[pos] == nullptr || board[pos]->color != piece.color;
+            }
+            if (i + j == ii + jj) {
+                int direction = i < ii ? 1 : -1;
+                i += direction;
+                j -= direction;
+                while (i != ii) {
+                    if (board[i * 8 + j]) return false;
+                    i += direction;
+                    j -= direction;
+                }
+                return board[pos] == nullptr || board[pos]->color != piece.color;
+            }
+            return false;
+        }
+        if (piece.type == Piece::Rook) {
+            if (i == ii) {
+                int direction = j < jj ? 1 : -1;
+                j += direction;
+                while (j != jj) {
+                    if (board[i * 8 + j]) return false;
+                    j += direction;
+                }
+                return board[pos] == nullptr || board[pos]->color != piece.color;
+            }
+            if (j == jj) {
+                int direction = i < ii ? 1 : -1;
+                i += direction;
+                while (i != ii) {
+                    if (board[i * 8 + j]) return false;
+                    i += direction;
+                }
+                return board[pos] == nullptr || board[pos]->color != piece.color;
+            }
+            return false;
+        }
+        if (piece.type == Piece::Queen) {
+            if (i - j == ii - jj) {
+                int direction = i < ii ? 1 : -1;
+                i += direction;
+                j += direction;
+                while (i != ii) {
+                    if (board[i * 8 + j]) return false;
+                    i += direction;
+                    j += direction;
+                }
+                return board[pos] == nullptr || board[pos]->color != piece.color;
+            }
+            if (i + j == ii + jj) {
+                int direction = i < ii ? 1 : -1;
+                i += direction;
+                j -= direction;
+                while (i != ii) {
+                    if (board[i * 8 + j]) return false;
+                    i += direction;
+                    j -= direction;
+                }
+                return board[pos] == nullptr || board[pos]->color != piece.color;
+            }
+            if (i == ii) {
+                int direction = j < jj ? 1 : -1;
+                j += direction;
+                while (j != jj) {
+                    if (board[i * 8 + j]) return false;
+                    j += direction;
+                }
+                return board[pos] == nullptr || board[pos]->color != piece.color;
+            }
+            if (j == jj) {
+                int direction = i < ii ? 1 : -1;
+                i += direction;
+                while (i != ii) {
+                    if (board[i * 8 + j]) return false;
+                    i += direction;
+                }
+                return board[pos] == nullptr || board[pos]->color != piece.color;
+            }
+            return false;
+        }
+        if (piece.type == Piece::King) {
+            if (std::abs(i - ii) < 2 && std::abs(j - jj) < 2) {
+                auto& pieces = piece.color == Piece::White ? whitePieces : blackPieces;
+                for (auto& enemyPiece: pieces) {
+                    if (!kingCheck && piece.type != Piece::Taken && checkNext(enemyPiece, pos, true)) return false;
+                }
+                return board[pos] == nullptr || board[pos]->color != piece.color;
+            }
+        }
+        return false;
+    }
+
+
+    int moveCount = 0;
+
+
+    void addMoves(const std::string& t) {
+
+        std::vector<std::string> moves;
+        size_t cur = 0;
+        size_t last = 0;
+        while (cur != std::string::npos) {
+            cur = t.find(',', last);
+            moves.push_back(t.substr(last, cur));
+            last = cur + 1;
+        }
+
+        // fixme: lookup depends on grammar
+        int count = moveCount;
+        for (auto& move : moves) {
+            fprintf(stdout, "%s: Move '%s%s%s'\n", __func__, "\033[1m", move.c_str(), "\033[0m");
+            if (move.empty()) continue;
+            auto pieceIndex = 0u;
+            for (; pieceIndex < pieceNames.size(); ++pieceIndex) {
+                if (std::string::npos != move.find(pieceNames[pieceIndex])) break;
+            }
+            auto posIndex = 0u;
+            for (; posIndex < positions.size(); ++posIndex) {
+                if (std::string::npos != move.find(positions[posIndex])) break;
+            }
+            if (pieceIndex >= pieceNames.size() || posIndex >= positions.size()) continue;
+
+            auto& pieces = count % 2 ? blackPieces : whitePieces;
+            auto type = Piece::Types(pieceIndex);
+            pieceIndex = 0;
+            for (; pieceIndex < pieces.size(); ++pieceIndex) {
+                if (pieces[pieceIndex].type == type && checkNext(pieces[pieceIndex], posIndex)) break;
+            }
+            if (pieceIndex < pieces.size()) {
+                m_pendingMoves.push_back({&pieces[pieceIndex], posIndex});
+            }
+        }
+    }
+
+    std::string stringifyMoves() {
+        std::string res;
+        for (auto& m : m_pendingMoves) {
+            res.append(positions[m.first->pos]);
+            res.push_back('-');
+            res.append(positions[m.second]);
+            res.push_back(' ');
+        }
+        if (!res.empty()) res.pop_back();
+        return res;
+    }
+
+    void commitMoves() {
+        for (auto& m : m_pendingMoves) {
+            if (board[m.second]) board[m.second]->type = Piece::Taken;
+            board[m.first->pos] = nullptr;
+            m.first->pos = m.second;
+            board[m.second] = m.first;
+        }
+        m_pendingMoves.clear();
+    }
+
+    std::vector<std::pair<Piece*, int>> m_pendingMoves;
+};
+
+Board g_board;
+
 void command_main(size_t index) {
     command_set_status("loading data ...");
 
@@ -269,7 +556,7 @@ void command_main(size_t index) {
                     }
 
                     fprintf(stdout, "%s:   DEBUG: txt = '%s', prob = %.2f%%\n", __func__, txt.c_str(), p);
-                    const std::string command = ::trim(txt.substr(best_len));
+                    std::string command = ::trim(txt.substr(best_len));
 
                     fprintf(stdout, "%s: Command '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", command.c_str(), "\033[0m", (int) t_ms);
                     fprintf(stdout, "\n");
@@ -281,7 +568,10 @@ void command_main(size_t index) {
                     }
                     {
                         std::lock_guard<std::mutex> lock(g_mutex);
-                        g_transcribed = command;
+                        if (!command.empty()) {
+                            g_board.addMoves(command);
+                        }
+                        g_transcribed = std::move(command);
                     }
                 }
 
@@ -362,6 +652,36 @@ EMSCRIPTEN_BINDINGS(command) {
         }
 
         return transcribed;
+    }));
+
+
+    emscripten::function("get_moves", emscripten::optional_override([]() {
+        std::string moves;
+
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            moves = g_board.stringifyMoves();
+
+            fprintf(stdout, "%s: Moves '%s%s%s'\n", __func__, "\033[1m", moves.c_str(), "\033[0m");
+        }
+
+        return moves;
+    }));
+
+    emscripten::function("commit_moves", emscripten::optional_override([]() {
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_board.commitMoves();
+        }
+
+    }));
+
+    emscripten::function("discard_moves", emscripten::optional_override([]() {
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_board.m_pendingMoves.clear();
+        }
+
     }));
 
     emscripten::function("get_status", emscripten::optional_override([]() {
