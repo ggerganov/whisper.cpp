@@ -221,7 +221,7 @@ struct whisper_print_user_data {
     int progress_prev;
 };
 
-bool convert_to_WAV( std::string& temp_filename, std::string &error_resp) {
+bool convert_to_WAV(const std::string& temp_filename, std::string &error_resp) {
     std::ostringstream cmd_stream;
     std::string converted_filename_temp = temp_filename + "_temp.wav";
     cmd_stream << "ffmpeg -i \"" << temp_filename << "\" -ar 16000 -ac 1 -c:a pcm_s16le \"" << converted_filename_temp << "\" 2>&1";
@@ -483,8 +483,8 @@ int main(int argc, char ** argv) {
         std::vector<float> pcmf32;               // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
-        // write file to temporary file
-        std::string temp_filename = "whisper_server_temp_file.wav";
+        // write to temporary file
+        const std::string temp_filename = "whisper_server_temp_file.wav";
         std::ofstream temp_file{temp_filename, std::ios::binary};
         temp_file << audio_file.content;
         temp_file.close();
@@ -493,7 +493,6 @@ int main(int argc, char ** argv) {
         if(sparams.ffmpeg_converter) {
             std::string error_resp = "{\"error\":\"Failed to execute ffmpeg command.\"}";
             bool isConverted = convert_to_WAV(temp_filename, error_resp);
-            // if isConverted is false, return error response and unlock mutex and print error
             if(!isConverted) {
                 res.set_content(error_resp, "application/json");
                 whisper_mutex.unlock();
@@ -634,12 +633,12 @@ int main(int argc, char ** argv) {
             std::string results = output_str(ctx, params, pcmf32s);
             res.set_content(results.c_str(), "text/html");
         }
-            // TODO add more output formats
+        // TODO add more output formats
         else
         {
             std::string results = output_str(ctx, params, pcmf32s);
             json jres = json{
-                    {"text", results}
+                {"text", results}
             };
             res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
                             "application/json");
@@ -674,7 +673,7 @@ int main(int argc, char ** argv) {
         // whisper init
         ctx = whisper_init_from_file_with_params(model.c_str(), cparams);
 
-        // TODO perhaps load prior model here instead off exit
+        // TODO perhaps load prior model here instead of exit
         if (ctx == nullptr) {
             fprintf(stderr, "error: model init  failed, no model loaded must exit\n");
             exit(1);
