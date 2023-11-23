@@ -24,6 +24,7 @@
                 overflow-x: scroll;
             }
         </style>
+        <link rel="stylesheet" href="css/chessboard-1.0.0.min.css" integrity="sha384-q94+BZtLrkL1/ohfjR8c6L+A6qzNH9R2hBLwyoAfu3i/WCvQjzL2RQJ3uNHDISdU" crossorigin="anonymous">
     </head>
     <body onload="loadWhisper()">
         <div id="main-container">
@@ -71,6 +72,14 @@
                 <pre id="state-transcribed">[The recognized voice commands will be displayed here]</pre>
             </div>
 
+            <br><br>
+            <div id="myBoard" style="width: 400px"></div>
+            <script src="js/jquery-3.7.1.min.js"></script>
+            <script src="js/chessboard-1.0.0.min.js"></script>
+            <script>
+                var board = Chessboard('myBoard', 'start')
+            </script>
+
             <hr>
 
             Debug output:
@@ -101,7 +110,7 @@
             </div>
         </div>
 
-        <script type="text/javascript" src="helpers.js"></script>
+        <script type="text/javascript" src="js/helpers.js"></script>
         <script type='text/javascript'>
             // web audio context
             var context = null;
@@ -363,6 +372,20 @@
                     var transcribed = Module.get_transcribed();
 
                     if (transcribed != null && transcribed.length > 1) {
+                        const map = {
+                            queen: 'wQ',
+                            king: 'wK',
+                            bishop: 'wB',
+                            rook: 'wR',
+                            knight: 'wN',
+                            pawn: 'wP'
+                        };
+                        let [piece, _, pos] = transcribed.split(' ')
+                        pos = pos.replace(',', '').replace('.', '')
+
+                        board.position({[pos]: map[piece]})
+
+
                         transcribedAll += transcribed + '<br>';
                         nLines++;
 
@@ -386,6 +409,6 @@
             }
 
         </script>
-        <script type="text/javascript" src="chess.js"></script>
+        <script type="text/javascript" src="js/chess.js"></script>
     </body>
 </html>

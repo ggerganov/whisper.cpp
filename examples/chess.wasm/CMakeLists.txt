@@ -25,7 +25,7 @@ if (WHISPER_WASM_SINGLE_FILE)
         TARGET ${TARGET} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
         ${CMAKE_BINARY_DIR}/bin/libchess.js
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/chess.wasm/chess.js
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/chess.wasm/js/chess.js
         )
 endif()
 
@@ -40,6 +40,16 @@ set_target_properties(${TARGET} PROPERTIES LINK_FLAGS " \
     ${EXTRA_FLAGS} \
     ")
 
+
+add_custom_command(
+        TARGET ${TARGET} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/chessboardjs-1.0.0
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/chess.wasm/
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/jquery-3.7.1.min.js
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/chess.wasm/js/
+    )
 #
 # chess.wasm
 #
@@ -47,4 +57,4 @@ set_target_properties(${TARGET} PROPERTIES LINK_FLAGS " \
 set(TARGET chess.wasm)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/index-tmpl.html  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET}/index.html @ONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/../helpers.js    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET}/helpers.js @ONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/../helpers.js    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET}/js/helpers.js @ONLY)
