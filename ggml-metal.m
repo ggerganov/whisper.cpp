@@ -1072,7 +1072,7 @@ void ggml_metal_graph_compute(
                             GGML_ASSERT(ne00 == ne10);
                             GGML_ASSERT(ne03 == ne13);
 
-                            const uint gqa = ne12/ne02;
+                            const unsigned int gqa = ne12/ne02;
 
                             // find the break-even point where the matrix-matrix kernel becomes more efficient compared
                             // to the matrix-vector kernel
