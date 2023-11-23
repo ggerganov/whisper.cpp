@@ -777,6 +777,7 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | [generate-karaoke.sh](examples/generate-karaoke.sh) | | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |
 | [livestream.sh](examples/livestream.sh) | | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |
 | [yt-wsp.sh](examples/yt-wsp.sh) | | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |
+| [server](examples/server) | | HTTP transcription server with OAI-like API |
 
 ## [Discussions](https://github.com/ggerganov/whisper.cpp/discussions)
 
