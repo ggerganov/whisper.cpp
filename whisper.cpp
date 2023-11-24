@@ -3593,6 +3593,17 @@ const char * whisper_lang_str(int id) {
     return nullptr;
 }
 
+const char * whisper_lang_str_full(int id) {
+   for (const auto & kv : g_lang) {
+        if (kv.second.first == id) {
+            return kv.second.second.c_str();
+        }
+    }
+
+    WHISPER_LOG_ERROR("%s: unknown language id %d\n", __func__, id);
+    return nullptr;
+}
+
 int whisper_lang_auto_detect_with_state(
         struct whisper_context * ctx,
           struct whisper_state * state,
