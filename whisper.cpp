@@ -1078,6 +1078,11 @@ static ggml_backend_t whisper_backend_init(const whisper_context_params & params
         if (!backend_gpu) {
             WHISPER_LOG_ERROR("%s: ggml_backend_metal_init() failed\n", __func__);
         }
+        if (!ggml_backend_metal_supports_family(backend_gpu, 7)) {
+            WHISPER_LOG_ERROR("%s: Metal GPU does not support family 7 - falling back to CPU\n", __func__);
+            ggml_backend_free(backend_gpu);
+            backend_gpu = NULL;
+        }
     }
 #endif
 
