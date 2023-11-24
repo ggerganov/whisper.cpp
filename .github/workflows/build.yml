@@ -114,8 +114,7 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             apt update
-            apt install -y clang
-            apt install -y clang build-essential cmake libsdl2-dev
+            apt install -y build-essential cmake libsdl2-dev
             cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
             make
             ctest -L gh --output-on-failure'
