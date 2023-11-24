@@ -2,7 +2,7 @@
 //
 // A very quick-n-dirty implementation serving mainly as a proof of concept.
 //
-#include "common-sdl.h"
+#include "common-ffmpeg.h"
 #include "common.h"
 #include "whisper.h"
 
@@ -51,6 +51,7 @@ struct whisper_params {
     bool save_audio    = false; // save audio to wav file
     bool use_gpu       = true;
 
+    std::string url       = "http://localhost:5000/";
     std::string language  = "en";
     std::string model     = "models/ggml-base.en.bin";
     std::string fname_out;
@@ -71,6 +72,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (                  arg == "--length")        { params.length_ms     = std::stoi(argv[++i]); }
         else if (                  arg == "--keep")          { params.keep_ms       = std::stoi(argv[++i]); }
         else if (arg == "-c"    || arg == "--capture")       { params.capture_id    = std::stoi(argv[++i]); }
+        else if (arg == "-u"    || arg == "--url")           { params.url           = argv[++i]; }
         else if (arg == "-mt"   || arg == "--max-tokens")    { params.max_tokens    = std::stoi(argv[++i]); }
         else if (arg == "-ac"   || arg == "--audio-ctx")     { params.audio_ctx     = std::stoi(argv[++i]); }
         else if (arg == "-vth"  || arg == "--vad-thold")     { params.vad_thold     = std::stof(argv[++i]); }
@@ -108,6 +110,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "            --length N      [%-7d] audio length in milliseconds\n",                   params.length_ms);
     fprintf(stderr, "            --keep N        [%-7d] audio to keep from previous step in ms\n",         params.keep_ms);
     fprintf(stderr, "  -c ID,    --capture ID    [%-7d] capture device ID\n",                              params.capture_id);
+    fprintf(stderr, "  -u URL,   --url URL       [%-7s] capture device ID\n",                              params.url.c_str());
     fprintf(stderr, "  -mt N,    --max-tokens N  [%-7d] maximum number of tokens per audio chunk\n",       params.max_tokens);
     fprintf(stderr, "  -ac N,    --audio-ctx N   [%-7d] audio context size (0 - all)\n",                   params.audio_ctx);
     fprintf(stderr, "  -vth N,   --vad-thold N   [%-7.2f] voice activity detection threshold\n",           params.vad_thold);
@@ -151,8 +154,8 @@ int main(int argc, char ** argv) {
 
     // init audio
 
-    audio_async audio(params.length_ms);
-    if (!audio.init(params.capture_id, WHISPER_SAMPLE_RATE)) {
+    audio_capture audio(params.length_ms);
+    if (!audio.init(params.url.c_str(), -1, WHISPER_SAMPLE_RATE)) {
         fprintf(stderr, "%s: audio.init() failed!\n", __func__);
         return 1;
     }
@@ -243,7 +246,7 @@ int main(int argc, char ** argv) {
             wavWriter.write(pcmf32_new.data(), pcmf32_new.size());
         }
         // handle Ctrl + C
-        is_running = sdl_poll_events();
+        //is_running = sdl_poll_events();
 
         if (!is_running) {
             break;

@@ -345,9 +345,11 @@ clean:
 #
 
 CC_SDL=`sdl2-config --cflags --libs`
+CC_FFMPEG=`pkg-config --cflags --libs libavformat libavcodec libswresample libavutil`
 
 SRC_COMMON     = examples/common.cpp examples/common-ggml.cpp
 SRC_COMMON_SDL = examples/common-sdl.cpp
+SRC_COMMON_FFMPEG = examples/common-ffmpeg.cpp
 
 main: examples/main/main.cpp $(SRC_COMMON) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/main/main.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o main $(LDFLAGS)
@@ -362,8 +364,8 @@ quantize: examples/quantize/quantize.cpp $(WHISPER_OBJ) $(SRC_COMMON)
 server: examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o server $(LDFLAGS)
 
-stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
+stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_FFMPEG) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_FFMPEG) $(WHISPER_OBJ) -o stream $(CC_FFMPEG) $(LDFLAGS)
 
 command: examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
