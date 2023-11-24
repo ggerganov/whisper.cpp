@@ -5191,7 +5191,7 @@ int whisper_full_with_state(
                 ctx, state, progress_cur, params.progress_callback_user_data);
         }
 
-        // of only 1 second left, then stop
+        // if only 1 second left, then stop
         if (seek + 100 >= seek_end) {
             break;
         }
