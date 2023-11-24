@@ -221,7 +221,7 @@ struct whisper_print_user_data {
     int progress_prev;
 };
 
-void check_FFmpeg_availibility() {
+void check_ffmpeg_availibility() {
     int result = system("ffmpeg -version");
 
     if (result == 0) {
@@ -234,7 +234,7 @@ void check_FFmpeg_availibility() {
     }
 }
 
-bool convert_to_WAV(const std::string& temp_filename, std::string &error_resp) {
+bool convert_to_wav(const std::string & temp_filename, std::string & error_resp) {
     std::ostringstream cmd_stream;
     std::string converted_filename_temp = temp_filename + "_temp.wav";
     cmd_stream << "ffmpeg -i \"" << temp_filename << "\" -ar 16000 -ac 1 -c:a pcm_s16le \"" << converted_filename_temp << "\" 2>&1";
@@ -507,10 +507,10 @@ int main(int argc, char ** argv) {
 
         // if file is not wav, convert to wav
         
-        if(sparams.ffmpeg_converter) {
+        if (sparams.ffmpeg_converter) {
             std::string error_resp = "{\"error\":\"Failed to execute ffmpeg command.\"}";
-            bool isConverted = convert_to_WAV(temp_filename, error_resp);
-            if(!isConverted) {
+            const bool is_converted = convert_to_WAV(temp_filename, error_resp);
+            if (!is_converted) {
                 res.set_content(error_resp, "application/json");
                 whisper_mutex.unlock();
                 return;
