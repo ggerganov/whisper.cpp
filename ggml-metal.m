@@ -459,6 +459,10 @@ void ggml_metal_host_free(void * data) {
     free(data);
 }
 
+bool ggml_metal_supports_family(struct ggml_metal_context * ctx, int family) {
+    return [ctx->device supportsFamily:(MTLGPUFamilyApple1 + family - 1)];
+}
+
 void ggml_metal_set_n_cb(struct ggml_metal_context * ctx, int n_cb) {
     ctx->n_cb = MIN(n_cb, GGML_METAL_MAX_BUFFERS);
 }
@@ -1072,7 +1076,7 @@ void ggml_metal_graph_compute(
                             GGML_ASSERT(ne00 == ne10);
                             GGML_ASSERT(ne03 == ne13);
 
-                            const uint gqa = ne12/ne02;
+                            const unsigned int gqa = ne12/ne02;
 
                             // find the break-even point where the matrix-matrix kernel becomes more efficient compared
                             // to the matrix-vector kernel
@@ -1750,4 +1754,10 @@ void ggml_backend_metal_set_n_cb(ggml_backend_t backend, int n_cb) {
     struct ggml_metal_context * ctx = (struct ggml_metal_context *)backend->context;
 
     ggml_metal_set_n_cb(ctx, n_cb);
+}
+
+bool ggml_backend_metal_supports_family(ggml_backend_t backend, int family) {
+    struct ggml_metal_context * ctx = (struct ggml_metal_context *)backend->context;
+
+    return ggml_metal_supports_family(ctx, family);
 }

@@ -50,7 +50,9 @@ extern "C" {
     //
     //     ...
     //
-    //     struct whisper_context * ctx = whisper_init_from_file("/path/to/ggml-base.en.bin");
+    //     whisper_context_params cparams = whisper_context_default_params();
+    //
+    //     struct whisper_context * ctx = whisper_init_from_file_with_params("/path/to/ggml-base.en.bin", cparams);
     //
     //     if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
     //         fprintf(stderr, "failed to process audio\n");
@@ -312,6 +314,9 @@ extern "C" {
 
     // Return the short string of the specified language id (e.g. 2 -> "de"), returns nullptr if not found
     WHISPER_API const char * whisper_lang_str(int id);
+
+    // Return the short string of the specified language name (e.g. 2 -> "german"), returns nullptr if not found
+    WHISPER_API const char * whisper_lang_str_full(int id);
 
     // Use mel data at offset_ms to try and auto-detect the spoken language
     // Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first

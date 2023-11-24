@@ -1078,6 +1078,11 @@ static ggml_backend_t whisper_backend_init(const whisper_context_params & params
         if (!backend_gpu) {
             WHISPER_LOG_ERROR("%s: ggml_backend_metal_init() failed\n", __func__);
         }
+        if (!ggml_backend_metal_supports_family(backend_gpu, 7)) {
+            WHISPER_LOG_ERROR("%s: Metal GPU does not support family 7 - falling back to CPU\n", __func__);
+            ggml_backend_free(backend_gpu);
+            backend_gpu = NULL;
+        }
     }
 #endif
 
@@ -1732,22 +1737,20 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         // convolution + gelu
         {
             cur = ggml_conv_1d_ph(ctx0, model.e_conv_1_w, mel, 1, 1);
-            cur = ggml_add(ctx0, cur, model.e_conv_1_b);
-            //cur = ggml_add(ctx0,
-            //        ggml_repeat(ctx0,
-            //            model.e_conv_1_b,
-            //            cur),
-            //        cur);
+            if (n_ctx == hparams.n_audio_ctx) {
+                cur = ggml_add(ctx0, cur, model.e_conv_1_b);
+            } else {
+                cur = ggml_add(ctx0, cur, ggml_cont(ctx0, ggml_view_2d(ctx0, model.e_conv_1_b, cur->ne[0], cur->ne[1], model.e_conv_1_b->nb[1], 0)));
+            }
 
             cur = ggml_gelu(ctx0, cur);
 
             cur = ggml_conv_1d_ph(ctx0, model.e_conv_2_w, cur, 2, 1);
-            cur = ggml_add(ctx0, cur, model.e_conv_2_b);
-            //cur = ggml_add(ctx0,
-            //        ggml_repeat(ctx0,
-            //            model.e_conv_2_b,
-            //            cur),
-            //        cur);
+            if (n_ctx == hparams.n_audio_ctx) {
+                cur = ggml_add(ctx0, cur, model.e_conv_2_b);
+            } else {
+                cur = ggml_add(ctx0, cur, ggml_cont(ctx0, ggml_view_2d(ctx0, model.e_conv_2_b, cur->ne[0], cur->ne[1], model.e_conv_2_b->nb[1], 0)));
+            }
 
             cur = ggml_gelu(ctx0, cur);
         }
@@ -3527,7 +3530,7 @@ int whisper_encode(struct whisper_context * ctx, int offset, int n_threads) {
 int whisper_decode_with_state(struct whisper_context * ctx, struct whisper_state * state, const whisper_token * tokens, int n_tokens, int n_past, int n_threads) {
     whisper_batch_prep_legacy(state->batch, tokens, n_tokens, n_past, 0);
 
-    whisper_kv_cache_seq_rm(ctx->state->kv_self, 0, n_past, -1);
+    whisper_kv_cache_seq_rm(state->kv_self, 0, n_past, -1);
 
     if (!whisper_decode_internal(*ctx, *state, state->batch, n_threads, nullptr, nullptr)) {
         WHISPER_LOG_ERROR("%s: failed to eval\n", __func__);
@@ -3540,19 +3543,10 @@ int whisper_decode_with_state(struct whisper_context * ctx, struct whisper_state
 int whisper_decode(struct whisper_context * ctx, const whisper_token * tokens, int n_tokens, int n_past, int n_threads) {
     if (ctx->state == nullptr) {
         WHISPER_LOG_ERROR("%s: ERROR state was not loaded.\n", __func__);
-        return false;
+        return -1;
     }
 
-    whisper_kv_cache_seq_rm(ctx->state->kv_self, 0, n_past, -1);
-
-    whisper_batch_prep_legacy(ctx->state->batch, tokens, n_tokens, n_past, 0);
-
-    if (!whisper_decode_internal(*ctx, *ctx->state, ctx->state->batch, n_threads, nullptr, nullptr)) {
-        WHISPER_LOG_ERROR("%s: failed to eval\n", __func__);
-        return 1;
-    }
-
-    return 0;
+    return whisper_decode_with_state(ctx, ctx->state, tokens, n_tokens, n_past, n_threads);
 }
 
 int whisper_tokenize(struct whisper_context * ctx, const char * text, whisper_token * tokens, int n_max_tokens) {
@@ -3597,6 +3591,17 @@ const char * whisper_lang_str(int id) {
     for (const auto & kv : g_lang) {
         if (kv.second.first == id) {
             return kv.first.c_str();
+        }
+    }
+
+    WHISPER_LOG_ERROR("%s: unknown language id %d\n", __func__, id);
+    return nullptr;
+}
+
+const char * whisper_lang_str_full(int id) {
+   for (const auto & kv : g_lang) {
+        if (kv.second.first == id) {
+            return kv.second.second.c_str();
         }
     }
 
@@ -5188,10 +5193,10 @@ int whisper_full_with_state(
             const int progress_cur = (100*(seek - seek_start))/(seek_end - seek_start);
 
             params.progress_callback(
-                ctx, ctx->state, progress_cur, params.progress_callback_user_data);
+                ctx, state, progress_cur, params.progress_callback_user_data);
         }
 
-        // of only 1 second left, then stop
+        // if only 1 second left, then stop
         if (seek + 100 >= seek_end) {
             break;
         }
@@ -6075,7 +6080,9 @@ WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
     // 1GB array
     const size_t size = arr*1e6;
 
-    // single-thread
+    double sum  = 0.0;
+
+    // heat-up
     {
         char * src = (char *) malloc(size);
         char * dst = (char *) malloc(size);
@@ -6085,7 +6092,6 @@ WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
         memcpy(dst, src, size); // heat-up
 
         double tsum = 0.0;
-        double sum  = 0.0;
 
         for (size_t i = 0; i < n; i++) {
             const int64_t t0 = ggml_time_us();
@@ -6099,20 +6105,107 @@ WHISPER_API const char * whisper_bench_memcpy_str(int n_threads) {
             src[rand() % size] = rand() % 256;
         }
 
-        snprintf(strbuf, sizeof(strbuf), "memcpy: %.2f GB/s (1 thread)\n", (double) (n*size)/(tsum*1e9));
+        snprintf(strbuf, sizeof(strbuf), "memcpy: %7.2f GB/s (heat-up)\n", (double) (n*size)/(tsum*1e9));
         s += strbuf;
 
         // needed to prevent the compiler from optimizing the memcpy away
         {
             for (size_t i = 0; i < size; i++) sum += dst[i];
-
-            snprintf(strbuf, sizeof(strbuf), "sum:    %f\n", sum);
-            s += strbuf;
         }
 
         free(src);
         free(dst);
     }
+
+    // single-thread
+    {
+        char * src = (char *) malloc(size);
+        char * dst = (char *) malloc(size);
+
+        for (size_t i = 0; i < size; i++) src[i] = i;
+
+        memcpy(dst, src, size); // heat-up
+
+        double tsum = 0.0;
+
+        for (size_t i = 0; i < n; i++) {
+            const int64_t t0 = ggml_time_us();
+
+            memcpy(dst, src, size);
+
+            const int64_t t1 = ggml_time_us();
+
+            tsum += (t1 - t0)*1e-6;
+
+            src[rand() % size] = rand() % 256;
+        }
+
+        snprintf(strbuf, sizeof(strbuf), "memcpy: %7.2f GB/s ( 1 thread)\n", (double) (n*size)/(tsum*1e9));
+        s += strbuf;
+
+        // needed to prevent the compiler from optimizing the memcpy away
+        {
+            for (size_t i = 0; i < size; i++) sum += dst[i];
+        }
+
+        free(src);
+        free(dst);
+    }
+
+    // multi-thread
+
+    for (uint32_t k = 1; k <= n_threads; k++) {
+        char * src = (char *) malloc(size);
+        char * dst = (char *) malloc(size);
+
+        for (size_t i = 0; i < size; i++) src[i] = i;
+
+        memcpy(dst, src, size); // heat-up
+
+        double tsum = 0.0;
+
+        auto helper = [&](int th) {
+            const int64_t i0 = (th + 0)*size/k;
+            const int64_t i1 = (th + 1)*size/k;
+
+            for (size_t i = 0; i < n; i++) {
+                memcpy(dst + i0, src + i0, i1 - i0);
+
+                src[i0 + rand() % (i1 - i0)] = rand() % 256;
+            };
+        };
+
+        const int64_t t0 = ggml_time_us();
+
+        std::vector<std::thread> threads(k - 1);
+        for (uint32_t th = 0; th < k - 1; ++th) {
+            threads[th] = std::thread(helper, th);
+        }
+
+        helper(k - 1);
+
+        for (uint32_t th = 0; th < k - 1; ++th) {
+            threads[th].join();
+        }
+
+        const int64_t t1 = ggml_time_us();
+
+        tsum += (t1 - t0)*1e-6;
+
+        snprintf(strbuf, sizeof(strbuf), "memcpy: %7.2f GB/s (%2d thread)\n", (double) (n*size)/(tsum*1e9), k);
+        s += strbuf;
+
+        // needed to prevent the compiler from optimizing the memcpy away
+        {
+            for (size_t i = 0; i < size; i++) sum += dst[i];
+        }
+
+        free(src);
+        free(dst);
+    }
+
+    snprintf(strbuf, sizeof(strbuf), "sum:    %f\n", sum);
+    s += strbuf;
 
     return s.c_str();
 }

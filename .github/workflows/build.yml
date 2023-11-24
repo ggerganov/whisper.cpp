@@ -320,6 +320,13 @@ jobs:
           cd ./build
           msbuild ALL_BUILD.vcxproj -t:build -p:configuration=${{ matrix.build }} -p:platform=${{ matrix.arch }}
 
+      - name: Copy CUDA DLLs
+        run: >
+          Copy-Item -PassThru
+          -Path "${{ steps.cuda-toolkit.outputs.CUDA_PATH }}/bin/*.dll"
+          -Include cudart64_*,cublas64_*,cublasLt64_*
+          -Destination build/bin/${{ matrix.build }}
+
       - name: Copy SDL2.dll
         if: matrix.sdl2 == 'ON'
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
