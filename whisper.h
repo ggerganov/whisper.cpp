@@ -316,7 +316,7 @@ extern "C" {
     WHISPER_API const char * whisper_lang_str(int id);
 
     // Return the short string of the specified language name (e.g. 2 -> "german"), returns nullptr if not found
-    WHISPER_API const char * whisper_lang_fullstr(int id); 
+    WHISPER_API const char * whisper_lang_str_full(int id); 
 
     // Use mel data at offset_ms to try and auto-detect the spoken language
     // Make sure to call whisper_pcm_to_mel() or whisper_set_mel() first

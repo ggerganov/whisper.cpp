@@ -3593,7 +3593,7 @@ const char * whisper_lang_str(int id) {
     return nullptr;
 }
 
-const char * whisper_lang_fullstr(int id) {
+const char * whisper_lang_str_full(int id) {
    for (const auto & kv : g_lang) {
         if (kv.second.first == id) {
             return kv.second.second.c_str();
