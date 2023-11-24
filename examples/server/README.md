@@ -33,6 +33,7 @@ options:
   -nf,       --no-fallback       [false  ] do not use temperature fallback while decoding
   -ps,       --print-special     [false  ] print special tokens
   -pc,       --print-colors      [false  ] print colors
+  -pr,       --print-realtime    [false  ] print output in realtime
   -pp,       --print-progress    [false  ] print progress
   -nt,       --no-timestamps     [false  ] do not print timestamps
   -l LANG,   --language LANG     [en     ] spoken language ('auto' for auto-detect)

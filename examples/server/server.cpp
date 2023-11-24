@@ -72,6 +72,7 @@ struct whisper_params {
     bool no_fallback     = false;
     bool print_special   = false;
     bool print_colors    = false;
+    bool print_realtime  = false;
     bool print_progress  = false;
     bool no_timestamps   = false;
     bool use_gpu         = true;
@@ -144,6 +145,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -nf,       --no-fallback       [%-7s] do not use temperature fallback while decoding\n", params.no_fallback ? "true" : "false");
     fprintf(stderr, "  -ps,       --print-special     [%-7s] print special tokens\n",                           params.print_special ? "true" : "false");
     fprintf(stderr, "  -pc,       --print-colors      [%-7s] print colors\n",                                   params.print_colors ? "true" : "false");
+    fprintf(stderr, "  -pr,       --print-realtime    [%-7s] print output in realtime\n",                       params.print_realtime ? "true" : "false");
     fprintf(stderr, "  -pp,       --print-progress    [%-7s] print progress\n",                                 params.print_progress ? "true" : "false");
     fprintf(stderr, "  -nt,       --no-timestamps     [%-7s] do not print timestamps\n",                        params.no_timestamps ? "true" : "false");
     fprintf(stderr, "  -l LANG,   --language LANG     [%-7s] spoken language ('auto' for auto-detect)\n",       params.language.c_str());
@@ -188,6 +190,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
         else if (arg == "-fp"   || arg == "--font-path")       { params.font_path       = argv[++i]; }
         else if (arg == "-ps"   || arg == "--print-special")   { params.print_special   = true; }
         else if (arg == "-pc"   || arg == "--print-colors")    { params.print_colors    = true; }
+        else if (arg == "-pr"   || arg == "--print-realtime")  { params.print_realtime  = true; }
         else if (arg == "-pp"   || arg == "--print-progress")  { params.print_progress  = true; }
         else if (arg == "-nt"   || arg == "--no-timestamps")   { params.no_timestamps   = true; }
         else if (arg == "-l"    || arg == "--language")        { params.language        = argv[++i]; }
@@ -544,7 +547,7 @@ int main(int argc, char ** argv) {
             whisper_print_user_data user_data = { &params, &pcmf32s, 0 };
 
             // this callback is called on each new segment
-            if (!wparams.print_realtime) {
+            if (params.print_realtime) {
                 wparams.new_segment_callback           = whisper_print_segment_callback;
                 wparams.new_segment_callback_user_data = &user_data;
             }
