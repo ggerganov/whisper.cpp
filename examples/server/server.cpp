@@ -509,7 +509,7 @@ int main(int argc, char ** argv) {
         
         if (sparams.ffmpeg_converter) {
             std::string error_resp = "{\"error\":\"Failed to execute ffmpeg command.\"}";
-            const bool is_converted = convert_to_WAV(temp_filename, error_resp);
+            const bool is_converted = convert_to_wav(temp_filename, error_resp);
             if (!is_converted) {
                 res.set_content(error_resp, "application/json");
                 whisper_mutex.unlock();
