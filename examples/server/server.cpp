@@ -448,7 +448,7 @@ int main(int argc, char ** argv) {
     }
 
     if (sparams.ffmpeg_converter) {
-        check_FFmpeg_availibility();
+        check_ffmpeg_availibility();
     }
     // whisper init
     struct whisper_context_params cparams;
