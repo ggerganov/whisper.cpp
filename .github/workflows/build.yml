@@ -301,9 +301,9 @@ jobs:
 
       - name: Install CUDA Toolkit
         id: cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.10
+        uses: Jimver/cuda-toolkit@v0.2.11
         with:
-          cuda: ${{ matrix.cuda-toolkit }}
+          cuda: '${{ matrix.cuda-toolkit }}'
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
