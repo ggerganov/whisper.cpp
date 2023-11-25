@@ -1,19 +1,8 @@
-#include "ggml.h"
-#include "common.h"
-
-
-#include <emscripten.h>
+#include <WChess.h>
 #include <emscripten/bind.h>
 
-#include <WChess.h>
-
 #include <atomic>
-#include <cmath>
-#include <mutex>
-#include <string>
 #include <thread>
-#include <vector>
-#include <regex>
 
 constexpr int N_THREAD = 8;
 
@@ -59,6 +48,45 @@ bool check_running() {
     return g_running;
 }
 
+void wchess_main(size_t i) {
+    struct whisper_full_params wparams = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
+
+    wparams.n_threads        = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
+    wparams.offset_ms        = 0;
+    wparams.translate        = false;
+    wparams.no_context       = true;
+    wparams.single_segment   = true;
+    wparams.print_realtime   = false;
+    wparams.print_progress   = false;
+    wparams.print_timestamps = true;
+    wparams.print_special    = false;
+
+    wparams.max_tokens       = 32;
+    // wparams.audio_ctx        = 768; // partial encoder context for better performance
+
+    wparams.temperature     = 0.4f;
+    wparams.temperature_inc = 1.0f;
+    wparams.greedy.best_of  = 1;
+
+    wparams.beam_search.beam_size = 5;
+
+    wparams.language         = "en";
+
+    printf("command: using %d threads\n", wparams.n_threads);
+
+    WChess::callbacks cb;
+    cb.set_status = set_status;
+    cb.check_running = check_running;
+    cb.get_audio = get_audio;
+    cb.set_moves = set_moves;
+
+    WChess(g_contexts[i], wparams, cb, {}).run();
+    if (i < g_contexts.size()) {
+        whisper_free(g_contexts[i]);
+        g_contexts[i] = nullptr;
+    }
+}
+
 EMSCRIPTEN_BINDINGS(command) {
     emscripten::function("init", emscripten::optional_override([](const std::string & path_model) {
         for (size_t i = 0; i < g_contexts.size(); ++i) {
@@ -70,44 +98,7 @@ EMSCRIPTEN_BINDINGS(command) {
                         g_worker.join();
                     }
                     g_worker = std::thread([i]() {
-
-                        struct whisper_full_params wparams = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
-
-                        wparams.n_threads        = std::min(N_THREAD, (int) std::thread::hardware_concurrency());
-                        wparams.offset_ms        = 0;
-                        wparams.translate        = false;
-                        wparams.no_context       = true;
-                        wparams.single_segment   = true;
-                        wparams.print_realtime   = false;
-                        wparams.print_progress   = false;
-                        wparams.print_timestamps = true;
-                        wparams.print_special    = false;
-
-                        wparams.max_tokens       = 32;
-                        // wparams.audio_ctx        = 768; // partial encoder context for better performance
-
-                        wparams.temperature     = 0.4f;
-                        wparams.temperature_inc = 1.0f;
-                        wparams.greedy.best_of  = 1;
-
-                        wparams.beam_search.beam_size = 5;
-
-                        wparams.language         = "en";
-
-                        printf("command: using %d threads\n", wparams.n_threads);
-
-                        Chess(g_contexts[i],
-                            wparams,
-                            set_status,
-                            check_running,
-                            get_audio,
-                            set_moves).run();
-
-                        if (i < g_contexts.size()) {
-                            whisper_free(g_contexts[i]);
-                            g_contexts[i] = nullptr;
-                        }
-
+                        wchess_main(i);
                     });
 
                     return i + 1;

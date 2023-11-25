@@ -1,30 +1,15 @@
-// Voice assistant example
+// Command line voice assisted chess
 //
-// Speak short text commands to the microphone.
-// This program will detect your voice command and convert them to text.
+// Speak chess move commands to the microphone.
+// The moves will translated to chessboard positions.
 //
-// ref: https://github.com/ggerganov/whisper.cpp/issues/171
 //
 
-#include "common-sdl.h"
-#include "common.h"
 #include "WChess.h"
+#include "common-sdl.h"
 
-#include <sstream>
-#include <cassert>
-#include <cstdio>
-#include <fstream>
-#include <mutex>
-#include <regex>
-#include <string>
+#include <memory>
 #include <thread>
-#include <vector>
-#include <map>
-
-bool file_exists(const std::string & fname) {
-    std::ifstream f(fname.c_str());
-    return f.good();
-}
 
 // command-line parameters
 struct whisper_params {
@@ -81,7 +66,6 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -cmd FNAME, --commands FNAME [%-7s] text file with allowed commands\n",             params.commands.c_str());
     fprintf(stderr, "  -p,         --prompt         [%-7s] the required activation prompt\n",              params.prompt.c_str());
     fprintf(stderr, "  -ctx,       --context        [%-7s] sample text to help the transcription\n",       params.context.c_str());
-    fprintf(stderr, "  --grammar GRAMMAR            [%-7s] GBNF grammar to guide decoding\n",              params.grammar.c_str());
     fprintf(stderr, "  --grammar-penalty N          [%-7.1f] scales down logits of nongrammar tokens\n",   params.grammar_penalty);
     fprintf(stderr, "\n");
 }
@@ -124,19 +108,14 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     return true;
 }
 
-
-std::unique_ptr<Chess> g_chess;
-void set_moves(const std::string & /* moves */) {
-    fprintf(stdout, "%s", g_chess->stringifyBoard().c_str());
+std::unique_ptr<WChess> g_wchess;
+void set_moves(const std::string & moves) {
+    if (!moves.empty()) fprintf(stdout, "%s", g_wchess->stringify_board().c_str());
 }
 
 audio_async g_audio(30*1000);
 void get_audio(int ms, std::vector<float> & pcmf32_cur) {
     g_audio.get(ms, pcmf32_cur);
-}
-
-bool check_running() {
-    return sdl_poll_events();
 }
 
 int main(int argc, char ** argv) {
@@ -189,15 +168,30 @@ int main(int argc, char ** argv) {
 
     wparams.beam_search.beam_size = 5;
 
+    wparams.initial_prompt = params.context.data();
+
     g_audio.resume();
 
     // wait for 1 second to avoid any buffered noise
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     g_audio.clear();
 
-    g_chess.reset(new Chess(ctx, wparams, nullptr, sdl_poll_events, get_audio, set_moves));
-    set_moves({});
-    g_chess->run();
+    WChess::callbacks cb;
+    cb.check_running = sdl_poll_events;
+    cb.get_audio = get_audio;
+    cb.set_moves = set_moves;
+
+    WChess::settings s;
+    s.vad_ms = 2000;
+    s.prompt_ms = params.prompt_ms;
+    s.command_ms = params.command_ms;
+    s.vad_thold = params.vad_thold;
+    s.freq_thold = params.freq_thold;
+    s.print_energy = params.print_energy;
+
+    g_wchess.reset(new WChess(ctx, wparams, cb, s));
+    set_moves("start");
+    g_wchess->run();
 
     g_audio.pause();
 

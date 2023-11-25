@@ -1,49 +1,48 @@
 #include "WChess.h"
+#include "Chessboard.h"
 #include "grammar-parser.h"
 #include "common.h"
 #include <thread>
 
-Chess::Chess(whisper_context * ctx,
+WChess::WChess(whisper_context * ctx,
         const whisper_full_params & wparams,
-        StatusSetter status_setter,
-        ISRunning running,
-        AudioGetter audio,
-        MovesSetter m_moveSetter)
+        callbacks cb,
+        settings s)
         : m_ctx(ctx)
         , m_wparams(wparams)
-        , m_status_setter(status_setter)
-        , m_running(running)
-        , m_audio(audio)
-        , m_moveSetter( m_moveSetter)
+        , m_cb(cb)
+        , m_settings(s)
+        , m_board(new Chessboard())
 {}
 
-void Chess::set_status(const char * msg) {
-    if (m_status_setter) (*m_status_setter)(msg);
+WChess::~WChess() = default;
+
+void WChess::set_status(const std::string& msg) const {
+    if (m_cb.set_status) (*m_cb.set_status)(msg);
 }
 
-void Chess::set_moves(const std::string& moves) {
-    if (m_moveSetter) (*m_moveSetter)(moves);
+void WChess::set_moves(const std::string& moves) const {
+    if (m_cb.set_moves) (*m_cb.set_moves)(moves);
 }
 
-bool Chess::check_running() {
-    if (m_running) return (*m_running)();
+bool WChess::check_running() const {
+    if (m_cb.check_running) return (*m_cb.check_running)();
     return false;
 }
 
-void Chess::get_audio(int ms, std::vector<float>& pcmf32) {
-    if (m_audio) (*m_audio)(ms, pcmf32);
+void WChess::get_audio(int ms, std::vector<float>& pcmf32) const {
+    if (m_cb.get_audio) (*m_cb.get_audio)(ms, pcmf32);
 }
 
-std::string Chess::stringifyBoard() {
-    return m_board.stringifyBoard();
+std::string WChess::stringify_board() const {
+    return m_board->stringifyBoard();
 }
 
-void Chess::run() {
+void WChess::run() {
     set_status("loading data ...");
 
     bool have_prompt  = false;
     bool ask_prompt   = true;
-    bool print_energy = false;
 
     float logprob_min0 = 0.0f;
     float logprob_min  = 0.0f;
@@ -87,13 +86,6 @@ void Chess::run() {
         m_wparams.grammar_penalty = 100.0;
     }
 
-    const int32_t vad_ms     = 2000;
-    const int32_t prompt_ms  = 5000;
-    const int32_t command_ms = 4000;
-
-    const float vad_thold  = 0.1f;
-    const float freq_thold = -1.0f;
-
     while (check_running()) {
         // delay
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -115,14 +107,14 @@ void Chess::run() {
         int64_t t_ms = 0;
 
         {
-            get_audio(vad_ms, pcmf32_cur);
+            get_audio(m_settings.vad_ms, pcmf32_cur);
 
-            if (::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, vad_thold, freq_thold, print_energy)) {
+            if (::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, m_settings.vad_thold, m_settings.freq_thold, m_settings.print_energy)) {
                 fprintf(stdout, "%s: Speech detected! Processing ...\n", __func__);
                 set_status("Speech detected! Processing ...");
 
                 if (!have_prompt) {
-                    get_audio(prompt_ms, pcmf32_cur);
+                    get_audio(m_settings.prompt_ms, pcmf32_cur);
 
                     m_wparams.i_start_rule    = grammar_parsed.symbol_ids.at("prompt");
                     const auto txt = ::trim(transcribe(pcmf32_cur, logprob_min, logprob_sum, n_tokens, t_ms));
@@ -151,7 +143,7 @@ void Chess::run() {
                         have_prompt = true;
                     }
                 } else {
-                    get_audio(command_ms, pcmf32_cur);
+                    get_audio(m_settings.command_ms, pcmf32_cur);
 
                     // prepend 3 second of silence
                     pcmf32_cur.insert(pcmf32_cur.begin(), 3*WHISPER_SAMPLE_RATE, 0.0f);
@@ -198,18 +190,15 @@ void Chess::run() {
                         set_status(txt);
                     }
                     if (!command.empty()) {
-                        set_moves(m_board.processTranscription(command));
+                        set_moves(m_board->processTranscription(command));
                     }
-
                 }
-
-
             }
         }
     }
 }
 
-std::string Chess::transcribe(
+std::string WChess::transcribe(
                 const std::vector<float> & pcmf32,
                 float & logprob_min,
                 float & logprob_sum,
@@ -223,7 +212,7 @@ std::string Chess::transcribe(
     t_ms = 0;
 
     if (whisper_full(m_ctx, m_wparams, pcmf32.data(), pcmf32.size()) != 0) {
-        return "";
+        return {};
     }
 
     std::string result;

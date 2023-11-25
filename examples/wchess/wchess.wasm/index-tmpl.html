@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en-us">
     <head>
-        <title>command : Voice assistant example using Whisper + WebAssembly</title>
+        <title>wchess : Voice assistant example using Whisper + WebAssembly</title>
 
         <style>
             #output {
@@ -28,7 +28,7 @@
     </head>
     <body onload="loadWhisper()">
         <div id="main-container">
-            <b>command : Voice assistant example using Whisper + WebAssembly</b>
+            <b>wchess : Voice assistant example using Whisper + WebAssembly</b>
 
             <br><br>
 
@@ -57,6 +57,14 @@
             </div>
 
             <br>
+            <div id="myBoard" style="width: 400px"></div>
+            <script src="js/jquery-3.7.1.min.js"></script>
+            <script src="js/chessboard-1.0.0.min.js"></script>
+            <script>
+                var board = Chessboard('myBoard', 'start')
+            </script>
+
+            <br>
 
             <div id="input">
                 <button id="start" onclick="onStart()" disabled>Start</button>
@@ -71,14 +79,6 @@
 
                 <pre id="state-moves">[The moves will be displayed here]</pre>
             </div>
-
-            <br><br>
-            <div id="myBoard" style="width: 400px"></div>
-            <script src="js/jquery-3.7.1.min.js"></script>
-            <script src="js/chessboard-1.0.0.min.js"></script>
-            <script>
-                var board = Chessboard('myBoard', 'start')
-            </script>
 
             <hr>
 
