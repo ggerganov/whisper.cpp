@@ -1,18 +1,14 @@
-#
-# libchess
-#
-
-set(TARGET libchess)
+set(TARGET wchess.wasm)
 
 add_executable(${TARGET}
-    emscripten.cpp
+    wchess.wasm.cpp
     )
 
 include(DefaultTargetOptions)
 
 target_link_libraries(${TARGET} PRIVATE
     common
-    whisper
+    libwchess
     )
 
 unset(EXTRA_FLAGS)
@@ -24,8 +20,8 @@ if (WHISPER_WASM_SINGLE_FILE)
     add_custom_command(
         TARGET ${TARGET} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_BINARY_DIR}/bin/libchess.js
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/chess.wasm/js/chess.js
+        ${CMAKE_BINARY_DIR}/bin/${TARGET}.js
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET}/js/chess.js
         )
 endif()
 
@@ -45,16 +41,11 @@ add_custom_command(
         TARGET ${TARGET} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/chessboardjs-1.0.0
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/chess.wasm/
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET}/
         COMMAND ${CMAKE_COMMAND} -E copy
         ${CMAKE_CURRENT_SOURCE_DIR}/jquery-3.7.1.min.js
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/chess.wasm/js/
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET}/js/
     )
-#
-# chess.wasm
-#
-
-set(TARGET chess.wasm)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/index-tmpl.html  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET}/index.html @ONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/../helpers.js    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET}/js/helpers.js @ONLY)
+configure_file(${CMAKE_SOURCE_DIR}/examples/helpers.js    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET}/js/helpers.js @ONLY)

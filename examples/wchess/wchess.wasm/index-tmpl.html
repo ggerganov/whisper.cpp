@@ -69,7 +69,7 @@
             <div id="state">
                 Status: <b><span id="state-status">not started</span></b>
 
-                <pre id="state-transcribed">[The recognized voice commands will be displayed here]</pre>
+                <pre id="state-moves">[The moves will be displayed here]</pre>
             </div>
 
             <br><br>
@@ -350,7 +350,7 @@
 
             var nLines = 0;
             var intervalUpdate = null;
-            var transcribedAll = '';
+            var movesAll = '';
 
             function onStart() {
                 if (!instance) {
@@ -369,31 +369,29 @@
                 startRecording();
 
                 intervalUpdate = setInterval(function() {
-                    var transcribed = Module.get_transcribed();
+                    var moves = Module.get_moves();
 
-                    if (transcribed != null && transcribed.length > 1) {
-                        var moves = Module.get_moves();
-                        for (move of moves) {
+                    if (moves != null && moves.length > 1) {
+
+                        for (move of moves.split(' ')) {
                             board.move(move);
                         }
-                        Module.commit_moves();
 
-
-                        transcribedAll += transcribed + '<br>';
+                        movesAll += moves + '<br>';
                         nLines++;
 
                         // if more than 10 lines, remove the first line
                         if (nLines > 10) {
-                            var i = transcribedAll.indexOf('<br>');
+                            var i = movesAll.indexOf('<br>');
                             if (i > 0) {
-                                transcribedAll = transcribedAll.substring(i + 4);
+                                movesAll = movesAll.substring(i + 4);
                                 nLines--;
                             }
                         }
                     }
 
                     document.getElementById('state-status').innerHTML = Module.get_status();
-                    document.getElementById('state-transcribed').innerHTML = transcribedAll;
+                    document.getElementById('state-moves').innerHTML = movesAll;
                 }, 100);
             }
 
