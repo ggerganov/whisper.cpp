@@ -285,7 +285,7 @@ jobs:
         arch: [x64]
         cublas: [ON]
         sdl2: [ON]
-        cuda-toolkit: [12.2.0, 11.8.0, 10.2.89]
+        cuda-toolkit: [12.2.0, 11.8.0]
         include:
           - arch: x64
             s2arc: x64
