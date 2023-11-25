@@ -318,7 +318,7 @@ jobs:
       - name: Build
         run: |
           cd ./build
-          msbuild ALL_BUILD.vcxproj -t:build -p:configuration=${{ matrix.build }} -p:platform=${{ matrix.arch }}
+          cmake --build . --config ${{ matrix.build }}
 
       - name: Copy CUDA DLLs
         run: >
