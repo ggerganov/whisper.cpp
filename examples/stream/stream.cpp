@@ -431,7 +431,7 @@ int run(int argc, const char ** argv) {
     return 0;
 }
 
-#if WIN32
+#if _WIN32
 int wmain(int argc, const wchar_t ** argv_UTF16LE) {
     init_console();
     std::vector<std::string> buffer(argc);

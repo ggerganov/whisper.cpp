@@ -6,14 +6,15 @@
 #define CONSOLE_H
 
 #include <string>
-#if WIN32
+#if _WIN32
 #define NOMINMAX
+#define _WINSOCKAPI_
 #include <windows.h>
 #include <io.h>
 #include <fcntl.h>
 #endif
 
-#if WIN32
+#if _WIN32
 // use std::wstring on Windows
 typedef std::wstring ustring;
 #else
@@ -21,7 +22,7 @@ typedef std::wstring ustring;
 typedef std::string ustring;
 #endif
 
-#if WIN32
+#if _WIN32
 // Convert UTF-8 to UTF-16
 // Windows only
 inline std::wstring ConvertUTF8toUTF16(const std::string& utf8Str) {
@@ -46,7 +47,7 @@ inline std::wstring ConvertUTF8toUTF16(const std::string& utf8Str) {
 }
 #endif
 
-#if WIN32
+#if _WIN32
 // Convert UTF-16 to UTF-8
 // Windows only
 inline std::string ConvertUTF16toUTF8(const std::wstring & utf16Str) {
@@ -74,7 +75,7 @@ inline std::string ConvertUTF16toUTF8(const std::wstring & utf16Str) {
 // initialize the console
 // set output encoding
 inline bool init_console() {
-#if WIN32
+#if _WIN32
     // set output encoding to UTF-8
     SetConsoleOutputCP(CP_UTF8);
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);

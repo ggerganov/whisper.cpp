@@ -715,7 +715,7 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
 
         fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
     }
-#if WIN32
+#if _WIN32
     else if (drwav_init_file_w(&wav, ConvertUTF8toUTF16(fname).c_str(), nullptr) == false) {
         fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname.c_str());
         return false;

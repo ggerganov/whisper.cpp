@@ -377,7 +377,7 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
 // convert UTF-8 path to UTF-16LE and open file with std::ofstream on Windows
 // use UTF-8 path open file with std::ofstream on other systems
 std::ofstream open(const std::string & path) {
-#if WIN32
+#if _WIN32
     std::ofstream file_out(ConvertUTF8toUTF16(path));
 #else
     std::ofstream file_out(path);
@@ -1118,7 +1118,7 @@ int run(int argc, const char ** argv) {
     return 0;
 }
 
-#if WIN32
+#if _WIN32
 int wmain(int argc, const wchar_t ** argv_UTF16LE) {
     init_console();
     std::vector<std::string> buffer(argc);
