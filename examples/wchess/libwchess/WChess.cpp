@@ -4,6 +4,24 @@
 #include "common.h"
 #include <thread>
 
+static constexpr auto RULES =
+"\n"
+"root   ::= init move move? move? \".\"\n"
+"prompt ::= init \".\"\n"
+"\n"
+"# leading space is very important!\n"
+"init ::= \" rook to b4, f3\"\n"
+"\n"
+"move ::= \", \" ((piece | pawn | king) \" \" \"to \"?)? [a-h] [1-8]\n"
+"\n"
+"piece ::= \"bishop\" | \"rook\" | \"knight\" | \"queen\"\n"
+"king  ::= \"king\"\n"
+"pawn  ::= \"pawn\"\n"
+"\n";
+
+static constexpr auto PROMPT = "rook to b4, f3,";
+static constexpr auto CONTEXT = "d4 d5 knight to c3, pawn to a1, bishop to b2 king e8,";
+
 WChess::WChess(whisper_context * ctx,
         const whisper_full_params & wparams,
         callbacks cb,
@@ -56,25 +74,10 @@ void WChess::run() {
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;
 
-    // todo: grammar to be based on js input
-    const std::string k_prompt = "rook to b4, f3,";
-    m_wparams.initial_prompt = "d4 d5 knight to c3, pawn to a1, bishop to b2 king e8,";
+    const std::string k_prompt = PROMPT;
+    m_wparams.initial_prompt = CONTEXT;
 
-    auto grammar_parsed = grammar_parser::parse(
-"\n"
-"root   ::= init move move? move? \".\"\n"
-"prompt ::= init \".\"\n"
-"\n"
-"# leading space is very important!\n"
-"init ::= \" rook to b4, f3\"\n"
-"\n"
-"move ::= \", \" ((piece | pawn | king) \" \" \"to \"?)? [a-h] [1-8]\n"
-"\n"
-"piece ::= \"bishop\" | \"rook\" | \"knight\" | \"queen\"\n"
-"king  ::= \"king\"\n"
-"pawn  ::= \"pawn\"\n"
-"\n"
-    );
+    auto grammar_parsed = grammar_parser::parse(RULES);
     auto grammar_rules = grammar_parsed.c_rules();
 
     if (grammar_parsed.rules.empty()) {
@@ -83,7 +86,6 @@ void WChess::run() {
     else {
         m_wparams.grammar_rules   = grammar_rules.data();
         m_wparams.n_grammar_rules = grammar_rules.size();
-        m_wparams.grammar_penalty = 100.0;
     }
 
     while (check_running()) {

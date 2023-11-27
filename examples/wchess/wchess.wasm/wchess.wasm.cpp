@@ -72,6 +72,8 @@ void wchess_main(size_t i) {
 
     wparams.language         = "en";
 
+    wparams.grammar_penalty = 100.0;
+
     printf("command: using %d threads\n", wparams.n_threads);
 
     WChess::callbacks cb;
