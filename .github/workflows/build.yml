@@ -290,6 +290,7 @@ jobs:
         arch: [x64]
         cublas: [ON]
         sdl2: [ON]
+        cuda-toolkit: [12.2.0, 11.8.0]
         include:
           - arch: x64
             s2arc: x64
@@ -305,7 +306,9 @@ jobs:
 
       - name: Install CUDA Toolkit
         id: cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.10
+        uses: Jimver/cuda-toolkit@v0.2.11
+        with:
+          cuda: '${{ matrix.cuda-toolkit }}'
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
@@ -320,10 +323,10 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
           -DWHISPER_CUBLAS=1
 
-      - name: Build
+      - name: Build ${{ matrix.cuda-toolkit }}
         run: |
           cd ./build
-          msbuild ALL_BUILD.vcxproj -t:build -p:configuration=${{ matrix.build }} -p:platform=${{ matrix.arch }}
+          cmake --build . --config ${{ matrix.build }}
 
       - name: Copy CUDA DLLs
         run: >
@@ -340,7 +343,7 @@ jobs:
         if: matrix.sdl2 == 'ON'
         uses: actions/upload-artifact@v1
         with:
-          name: whisper-cublas-bin-${{ matrix.arch }}
+          name: whisper-cublas-${{ matrix.cuda-toolkit }}-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
 
   emscripten:
