@@ -43,7 +43,11 @@ options:
   -oved D,   --ov-e-device DNAME [CPU    ] the OpenVINO device used for encode inference
   --host HOST,                   [127.0.0.1] Hostname/ip-adress for the server
   --port PORT,                   [8080   ] Port number for the server
+  --convert,                     [false  ] Convert audio to WAV, requires ffmpeg on the server
 ```
+
+> [!WARNING]  
+> **Do not run the server example with administrative privileges and ensure it's operated in a sandbox environment, especially since it involves risky operations like accepting user file uploads and using ffmpeg for format conversions. Always validate and sanitize inputs to guard against potential security threats.**
 
 ## request examples
 
