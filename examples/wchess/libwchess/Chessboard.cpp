@@ -1,5 +1,7 @@
 #include "Chessboard.h"
 #include <vector>
+#include <algorithm>
+#include <cassert>
 
 static constexpr std::array<const char*, 64> positions = {
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
@@ -85,207 +87,197 @@ std::string Chessboard::stringifyBoard() {
     for (int i = 7; i >= 0; --i) {
         for (int j = 0; j < 8; ++j) {
             if (auto p = board[i * 8 + j]; p) result.push_back(p->color == Piece::White ? whiteShort[p->type] : blackShort[p->type]);
-            else result.push_back('.');
+            else result.push_back((i + j) % 2 ? '.' : '*');
             result.push_back(' ');
         }
         result.push_back('0' + i + 1);
         result.push_back('\n');
     }
+return result;
+}
+
+std::vector<std::string_view> split(std::string_view str, char del) {
+    std::vector<std::string_view> res;
+    size_t cur = 0;
+    size_t last = 0;
+    while (cur != std::string::npos) {
+        if (str[last] == ' ') { // trim white
+            ++last;
+            continue;
+        }
+        cur = str.find(del, last);
+        size_t len = cur == std::string::npos ? str.size() - last : cur - last;
+        res.emplace_back(str.data() + last, len);
+        last = cur + 1;
+    }
+    return res;
+}
+
+Chessboard::Piece::Types Chessboard::tokenToType(std::string_view token) {
+    auto it = std::find(pieceNames.begin(), pieceNames.end(), token);
+    return it != pieceNames.end() ? Piece::Types(it - pieceNames.begin()) : Piece::Taken;
+}
+
+size_t Chessboard::tokenToPos(std::string_view token) {
+    if (token.size() < 2) return positions.size();
+    int file = token[0] - 'a';
+    int rank = token[1] - '1';
+    int pos = rank * 8 + file;
+    if (pos < 0 || pos >= int(positions.size())) return positions.size();
+    return pos;
+}
+
+std::string Chessboard::process(const std::string& transcription) {
+    auto commands = split(transcription, ',');
+
+    // fixme: lookup depends on grammar
+    int count = m_moveCounter;
+    std::vector<Move> moves;
+    std::string result;
+    result.reserve(commands.size() * 6);
+    for (auto& command : commands) {
+
+        fprintf(stdout, "%s: Command '%s%.*s%s'\n", __func__, "\033[1m", int(command.size()), command.data(), "\033[0m");
+        if (command.empty()) continue;
+        auto tokens = split(command, ' ');
+        Piece::Types type = Piece::Types::Taken;
+        size_t pos = positions.size();
+        if (tokens.size() == 1) {
+            type = Piece::Types::Pawn;
+            pos = tokenToPos(tokens[0]);
+        }
+        else if (tokens.size() == 3) {
+            type = tokenToType(tokens[0]);
+            assert(tokens[1] == "to");
+            pos = tokenToPos(tokens[2]);
+        }
+        if (type == Piece::Types::Taken || pos == positions.size()) continue;
+
+        auto& pieces = count % 2 ? blackPieces : whitePieces;
+        auto pieceIndex = 0u;
+        for (; pieceIndex < pieces.size(); ++pieceIndex) {
+            if (pieces[pieceIndex].type == type && validateMove(pieces[pieceIndex], pos)) break;
+        }
+        Move m = {pieces[pieceIndex].pos, pos};
+        if (pieceIndex < pieces.size() && move({m})) {
+            result.append(positions[m.first]);
+            result.push_back('-');
+            result.append(positions[m.second]);
+            result.push_back(' ');
+            ++count;
+        }
+    }
+    if (!result.empty()) result.pop_back();
+    m_moveCounter = count;
+    fprintf(stdout, "%s: Moves '%s%s%s'\n", __func__, "\033[1m", result.data(), "\033[0m");
     return result;
 }
 
-std::string Chessboard::processTranscription(const std::string& t) {
-        std::vector<std::string> moves;
-        size_t cur = 0;
-        size_t last = 0;
-        while (cur != std::string::npos) {
-            cur = t.find(',', last);
-            moves.push_back(t.substr(last, cur));
-            last = cur + 1;
-        }
-
-        // fixme: lookup depends on grammar
-        int count = m_moveCounter;
-        std::vector<Move> pendingMoves;
-        for (auto& move : moves) {
-            fprintf(stdout, "%s: Move '%s%s%s'\n", __func__, "\033[1m", move.c_str(), "\033[0m");
-            if (move.empty()) continue;
-            auto pieceIndex = 0u;
-            for (; pieceIndex < pieceNames.size(); ++pieceIndex) {
-                if (std::string::npos != move.find(pieceNames[pieceIndex])) break;
-            }
-            auto posIndex = 0u;
-            for (; posIndex < positions.size(); ++posIndex) {
-                if (std::string::npos != move.find(positions[posIndex])) break;
-            }
-            if (pieceIndex >= pieceNames.size() || posIndex >= positions.size()) continue;
-
-            auto& pieces = count % 2 ? blackPieces : whitePieces;
-            auto type = Piece::Types(pieceIndex);
-            pieceIndex = 0;
-            for (; pieceIndex < pieces.size(); ++pieceIndex) {
-                if (pieces[pieceIndex].type == type && checkNext(pieces[pieceIndex], posIndex)) break;
-            }
-
-            if (pieceIndex < pieces.size()) {
-                pendingMoves.emplace_back(pieces[pieceIndex].pos, posIndex);
-            }
-            ++count;
-        }
-        auto result = stringifyMoves(pendingMoves);
-        commitMoves(pendingMoves);
-        m_moveCounter = count;
-        return result;
+bool Chessboard::validatePawnMove(Piece::Colors color, int from_rank, int from_file, int to_rank, int to_file) {
+    int direction = color == Piece::White ? 1 : -1;
+    if (from_file == to_file) {
+        if (from_rank == to_rank - direction) return board[to_rank * 8 + to_file] == nullptr;
+        if (from_rank == to_rank - direction * 2) return board[(to_rank - direction) * 8 + to_file] == nullptr && board[to_rank * 8 + to_file] == nullptr;
     }
-
-    bool Chessboard::checkNext(const Piece& piece, int pos, bool kingCheck) {
-        if (piece.type == Piece::Taken) return false;
-        if (piece.pos == pos) return false;
-        int i = piece.pos / 8;
-        int j = piece.pos - i * 8;
-
-        int ii = pos / 8;
-        int jj = pos - ii * 8;
-
-        if (piece.type == Piece::Pawn) {
-            if (piece.color == Piece::White) {
-                int direction = piece.color == Piece::White ? 1 : -1;
-                if (j == jj) {
-                    if (i == ii - direction) return board[pos] == nullptr;
-                    if (i == ii - direction * 2) return board[(ii - direction) * 8 + jj] == nullptr && board[pos] == nullptr;
-                }
-                else if (j + 1 == jj || j - 1 == jj) {
-                    if (i == ii - direction) return board[pos] != nullptr && board[pos]->color != piece.color;
-                }
-            }
-            return false;
-        }
-        if (piece.type == Piece::Knight) {
-            int di = std::abs(i - ii);
-            int dj = std::abs(j - jj);
-            if ((di == 2 && dj == 1) || (di == 1 && dj == 2)) return board[pos] == nullptr || board[pos]->color != piece.color;
-            return false;
-        }
-        if (piece.type == Piece::Bishop) {
-            if (i - j == ii - jj) {
-                int direction = i < ii ? 1 : -1;
-                i += direction;
-                j += direction;
-                while (i != ii) {
-                    if (board[i * 8 + j]) return false;
-                    i += direction;
-                    j += direction;
-                }
-                return board[pos] == nullptr || board[pos]->color != piece.color;
-            }
-            if (i + j == ii + jj) {
-                int direction = i < ii ? 1 : -1;
-                i += direction;
-                j -= direction;
-                while (i != ii) {
-                    if (board[i * 8 + j]) return false;
-                    i += direction;
-                    j -= direction;
-                }
-                return board[pos] == nullptr || board[pos]->color != piece.color;
-            }
-            return false;
-        }
-        if (piece.type == Piece::Rook) {
-            if (i == ii) {
-                int direction = j < jj ? 1 : -1;
-                j += direction;
-                while (j != jj) {
-                    if (board[i * 8 + j]) return false;
-                    j += direction;
-                }
-                return board[pos] == nullptr || board[pos]->color != piece.color;
-            }
-            if (j == jj) {
-                int direction = i < ii ? 1 : -1;
-                i += direction;
-                while (i != ii) {
-                    if (board[i * 8 + j]) return false;
-                    i += direction;
-                }
-                return board[pos] == nullptr || board[pos]->color != piece.color;
-            }
-            return false;
-        }
-        if (piece.type == Piece::Queen) {
-            if (i - j == ii - jj) {
-                int direction = i < ii ? 1 : -1;
-                i += direction;
-                j += direction;
-                while (i != ii) {
-                    if (board[i * 8 + j]) return false;
-                    i += direction;
-                    j += direction;
-                }
-                return board[pos] == nullptr || board[pos]->color != piece.color;
-            }
-            if (i + j == ii + jj) {
-                int direction = i < ii ? 1 : -1;
-                i += direction;
-                j -= direction;
-                while (i != ii) {
-                    if (board[i * 8 + j]) return false;
-                    i += direction;
-                    j -= direction;
-                }
-                return board[pos] == nullptr || board[pos]->color != piece.color;
-            }
-            if (i == ii) {
-                int direction = j < jj ? 1 : -1;
-                j += direction;
-                while (j != jj) {
-                    if (board[i * 8 + j]) return false;
-                    j += direction;
-                }
-                return board[pos] == nullptr || board[pos]->color != piece.color;
-            }
-            if (j == jj) {
-                int direction = i < ii ? 1 : -1;
-                i += direction;
-                while (i != ii) {
-                    if (board[i * 8 + j]) return false;
-                    i += direction;
-                }
-                return board[pos] == nullptr || board[pos]->color != piece.color;
-            }
-            return false;
-        }
-        if (piece.type == Piece::King) {
-            if (std::abs(i - ii) < 2 && std::abs(j - jj) < 2) {
-                auto& pieces = piece.color == Piece::White ? whitePieces : blackPieces;
-                for (auto& enemyPiece: pieces) {
-                    if (!kingCheck && piece.type != Piece::Taken && checkNext(enemyPiece, pos, true)) return false;
-                }
-                return board[pos] == nullptr || board[pos]->color != piece.color;
-            }
-        }
-        return false;
+    else if (from_file + 1 == to_file || from_file - 1 == to_file) {
+        if (from_rank == to_rank - direction) return board[to_rank * 8 + to_file] != nullptr && board[to_rank * 8 + to_file]->color != color;
     }
+    return false;
+}
 
+bool Chessboard::validateKnightMove(Piece::Colors color, int from_rank, int from_file, int to_rank, int to_file) {
+    int dr = std::abs(from_rank - to_rank);
+    int df = std::abs(from_file - to_file);
+    if ((dr == 2 && df == 1) || (dr == 1 && df == 2)) return board[to_rank * 8 + to_file] == nullptr || board[to_rank * 8 + to_file]->color != color;
+    return false;
+}
 
-    std::string Chessboard::stringifyMoves(const std::vector<Move>& pendingMoves) {
-        std::string res;
-        for (auto& m : pendingMoves) {
-            res.append(positions[m.first]);
-            res.push_back('-');
-            res.append(positions[m.second]);
-            res.push_back(' ');
+bool Chessboard::validateBishopMove(Piece::Colors color, int from_rank, int from_file, int to_rank, int to_file) {
+    if (from_rank - from_file == to_rank - to_file) {
+        int direction = from_rank < to_rank ? 1 : -1;
+        from_rank += direction;
+        from_file += direction;
+        while (from_rank != to_rank) {
+            if (board[from_rank * 8 + from_file]) return false;
+            from_rank += direction;
+            from_file += direction;
         }
-        if (!res.empty()) res.pop_back();
-        return res;
+        return board[to_rank * 8 + to_file] == nullptr || board[to_rank * 8 + to_file]->color != color;
     }
-
-    void Chessboard::commitMoves(std::vector<Move>& pendingMoves) {
-        for (auto& m : pendingMoves) {
-            if (!board[m.first] || (board[m.second] && board[m.first]->type == board[m.second]->type)) continue;
-            if (board[m.second]) board[m.second]->type = Piece::Taken;
-            board[m.second] = board[m.first];
-            board[m.first] = nullptr;
+    if (from_rank + from_file == to_rank + to_file) {
+        int direction = from_rank < to_rank ? 1 : -1;
+        from_rank += direction;
+        from_file -= direction;
+        while (from_rank != to_rank) {
+            if (board[from_rank * 8 + from_file]) return false;
+            from_rank += direction;
+            from_file -= direction;
         }
-        pendingMoves.clear();
+        return board[to_rank * 8 + to_file] == nullptr || board[to_rank * 8 + to_file]->color != color;
     }
+    return false;
+}
+
+bool Chessboard::validateRookMove(Piece::Colors color, int from_rank, int from_file, int to_rank, int to_file) {
+    if (from_rank == to_rank) {
+        int direction = from_file < to_file ? 1 : -1;
+        from_file += direction;
+        while (from_file != to_file) {
+            if (board[from_rank * 8 + from_file]) return false;
+            from_file += direction;
+        }
+        return board[to_rank * 8 + to_file] == nullptr || board[to_rank * 8 + to_file]->color != color;
+    }
+    if (from_file == to_file) {
+        int direction = from_rank < to_rank ? 1 : -1;
+        from_rank += direction;
+        while (from_rank != to_rank) {
+            if (board[from_rank * 8 + from_file]) return false;
+            from_rank += direction;
+        }
+        return board[to_rank * 8 + to_file] == nullptr || board[to_rank * 8 + to_file]->color != color;
+    }
+    return false;
+}
+
+bool Chessboard::validateQueenMove(Piece::Colors color, int from_rank, int from_file, int to_rank, int to_file) {
+    if (validateBishopMove(color, from_rank, from_file, to_rank, to_file)) return true;
+    return validateRookMove(color, from_rank, from_file, to_rank, to_file);
+}
+
+bool Chessboard::validateKingMove(Piece::Colors color, int from_rank, int from_file, int to_rank, int to_file) {
+    if (std::abs(from_rank - to_rank) < 2 && std::abs(from_file - to_file) < 2) {
+        return board[to_rank * 8 + to_file] == nullptr || board[to_rank * 8 + to_file]->color != color;
+    }
+    return false;
+}
+
+bool Chessboard::validateMove(const Piece& piece, int pos) {
+    if (piece.type == Piece::Taken) return false;
+    if (piece.pos == pos) return false;
+    int i = piece.pos / 8;
+    int j = piece.pos - i * 8;
+
+    int ii = pos / 8;
+    int jj = pos - ii * 8;
+
+    switch (piece.type) {
+        case Piece::Pawn: return validatePawnMove(piece.color, i, j, ii, jj);
+        case Piece::Knight: return validateKnightMove(piece.color, i, j, ii, jj);
+        case Piece::Bishop: return validateBishopMove(piece.color, i, j, ii, jj);
+        case Piece::Rook: return validateRookMove(piece.color, i, j, ii, jj);
+        case Piece::Queen: return validateQueenMove(piece.color, i, j, ii, jj);
+        case Piece::King: return validateKingMove(piece.color, i, j, ii, jj);
+        default: break;
+    }
+    return false;
+}
+
+bool Chessboard::move(const Move& m) {
+    if (!board[m.first] || (board[m.second] && board[m.first]->color == board[m.second]->color)) return false;
+    if (board[m.second]) board[m.second]->type = Piece::Taken;
+    board[m.second] = board[m.first];
+    board[m.first] = nullptr;
+    board[m.second]->pos = m.second;
+    return true;
+}

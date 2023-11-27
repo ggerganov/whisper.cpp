@@ -190,7 +190,7 @@ void WChess::run() {
                         set_status(txt);
                     }
                     if (!command.empty()) {
-                        set_moves(m_board->processTranscription(command));
+                        set_moves(m_board->process(command));
                     }
                 }
             }

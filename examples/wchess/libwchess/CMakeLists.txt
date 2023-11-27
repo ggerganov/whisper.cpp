@@ -15,3 +15,5 @@ target_include_directories(libwchess
     PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
 )
+
+add_executable(test-chessboard test-chessboard.cpp Chessboard.cpp)
