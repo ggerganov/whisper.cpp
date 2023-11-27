@@ -45,6 +45,9 @@ options:
   --convert,                     [false  ] Convert audio to WAV, requires ffmpeg on the server
 ```
 
+> [!WARNING]  
+> **Do not run the server example with administrative privileges and ensure it's operated in a sandbox environment, especially since it involves risky operations like accepting user file uploads and using ffmpeg for format conversions. Always validate and sanitize inputs to guard against potential security threats.**
+
 ## request examples
 
 **/inference**
