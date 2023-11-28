@@ -468,6 +468,9 @@ int main(int argc, char ** argv) {
     whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
 
     Server svr;
+    svr.set_default_headers({{"Server", "whisper.cpp"},
+                             {"Access-Control-Allow-Origin", "*"},
+                             {"Access-Control-Allow-Headers", "content-type"}});
 
     std::string const default_content = "<html>hello</html>";
 
