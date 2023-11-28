@@ -44,8 +44,13 @@ void get_audio(int ms, std::vector<float> & audio) {
 }
 
 bool check_running() {
-    g_pcmf32.clear();
+    //g_pcmf32.clear();
     return g_running;
+}
+
+bool clear_audio() {
+    g_pcmf32.clear();
+    return true;
 }
 
 void wchess_main(size_t i) {
@@ -81,6 +86,7 @@ void wchess_main(size_t i) {
     cb.check_running = check_running;
     cb.get_audio = get_audio;
     cb.set_moves = set_moves;
+    cb.clear_audio = clear_audio;
 
     WChess(g_contexts[i], wparams, cb, {}).run();
     if (i < g_contexts.size()) {
