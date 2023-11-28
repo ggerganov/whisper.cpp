@@ -26,8 +26,8 @@ public:
         int32_t vad_ms     = 2000;
         int32_t prompt_ms  = 5000;
         int32_t command_ms = 4000;
-        float vad_thold    = 0.1f;
-        float freq_thold   = -1.0f;
+        float vad_thold    = 0.2f;
+        float freq_thold   = 100.0f;
         bool print_energy  = false;
     };
 
