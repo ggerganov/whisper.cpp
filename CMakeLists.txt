@@ -533,7 +533,7 @@ target_compile_definitions(${TARGET} PUBLIC
     ${WHISPER_EXTRA_FLAGS}
     )
 
-set_target_properties(${TARGET} PROPERTIES PUBLIC_HEADER "whisper.h")
+set_target_properties(${TARGET} PROPERTIES PUBLIC_HEADER "ggml.h;whisper.h")
 
 include(GNUInstallDirs)
 
