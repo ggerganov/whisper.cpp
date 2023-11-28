@@ -118,6 +118,10 @@ void get_audio(int ms, std::vector<float> & pcmf32_cur) {
     g_audio.get(ms, pcmf32_cur);
 }
 
+bool clear_audio() {
+    g_audio.clear();
+}
+
 int main(int argc, char ** argv) {
     whisper_params params;
 
@@ -180,6 +184,7 @@ int main(int argc, char ** argv) {
     cb.check_running = sdl_poll_events;
     cb.get_audio = get_audio;
     cb.set_moves = set_moves;
+    cb.clear_audio = clear_audio;
 
     WChess::settings s;
     s.vad_ms = 2000;

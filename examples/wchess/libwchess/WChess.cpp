@@ -48,6 +48,11 @@ bool WChess::check_running() const {
     return false;
 }
 
+bool WChess::clear_audio() const {
+    if (m_cb.clear_audio) return (*m_cb.clear_audio)();
+    return false;
+}
+
 void WChess::get_audio(int ms, std::vector<float>& pcmf32) const {
     if (m_cb.get_audio) (*m_cb.get_audio)(ms, pcmf32);
 }
@@ -195,6 +200,8 @@ void WChess::run() {
                         set_moves(m_board->process(command));
                     }
                 }
+
+                clear_audio();
             }
         }
     }
