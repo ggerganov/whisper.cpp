@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 #include <cstring>
+#include <sstream>
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
@@ -656,6 +657,27 @@ int main(int argc, char ** argv) {
         {
             std::string results = output_str(ctx, params, pcmf32s);
             res.set_content(results.c_str(), "text/html");
+        }
+        else if (params.response_format == srt_format)
+        {
+            std::stringstream ss;
+            const int n_segments = whisper_full_n_segments(ctx);
+            for (int i = 0; i < n_segments; ++i) {
+                const char * text = whisper_full_get_segment_text(ctx, i);
+                const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+                const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                std::string speaker = "";
+
+                if (params.diarize && pcmf32s.size() == 2)
+                {
+                    speaker = estimate_diarization_speaker(pcmf32s, t0, t1);
+                }
+
+                ss << i + 1 + params.offset_n << "\n";
+                ss << to_timestamp(t0, true) << " --> " << to_timestamp(t1, true) << "\n";
+                ss << speaker << text << "\n\n";
+            }
+            res.set_content(ss.str(), "application/x-subrip");
         }
         // TODO add more output formats
         else
