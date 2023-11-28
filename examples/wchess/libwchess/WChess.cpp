@@ -115,12 +115,11 @@ void WChess::run() {
         {
             get_audio(m_settings.vad_ms, pcmf32_cur);
 
-            if (::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, m_settings.vad_thold, m_settings.freq_thold, m_settings.print_energy)) {
+            if (!pcmf32_cur.empty()) {
                 fprintf(stdout, "%s: Speech detected! Processing ...\n", __func__);
                 set_status("Speech detected! Processing ...");
 
                 if (!have_prompt) {
-                    get_audio(m_settings.prompt_ms, pcmf32_cur);
 
                     m_wparams.i_start_rule    = grammar_parsed.symbol_ids.at("prompt");
                     const auto txt = ::trim(transcribe(pcmf32_cur, logprob_min, logprob_sum, n_tokens, t_ms));
@@ -149,8 +148,6 @@ void WChess::run() {
                         have_prompt = true;
                     }
                 } else {
-                    get_audio(m_settings.command_ms, pcmf32_cur);
-
                     // prepend 3 second of silence
                     pcmf32_cur.insert(pcmf32_cur.begin(), 3*WHISPER_SAMPLE_RATE, 0.0f);
 

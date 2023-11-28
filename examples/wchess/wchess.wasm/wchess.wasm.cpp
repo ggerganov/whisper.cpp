@@ -29,28 +29,18 @@ void set_moves(const std::string & moves) {
     g_moves = moves;
 }
 
-void get_audio(int ms, std::vector<float> & audio) {
-    const int64_t n_samples = (ms * WHISPER_SAMPLE_RATE) / 1000;
-
-    int64_t n_take = 0;
-    if (n_samples > (int) g_pcmf32.size()) {
-        n_take = g_pcmf32.size();
-    } else {
-        n_take = n_samples;
-    }
-
-    audio.resize(n_take);
-    std::copy(g_pcmf32.end() - n_take, g_pcmf32.end(), audio.begin());
+void get_audio(int /* ms */, std::vector<float> & audio) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    audio = g_pcmf32;
 }
 
 bool check_running() {
-    //g_pcmf32.clear();
     return g_running;
 }
 
-bool clear_audio() {
+void clear_audio() {
+    std::lock_guard<std::mutex> lock(g_mutex);
     g_pcmf32.clear();
-    return true;
 }
 
 void wchess_main(size_t i) {

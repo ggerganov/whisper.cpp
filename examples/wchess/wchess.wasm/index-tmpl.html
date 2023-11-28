@@ -50,7 +50,7 @@
             <div id="model-whisper">
                 Whisper model: <span id="model-whisper-status"></span>
                 <span id="fetch-whisper-progress"></span>
-
+                <button id="clear" onclick="clearCache()">Clear Cache</button>
                 <!--
                     <input type="file" id="file" name="file" onchange="loadFile(event, 'whisper.bin')" />
                 -->
@@ -67,9 +67,7 @@
             <br>
 
             <div id="input">
-                <button id="start" onclick="onStart()" disabled>Start</button>
-                <button id="stop"  onclick="onStop()" disabled>Stop</button>
-                <button id="clear" onclick="clearCache()">Clear Cache</button>
+                <button id="toggler" disabled>Hold</button>
             </div>
 
             <br>
@@ -114,10 +112,6 @@
         <script type='text/javascript'>
             // web audio context
             var context = null;
-
-            // audio data
-            var audio = null;
-            var audio0 = null;
 
             // the command instance
             var instance = null;
@@ -165,8 +159,7 @@
                 document.getElementById('model-whisper-status').innerHTML = 'loaded "' + model_whisper + '"!';
 
                 if (model_whisper != null) {
-                    document.getElementById('start').disabled = false;
-                    document.getElementById('stop' ).disabled = true;
+                    document.getElementById('toggler').disabled = false;
                 }
             }
 
@@ -225,10 +218,7 @@
 
             function stopRecording() {
                 Module.set_status("paused");
-                doRecording = false;
-                audio0 = null;
-                audio = null;
-                context = null;
+                mediaRecorder.stop();
             }
 
             function startRecording() {
@@ -242,12 +232,6 @@
                     });
                 }
 
-                Module.set_status("");
-
-                document.getElementById('start').disabled = true;
-                document.getElementById('stop').disabled = false;
-
-                doRecording = true;
                 startTime = Date.now();
 
                 var chunks = [];
@@ -277,22 +261,15 @@
                                     source.start(0);
 
                                     offlineContext.startRendering().then(function(renderedBuffer) {
-                                        audio = renderedBuffer.getChannelData(0);
-
-                                        //printTextarea('js: audio recorded, size: ' + audio.length + ', old size: ' + (audio0 == null ? 0 : audio0.length));
-
-                                        var audioAll = new Float32Array(audio0 == null ? audio.length : audio0.length + audio.length);
-                                        if (audio0 != null) {
-                                            audioAll.set(audio0, 0);
-                                        }
-                                        audioAll.set(audio, audio0 == null ? 0 : audio0.length);
+                                        let audio = renderedBuffer.getChannelData(0);
 
                                         if (instance) {
-                                            Module.set_audio(instance, audioAll);
+                                            Module.set_audio(instance, audio);
                                         }
                                     });
-                                }, function(e) {
-                                    audio = null;
+
+                                    mediaRecorder = null;
+                                    context = null;
                                 });
                             }
 
@@ -300,48 +277,16 @@
                         };
 
                         mediaRecorder.onstop = function(e) {
-                            if (doRecording) {
-                                setTimeout(function() {
-                                    startRecording();
-                                });
-                            }
+                            stream.getTracks().forEach(function(track) {
+                                track.stop();
+                            });
                         };
 
-                        mediaRecorder.start(kIntervalAudio_ms);
+                        mediaRecorder.start();
                     })
                     .catch(function(err) {
                         printTextarea('js: error getting audio stream: ' + err);
                     });
-
-                var interval = setInterval(function() {
-                    if (!doRecording) {
-                        clearInterval(interval);
-                        mediaRecorder.stop();
-                        stream.getTracks().forEach(function(track) {
-                            track.stop();
-                        });
-
-                        document.getElementById('start').disabled = false;
-                        document.getElementById('stop').disabled  = true;
-
-                        mediaRecorder = null;
-                    }
-
-                    // if audio length is more than kRestartRecording_s seconds, restart recording
-                    if (audio != null && audio.length > kSampleRate*kRestartRecording_s) {
-                        if (doRecording) {
-                            //printTextarea('js: restarting recording');
-
-                            clearInterval(interval);
-                            audio0 = audio;
-                            audio = null;
-                            mediaRecorder.stop();
-                            stream.getTracks().forEach(function(track) {
-                                track.stop();
-                            });
-                        }
-                    }
-                }, 100);
             }
 
             //
@@ -351,6 +296,16 @@
             var nLines = 0;
             var intervalUpdate = null;
             var movesAll = '';
+
+            document.getElementById('toggler').addEventListener('mousedown', function(event) {
+                this.innerText = "Release";
+                onStart();
+            }, true);
+
+            document.getElementById('toggler').addEventListener('mouseup', function(event) {
+                this.innerText = "Hold";
+                onStop();
+            }, true);
 
             function onStart() {
                 if (!instance) {
@@ -367,11 +322,15 @@
                 }
 
                 startRecording();
+            }
 
-                intervalUpdate = setInterval(function() {
+            function onStop() {
+                stopRecording();
+                var interval = setInterval(function() {
                     var moves = Module.get_moves();
 
                     if (moves != null && moves.length > 1) {
+                        clearInterval(interval);
 
                         for (move of moves.split(' ')) {
                             board.move(move);
@@ -388,15 +347,11 @@
                                 nLines--;
                             }
                         }
+
+                        document.getElementById('state-status').innerHTML = Module.get_status();
+                        document.getElementById('state-moves').innerHTML = movesAll;
                     }
-
-                    document.getElementById('state-status').innerHTML = Module.get_status();
-                    document.getElementById('state-moves').innerHTML = movesAll;
                 }, 100);
-            }
-
-            function onStop() {
-                stopRecording();
             }
 
         </script>
