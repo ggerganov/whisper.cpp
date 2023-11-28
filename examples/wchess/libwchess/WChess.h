@@ -12,14 +12,14 @@ public:
     using CheckRunningCb = bool (*)();
     using GetAudioCb = void (*)(int, std::vector<float> &);
     using SetMovesCb = void (*)(const std::string &);
-    using CleartAudioCb = bool (*)();
+    using ClearAudioCb = void (*)();
 
     struct callbacks {
         SetStatusCb set_status = nullptr;
         CheckRunningCb check_running = nullptr;
         GetAudioCb get_audio = nullptr;
         SetMovesCb set_moves = nullptr;
-        CleartAudioCb clear_audio = nullptr;
+        ClearAudioCb clear_audio = nullptr;
     };
 
     struct settings {
@@ -46,7 +46,7 @@ private:
     void set_status(const std::string& msg) const;
     void set_moves(const std::string& moves) const;
     bool check_running() const;
-    bool clear_audio() const;
+    void clear_audio() const;
     std::string transcribe(
                     const std::vector<float> & pcmf32,
                     float & logprob_min,

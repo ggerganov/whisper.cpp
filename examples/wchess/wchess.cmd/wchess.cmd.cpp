@@ -118,7 +118,7 @@ void get_audio(int ms, std::vector<float> & pcmf32_cur) {
     g_audio.get(ms, pcmf32_cur);
 }
 
-bool clear_audio() {
+void clear_audio() {
     g_audio.clear();
 }
 
