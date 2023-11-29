@@ -8,9 +8,11 @@ public:
     Chessboard();
     std::string process(const std::string& t);
     std::string stringifyBoard();
-private:
+    std::string getRules() const;
     using Move = std::pair<int, int>;
+private:
     bool move(const Move& move);
+    void updateMoves(const Move& move);
 
     struct Piece {
         enum Types {
@@ -24,8 +26,8 @@ private:
         };
 
         enum Colors {
+            White,
             Black,
-            White
         };
 
         Types type;
@@ -43,6 +45,9 @@ private:
 
     using Board = std::array<Piece*, 64>;
     Board board;
+
+    std::vector<Move> whiteMoves;
+    std::vector<Move> blackMoves;
 
     bool validateMove(const Piece& piece, int pos);
     // just basic validation
