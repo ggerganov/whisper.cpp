@@ -16,11 +16,13 @@ static constexpr std::array<const char*, 64> positions = {
 };
 
 constexpr auto INVALID_POS = positions.size();
+static constexpr int R = 0; // rank index
+static constexpr int F = 1; // file index
 
 constexpr int operator ""_P(const char * c, size_t size) {
     if (size < 2) return INVALID_POS;
-    int file = c[0] - 'a';
-    int rank = c[1] - '1';
+    int file = c[R] - 'a';
+    int rank = c[F] - '1';
     int pos = rank * 8 + file;
     if (pos < 0 || pos >= int(INVALID_POS)) return INVALID_POS;
     return pos;
@@ -113,10 +115,17 @@ std::string Chessboard::getRules(const std::string& prompt) const {
     std::string result =
     "\n"
     "# leading space is very important!\n"
-    "\n"
-    "move ::= prompt \" \" ((piece | frompos) \" \" \"to \"?)? topos\n"
-    "\n"
-    "prompt ::= \" " + prompt + "\"\n";
+    "\n";
+    if (prompt.empty()) {
+        // result += "move ::= \" \" ((piece | frompos) \" \" \"to \"?)? topos\n";
+        result += "move ::= \" \" frompos \" \" \"to \"? topos\n";
+    }
+    else {
+        // result += "move ::= prompt \" \" ((piece | frompos) \" \" \"to \"?)? topos\n"
+        result += "move ::= prompt \" \" frompos \" \" \"to \"? topos\n"
+        "\n"
+        "prompt ::= \" " + prompt + "\"\n";
+    }
 
     std::set<std::string> pieces;
     std::set<std::string> from_pos;
@@ -127,12 +136,12 @@ std::string Chessboard::getRules(const std::string& prompt) const {
         from_pos.insert(positions[m.first]);
         to_pos.insert(positions[m.second]);
     }
-    if (!pieces.empty()) {
-        result += "piece ::= (";
-        for (auto& p : pieces) result += " \"" + p + "\" |";
-        result.pop_back();
-        result += ")\n\n";
-    }
+    // if (!pieces.empty()) {
+    //     result += "piece ::= (";
+    //     for (auto& p : pieces) result += " \"" + p + "\" |";
+    //     result.pop_back();
+    //     result += ")\n\n";
+    // }
     if (!from_pos.empty()) {
         result += "frompos ::= (";
         for (auto& p : from_pos) result += " \"" + p + "\" |";
@@ -213,7 +222,7 @@ std::string Chessboard::process(const std::string& command) {
     auto pos_to = INVALID_POS;
     if (tokens.size() == 1) {
         type = Piece::Types::Pawn;
-        pos_to = tokenToPos(tokens[0]);
+        pos_to = tokenToPos(tokens.front());
     }
     else {
         pos_from = tokenToPos(tokens.front());
@@ -290,59 +299,60 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
     switch (piece.type) {
         case Piece::Pawn: {
             std::string next = cur;
-            piece.color ? --next[1] : ++next[1]; // one down / up
-            std::string left = { char(next[0] - 1), next[1]};
+            piece.color ? --next[F] : ++next[F]; // one down / up
+            std::string left = { char(next[R] - 1), next[F]};
             auto pos = tokenToPos(left);
             if (pos != INVALID_POS && board[pos] && board[pos]->color != piece.color) result.emplace_back(piece.pos, pos);
-            std::string right = { char(next[0] + 1), next[1]};
+            std::string right = { char(next[R] + 1), next[F]};
             pos = tokenToPos(right);
             if (pos != INVALID_POS && board[pos] && board[pos]->color != piece.color) result.emplace_back(piece.pos, pos);
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !board[pos]) result.emplace_back(piece.pos, pos);
             else break;
-            piece.color ? --next[1] : ++next[1]; // one down / up
+            if (piece.color ? cur[F] != '7' : cur[F] != '2') break;
+            piece.color ? --next[F] : ++next[F]; // one down / up
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !board[pos]) result.emplace_back(piece.pos, pos);
             break;
         }
         case Piece::Knight: {
             std::string next = cur;
-            --next[1]; --next[1]; --next[0];
+            --next[F]; --next[F]; --next[R];
             auto pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            --next[1]; --next[1]; ++next[0];
+            --next[F]; --next[F]; ++next[R];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            ++next[1]; ++next[1]; --next[0];
+            ++next[F]; ++next[F]; --next[R];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            ++next[1]; ++next[1]; ++next[0];
+            ++next[F]; ++next[F]; ++next[R];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            --next[1]; --next[0]; --next[0];
+            --next[F]; --next[R]; --next[R];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            ++next[1]; --next[0]; --next[0];
+            ++next[F]; --next[R]; --next[R];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            --next[1]; ++next[0]; ++next[0];
+            --next[F]; ++next[R]; ++next[R];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            ++next[1]; ++next[0]; ++next[0];
+            ++next[F]; ++next[R]; ++next[R];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
             break;
@@ -350,7 +360,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
         case Piece::Bishop: {
             std::string next = cur;
             while (true) {
-                --next[0]; --next[1];
+                --next[R]; --next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -361,7 +371,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                --next[0]; ++next[1];
+                --next[R]; ++next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -372,7 +382,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                ++next[0]; --next[1];
+                ++next[R]; --next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -383,7 +393,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                ++next[0]; ++next[1];
+                ++next[R]; ++next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -397,7 +407,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
         case Piece::Rook: {
             std::string next = cur;
             while (true) {
-                --next[0];
+                --next[R];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -408,7 +418,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                ++next[0];
+                ++next[R];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -419,7 +429,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                --next[1];
+                --next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -430,7 +440,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                ++next[1];
+                ++next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -444,7 +454,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
         case Piece::Queen: {
             std::string next = cur;
             while (true) {
-                --next[0]; --next[1];
+                --next[R]; --next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -455,7 +465,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                --next[0]; ++next[1];
+                --next[R]; ++next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -466,7 +476,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                ++next[0]; --next[1];
+                ++next[R]; --next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -477,7 +487,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                ++next[0]; ++next[1];
+                ++next[R]; ++next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -488,7 +498,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                --next[0];
+                --next[R];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -499,7 +509,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                ++next[0];
+                ++next[R];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -510,7 +520,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                --next[1];
+                --next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -521,7 +531,7 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
             }
             next = cur;
             while (true) {
-                ++next[1];
+                ++next[F];
                 auto pos = tokenToPos(next);
                 if (pos == INVALID_POS) break;
                 else if (board[pos]) {
@@ -534,42 +544,42 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
         }
         case Piece::King: {
             std::string next = cur;
-            --next[0]; --next[1];
+            --next[R]; --next[F];
             auto pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            --next[0]; ++next[1];
+            --next[R]; ++next[F];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            ++next[0]; --next[1];
+            ++next[R]; --next[F];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            ++next[0]; ++next[1];
+            ++next[R]; ++next[F];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            --next[0];
+            --next[R];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            ++next[0];
+            ++next[R];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            --next[1];
+            --next[F];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
             next = cur;
-            ++next[1];
+            ++next[F];
             pos = tokenToPos(next);
             if (pos != INVALID_POS && !(board[pos] && board[pos]->color == piece.color)) result.emplace_back(piece.pos, pos);
 
@@ -582,9 +592,10 @@ void Chessboard::getValidMoves(const Piece& piece, std::vector<Move>& result) {
 
 bool Chessboard::validatePawnMove(Piece::Colors color, int from_rank, int from_file, int to_rank, int to_file) {
     int direction = color == Piece::White ? 1 : -1;
+    bool two_ranks = color == Piece::White ? from_rank == 1 : from_rank == 6;
     if (from_file == to_file) {
         if (from_rank == to_rank - direction) return board[to_rank * 8 + to_file] == nullptr;
-        if (from_rank == to_rank - direction * 2) return board[(to_rank - direction) * 8 + to_file] == nullptr && board[to_rank * 8 + to_file] == nullptr;
+        if (two_ranks && from_rank == to_rank - direction * 2) return board[(to_rank - direction) * 8 + to_file] == nullptr && board[to_rank * 8 + to_file] == nullptr;
     }
     else if (from_file + 1 == to_file || from_file - 1 == to_file) {
         if (from_rank == to_rank - direction) return board[to_rank * 8 + to_file] != nullptr && board[to_rank * 8 + to_file]->color != color;

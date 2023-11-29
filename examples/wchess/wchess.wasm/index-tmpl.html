@@ -131,7 +131,15 @@
                     printTextarea('js: Preparing ...');
                 },
                 postRun: function() {
-                    printTextarea('js: Initialized successfully!');
+                    printTextarea('js: Module initialized successfully!');
+                    instance = Module.init('whisper.bin');
+
+                    if (instance) {
+                        printTextarea("js: whisper initialized, instance: " + instance);
+                    }
+                    else {
+                        printTextarea("js: failed to initialize whisper");
+                    }
                 }
             };
 
@@ -297,6 +305,20 @@
             var intervalUpdate = null;
             var movesAll = '';
 
+            document.body.addEventListener('keydown', function(event) {
+                if (event.keyCode === 32) {
+                    document.getElementById('toggler').innerText = "Release";
+                    onStart();
+                }
+            }, true);
+
+            document.body.addEventListener('keyup', function(event) {
+                if (event.keyCode === 32) {
+                    document.getElementById('toggler').innerText = "Hold";
+                    onStop();
+                }
+            }, true);
+
             document.getElementById('toggler').addEventListener('mousedown', function(event) {
                 this.innerText = "Release";
                 onStart();
@@ -309,15 +331,6 @@
 
             function onStart() {
                 if (!instance) {
-                    instance = Module.init('whisper.bin');
-
-                    if (instance) {
-                        printTextarea("js: whisper initialized, instance: " + instance);
-                    }
-                }
-
-                if (!instance) {
-                    printTextarea("js: failed to initialize whisper");
                     return;
                 }
 

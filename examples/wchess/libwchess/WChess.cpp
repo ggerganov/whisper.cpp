@@ -45,8 +45,8 @@ std::string WChess::stringify_board() const {
 void WChess::run() {
     set_status("loading data ...");
 
-    bool have_prompt  = false;
-    bool ask_prompt   = true;
+    bool have_prompt  = true;
+    bool ask_prompt   = !have_prompt;
 
     float logprob_min0 = 0.0f;
     float logprob_min  = 0.0f;
@@ -60,7 +60,7 @@ void WChess::run() {
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;
 
-    const std::string k_prompt = "King bishop rook queen knight";
+    const std::string k_prompt = have_prompt ? "" : "checkmate";
 
     while (check_running()) {
         // delay
@@ -116,8 +116,9 @@ void WChess::run() {
                         have_prompt = true;
                     }
                 } else {
-                    pcmf32_cur.insert(pcmf32_cur.begin(), WHISPER_SAMPLE_RATE, 0.0f);
                     if (!pcmf32_prompt.empty()) pcmf32_cur.insert(pcmf32_cur.begin(), pcmf32_prompt.begin(), pcmf32_prompt.end());
+                    static const size_t MIN_SIZE = 1.2 * WHISPER_SAMPLE_RATE;
+                    if (MIN_SIZE > pcmf32_cur.size()) pcmf32_cur.insert(pcmf32_cur.begin(), MIN_SIZE - pcmf32_cur.size(), 0.0f);
 
                     std::string rules = m_board->getRules(k_prompt);
                     fprintf(stdout, "%s: grammar rules:\n'%s'\n", __func__, rules.c_str());
