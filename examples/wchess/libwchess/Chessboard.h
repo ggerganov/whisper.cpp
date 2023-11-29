@@ -8,7 +8,7 @@ public:
     Chessboard();
     std::string process(const std::string& t);
     std::string stringifyBoard();
-    std::string getRules() const;
+    std::string getRules(const std::string & prompt) const;
     using Move = std::pair<int, int>;
 private:
     bool move(const Move& move);

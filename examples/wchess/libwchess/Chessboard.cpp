@@ -108,14 +108,15 @@ Chessboard::Chessboard()
     std::sort(blackMoves.begin(), blackMoves.end());
 }
 
-std::string Chessboard::getRules() const {
+std::string Chessboard::getRules(const std::string& prompt) const {
     // leading space is very important!
     std::string result =
     "\n"
     "# leading space is very important!\n"
     "\n"
-    "move ::= \" \" ((piece | frompos) \" \" \"to \"?)? topos\n"
-    "\n";
+    "move ::= prompt \" \" ((piece | frompos) \" \" \"to \"?)? topos\n"
+    "\n"
+    "prompt ::= \" " + prompt + "\"\n";
 
     std::set<std::string> pieces;
     std::set<std::string> from_pos;
