@@ -12,7 +12,6 @@ public:
     using Move = std::pair<int, int>;
 private:
     bool move(const Move& move);
-    void updateMoves(const Move& move);
 
     struct Piece {
         enum Types {
@@ -50,6 +49,7 @@ private:
     std::vector<Move> blackMoves;
 
     bool validateMove(const Piece& piece, int pos);
+    void getValidMoves(const Piece& piece, std::vector<Move>& moves);
     // just basic validation
     // fixme: missing en passant, castling, promotion, etc.
     bool validatePawnMove(Piece::Colors color, int from_rank, int from_file, int to_rank, int to_file);
