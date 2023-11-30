@@ -155,8 +155,8 @@ std::string Chessboard::getRules(const std::string& prompt) const {
     "# leading space is very important!\n"
     "\n";
     if (prompt.empty()) {
-        // result += "move ::= \" \" ((piece | frompos) \" \" \"to \"?)? topos\n";
-        result += "move ::= \" \" frompos \" \" \"to \"? topos\n";
+        result += "move ::= \" \" ((piece | frompos) \" \" \"to \"?)? topos\n";
+        //result += "move ::= \" \" frompos \" \" \"to \"? topos\n";
     }
     else {
         // result += "move ::= prompt \" \" ((piece | frompos) \" \" \"to \"?)? topos\n"
@@ -174,12 +174,12 @@ std::string Chessboard::getRules(const std::string& prompt) const {
         from_pos.insert(positions[m.first]);
         to_pos.insert(positions[m.second]);
     }
-    // if (!pieces.empty()) {
-    //     result += "piece ::= (";
-    //     for (auto& p : pieces) result += " \"" + p + "\" |";
-    //     result.pop_back();
-    //     result += ")\n\n";
-    // }
+    if (!pieces.empty()) {
+        result += "piece ::= (";
+        for (auto& p : pieces) result += " \"" + p + "\" |";
+        result.pop_back();
+        result += ")\n\n";
+    }
     if (!from_pos.empty()) {
         result += "frompos ::= (";
         for (auto& p : from_pos) result += " \"" + p + "\" |";

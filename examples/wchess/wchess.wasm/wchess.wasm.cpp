@@ -55,19 +55,21 @@ void wchess_main(size_t i) {
     wparams.print_progress   = false;
     wparams.print_timestamps = true;
     wparams.print_special    = false;
+    wparams.no_timestamps    = true;
 
     wparams.max_tokens       = 32;
-    // wparams.audio_ctx        = 768; // partial encoder context for better performance
+    wparams.audio_ctx        = 768; // partial encoder context for better performance
 
-    wparams.temperature     = 0.4f;
-    wparams.temperature_inc = 1.0f;
+    wparams.temperature     = 0.0f;
+    wparams.temperature_inc = 2.0f;
     wparams.greedy.best_of  = 1;
 
-    wparams.beam_search.beam_size = 5;
+    wparams.beam_search.beam_size = 1;
 
     wparams.language         = "en";
 
     wparams.grammar_penalty = 100.0;
+    wparams.initial_prompt = "bishop to c3, rook to d4, knight to e5, d4 d5, knight to c3, c3, queen to d4, king b1, pawn to a1, bishop to b2, knight to c3,";
 
     printf("command: using %d threads\n", wparams.n_threads);
 

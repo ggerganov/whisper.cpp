@@ -188,7 +188,7 @@
                 //     'base-en-q5_1':   57,
                 // };
 
-                let url     = 'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en.bin';
+                let url     = 'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en-q8_0.bin';
                 let dst     = 'whisper.bin';
                 let size_mb = 75;
 
@@ -272,6 +272,7 @@
                                         let audio = renderedBuffer.getChannelData(0);
 
                                         if (instance) {
+                                            printTextarea('js: number of samples: ' + audio.length);
                                             Module.set_audio(instance, audio);
                                         }
                                     });
@@ -338,7 +339,9 @@
             }
 
             function onStop() {
+                printTextarea('js: stopping recording ...');
                 stopRecording();
+
                 var interval = setInterval(function() {
                     var moves = Module.get_moves();
 
