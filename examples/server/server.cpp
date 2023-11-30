@@ -678,6 +678,29 @@ int main(int argc, char ** argv) {
                 ss << speaker << text << "\n\n";
             }
             res.set_content(ss.str(), "application/x-subrip");
+        } else if (params.response_format == vtt_format) {
+            std::stringstream ss;
+
+            ss << "WEBVTT\n\n";
+
+            const int n_segments = whisper_full_n_segments(ctx);
+            for (int i = 0; i < n_segments; ++i) {
+                const char * text = whisper_full_get_segment_text(ctx, i);
+                const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+                const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                std::string speaker = "";
+
+                if (params.diarize && pcmf32s.size() == 2)
+                {
+                    speaker = estimate_diarization_speaker(pcmf32s, t0, t1, true);
+                    speaker.insert(0, "<v Speaker");
+                    speaker.append(">");
+                }
+
+                ss << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
+                ss << speaker << text << "\n\n";
+            }
+            res.set_content(ss.str(), "text/vtt");
         }
         // TODO add more output formats
         else
