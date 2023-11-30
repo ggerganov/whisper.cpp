@@ -150,9 +150,6 @@ EMSCRIPTEN_BINDINGS(command) {
             moves = std::move(g_moves);
         }
 
-
-        if (!moves.empty()) fprintf(stdout, "%s: Moves '%s%s%s'\n", __func__, "\033[1m", moves.c_str(), "\033[0m");
-
         return moves;
     }));
 

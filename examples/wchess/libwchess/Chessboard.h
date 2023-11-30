@@ -34,8 +34,6 @@ private:
         int pos;
     };
 
-    Piece::Types tokenToType(std::string_view token);
-    size_t tokenToPos(std::string_view token);
     using PieceSet = std::array<Piece, 16>;
 
     PieceSet blackPieces;
