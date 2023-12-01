@@ -1735,6 +1735,9 @@ ggml_backend_t ggml_backend_metal_init(void) {
     struct ggml_metal_context * ctx = malloc(sizeof(struct ggml_metal_context));
 
     ctx = ggml_metal_init(GGML_DEFAULT_N_THREADS);
+    if (!ctx) {
+        return NULL;
+    }
 
     ggml_backend_t metal_backend = malloc(sizeof(struct ggml_backend));
 
