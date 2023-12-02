@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.5)
 
-project(whisper.cpp VERSION 1.4.3)
+project(whisper.cpp VERSION 1.5.1)
 
 # Add path to modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
@@ -533,7 +533,7 @@ target_compile_definitions(${TARGET} PUBLIC
     ${WHISPER_EXTRA_FLAGS}
     )
 
-set_target_properties(${TARGET} PROPERTIES PUBLIC_HEADER "whisper.h")
+set_target_properties(${TARGET} PROPERTIES PUBLIC_HEADER "ggml.h;whisper.h")
 
 include(GNUInstallDirs)
 

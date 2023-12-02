@@ -1,4 +1,4 @@
-default: main bench quantize
+default: main bench quantize server
 
 ifndef UNAME_S
 UNAME_S := $(shell uname -s)
@@ -338,7 +338,7 @@ libwhisper.so: $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so $(WHISPER_OBJ) $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream stream_components command talk talk-llama bench quantize lsp libwhisper.a libwhisper.so
+	rm -f *.o main stream command talk talk-llama bench quantize server lsp libwhisper.a libwhisper.so
 
 #
 # Examples
@@ -359,14 +359,14 @@ bench: examples/bench/bench.cpp $(WHISPER_OBJ)
 quantize: examples/quantize/quantize.cpp $(WHISPER_OBJ) $(SRC_COMMON)
 	$(CXX) $(CXXFLAGS) examples/quantize/quantize.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o quantize $(LDFLAGS)
 
+server: examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o server $(LDFLAGS)
+
 stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
 
-stream_components: examples/stream_components/stream_components.cpp examples/stream_components/stream_components_audio.cpp examples/stream_components/stream_components_output.cpp examples/stream_components/stream_components_server.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/stream_components/stream_components.cpp examples/stream_components/stream_components_audio.cpp examples/stream_components/stream_components_output.cpp examples/stream_components/stream_components_server.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream_components $(CC_SDL) $(LDFLAGS)
-
-command: examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
+command: examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
 
 lsp: examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o lsp $(CC_SDL) $(LDFLAGS)
@@ -421,9 +421,9 @@ samples:
 .PHONY: medium
 .PHONY: large-v1
 .PHONY: large-v2
-.PHONY: large
+.PHONY: large-v3
 
-tiny.en tiny base.en base small.en small medium.en medium large-v1 large-v2 large: main
+tiny.en tiny base.en base small.en small medium.en medium large-v1 large-v2 large-v3: main
 	bash ./models/download-ggml-model.sh $@
 	@echo ""
 	@echo "==============================================="

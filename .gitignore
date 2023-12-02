@@ -31,6 +31,7 @@ build-sanitize-thread/
 /talk-llama
 /bench
 /quantize
+/server
 /lsp
 
 arm_neon.h

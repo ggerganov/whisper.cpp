@@ -41,7 +41,6 @@ private:
     std::mutex       m_mutex;
 
     std::vector<float> m_audio;
-    std::vector<float> m_audio_new;
     size_t             m_audio_pos = 0;
     size_t             m_audio_len = 0;
 };

@@ -62,8 +62,8 @@ struct whisper_params {
     int32_t progress_step =  5;
     int32_t max_context  = -1;
     int32_t max_len      =  0;
-    int32_t best_of      =  2;
-    int32_t beam_size    = -1;
+    int32_t best_of      = whisper_full_default_params(WHISPER_SAMPLING_GREEDY).greedy.best_of;
+    int32_t beam_size    = whisper_full_default_params(WHISPER_SAMPLING_BEAM_SEARCH).beam_search.beam_size;
 
     float word_thold    =  0.01f;
     float entropy_thold =  2.40f;
@@ -165,8 +165,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-m"    || arg == "--model")           { params.model           = argv[++i]; }
         else if (arg == "-f"    || arg == "--file")            { params.fname_inp.emplace_back(argv[++i]); }
         else if (arg == "-oved" || arg == "--ov-e-device")     { params.openvino_encode_device = argv[++i]; }
-        else if (arg == "-ls"   || arg == "--log-score")       { params.log_score = true; }
-        else if (arg == "-ng"   || arg == "--no-gpu")          { params.use_gpu = false; }
+        else if (arg == "-ls"   || arg == "--log-score")       { params.log_score       = true; }
+        else if (arg == "-ng"   || arg == "--no-gpu")          { params.use_gpu         = false; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -925,9 +925,9 @@ int main(int argc, char ** argv) {
             if (params.detect_language) {
                 params.language = "auto";
             }
-            fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, lang = %s, task = %s, %stimestamps = %d ...\n",
+            fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, %d beams + best of %d, lang = %s, task = %s, %stimestamps = %d ...\n",
                     __func__, fname_inp.c_str(), int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE,
-                    params.n_threads, params.n_processors,
+                    params.n_threads, params.n_processors, params.beam_size, params.best_of,
                     params.language.c_str(),
                     params.translate ? "translate" : "transcribe",
                     params.tinydiarize ? "tdrz = 1, " : "",
