@@ -5460,11 +5460,9 @@ int whisper_full_with_state(
                         if (decoder.completed || decoder.failed) {
                             continue;
                         }
-                        kv_mutex.lock();
                         whisper_kv_cache_seq_rm(state->kv_self, j,                           -1, -1);
                         whisper_kv_cache_seq_cp(state->kv_self, WHISPER_MAX_DECODERS + j, j, -1, -1);
                         whisper_kv_cache_seq_rm(state->kv_self, WHISPER_MAX_DECODERS + j,    -1, -1);
-                        kv_mutex.unlock();
                     }
                 }
 
