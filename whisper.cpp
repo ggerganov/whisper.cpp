@@ -38,6 +38,9 @@
 #include <random>
 #include <functional>
 
+#include <mutex>
+std::mutex kv_mutex;
+
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
@@ -996,7 +999,6 @@ static int32_t whisper_kv_cache_cell_max(const struct whisper_kv_cache & cache) 
             return i + 1;
         }
     }
-
     return 1;
 }
 
@@ -5296,6 +5298,7 @@ int whisper_full_with_state(
                 }
                 WHISPER_PRINT_DEBUG("\n\n");
 
+                
                 whisper_kv_cache_clear(state->kv_self);
 
                 whisper_batch_prep_legacy(state->batch, prompt.data(), prompt.size(), 0, 0);
@@ -5314,9 +5317,13 @@ int whisper_full_with_state(
 
                     for (int j = 1; j < n_decoders_cur; ++j) {
                         auto & decoder = state->decoders[j];
+             
+                        auto& source_data = state->decoders[0].probs;
+                        if (source_data.empty() || source_data.front() == 0.0f) {
+                            continue;
+                        }
 
                         whisper_kv_cache_seq_cp(state->kv_self, 0, j, -1, -1);
-
                         memcpy(decoder.probs.data(),    state->decoders[0].probs.data(),    decoder.probs.size()*sizeof(decoder.probs[0]));
                         memcpy(decoder.logits.data(),   state->decoders[0].logits.data(),   decoder.logits.size()*sizeof(decoder.logits[0]));
                         memcpy(decoder.logprobs.data(), state->decoders[0].logprobs.data(), decoder.logprobs.size()*sizeof(decoder.logprobs[0]));
@@ -5329,19 +5336,19 @@ int whisper_full_with_state(
             for (int i = 0, n_max = whisper_n_text_ctx(ctx)/2 - 4; i < n_max; ++i) {
                 const int64_t t_start_sample_us = ggml_time_us();
 
+                
                 if (params.strategy == whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH) {
                     for (auto & bc : bc_per_dec) {
                         bc.clear();
                     }
-                }
-
+                }           
+            
                 // sampling
                 // TODO: avoid memory allocations, optimize, avoid threads?
                 {
                     std::atomic<int> j_cur(0);
-
                     auto process = [&]() {
-                        while (true) {
+                         while (true) {
                             const int j = j_cur.fetch_add(1);
 
                             if (j >= n_decoders_cur) {
@@ -5397,6 +5404,7 @@ int whisper_full_with_state(
                         }
                     }
                 }
+                
 
                 beam_candidates.clear();
                 for (const auto & bc : bc_per_dec) {
@@ -5452,10 +5460,11 @@ int whisper_full_with_state(
                         if (decoder.completed || decoder.failed) {
                             continue;
                         }
-
+                        kv_mutex.lock();
                         whisper_kv_cache_seq_rm(state->kv_self, j,                           -1, -1);
                         whisper_kv_cache_seq_cp(state->kv_self, WHISPER_MAX_DECODERS + j, j, -1, -1);
                         whisper_kv_cache_seq_rm(state->kv_self, WHISPER_MAX_DECODERS + j,    -1, -1);
+                        kv_mutex.unlock();
                     }
                 }
 
@@ -5599,7 +5608,7 @@ int whisper_full_with_state(
                     }
 
                     const int64_t t_start_sample_us = ggml_time_us();
-
+                    
                     // TODO: avoid memory allocations, optimize, avoid threads?
                     {
                         std::atomic<int> j_cur(0);
@@ -5640,7 +5649,7 @@ int whisper_full_with_state(
                             }
                         }
                     }
-
+                    
                     state->t_sample_us += ggml_time_us() - t_start_sample_us;
                 }
             }
@@ -5917,7 +5926,7 @@ int whisper_full_parallel(
 
         for (auto& result : results_i) {
             // correct the segment timestamp taking into account the offset
-            result.t0 += 100 * ((i + 1) * n_samples_per_processor) / WHISPER_SAMPLE_RATE + offset_t;
+            result.t0 += 100 * ((i) * n_samples_per_processor) / WHISPER_SAMPLE_RATE + offset_t;
             result.t1 += 100 * ((i + 1) * n_samples_per_processor) / WHISPER_SAMPLE_RATE + offset_t;
 
             // make sure that segments are not overlapping
