@@ -267,8 +267,8 @@ int get_weather() {
     if(curl) {
         // Replace with your Home Assistant URL and entity ID
         std::string url = "http://192.168.1.118:8123/api/states/weather.forecast_home";
-        
-        headers = curl_slist_append(headers, "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyMTQ3YjM3ODEzMTQ0MDU3YTg0ZDk5Y2IwODMxOGQ3YiIsImlhdCI6MTcwMTA1MDE1MCwiZXhwIjoyMDE2NDEwMTUwfQ.UgfctirOWljBwwsC8Yf4oDIZyDipEZ1d0oxH5Bca_PE");
+
+	headers = curl_slist_append(headers, (std::string("Authorization: Bearer ") + getenv("HA_TOKEN")).c_str());
 
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
@@ -308,13 +308,56 @@ int get_weather() {
     return 0;
 }
 
-int send_ha() {
+int send_ha_switch_computers(const std::string switch_type) {
     CURL *curl;
     CURLcode res;
     struct curl_slist *headers = NULL; // Initialize to NULL is important
 
     // Add HTTP headers to the list
-    headers = curl_slist_append(headers, "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyMTQ3YjM3ODEzMTQ0MDU3YTg0ZDk5Y2IwODMxOGQ3YiIsImlhdCI6MTcwMTA1MDE1MCwiZXhwIjoyMDE2NDEwMTUwfQ.UgfctirOWljBwwsC8Yf4oDIZyDipEZ1d0oxH5Bca_PE");
+    headers = curl_slist_append(headers, (std::string("Authorization: Bearer ") + getenv("HA_TOKEN")).c_str());
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+
+    // Initialize a libcurl session
+    curl = curl_easy_init();
+
+    std::string base_uri = "http://192.168.1.118:8123/api/services/script/";
+    std::string final_url = base_uri + switch_type;
+
+    std::cout << final_url << std::endl;
+
+    if(curl) {
+        // Specify the URL for the POST request
+        curl_easy_setopt(curl, CURLOPT_URL, final_url.c_str());
+
+        // Set the headers
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
+
+        // Perform the POST request
+        res = curl_easy_perform(curl);
+
+        // Check for errors 
+        if(res != CURLE_OK) {
+            std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        // Clean up
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers); // Free the header list
+    }
+
+    return 0;
+}
+
+
+int send_ha_lights() {
+    CURL *curl;
+    CURLcode res;
+    struct curl_slist *headers = NULL; // Initialize to NULL is important
+
+    // Add HTTP headers to the list
+    headers = curl_slist_append(headers, (std::string("Authorization: Bearer ") + getenv("HA_TOKEN")).c_str());
     headers = curl_slist_append(headers, "Content-Type: application/json");
 
     // Initialize a libcurl session
@@ -549,12 +592,20 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
                     fprintf(stdout, "\n");
                     if(allowed_commands[index].compare("lights") == 0 && prob >= 0.9) {
                         fprintf(stderr, "Toggling lights...");
-                        send_ha();
+                        send_ha_lights();
                     }
                     if(allowed_commands[index].compare("temperature") == 0 && prob >= 0.9) {
                         fprintf(stderr, "Fetching temperature...\n");
                         get_weather();
                     }
+		    if(allowed_commands[index].compare("workcomputer") == 0 && prob >= 0.9) {
+			fprintf(stderr, "Switching to mac...\n");
+			send_ha_switch_computers("switch_source_to_mac");
+		    }
+		    if(allowed_commands[index].compare("homecomputer") == 0 && prob >= 0.9) {
+			fprintf(stderr, "Switching to PC...\n");
+			send_ha_switch_computers("switch_source_to_pc");
+		    }
                 }
             }
 
@@ -664,7 +715,7 @@ int process_general_transcription(struct whisper_context * ctx, audio_async & au
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;
 
-    std::string k_prompt = "Ok Whisper, start listening for commands.";
+    std::string k_prompt = "Cassandra";
     if (!params.prompt.empty()) {
         k_prompt = params.prompt;
     }
