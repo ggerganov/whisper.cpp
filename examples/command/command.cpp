@@ -21,6 +21,9 @@
 #include <thread>
 #include <vector>
 #include <map>
+#include <iostream>
+#include <curl/curl.h>
+#include <nlohmann/json.hpp>
 
 bool file_exists(const std::string & fname) {
     std::ifstream f(fname.c_str());
@@ -249,6 +252,99 @@ std::vector<std::string> get_words(const std::string &txt) {
     return words;
 }
 
+static size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::string *userp) {
+    userp->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+int get_weather() {
+    CURL *curl;
+    CURLcode res;
+    std::string readBuffer;
+    struct curl_slist *headers = NULL; // Initialize to NULL is important
+
+    curl = curl_easy_init();
+    if(curl) {
+        // Replace with your Home Assistant URL and entity ID
+        std::string url = "http://192.168.1.118:8123/api/states/weather.forecast_home";
+        
+        headers = curl_slist_append(headers, "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyMTQ3YjM3ODEzMTQ0MDU3YTg0ZDk5Y2IwODMxOGQ3YiIsImlhdCI6MTcwMTA1MDE1MCwiZXhwIjoyMDE2NDEwMTUwfQ.UgfctirOWljBwwsC8Yf4oDIZyDipEZ1d0oxH5Bca_PE");
+
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        // Check for errors
+        if(res != CURLE_OK) {
+            std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << "\n";
+        }
+
+        if (res == CURLE_OK) {
+            try {
+                // Parse the response into a JSON object
+                auto json = nlohmann::json::parse(readBuffer);
+
+                std::cout << json << std::endl;
+
+                // Navigate to the temperature field inside attributes
+                if (json.contains("attributes") && json["attributes"].contains("temperature")) {
+                    auto temperature = json["attributes"]["temperature"];
+                    std::cout << temperature << "°F" << std::endl;
+                } else {
+                    std::cout << "Unable to get temperature" << std::endl;
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "Error parsing JSON: " << e.what() << std::endl;
+            }
+        }
+
+        // Always cleanup
+        curl_easy_cleanup(curl);
+    }
+    return 0;
+}
+
+int send_ha() {
+    CURL *curl;
+    CURLcode res;
+    struct curl_slist *headers = NULL; // Initialize to NULL is important
+
+    // Add HTTP headers to the list
+    headers = curl_slist_append(headers, "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyMTQ3YjM3ODEzMTQ0MDU3YTg0ZDk5Y2IwODMxOGQ3YiIsImlhdCI6MTcwMTA1MDE1MCwiZXhwIjoyMDE2NDEwMTUwfQ.UgfctirOWljBwwsC8Yf4oDIZyDipEZ1d0oxH5Bca_PE");
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+
+    // Initialize a libcurl session
+    curl = curl_easy_init();
+
+    if(curl) {
+        // Specify the URL for the POST request
+        curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.1.118:8123/api/services/script/toggle_nightstands");
+
+        // Set the headers
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
+
+        // Perform the POST request
+        res = curl_easy_perform(curl);
+
+        // Check for errors 
+        if(res != CURLE_OK) {
+            std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+        }
+
+        // Clean up
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers); // Free the header list
+    }
+
+    return 0;
+}
+
 // command-list mode
 // guide the transcription to match the most likely command from a provided list
 int process_command_list(struct whisper_context * ctx, audio_async &audio, const whisper_params &params) {
@@ -285,7 +381,7 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
                 allowed_tokens.back().push_back(tokens[0]);
             }
         }
-
+	
         max_len = std::max(max_len, (int) cmd.size());
     }
 
@@ -451,6 +547,14 @@ int process_command_list(struct whisper_context * ctx, audio_async &audio, const
                             "\033[1m", allowed_commands[index].c_str(), "\033[0m", prob,
                             (int) std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count());
                     fprintf(stdout, "\n");
+                    if(allowed_commands[index].compare("lights") == 0 && prob >= 0.9) {
+                        fprintf(stderr, "Toggling lights...");
+                        send_ha();
+                    }
+                    if(allowed_commands[index].compare("temperature") == 0 && prob >= 0.9) {
+                        fprintf(stderr, "Fetching temperature...\n");
+                        get_weather();
+                    }
                 }
             }
 
