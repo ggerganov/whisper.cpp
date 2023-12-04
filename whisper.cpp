@@ -351,6 +351,31 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
     { "yue", { 99,  "cantonese",      } },
 };
 
+static const whisper_ahead g_aheads_tiny_en[] = { {1, 0}, {2, 0}, {2, 5}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 4} };
+static const whisper_ahead g_aheads_tiny[] = { {2, 2}, {3, 0}, {3, 2}, {3, 3}, {3, 4}, {3, 5} };
+static const whisper_ahead g_aheads_base_en[] = { {3, 3}, {4, 7}, {5, 1}, {5, 5}, {5, 7} };
+static const whisper_ahead g_aheads_base[] = { {3, 1}, {4, 2}, {4, 3}, {4, 7}, {5, 1}, {5, 2}, {5, 4}, {5, 6} };
+static const whisper_ahead g_aheads_small_en[] = { {6, 6}, {7, 0}, {7, 3}, {7, 8}, {8, 2}, {8, 5}, {8, 7}, {9, 0}, {9, 4}, {9, 8}, {9, 10}, {10, 0}, {10, 1}, {10, 2}, {10, 3}, {10, 6}, {10, 11}, {11, 2}, {11, 4} };
+static const whisper_ahead g_aheads_small[] = { {5, 3}, {5, 9}, {8, 0}, {8, 4}, {8, 7}, {8, 8}, {9, 0}, {9, 7}, {9, 9}, {10, 5} };
+static const whisper_ahead g_aheads_medium_en[] = { {11, 4}, {14, 1}, {14, 12}, {14, 14}, {15, 4}, {16, 0}, {16, 4}, {16, 9}, {17, 12}, {17, 14}, {18, 7}, {18, 10}, {18, 15}, {20, 0}, {20, 3}, {20, 9}, {20, 14}, {21, 12} };
+static const whisper_ahead g_aheads_medium[] = { {13, 15}, {15, 4}, {15, 15}, {16, 1}, {20, 0}, {23, 4} };
+static const whisper_ahead g_aheads_large_v1[] = { {9, 19}, {11, 2}, {11, 4}, {11, 17}, {22, 7}, {22, 11}, {22, 17}, {23, 2}, {23, 15} };
+static const whisper_ahead g_aheads_large_v2[] = { {10, 12}, {13, 17}, {16, 11}, {16, 12}, {16, 13}, {17, 15}, {17, 16}, {18, 4}, {18, 11}, {18, 19}, {19, 11}, {21, 2}, {21, 3}, {22, 3}, {22, 9}, {22, 12}, {23, 5}, {23, 7}, {23, 13}, {25, 5}, {26, 1}, {26, 12}, {27, 15} };
+static const whisper_ahead g_aheads_large_v3[] = { {7, 0}, {10, 17}, {12, 18}, {13, 12}, {16, 1}, {17, 14}, {19, 11}, {21, 4}, {24, 1}, {25, 6} };
+static const std::map<whisper_alignment_heads_preset, whisper_aheads> g_aheads {
+    { WHISPER_AHEADS_TINY_EN, {8, g_aheads_tiny_en} },
+    { WHISPER_AHEADS_TINY, {6, g_aheads_tiny} },
+    { WHISPER_AHEADS_BASE_EN, {5, g_aheads_base_en} },
+    { WHISPER_AHEADS_BASE, {8, g_aheads_base} },
+    { WHISPER_AHEADS_SMALL_EN, {19, g_aheads_small_en} },
+    { WHISPER_AHEADS_SMALL, {10, g_aheads_small} },
+    { WHISPER_AHEADS_MEDIUM_EN, {18, g_aheads_medium_en} },
+    { WHISPER_AHEADS_MEDIUM, {6, g_aheads_medium} },
+    { WHISPER_AHEADS_LARGE_V1, {9, g_aheads_large_v1} },
+    { WHISPER_AHEADS_LARVE_V2, {23, g_aheads_large_v2} },
+    { WHISPER_AHEADS_LARGE_V3, {10, g_aheads_large_v3} },
+};
+
 struct whisper_mel {
     int n_len;
     int n_len_org;
@@ -822,6 +847,9 @@ struct whisper_state {
     whisper_token tid_last;
 
     std::vector<float> energy; // PCM signal energy
+
+    // [EXPERIMENTAL] Token-level timestamps with DTW
+    std::vector<ggml_tensor * > cross_QKs;
 
     // [EXPERIMENTAL] speed-up techniques
     int32_t exp_n_audio_ctx = 0; // 0 - use default
@@ -2335,6 +2363,13 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
             struct ggml_tensor * KQ_soft_max = ggml_soft_max(ctx0, KQ);
 
+            // FIXME: maybe this additional node should by part of pipeline if requested,
+            // since it is only needed for dtw timestamps and useless on all other decoding
+            // calls. Should be counted when allocating memory for the decoder graph though.
+            // [EXPERIMENTAL] Token-level timestamps with DTW
+            struct ggml_tensor * KQ_copy = ggml_cpy(ctx0, KQ_soft_max, ggml_new_tensor_3d(ctx0, GGML_TYPE_F32, KQ_soft_max->ne[0], KQ_soft_max->ne[1], KQ_soft_max->ne[2]));
+            wstate.cross_QKs.push_back(KQ_copy);
+
             struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V, KQ_soft_max);
 
             struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
@@ -2420,6 +2455,13 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
     struct ggml_tensor * logits = ggml_mul_mat(ctx0, model.d_te, cur);
 
+    // FIXME: maybe this additional node should by part of pipeline if requested,
+    // since it is only needed for dtw timestamps and useless on all other decoding
+    // calls. Should be counted when allocating memory for the decoder graph though.
+    // [EXPERIMENTAL] Token-level timestamps with DTW
+    for (int il = 0; il < n_layer; ++il)
+        ggml_build_forward_expand(gf, wstate.cross_QKs[il]);
+
     ggml_build_forward_expand(gf, logits);
 
     ggml_free(ctx0);
@@ -2455,6 +2497,8 @@ static bool whisper_decode_internal(
     auto & logits_out = wstate.logits;
 
     struct ggml_tensor * logits;
+
+    wstate.cross_QKs.clear();
 
     // find KV slot for the batch
     {
@@ -4318,6 +4362,18 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.split_on_word     =*/ false,
         /*.max_tokens        =*/ 0,
 
+        /*.dtw_token_timestamps =*/ false,
+        /*.dtw_ah_preset        =*/ WHISPER_AHEADS_NONE,
+        /*.dtw_n_stop_most      =*/ {
+            /*.n   =*/ -1,
+        },
+        /*.dtw_custom           =*/ {
+            /*.aheads           =*/ {
+                /*.n_heads      =*/ 0,
+                /*.heads        =*/ NULL,
+            }
+        },
+
         /*.speed_up          =*/ false,
         /*.debug_mode        =*/ false,
         /*.audio_ctx         =*/ 0,
@@ -4408,6 +4464,16 @@ static inline bool should_split_on_word(const char * txt, bool split_on_word) {
 
     return txt[0] == ' ';
 }
+
+static void whisper_exp_compute_token_level_timestamps_dtw(
+            struct whisper_context * ctx,
+              struct whisper_state * state,
+        struct whisper_full_params   params,
+                               int   i_segment,
+                               int   seek,
+                               int   n_frames,
+                               int   medfilt_width,
+                               int   n_threads);
 
 // wrap the last segment to max_len characters
 // returns the number of new segments
@@ -4777,7 +4843,7 @@ static whisper_token_data whisper_sample_token(
       const whisper_decoder & decoder,
                        bool   best) {
     whisper_token_data result = {
-        0, 0, 0.0f, 0.0f, 0.0f, 0.0f, -1, -1, 0.0f,
+        0, 0, 0.0f, 0.0f, 0.0f, 0.0f, -1, -1, -1, 0.0f,
     };
 
     const auto & vocab = ctx.vocab;
@@ -4895,7 +4961,7 @@ static std::vector<whisper_token_data> whisper_sample_token_topk(
         const auto id = dist(decoder.rng);
         //printf("XXX %d %d %f %f %f %f\n", id, tid, probs[id], logprobs[id], pt, ptsum);
 
-        result.push_back({ id, tid, probs[id], logprobs[id], pt, ptsum, -1, -1, 0.0f, });
+        result.push_back({ id, tid, probs[id], logprobs[id], pt, ptsum, -1, -1, -1, 0.0f, });
 
         if (result[i].id >= vocab.token_beg) {
             result[i].tid = result[i].id;
@@ -5738,6 +5804,16 @@ int whisper_full_with_state(
 
                             int n_new = 1;
 
+                            // FIXME: this is sure to fail in the case an inference run produces more than one segment.
+                            // DTW timestamps are computed for every inference run, not for every segment.
+                            // Turned off for now until we can figure this out.
+                            // [EXPERIMENTAL] Token-level timestamps with DTW
+                            /*if (params.dtw_token_timestamps) {
+                                const int n_frames = std::min(WHISPER_CHUNK_SIZE * 100, seek_end - seek);
+                                whisper_exp_compute_token_level_timestamps_dtw(
+                                    ctx, state, params, result_all.size() - 1, seek, n_frames, 7, params.n_threads);
+                            }*/
+
                             if (params.token_timestamps) {
                                 whisper_exp_compute_token_level_timestamps(
                                         *ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
@@ -5783,6 +5859,14 @@ int whisper_full_with_state(
 
                     int n_new = 1;
 
+                    // FIXME: not sure all time offsets will be correct?
+                    // [EXPERIMENTAL] Token-level timestamps with DTW
+                    if (params.dtw_token_timestamps) {
+                        const int n_frames = std::min(WHISPER_CHUNK_SIZE * 100, seek_end - seek);
+                        whisper_exp_compute_token_level_timestamps_dtw(
+                            ctx, state, params, result_all.size() - 1, seek, n_frames, 7, params.n_threads);
+                    }
+
                     if (params.token_timestamps) {
                         whisper_exp_compute_token_level_timestamps(
                                 *ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
@@ -5796,6 +5880,7 @@ int whisper_full_with_state(
                     }
                 }
             }
+
 
             // update audio window
             seek += seek_delta;
@@ -6676,6 +6761,7 @@ static ggml_tensor * dtw_and_backtrace(ggml_context *ctx, ggml_tensor *x) {
         }
     }
 
+    // FIXME: manual clip/transpose might not be the most efficient way? (e.g. use ggml funcs)
     // Clip + transpose
     // This might not be entirely necessary for our case, but leaving it for now so output matrix
     // is identical to dtw on openAI timing.py
@@ -6691,17 +6777,223 @@ static ggml_tensor * dtw_and_backtrace(ggml_context *ctx, ggml_tensor *x) {
     return r;
 }
 
-void whisper_test_dtw(float* in, size_t in_ne0, size_t in_ne1, int32_t **out, size_t *out_ne0, size_t *out_ne1) {
-    struct ggml_init_params params = {
-        /*.mem_size   =*/ 32*1024*1024,
+static ggml_tensor * median_filter(ggml_context *ctx, ggml_tensor *x, int filter_width) {
+    WHISPER_ASSERT(filter_width < x->ne[2]);
+    WHISPER_ASSERT(filter_width % 2);
+    WHISPER_ASSERT(x->n_dims == 3);
+    WHISPER_ASSERT(x->type == GGML_TYPE_F32);
+
+    std::vector<float> filter;
+    filter.reserve(filter_width);
+    ggml_tensor * r = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, x->ne[0], x->ne[1], x->ne[2]);
+
+    for (int64_t i = 0; i < x->ne[0]; ++i) {
+        for (int64_t j = 0; j < x->ne[1]; ++j) {
+            for (int64_t k = 0; k < x->ne[2]; ++k) {
+                for (int64_t off = -filter_width/2; off <= filter_width/2; ++off) {
+                    // "reflect" padding
+                    int64_t idx = k + off;
+                    if (idx < 0)
+                        idx = -idx;
+                    else if (idx >= x->ne[2])
+                        idx = 2*(x->ne[2] - 1) - idx;
+
+                    filter.push_back(ggml_get_f32_nd(x, i, j, idx, 0));
+                }
+                std::sort(filter.begin(), filter.end());
+                const float v = filter[filter.size()/2];
+                ggml_set_f32_nd(r, i, j, k, 0, v);
+                filter.clear();
+            }
+        }
+    }
+
+    return r;
+}
+
+static void whisper_exp_compute_token_level_timestamps_dtw(
+            struct whisper_context * ctx,
+              struct whisper_state * state,
+        struct whisper_full_params   params,
+                               int   i_segment,
+                               int   seek,
+                               int   n_frames,
+                               int   medfilt_width,
+                               int   n_threads)
+{
+    WHISPER_ASSERT(medfilt_width % 2);
+    WHISPER_ASSERT(n_frames <= params.audio_ctx * 2);
+    WHISPER_ASSERT(params.dtw_ah_preset != WHISPER_AHEADS_NONE);
+
+    // unimplemented
+    WHISPER_ASSERT(params.dtw_ah_preset != WHISPER_AHEADS_N_TOP_MOST);
+    WHISPER_ASSERT(params.dtw_ah_preset != WHISPER_AHEADS_CUSTOM);
+
+    auto & segment = state->result_all[i_segment];
+    const auto alignment_heads = g_aheads.at(params.dtw_ah_preset);
+
+    // FIXME: Allocating mem everytime we call this func
+    // Our ggml buffer should be pre-allocated somewhere during init and reused
+    // when we call this function
+    struct ggml_init_params gparams = {
+        /*.mem_size   =*/ 16*1024*1024,
         /*.mem_buffer =*/ NULL,
         /*.no_alloc   =*/ false,
     };
-    struct ggml_context * ctx = ggml_init(params);
+    struct ggml_context * gctx = ggml_init(gparams);
+
+    // Build token sequence that will be passed to decoder
+    // sot + [lang] + text result + eot
+    std::vector<whisper_token> tokens = { whisper_token_sot(ctx), };
+    if (whisper_is_multilingual(ctx)) {
+        const int lang_id = whisper_lang_id(params.language);
+        state->lang_id = lang_id;
+        tokens.push_back(whisper_token_lang(ctx, lang_id));
+    }
+    const size_t sot_sequence_length = tokens.size();
+    tokens.push_back(whisper_token_not(ctx));
+    for (auto &t: segment.tokens) {
+        // Only text tokens
+        if (t.id < whisper_token_eot(ctx))
+            tokens.push_back(t.id);
+    }
+    tokens.push_back(whisper_token_eot(ctx));
+
+    // Get result tokens, pass then along to decoder to get cross attention QKs
+    // used in timestamping
+    // Each QK is audio_ctx*N_TOKENS*N_HEADS_PER_LAYER
+    if (whisper_decode_with_state(ctx, state, tokens.data(), tokens.size(), 0, n_threads) != 0) {
+        WHISPER_LOG_INFO("DECODER FAILED\n");
+        WHISPER_ASSERT(0);
+    }
+
+    //for (size_t i = 0; i < state->cross_QKs.size(); i++)
+    //    fprintf(stderr, "QK[%ld] has ne0 %ld ne1 %ld ne2 %ld ne3 %ld\n", i, state->cross_QKs[i]->ne[0], state->cross_QKs[i]->ne[1], state->cross_QKs[i]->ne[2], state->cross_QKs[i]->ne[3]);
+
+    // FIXME: manually stacking + clipping + permuting might not be the most efficient way? (e.g. use ggml funcs)
+    // Stack alignment heads + clip unused audio tokens
+    // We permute dimensions so we can compute normalization on next step
+    // IN: N_TEXT_LAYERS tensors with audio_ctx*N_TOKENS*N_HEADS dims
+    // OUT: Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
+    const auto n_audio_tokens = n_frames/2;
+    //fprintf(stderr, "n_audio_tokens is %d\n", n_audio_tokens);
+    ggml_tensor * w = ggml_new_tensor_3d(gctx, GGML_TYPE_F32, state->cross_QKs[0]->ne[1], n_audio_tokens, alignment_heads.n_heads);
+    for (size_t k = 0; k < alignment_heads.n_heads; k++) {
+        for (int i = 0; i < n_audio_tokens; ++i) {
+            for (int j = 0; j < state->cross_QKs[0]->ne[1]; ++j) {
+                auto text_layer = alignment_heads.heads[k].n_text_layer;
+                auto head = alignment_heads.heads[k].n_head;
+                const float v = ggml_get_f32_nd(state->cross_QKs[text_layer], i, j, head, 0);
+                ggml_set_f32_nd(w, j, i, k, 0, v);
+            }
+        }
+    }
+    //fprintf(stderr, "weights has ne0 %ld ne1 %ld ne2 %ld ne3 %ld\n", w->ne[0], w->ne[1], w->ne[2], w->ne[3]);
+
+    // Normalize - in original OpenAI code, this is done over dim=-2. In this case,
+    // we already permuted N_TOKENS dimension to rows on last loop, becase ggml_norm
+    // operates over rows. Afterwards, permute to a shape that facilitates mean
+    // operation (after median filter)
+    // IN: Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
+    // OUT: Tensor with N_ALIGNMENT_HEADS*N_TOKENS*N_AUDIO_TOKENS dims
+    w = ggml_norm(gctx, w, 0);
+    w = ggml_permute(gctx, ggml_permute(gctx, w, 2, 1, 0 ,3), 0, 2, 1, 3);
+    struct ggml_cgraph * gf = ggml_new_graph(gctx);
+    ggml_build_forward_expand(gf, w);
+    ggml_graph_compute_with_ctx(gctx, gf, n_threads);
+
+    // Pass median filter - this is done over AUDIO_TOKENS dimension.
+    // IN: Tensor with N_ALIGNMENT_HEADS*N_TOKENS*N_AUDIO_TOKENS dims
+    // OUT: Same dims
+    w = median_filter(gctx, w, medfilt_width);
+
+    // Take mean over rows, scale by -1, reshape to 2D tensor
+    // IN: Tensor with N_ALIGNMENT_HEADS*N_TOKENS*N_AUDIO_TOKENS dims
+    // OUT: Tensor with N_TOKENS*N_AUDIO_TOKENS dims
+    w = ggml_mean(gctx, w);
+    ggml_tensor * scale = ggml_new_tensor_1d(gctx, GGML_TYPE_F32, 1);
+    ggml_set_f32_1d(scale, 0, -1);
+    w = ggml_scale(gctx, w, scale);
+    w = ggml_reshape_2d(gctx, w, w->ne[1], w->ne[2]);
+    struct ggml_cgraph * gf2 = ggml_new_graph(gctx);
+    ggml_build_forward_expand(gf2, w);
+    ggml_graph_compute_with_ctx(gctx, gf2, n_threads);
+
+    // FIXME: manually removing SOT/EOT might not be the most efficient way? (e.g. use ggml funcs)
+    // Remove SOT sequence and EOT
+    // Out dimension is (N_TOKENS-sot_sequence_length-1)*N_AUDIO_TOKENS
+    ggml_tensor * matrix = ggml_new_tensor_2d(gctx, GGML_TYPE_F32, w->ne[0] - sot_sequence_length - 1, w->ne[1]);
+    for (int64_t i = 0; i < matrix->ne[0]; ++i) {
+        for (int64_t j = 0; j < matrix->ne[1]; ++j) {
+            float v = ggml_get_f32_nd(w, i + sot_sequence_length, j, 0, 0);
+            ggml_set_f32_nd(matrix, i, j, 0, 0, v);
+        }
+    }
+
+    // dtw
+    ggml_tensor * alignment = dtw_and_backtrace(gctx, matrix);
+
+    // Place timestamps on segment
+    int32_t last_v = 0;
+    size_t token_idx = 0;
+    for (int i = 0; i < alignment->ne[1]; ++i) {
+        int32_t v = ggml_get_i32_nd(alignment, 0, i, 0, 0);
+        if (v != last_v) {
+            last_v = v;
+            int64_t timestamp = (i * 2) + seek; // Each index on DTW result = 20mS audio
+
+            // Skip non-text tokens
+            while (!(segment.tokens[token_idx].id < whisper_token_eot(ctx)))
+                ++token_idx;
+
+            segment.tokens[token_idx].t_dtw = timestamp;
+            ++token_idx;
+        }
+    }
+
+    /*fprintf(stderr, "Printing alignment\n");
+    for (int i = 0; i < alignment->ne[0]; i++) {
+        fprintf(stderr, "| ");
+        for (int j = 0; j < alignment->ne[1]; j++) {
+            fprintf(stderr, "%d ", ggml_get_i32_nd(alignment, i, j, 0, 0));
+        }
+        fprintf(stderr, "|\n");
+    }*/
+
+    for (auto &t: segment.tokens) {
+        const char * tok = whisper_token_to_str(ctx, t.id);
+        fprintf(stderr, "|%s|(%.2f) ", tok, (float)t.t_dtw/100);
+    }
+    fprintf(stderr, "\n");
+
+    /*fprintf(stderr, "Priting timestamps\n");
+    int32_t last_v = -1;
+    for (int i = 0; i < alignment->ne[1]; i++) {
+        int32_t v = ggml_get_i32_nd(alignment, 0, i, 0, 0);
+        if (v != last_v) {
+            last_v = v;
+            const char * tok = whisper_token_to_str(ctx, tokens[v + sot_sequence_length]);
+            float ts = i*0.02;
+            fprintf(stderr, "|%s|(%.2f) ", tok, ts);
+        }
+    }
+    fprintf(stderr, "\n");*/
+    //fprintf(stderr, "Breakpoint\n");
+
+    ggml_free(gctx);
+}
+
+//void whisper_test_dtw(float* in, size_t in_ne0, size_t in_ne1, int32_t **out, size_t *out_ne0, size_t *out_ne1) {
+//    struct ggml_init_params params = {
+//        /*.mem_size   =*/ 32*1024*1024,
+//        /*.mem_buffer =*/ NULL,
+//        /*.no_alloc   =*/ false,
+//    };
+/*    struct ggml_context * ctx = ggml_init(params);
 
     struct ggml_tensor * x = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, in_ne0, in_ne1);
-    for (int i = 0; i < in_ne0; i++) {
-        for (int j = 0; j < in_ne1; j++) {
+    for (size_t i = 0; i < in_ne0; i++) {
+        for (size_t j = 0; j < in_ne1; j++) {
             ggml_set_f32_nd(x, i, j, 0, 0, in[j + i * in_ne1]);
         }
     }
@@ -6716,57 +7008,71 @@ void whisper_test_dtw(float* in, size_t in_ne0, size_t in_ne1, int32_t **out, si
     *out_ne0 = r->ne[0];
     *out_ne1 = r->ne[1];
     ggml_free(ctx);
-}
+}*/
 
-static void whisper_exp_compute_token_level_timestamps_dtw(
-        struct whisper_context & ctx,
-        struct whisper_state & state,
-        int n_frames,
-        int medfilt_width,
-        float qk_scale)
-{
+//void whisper_test_dtw_timestamp_funcs(float* in, size_t in_ne0, size_t in_ne1, size_t in_ne2, float **out, size_t *out_ne0, size_t *out_ne1, size_t *out_ne2) {
+//    struct ggml_init_params params = {
+//        /*.mem_size   =*/ 32*1024*1024,
+//        /*.mem_buffer =*/ NULL,
+//        /*.no_alloc   =*/ false,
+//    };
+/*    struct ggml_context * ctx = ggml_init(params);
 
-    // - Get and stack QKs from alignment heads
-    // - Suppose we produced 15 tokens
-    // This should yield a N_HEADS*15*FRAMES tensor
-    // FRAMES=1500 with max segment length = 30s (30/(FRAME_SIZE)=30/(0,02)=1500)
+    struct ggml_tensor * x = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, in_ne0, in_ne1, in_ne2);
+    for (int64_t idx = 0; idx < in_ne0*in_ne1*in_ne2; ++idx) {
+        int64_t k = idx % in_ne2;
+        int64_t j = (idx / in_ne2) % in_ne1;
+        int64_t i = idx / (in_ne1*in_ne2);
+        //fprintf(stderr, "idx=%ld i=%ld j=%ld k=%ld\n", idx, i, j, k);
+        ggml_set_f32_nd(x, i, j, k, 0, in[idx]);
+    }
 
-    // - Discard third dimensions parts that are audio padding
-    // e.g. actual audio is 10 seconds, so 1000 frames are padding, only 500 contain audio
-    // So output would be a tensor with N_HEADS*15*500 dimension
+    // Testing normalization
+    // Change dimensions so first is N_TOKENS to normalize over that
+    // Permute to correct shape for next computations
+    ggml_tensor * w = ggml_permute(ctx, x, 1, 0, 2, 3);    // N_TOKENS*N_AUDIO_TOKENS*ALIGMENT_HEADS
+    w = ggml_cont(ctx, w);
+    w = ggml_norm(ctx, w, 0);
+    w = ggml_permute(ctx, w, 2, 1, 0, 3);
+    w = ggml_permute(ctx, w, 0, 2, 1, 3);
+    struct ggml_cgraph * gf = ggml_new_graph(ctx);
+    ggml_build_forward_expand(gf, w);
+    ggml_graph_compute_with_ctx(ctx, gf, 4);
 
-    // - Scale matrix by qk_scale, than apply softmax
-    // Output still N_HEADS*15*500
-
-    // - Normalize - subtract by mean, divide by std (not sure how to, original code
-    // takes mean and std with dim=-2, torch.std_mean(weights, dim=-2, keepdim=True, unbiased=False))
-    // Still N_HEADS*15*500
-
-    // - Pass median filter
-    // Still N_HEADS*15*500
+    // Pass median filter, dimensions unchanged
+    struct ggml_context * gctx2 = ggml_init(params);
+    ggml_tensor * w_medfilt = median_filter(gctx2, w, 7);
 
     // - Take mean over rows (matrix = weights.mean(axis=0))
-    // Out now is 15*500
+    //
+    // Out dimension is N_TOKENS*N_AUDIO_TOKENS
+    ggml_tensor * w_mean = ggml_mean(gctx2, w_medfilt);
+    ggml_tensor * scale = ggml_new_tensor_1d(gctx2, GGML_TYPE_F32, 1);
+    ggml_set_f32_1d(scale, 0, -1);
+    ggml_tensor * w_negative = ggml_scale(gctx2, w_mean, scale);
+    ggml_tensor * w_reshape = ggml_reshape_2d(gctx2, w_negative, w_negative->ne[1], w_negative->ne[2]);
+    struct ggml_cgraph * gf2 = ggml_new_graph(gctx2);
+    ggml_build_forward_expand(gf2, w_reshape);
+    ggml_graph_compute_with_ctx(gctx2, gf2, 4);
 
-    // - Skip start of sentence sequence (matrix = matrix[len(tokenizer.sot_sequence) : -1])
-    // Discard first len(tokenizer.sot_sequence) tokens over first dimension
-    // Suppose len(tokenier.sot_sequence) = 3, so
-    // Output now is 12*500
+    // Find alignment
+    ggml_tensor * alignment = dtw_and_backtrace(gctx2, w_reshape);
 
-    // Multiply by -1, pass to dtw to get text and time indices
-    // Output will map each token index to a time index. Each time index corresponds to 20mS (audio
-    // frame size). From here, it is trivial to place a timestamp on each token.
-    // This timestamp seems to be more like "start of token" timestamp, roughly the audio moment
-    // the model outputed a certain token.
-    // Heuristics are needed to extrapolate a "end of token" time by using the time start of
-    // the next token.
+    // Copy output
+    ggml_tensor * r = alignment;
+    *out = (float*) malloc(sizeof(float) * r->ne[0] * r->ne[1] * r->ne[2]);
+    for (int idx = 0; idx < r->ne[0] * r->ne[1] * r->ne[2]; ++idx) {
+        int64_t k = idx % r->ne[2];
+        int64_t j = (idx / r->ne[2]) % r->ne[1];
+        int64_t i = idx / (r->ne[2]*r->ne[1]);
+        (*out)[idx] = ggml_get_f32_nd(r, i, j, k, 0);
+    }
+    *out_ne0 = r->ne[0];
+    *out_ne1 = r->ne[1];
+    *out_ne2 = r->ne[2];
+    ggml_free(ctx);
+}*/
 
-    // After this point, OpenAI code extends this with heuristics to place start/end times
-    // on each word instead of tokens. I find this to be a sort of decoupled second step.
-    // Without this, whisper users can still retrieve start times for each token and come up
-    // with heuristics that better serve their case.
-
-}
 
 void whisper_log_set(ggml_log_callback log_callback, void * user_data) {
     g_state.log_callback = log_callback ? log_callback : whisper_log_callback_default;
