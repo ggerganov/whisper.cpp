@@ -589,6 +589,7 @@ int main(int argc, char ** argv) {
             wparams.duration_ms      = params.duration_ms;
 
             wparams.thold_pt         = params.word_thold;
+            wparams.max_len          = params.max_len == 0 ? 60 : params.max_len;
             wparams.split_on_word    = params.split_on_word;
 
             wparams.speed_up         = params.speed_up;
