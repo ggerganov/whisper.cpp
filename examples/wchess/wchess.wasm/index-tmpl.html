@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en-us">
+    <head>
+        <title>wchess : Voice assistant example using Whisper + WebAssembly</title>
+
+        <style>
+            #output {
+                width: 100%;
+                height: 100%;
+                margin: 0 auto;
+                margin-top: 10px;
+                border-left: 0px;
+                border-right: 0px;
+                padding-left: 0px;
+                padding-right: 0px;
+                display: block;
+                background-color: black;
+                color: white;
+                font-size: 10px;
+                font-family: 'Lucida Console', Monaco, monospace;
+                outline: none;
+                white-space: pre;
+                overflow-wrap: normal;
+                overflow-x: scroll;
+            }
+        </style>
+        <link rel="stylesheet" href="css/chessboard-1.0.0.min.css" integrity="sha384-q94+BZtLrkL1/ohfjR8c6L+A6qzNH9R2hBLwyoAfu3i/WCvQjzL2RQJ3uNHDISdU" crossorigin="anonymous">
+    </head>
+    <body onload="loadWhisper()">
+        <div id="main-container">
+            <b>wchess : Voice assistant example using Whisper + WebAssembly</b>
+
+            <br><br>
+
+            You can find more about this project on <a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/command.wasm">GitHub</a>.
+
+            <br><br>
+
+            <b>More examples:</b>
+                <a href="https://whisper.ggerganov.com/">main</a> |
+                <a href="https://whisper.ggerganov.com/bench">bench</a> |
+                <a href="https://whisper.ggerganov.com/stream">stream</a> |
+                <a href="https://whisper.ggerganov.com/command">command</a> |
+                <a href="https://whisper.ggerganov.com/talk">talk</a> |
+
+            <br><br>
+
+            <hr>
+
+            <div id="model-whisper">
+                Whisper model: <span id="model-whisper-status"></span>
+                <span id="fetch-whisper-progress"></span>
+                <br><br>
+                <button id="clear" onclick="clearCache()">Clear Cache</button>
+                <!--
+                    <input type="file" id="file" name="file" onchange="loadFile(event, 'whisper.bin')" />
+                -->
+            </div>
+
+            <br>
+            <div id="chessboard" style="width: 400px"></div>
+            <script src="js/jquery-3.7.1.min.js"></script>
+            <script src="js/chessboard-1.0.0.min.js"></script>
+            <script>
+                var board = Chessboard('chessboard', 'start')
+                var move_count = 0;
+            </script>
+
+            <br>
+
+            <div id="input">
+                <button id="toggler" disabled>Hold</button>
+            </div>
+
+            <br>
+
+            <div id="state">
+                Status: <b><span id="state-status">not started</span></b>
+
+                <pre id="state-moves">[The moves will be displayed here]</pre>
+            </div>
+
+            <hr>
+
+            Debug output:
+            <textarea id="output" rows="20"></textarea>
+
+            <br>
+
+            <b>Troubleshooting</b>
+
+            <br><br>
+
+            The page does some heavy computations, so make sure:
+
+            <ul>
+                <li>To use a modern web browser (e.g. Chrome, Firefox)</li>
+                <li>To use a fast desktop or laptop computer (i.e. not a mobile phone)</li>
+                <li>Your browser supports WASM <a href="https://webassembly.org/roadmap/">Fixed-width SIMD</a></li>
+            </ul>
+
+            <div class="cell-version">
+                <span>
+                    |
+                    Build time: <span class="nav-link">@GIT_DATE@</span> |
+                    Commit hash: <a class="nav-link" href="https://github.com/ggerganov/whisper.cpp/commit/@GIT_SHA1@">@GIT_SHA1@</a> |
+                    Commit subject: <span class="nav-link">@GIT_COMMIT_SUBJECT@</span> |
+                    <a class="nav-link" href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/command.wasm">Source Code</a> |
+                </span>
+            </div>
+        </div>
+
+        <script type="text/javascript" src="js/helpers.js"></script>
+        <script type='text/javascript'>
+            // web audio context
+            var context = null;
+
+            // the command instance
+            var instance = null;
+
+            // model name
+            var model_whisper = null;
+            var model_file = null;
+
+            var module_ready = null;
+
+            var Module = {
+                print: printTextarea,
+                printErr: printTextarea,
+                setStatus: function(text) {
+                    printTextarea('js: ' + text);
+                },
+                monitorRunDependencies: function(left) {
+                },
+                preRun: function() {
+                    printTextarea('js: Preparing ...');
+                },
+                postRun: function() {
+                    printTextarea('js: Module initialized successfully!');
+                    module_ready = true;
+                    initInstance();
+                }
+            };
+
+            function initInstance() {
+                if (!module_ready || !model_file || instance) return
+
+                instance = Module.init(model_file);
+
+                if (instance) {
+                    document.getElementById('toggler').disabled = false;
+                    setStatus('Ready');
+                    printTextarea("js: whisper initialized, instance: " + instance);
+                }
+                else {
+                    printTextarea("js: failed to initialize whisper");
+                }
+            }
+
+            function setStatus(text) {
+                document.getElementById('state-status').innerHTML = text;
+            }
+
+            //
+            // fetch models
+            //
+
+            let dbVersion = 1
+            let dbName    = 'whisper.ggerganov.com';
+            let indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB
+
+            function storeFS(fname, buf) {
+                // write to WASM file using FS_createDataFile
+                // if the file exists, delete it
+                try {
+                    Module.FS_unlink(fname);
+                } catch (e) {
+                    // ignore
+                }
+
+                Module.FS_createDataFile("/", fname, buf, true, true);
+
+                printTextarea('storeFS: stored model: ' + fname + ' size: ' + buf.length);
+
+                document.getElementById('model-whisper-status').innerHTML = 'loaded "' + model_whisper + '"!';
+
+                model_file = fname;
+                initInstance();
+            }
+
+            function loadWhisper() {
+                setStatus('Loading')
+                let url     = 'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en-q8_0.bin';
+                let dst     = 'whisper.bin';
+                let size_mb = 42;
+
+                model_whisper = 'tiny.en-q8_0';
+
+                document.getElementById('model-whisper-status').innerHTML = 'loading "' + model_whisper + '" ... ';
+
+                cbProgress = function(p) {
+                    let el = document.getElementById('fetch-whisper-progress');
+                    el.innerHTML = Math.round(100*p) + '%';
+                };
+
+                cbCancel = function() {
+                    var el;
+                    el = document.getElementById('model-whisper-status');  if (el) el.innerHTML = '';
+                };
+
+                loadRemote(url, dst, size_mb, cbProgress, storeFS, cbCancel, printTextarea);
+            }
+
+            //
+            // microphone
+            //
+
+            const kSampleRate = 16000;
+            const kRestartRecording_s = 120;
+            const kIntervalAudio_ms = 250; // pass the recorded audio to the C++ instance at this rate
+
+            var mediaRecorder = null;
+            var doRecording = false;
+            var startTime = 0;
+
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            window.OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+
+            function stopRecording() {
+                mediaRecorder.stop();
+            }
+
+            function startRecording() {
+                if (!context) {
+                    context = new AudioContext({
+                        sampleRate: kSampleRate,
+                        channelCount: 1,
+                        echoCancellation: false,
+                        autoGainControl:  true,
+                        noiseSuppression: true,
+                    });
+                }
+
+                startTime = Date.now();
+
+                var chunks = [];
+                var stream = null;
+
+                navigator.mediaDevices.getUserMedia({audio: true, video: false})
+                    .then(function(s) {
+                        stream = s;
+                        mediaRecorder = new MediaRecorder(stream);
+                        mediaRecorder.ondataavailable = function(e) {
+                            chunks.push(e.data);
+
+                            var blob = new Blob(chunks, { 'type' : 'audio/ogg; codecs=opus' });
+                            var reader = new FileReader();
+
+                            reader.onload = function(event) {
+                                var buf = new Uint8Array(reader.result);
+                                context.decodeAudioData(buf.buffer, function(audioBuffer) {
+                                    var offlineContext = new OfflineAudioContext(audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate);
+                                    var source = offlineContext.createBufferSource();
+                                    source.buffer = audioBuffer;
+                                    source.connect(offlineContext.destination);
+                                    source.start(0);
+
+                                    offlineContext.startRendering().then(function(renderedBuffer) {
+                                        let audio = renderedBuffer.getChannelData(0);
+                                        printTextarea('js: number of samples: ' + audio.length);
+                                        Module.set_audio(instance, audio);
+                                    });
+
+                                    mediaRecorder = null;
+                                    context = null;
+                                });
+                            }
+
+                            reader.readAsArrayBuffer(blob);
+                        };
+
+                        mediaRecorder.onstop = function(e) {
+                            stream.getTracks().forEach(function(track) {
+                                track.stop();
+                            });
+                        };
+
+                        mediaRecorder.start();
+                    })
+                    .catch(function(err) {
+                        printTextarea('js: error getting audio stream: ' + err);
+                    });
+            }
+
+            //
+            // main
+            //
+
+            var nLines = 0;
+            var movesAll = '';
+
+            // document.body.addEventListener('keydown', function(event) {
+            //     if (event.keyCode === 32) {
+            //         document.getElementById('toggler').innerText = "Release";
+            //         onStart();
+            //     }
+            // }, true);
+
+            // document.body.addEventListener('keyup', function(event) {
+            //     if (event.keyCode === 32) {
+            //         document.getElementById('toggler').innerText = "Hold";
+            //         onStop();
+            //     }
+            // }, true);
+
+            document.getElementById('toggler').addEventListener('mousedown', function(event) {
+                this.innerText = "Release";
+                onStart();
+            }, true);
+
+            document.getElementById('toggler').addEventListener('mouseup', function(event) {
+                this.innerText = "Hold";
+                onStop();
+            }, true);
+
+            function onStart() {
+                if (!instance) return;
+                setStatus('Listening');
+
+                startRecording();
+            }
+
+            function onStop() {
+                setStatus('Processing');
+                printTextarea('js: stopping recording ...');
+                stopRecording();
+            }
+
+            function setMove(move, prob) {
+                if (move != null && move.length > 1) {
+                    let gameOver =  move[move.length - 1] === '#';
+                    if (gameOver) {
+                        move = move.substring(0, move.length - 1);
+                        document.getElementById('toggler').disabled = true;
+                    }
+                    board.move(move);
+
+                    movesAll += move + ', prob = ' + prob.toFixed(2) + '% <br>';
+                    nLines++;
+
+                    // if more than 10 lines, remove the first line
+                    if (nLines > 10) {
+                        var i = movesAll.indexOf('<br>');
+                        if (i > 0) {
+                            movesAll = movesAll.substring(i + 4);
+                            nLines--;
+                        }
+                    }
+                    ++move_count;
+                    setStatus(gameOver ? 'Done' : move_count % 2 ? 'Black\'s turn' : 'White\'s turn');
+                    document.getElementById('state-moves').innerHTML = movesAll;
+                }
+                else {
+                    setStatus('Failed. ' + (move_count % 2 ? 'Black\'s turn' : 'White\'s turn'));
+                }
+            }
+
+        </script>
+        <script type="text/javascript" src="js/chess.js"></script>
+    </body>
+</html>
