@@ -5858,7 +5858,9 @@ int whisper_full_parallel(
         const float * samples,
         int n_samples,
         int n_processors) {
+    fprintf(stderr, "XXXXXXXXXX\n %d", n_samples);
     if (n_processors == 1) {
+        fprintf(stderr, "ZZZZZZZZ\n");
         return whisper_full(ctx, params, samples, n_samples);
     }
     int ret = 0;
@@ -5957,6 +5959,7 @@ int whisper_full_parallel(
     ctx->state->t_decode_us /= n_processors;
 
     // print information about the audio boundaries
+    fprintf(stderr, "YYYYYYYYYYYYY\n");
     WHISPER_LOG_WARN("\n");
     WHISPER_LOG_WARN("%s: the audio has been split into %d chunks at the following times:\n", __func__, n_processors);
     for (int i = 0; i < n_processors - 1; ++i) {
@@ -6053,6 +6056,12 @@ float whisper_full_get_token_p_from_state(struct whisper_state * state, int i_se
 
 float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token) {
     return ctx->state->result_all[i_segment].tokens[i_token].p;
+}
+
+struct ggml_tensor * whisper_embd_enc(struct whisper_context * ctx) {
+    //size_t n_layers = ctx->model.layers_encoder.size();
+    //return ctx->model.layers_encoder[n_layers-1].mlp_1_b;
+    return ctx->state->embd_enc;
 }
 
 // =================================================================================================
