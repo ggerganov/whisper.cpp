@@ -6856,7 +6856,7 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
         }
     }
     tokens.push_back(whisper_token_eot(ctx));
-  
+
     // Get result tokens, pass then along to decoder to get cross attention QKs
     // used in timestamping
     // Each QK is audio_ctx*N_TOKENS*N_HEADS_PER_LAYER
@@ -6930,46 +6930,42 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
 
     // Place timestamps on segments
     int32_t last_v = 0;
-    size_t segment_idx = i_segment;
-    size_t token_idx = 0;
+    auto seg_i = state->result_all.begin() + i_segment;
+    auto tok_i = seg_i->tokens.begin();
     for (int i = 0; i < alignment->ne[1]; ++i) {
         int32_t v = ggml_get_i32_nd(alignment, 0, i, 0, 0);
         if (v != last_v) {
+            int32_t time_index = ggml_get_i32_nd(alignment, 1, i, 0, 0);
+            int64_t timestamp = (time_index * 2) + seek; // Each index on DTW result = 20mS audio
             last_v = v;
-            int64_t timestamp = (i * 2) + seek; // Each index on DTW result = 20mS audio
 
             // Skip non-text tokens
-            while (1) {
-                auto & segment = state->result_all[segment_idx];
-                if (!(segment.tokens[token_idx].id < whisper_token_eot(ctx))) {
-                    ++token_idx;
-                    if (token_idx == segment.tokens.size()) {
-                        token_idx = 0;
-                        segment_idx++;
-                    }
-                } else {
-                    break;
+            while (!(tok_i->id < whisper_token_eot(ctx))) {
+                ++tok_i;
+                if (tok_i == seg_i->tokens.end()) {
+                    ++seg_i;
+                    tok_i = seg_i->tokens.begin();
                 }
             }
 
-            auto & segment = state->result_all[segment_idx];
-            segment.tokens[token_idx].t_dtw = timestamp;
-            ++token_idx;
-            if (token_idx == segment.tokens.size()) {
-                token_idx = 0;
-                segment_idx++;
+            tok_i->t_dtw = timestamp;
+            ++tok_i;
+            if (tok_i == seg_i->tokens.end()) {
+                ++seg_i;
+                tok_i = seg_i->tokens.begin();
             }
         }
     }
 
-    for (size_t i = i_segment; i < i_segment + n_segments; ++i) {
+    // Print DTW timestamps
+    /*for (size_t i = i_segment; i < i_segment + n_segments; ++i) {
         auto & segment = state->result_all[i];
         for (auto &t: segment.tokens) {
             const char * tok = whisper_token_to_str(ctx, t.id);
             fprintf(stderr, "|%s|(%.2f) ", tok, (float)t.t_dtw/100);
         }
         fprintf(stderr, "\n");
-    }
+    }*/
 
     ggml_free(gctx);
 }
