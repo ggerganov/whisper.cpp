@@ -2100,11 +2100,11 @@ bool ggml_backend_metal_supports_family(ggml_backend_t backend, int family) {
     return [ctx->device supportsFamily:(MTLGPUFamilyApple1 + family - 1)];
 }
 
-static ggml_backend_t ggml_backend_reg_metal_init(const char * params, void * user_data) {
+ggml_backend_t ggml_backend_reg_metal_init(const char * params, void * user_data); // silence warning
+
+ggml_backend_t ggml_backend_reg_metal_init(const char * params, void * user_data) {
     return ggml_backend_metal_init();
 
     GGML_UNUSED(params);
     GGML_UNUSED(user_data);
 }
-
-GGML_BACKEND_REGISTER("Metal", ggml_backend_reg_metal_init, ggml_backend_metal_buffer_type(), NULL)
