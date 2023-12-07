@@ -1616,24 +1616,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                 // read into a temporary buffer first, then copy to device memory
                 read_buf.resize(ggml_nbytes(tensor));
 
-                // we repeat the 2 bias tensors along dim 0:
-                // [1, 512] -> [3000, 512] (conv1.bias)
-                // [1, 512] -> [1500, 512] (conv2.bias)
-                if (false) {
-                    loader->read(loader->context, read_buf.data(), read_buf.size() / tensor->ne[0]);
-
-                    float * data_f32 = (float *) read_buf.data();
-                    for (int64_t y = 0; y < tensor->ne[1]; ++y) {
-                        const int64_t yy = tensor->ne[1] - y - 1;
-                        const float val = data_f32[yy];
-
-                        for (int64_t x = 0; x < tensor->ne[0]; ++x) {
-                            data_f32[yy*tensor->ne[0] + x] = val;
-                        }
-                    }
-                } else {
-                    loader->read(loader->context, read_buf.data(), read_buf.size());
-                }
+                loader->read(loader->context, read_buf.data(), read_buf.size());
 
                 ggml_backend_tensor_set(tensor, read_buf.data(), 0, ggml_nbytes(tensor));
             }
