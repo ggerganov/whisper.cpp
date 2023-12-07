@@ -52,11 +52,6 @@ void ggml_metal_free(struct ggml_metal_context * ctx);
 void * ggml_metal_host_malloc(size_t n);
 void   ggml_metal_host_free  (void * data);
 
-// helper to check if the device supports a specific family
-// ideally, the user code should be doing these checks
-// ref: https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
-bool ggml_metal_supports_family(struct ggml_metal_context * ctx, int family);
-
 // set the number of command buffers to use
 void ggml_metal_set_n_cb(struct ggml_metal_context * ctx, int n_cb);
 
@@ -104,7 +99,11 @@ GGML_API ggml_backend_t ggml_backend_metal_init(void);
 GGML_API bool ggml_backend_is_metal(ggml_backend_t backend);
 
 GGML_API void ggml_backend_metal_set_n_cb(ggml_backend_t backend, int n_cb);
+GGML_API ggml_backend_buffer_type_t ggml_backend_metal_buffer_type(void);
 
+// helper to check if the device supports a specific family
+// ideally, the user code should be doing these checks
+// ref: https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf
 GGML_API bool ggml_backend_metal_supports_family(ggml_backend_t backend, int family);
 
 #ifdef __cplusplus
