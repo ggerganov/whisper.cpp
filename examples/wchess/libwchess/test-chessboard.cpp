@@ -89,6 +89,17 @@ int main() {
 
     {
         Chessboard chess;
+        ASSERT(chess.process("f4") == "f2-f4");
+        ASSERT(chess.process("e5") == "e7-e5");
+        ASSERT(chess.process("g4") == "g2-g4");
+        ASSERT(chess.process("d5") == "d7-d5");
+        ASSERT(chess.process("g1 f3") == "g1-f3");
+        ASSERT(chess.process("queen to h4") == "d8-h4");
+        ASSERT(!chess.grammar().empty());
+    }
+
+    {
+        Chessboard chess;
         ASSERT(chess.process("knight c3") == "b1-c3");
         ASSERT(chess.process("knight c6") == "b8-c6");
         ASSERT(chess.process("knight b5") == "c3-b5");

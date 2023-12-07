@@ -765,6 +765,7 @@ void Chessboard::detectChecks() {
             std::set<char> tmp;
             auto pos = traverse(p.pos(), d, Add(m_state->board, tmp, king.color()));
             if (pos == king.pos()) {
+                tmp.insert(p.pos());
                 if (!m_inCheck) {
                     m_allowedInCheck = std::move(tmp);
                 }
