@@ -486,7 +486,7 @@ extern "C" {
         // FIXME: not sure if the way dtw_n_top_most and dtw_custom are structured is comfortable?
         // [EXPERIMENTAL] DTW-based token-level timestamps
         bool dtw_token_timestamps;
-        whisper_alignment_heads_preset dtw_ah_preset;
+        enum whisper_alignment_heads_preset dtw_ah_preset;
 
         struct {
             int n;

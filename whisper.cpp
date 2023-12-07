@@ -4470,6 +4470,7 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
               struct whisper_state * state,
         struct whisper_full_params   params,
                                int   i_segment,
+                            size_t   n_segments,
                                int   seek,
                                int   n_frames,
                                int   medfilt_width,
@@ -5746,6 +5747,9 @@ int whisper_full_with_state(
 
             const auto & tokens_cur = best_decoder.sequence.tokens;
 
+            // [EXPERIMENTAL] Token-level timestamps with DTW
+            const auto n_segments_before = state->result_all.size();
+
             //WHISPER_LOG_DEBUG("prompt_init.size() = %d, prompt.size() = %d, result_len = %d, seek_delta = %d\n", prompt_init.size(), prompt.size(), result_len, seek_delta);
 
             // update prompt_past
@@ -5804,16 +5808,6 @@ int whisper_full_with_state(
 
                             int n_new = 1;
 
-                            // FIXME: this is sure to fail in the case an inference run produces more than one segment.
-                            // DTW timestamps are computed for every inference run, not for every segment.
-                            // Turned off for now until we can figure this out.
-                            // [EXPERIMENTAL] Token-level timestamps with DTW
-                            /*if (params.dtw_token_timestamps) {
-                                const int n_frames = std::min(WHISPER_CHUNK_SIZE * 100, seek_end - seek);
-                                whisper_exp_compute_token_level_timestamps_dtw(
-                                    ctx, state, params, result_all.size() - 1, seek, n_frames, 7, params.n_threads);
-                            }*/
-
                             if (params.token_timestamps) {
                                 whisper_exp_compute_token_level_timestamps(
                                         *ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
@@ -5859,13 +5853,6 @@ int whisper_full_with_state(
 
                     int n_new = 1;
 
-                    // FIXME: not sure all time offsets will be correct?
-                    // [EXPERIMENTAL] Token-level timestamps with DTW
-                    if (params.dtw_token_timestamps) {
-                        const int n_frames = std::min(WHISPER_CHUNK_SIZE * 100, seek_end - seek);
-                        whisper_exp_compute_token_level_timestamps_dtw(
-                            ctx, state, params, result_all.size() - 1, seek, n_frames, 7, params.n_threads);
-                    }
 
                     if (params.token_timestamps) {
                         whisper_exp_compute_token_level_timestamps(
@@ -5881,6 +5868,14 @@ int whisper_full_with_state(
                 }
             }
 
+            // FIXME: will timestamp offsets be correct?
+            // [EXPERIMENTAL] Token-level timestamps with DTW
+            const auto n_segments = state->result_all.size() - n_segments_before;
+            if (params.dtw_token_timestamps && n_segments) {
+                const int n_frames = std::min(WHISPER_CHUNK_SIZE * 100, seek_end - seek);
+                whisper_exp_compute_token_level_timestamps_dtw(
+                    ctx, state, params, result_all.size() - n_segments, n_segments, seek, n_frames, 7, params.n_threads);
+            }
 
             // update audio window
             seek += seek_delta;
@@ -6816,20 +6811,20 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
               struct whisper_state * state,
         struct whisper_full_params   params,
                                int   i_segment,
+                            size_t   n_segments,
                                int   seek,
                                int   n_frames,
                                int   medfilt_width,
                                int   n_threads)
 {
     WHISPER_ASSERT(medfilt_width % 2);
-    WHISPER_ASSERT(n_frames <= params.audio_ctx * 2);
+    WHISPER_ASSERT(n_frames <= ctx->model.hparams.n_audio_ctx * 2);
     WHISPER_ASSERT(params.dtw_ah_preset != WHISPER_AHEADS_NONE);
 
     // unimplemented
     WHISPER_ASSERT(params.dtw_ah_preset != WHISPER_AHEADS_N_TOP_MOST);
     WHISPER_ASSERT(params.dtw_ah_preset != WHISPER_AHEADS_CUSTOM);
 
-    auto & segment = state->result_all[i_segment];
     const auto alignment_heads = g_aheads.at(params.dtw_ah_preset);
 
     // FIXME: Allocating mem everytime we call this func
@@ -6852,13 +6847,16 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     }
     const size_t sot_sequence_length = tokens.size();
     tokens.push_back(whisper_token_not(ctx));
-    for (auto &t: segment.tokens) {
-        // Only text tokens
-        if (t.id < whisper_token_eot(ctx))
-            tokens.push_back(t.id);
+    for (size_t i = i_segment; i < i_segment + n_segments; ++i) {
+        auto & segment = state->result_all[i];
+        for (auto &t: segment.tokens) {
+            // Only text tokens
+            if (t.id < whisper_token_eot(ctx))
+                tokens.push_back(t.id);
+        }
     }
     tokens.push_back(whisper_token_eot(ctx));
-
+  
     // Get result tokens, pass then along to decoder to get cross attention QKs
     // used in timestamping
     // Each QK is audio_ctx*N_TOKENS*N_HEADS_PER_LAYER
@@ -6866,9 +6864,6 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
         WHISPER_LOG_INFO("DECODER FAILED\n");
         WHISPER_ASSERT(0);
     }
-
-    //for (size_t i = 0; i < state->cross_QKs.size(); i++)
-    //    fprintf(stderr, "QK[%ld] has ne0 %ld ne1 %ld ne2 %ld ne3 %ld\n", i, state->cross_QKs[i]->ne[0], state->cross_QKs[i]->ne[1], state->cross_QKs[i]->ne[2], state->cross_QKs[i]->ne[3]);
 
     // FIXME: manually stacking + clipping + permuting might not be the most efficient way? (e.g. use ggml funcs)
     // Stack alignment heads + clip unused audio tokens
@@ -6933,8 +6928,9 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     // dtw
     ggml_tensor * alignment = dtw_and_backtrace(gctx, matrix);
 
-    // Place timestamps on segment
+    // Place timestamps on segments
     int32_t last_v = 0;
+    size_t segment_idx = i_segment;
     size_t token_idx = 0;
     for (int i = 0; i < alignment->ne[1]; ++i) {
         int32_t v = ggml_get_i32_nd(alignment, 0, i, 0, 0);
@@ -6943,42 +6939,37 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
             int64_t timestamp = (i * 2) + seek; // Each index on DTW result = 20mS audio
 
             // Skip non-text tokens
-            while (!(segment.tokens[token_idx].id < whisper_token_eot(ctx)))
-                ++token_idx;
+            while (1) {
+                auto & segment = state->result_all[segment_idx];
+                if (!(segment.tokens[token_idx].id < whisper_token_eot(ctx))) {
+                    ++token_idx;
+                    if (token_idx == segment.tokens.size()) {
+                        token_idx = 0;
+                        segment_idx++;
+                    }
+                } else {
+                    break;
+                }
+            }
 
+            auto & segment = state->result_all[segment_idx];
             segment.tokens[token_idx].t_dtw = timestamp;
             ++token_idx;
+            if (token_idx == segment.tokens.size()) {
+                token_idx = 0;
+                segment_idx++;
+            }
         }
     }
 
-    /*fprintf(stderr, "Printing alignment\n");
-    for (int i = 0; i < alignment->ne[0]; i++) {
-        fprintf(stderr, "| ");
-        for (int j = 0; j < alignment->ne[1]; j++) {
-            fprintf(stderr, "%d ", ggml_get_i32_nd(alignment, i, j, 0, 0));
+    for (size_t i = i_segment; i < i_segment + n_segments; ++i) {
+        auto & segment = state->result_all[i];
+        for (auto &t: segment.tokens) {
+            const char * tok = whisper_token_to_str(ctx, t.id);
+            fprintf(stderr, "|%s|(%.2f) ", tok, (float)t.t_dtw/100);
         }
-        fprintf(stderr, "|\n");
-    }*/
-
-    for (auto &t: segment.tokens) {
-        const char * tok = whisper_token_to_str(ctx, t.id);
-        fprintf(stderr, "|%s|(%.2f) ", tok, (float)t.t_dtw/100);
+        fprintf(stderr, "\n");
     }
-    fprintf(stderr, "\n");
-
-    /*fprintf(stderr, "Priting timestamps\n");
-    int32_t last_v = -1;
-    for (int i = 0; i < alignment->ne[1]; i++) {
-        int32_t v = ggml_get_i32_nd(alignment, 0, i, 0, 0);
-        if (v != last_v) {
-            last_v = v;
-            const char * tok = whisper_token_to_str(ctx, tokens[v + sot_sequence_length]);
-            float ts = i*0.02;
-            fprintf(stderr, "|%s|(%.2f) ", tok, ts);
-        }
-    }
-    fprintf(stderr, "\n");*/
-    //fprintf(stderr, "Breakpoint\n");
 
     ggml_free(gctx);
 }
