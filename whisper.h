@@ -605,6 +605,10 @@ extern "C" {
     WHISPER_API float whisper_full_get_token_p           (struct whisper_context * ctx, int i_segment, int i_token);
     WHISPER_API float whisper_full_get_token_p_from_state(struct whisper_state * state, int i_segment, int i_token);
 
+    // Get the tensor representing the encoder output
+    WHISPER_API struct ggml_tensor * whisper_get_encoder_embedding           (struct whisper_context * ctx);
+    WHISPER_API struct ggml_tensor * whisper_get_encoder_embedding_from_state(struct whisper_state * state);
+        
     ////////////////////////////////////////////////////////////////////////////
 
     // Temporary helpers needed for exposing ggml interface
