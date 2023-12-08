@@ -1193,7 +1193,9 @@ void ggml_metal_graph_compute(
                             const float scale = ((float *) dst->op_params)[0];
 
                             [encoder setBuffer:id_src0 offset:offs_src0   atIndex:0];
-                            [encoder setBuffer:id_src1 offset:offs_src1   atIndex:1];
+                            if (id_src1) {
+                                [encoder setBuffer:id_src1 offset:offs_src1   atIndex:1];
+                            }
                             [encoder setBuffer:id_dst  offset:offs_dst    atIndex:2];
                             [encoder setBytes:&ne00  length:sizeof(ne00)  atIndex:3];
                             [encoder setBytes:&ne01  length:sizeof(ne01)  atIndex:4];
