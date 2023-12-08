@@ -697,7 +697,7 @@ void Chessboard::flagUpdates(char pos_from, char pos_to) {
 }
 
 void Chessboard::updatePins(Piece& piece) {
-    if (piece.type() == Piece::Pawn || piece.type() == Piece::Knight) return;
+    if (piece.type() == Piece::Pawn || piece.type() == Piece::Knight || piece.type() == Piece::King) return;
     auto& enemyPieces = piece.color() ? m_state->whites : m_state->blacks;
     auto& enemyPins = piece.color() ? m_state->whitePins : m_state->blackPins;
     auto& king = enemyPieces.k;
