@@ -5028,6 +5028,7 @@ int whisper_full_with_state(
     // basically don't process anything that is less than 1.0s
     // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
     if (seek_end < seek_start + (params.speed_up ? 50 : 100)) {
+        WHISPER_PRINT_DEBUG("%s: input is too short - %d ms < 1000 ms\n", __func__, (seek_end - seek_start)*10);
         return 0;
     }
 
@@ -5455,6 +5456,7 @@ int whisper_full_with_state(
 
                             // do not allow to go back in time
                             if (has_ts && seek_delta > seek_delta_new && result_len < i) {
+                                WHISPER_PRINT_DEBUG("%s: decoder %d: failed due to seek_delta (%d > %d)\n", __func__, j, seek_delta, seek_delta_new);
                                 failed = true; // TODO: maybe this is not a failure ?
                                 continue;
                             }
@@ -5483,6 +5485,7 @@ int whisper_full_with_state(
                                 if (seek + seek_delta + 100 >= seek_end) {
                                     result_len = i + 1;
                                 } else {
+                                    WHISPER_PRINT_DEBUG("%s: decoder %d failed (result_len = 0)\n", __func__, j);
                                     failed = true;
                                     continue;
                                 }
@@ -5493,6 +5496,7 @@ int whisper_full_with_state(
                                 seek_delta = 100*WHISPER_CHUNK_SIZE;
                             }
 
+                            WHISPER_PRINT_DEBUG("%s: decoder %d completed\n", __func__, j);
                             completed = true;
                             continue;
                         }
@@ -5508,6 +5512,7 @@ int whisper_full_with_state(
                     // sometimes, the decoding can get stuck in a repetition loop
                     // this is an attempt to mitigate such cases - we flag the decoding as failed and use a fallback strategy
                     if (i == n_max - 1 && (result_len == 0 || seek_delta < 100*WHISPER_CHUNK_SIZE/2)) {
+                        WHISPER_PRINT_DEBUG("%s: decoder %d: failed due to repetition loop\n", __func__, j);
                         failed = true;
                         continue;
                     }
@@ -5651,28 +5656,27 @@ int whisper_full_with_state(
                 WHISPER_PRINT_DEBUG("%s: best decoder = %d\n", __func__, best_decoder_id);
             }
 
+            bool success = true;
+
             // was the decoding successful for the current temperature?
             // do fallback only if:
             // - we are not at the last temperature
-            // - we are not at the end of the audio (3 sec)
-            if (it != (int) temperatures.size() - 1 &&
-                seek_end - seek > 10*WHISPER_CHUNK_SIZE) {
-                bool success = true;
-
+            if (it != (int) temperatures.size() - 1) {
                 const auto & decoder = state->decoders[best_decoder_id];
 
                 if (decoder.failed || decoder.sequence.avg_logprobs < params.logprob_thold) {
+                    WHISPER_PRINT_DEBUG("%s: failed due to avg_logprobs %8.5f < %8.5f\n", __func__, decoder.sequence.avg_logprobs, params.logprob_thold);
                     success = false;
                     state->n_fail_p++;
                 }
+            }
 
-                if (success) {
-                    //for (auto & token : ctx->decoders[best_decoder_id].sequence.tokens) {
-                    //    WHISPER_PRINT_DEBUG("%s: token = %d, p = %6.3f, pt = %6.3f, ts = %s, str = %s\n", __func__, token.id, token.p, token.pt, ctx->vocab.id_to_token.at(token.tid).c_str(), ctx->vocab.id_to_token.at(token.id).c_str());
-                    //}
+            if (success) {
+                //for (auto & token : ctx->decoders[best_decoder_id].sequence.tokens) {
+                //    WHISPER_PRINT_DEBUG("%s: token = %d, p = %6.3f, pt = %6.3f, ts = %s, str = %s\n", __func__, token.id, token.p, token.pt, ctx->vocab.id_to_token.at(token.tid).c_str(), ctx->vocab.id_to_token.at(token.id).c_str());
+                //}
 
-                    break;
-                }
+                break;
             }
 
             WHISPER_PRINT_DEBUG("\n%s: failed to decode with temperature = %.2f\n", __func__, t_cur);
