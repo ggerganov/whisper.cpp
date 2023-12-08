@@ -23,6 +23,22 @@
                 overflow-wrap: normal;
                 overflow-x: scroll;
             }
+            .button {
+                background-color: #000000;
+                color: #FFFFFF;
+                padding: 20px;
+                border-radius: 10px;
+                -moz-border-radius: 10px;
+                -webkit-border-radius: 10px;
+                margin:10px;
+                width: 100px;
+            }
+            .center {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                width: 400px;
+            }
         </style>
         <link rel="stylesheet" href="css/chessboard-1.0.0.min.css" integrity="sha384-q94+BZtLrkL1/ohfjR8c6L+A6qzNH9R2hBLwyoAfu3i/WCvQjzL2RQJ3uNHDISdU" crossorigin="anonymous">
     </head>
@@ -68,8 +84,8 @@
 
             <br>
 
-            <div id="input">
-                <button id="toggler" disabled>Hold</button>
+            <div id="input" class="center">
+                <button id="toggler" class="button" onselectstart="return false" disabled>Hold</button>
             </div>
 
             <br>
@@ -312,6 +328,16 @@
             //         onStop();
             //     }
             // }, true);
+
+            document.getElementById('toggler').addEventListener("touchstart", function(event){
+                this.innerText = "Release";
+                onStart();
+            }, true);
+
+            document.getElementById('toggler').addEventListener("touchend", function(event){
+                this.innerText = "Hold";
+                onStop();
+            }, true)
 
             document.getElementById('toggler').addEventListener('mousedown', function(event) {
                 this.innerText = "Release";
