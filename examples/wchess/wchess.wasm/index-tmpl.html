@@ -1,7 +1,11 @@
 <!doctype html>
 <html lang="en-us">
     <head>
-        <title>wchess : Voice assistant example using Whisper + WebAssembly</title>
+        <title>wchess : voice-controlled chess using Whisper + WebAssembly</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.3.1/iframeResizer.contentWindow.min.js"></script>
+
+        <meta name="viewport" content="width=device-width, initial-scale=0.4, maximum-scale=1, minimum-scale=1, user-scalable=no"/>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
 
         <style>
             #output {
@@ -31,7 +35,13 @@
                 -moz-border-radius: 10px;
                 -webkit-border-radius: 10px;
                 margin:10px;
-                width: 100px;
+                width:  100px;
+                height:  50px;
+                -webkit-touch-callout: none; /* Safari */
+                -webkit-user-select: none; /* Chrome */
+                -moz-user-select: none; /* Firefox */
+                -ms-user-select: none; /* Internet Explorer/Edge */
+                user-select: none;
             }
             button[disabled]{
                 background-color: #cccccc;
@@ -47,18 +57,52 @@
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                width: 400px;
+                width: 300px;
             }
         </style>
         <link rel="stylesheet" href="css/chessboard-1.0.0.min.css" integrity="sha384-q94+BZtLrkL1/ohfjR8c6L+A6qzNH9R2hBLwyoAfu3i/WCvQjzL2RQJ3uNHDISdU" crossorigin="anonymous">
     </head>
     <body onload="loadWhisper()">
         <div id="main-container">
-            <b>wchess : Voice assistant example using Whisper + WebAssembly</b>
+            <b>wchess : voice-controlled chess using Whisper + WebAssembly</b>
 
             <br><br>
 
-            You can find more about this project on <a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/command.wasm">GitHub</a>.
+            This is a demonstration of using Whisper to recognize voice commands in the browser.
+
+            <br><br>
+
+            Usage:<br>
+
+            <ul>
+                <li>Hold the button and say a chess move (e.g. "e2-e4")</li>
+                <li>Release the button and wait for the move to be recognized</li>
+                <li>Repeat</li>
+            </ul>
+
+            Examples:<br>
+
+            <ul>
+                <li><b>"d4"</b></li>
+                <li><b>"e2 e4"</b></li>
+                <li><b>"Knight to f3"</b></li>
+                <li><b>"Bishop to b5"</b></li>
+            </ul>
+
+            Note that not all chess moves are supported. For example, castling and pawn promotion<br>
+            currently do not work, but can be easily implemented. The main purpose of this example<br>
+            is to demonstrate the capabilities of Whisper and it's application in the browser.
+
+            <br><br>
+
+            Features:<br>
+
+            <ul>
+                <li>Model quantization for reduced memory footprint (~42MB)</li>
+                <li><a href="https://github.com/ggerganov/whisper.cpp/pull/1229">Grammar-based sampling</a> for improved recognition accuracy</li>
+            </ul>
+
+            You can find more about this project on <a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/wchess">GitHub</a>.
 
             <br><br>
 
@@ -84,7 +128,7 @@
             </div>
 
             <br>
-            <div id="chessboard" style="width: 400px"></div>
+            <div id="chessboard" style="width: 300px"></div>
             <script src="js/jquery-3.7.1.min.js"></script>
             <script src="js/chessboard-1.0.0.min.js"></script>
             <script>
@@ -121,7 +165,6 @@
 
             <ul>
                 <li>To use a modern web browser (e.g. Chrome, Firefox)</li>
-                <li>To use a fast desktop or laptop computer (i.e. not a mobile phone)</li>
                 <li>Your browser supports WASM <a href="https://webassembly.org/roadmap/">Fixed-width SIMD</a></li>
             </ul>
 
@@ -216,7 +259,8 @@
 
             function loadWhisper() {
                 setStatus('Loading')
-                let url     = 'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en-q8_0.bin';
+                //let url     = 'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en-q8_0.bin';
+                let url     = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en-q8_0.bin';
                 let dst     = 'whisper.bin';
                 let size_mb = 42;
 
@@ -327,7 +371,7 @@
 
             // document.body.addEventListener('keydown', function(event) {
             //     if (event.keyCode === 32) {
-            //         document.getElementById('toggler').innerText = "Release";
+            //         document.getElementById('toggler').innerText = "";
             //         onStart();
             //     }
             // }, true);
@@ -340,7 +384,7 @@
             // }, true);
 
             document.getElementById('toggler').addEventListener("touchstart", function(event){
-                this.innerText = "Release";
+                this.innerText = "";
                 onStart();
             }, true);
 
@@ -350,7 +394,7 @@
             }, true)
 
             document.getElementById('toggler').addEventListener('mousedown', function(event) {
-                this.innerText = "Release";
+                this.innerText = "";
                 onStart();
             }, true);
 
