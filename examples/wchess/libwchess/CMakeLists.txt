@@ -1,17 +1,17 @@
-add_library(libwchess
+add_library(wchess-core STATIC
     WChess.cpp
     WChess.h
     Chessboard.cpp
     Chessboard.h
 )
 
-target_link_libraries(libwchess
+target_link_libraries(wchess-core
     PUBLIC
     whisper
     common
 )
 
-target_include_directories(libwchess
+target_include_directories(wchess-core
     PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
 )

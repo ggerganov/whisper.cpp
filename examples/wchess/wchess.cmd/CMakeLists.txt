@@ -4,5 +4,5 @@ if (WHISPER_SDL2)
 
     include(DefaultTargetOptions)
 
-    target_link_libraries(${TARGET} PRIVATE libwchess common-sdl ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(${TARGET} PRIVATE wchess-core common-sdl ${CMAKE_THREAD_LIBS_INIT})
 endif ()

@@ -8,7 +8,7 @@ include(DefaultTargetOptions)
 
 target_link_libraries(${TARGET} PRIVATE
     common
-    libwchess
+    wchess-core
     )
 
 unset(EXTRA_FLAGS)
