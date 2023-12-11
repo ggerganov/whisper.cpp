@@ -44,11 +44,11 @@ void wchess_main(size_t i) {
     wparams.no_timestamps    = true;
 
     wparams.max_tokens       = 32;
-    wparams.audio_ctx        = 768; // partial encoder context for better performance
+    wparams.audio_ctx        = 1280; // partial encoder context for better performance
 
-    wparams.temperature     = 0.0f;
-    wparams.temperature_inc = 2.0f;
-    wparams.greedy.best_of  = 1;
+    wparams.temperature      = 0.0f;
+    wparams.temperature_inc  = 2.0f;
+    wparams.greedy.best_of   = 1;
 
     wparams.beam_search.beam_size = 1;
 
