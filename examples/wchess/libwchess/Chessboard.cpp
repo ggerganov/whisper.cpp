@@ -1,4 +1,6 @@
 #include "Chessboard.h"
+
+#include <array>
 #include <vector>
 #include <algorithm>
 #include <cstring>
