@@ -152,7 +152,7 @@ extern "C" {
 
     enum whisper_alignment_heads_preset {
         WHISPER_AHEADS_NONE,
-        WHISPER_AHEADS_N_TOP_MOST,
+        WHISPER_AHEADS_N_TOP_MOST,  // All heads from the N-top-most text-layers
         WHISPER_AHEADS_CUSTOM,
         WHISPER_AHEADS_TINY_EN,
         WHISPER_AHEADS_TINY,
