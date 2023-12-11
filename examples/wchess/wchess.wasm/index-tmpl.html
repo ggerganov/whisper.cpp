@@ -91,7 +91,7 @@
 
             Note that not all chess moves are supported. For example, castling and pawn promotion<br>
             currently do not work, but can be easily implemented. There could also be some bugs in<br>
-            the move handling logic in general.<br>
+            the move handling logic in general.<br><br>
             The main purpose of this example is to demonstrate the capabilities of whisper.cpp and<br>
             its application in the browser.
 
@@ -140,14 +140,12 @@
 
             <br>
 
-            <div id="input" class="center">
-                <button id="toggler" class="button" onselectstart="return false" disabled>Hold</button>
-            </div>
-
-            <br>
-
             <div id="state">
                 Status: <b><span id="state-status">not started</span></b>
+
+                <div id="input" class="center">
+                    <button id="toggler" class="button" onselectstart="return false" disabled>Hold</button>
+                </div>
 
                 <pre id="state-moves">[The moves will be displayed here]</pre>
             </div>
