@@ -7,7 +7,6 @@
 #include <chrono>
 
 namespace {
-// remove std::string_view, c++17 -> c++11
 constexpr std::array<const char*, 64> positions = {
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
     "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
@@ -83,22 +82,23 @@ char strToType(sview str) {
 
 // directions
 using Direction = std::array<char, 2>;
-constexpr Direction N = {0, 1};
-constexpr Direction NNE = {1, 2};
-constexpr Direction NE = {1, 1};
-constexpr Direction ENE = {2, 1};
-constexpr Direction E = {1, 0};
-constexpr Direction ESE = {2, -1};
-constexpr Direction SE = {1, -1};
-constexpr Direction SSE = {1, -2};
-constexpr Direction S = {0, -1};
+
+constexpr Direction N   = { 0,  1};
+constexpr Direction NNE = { 1,  2};
+constexpr Direction NE  = { 1,  1};
+constexpr Direction ENE = { 2,  1};
+constexpr Direction E   = { 1,  0};
+constexpr Direction ESE = { 2, -1};
+constexpr Direction SE  = { 1, -1};
+constexpr Direction SSE = { 1, -2};
+constexpr Direction S   = { 0, -1};
 constexpr Direction SSW = {-1, -2};
-constexpr Direction SW = {-1, -1};
+constexpr Direction SW  = {-1, -1};
 constexpr Direction WSW = {-2, -1};
-constexpr Direction W = {-1, 0};
-constexpr Direction WNW = {-2, 1};
-constexpr Direction NW = {-1, 1};
-constexpr Direction NNW = {-1, 2};
+constexpr Direction W   = {-1,  0};
+constexpr Direction WNW = {-2,  1};
+constexpr Direction NW  = {-1,  1};
+constexpr Direction NNW = {-1,  2};
 
 char makeStep(char pos, const Direction& d) {
     char next[2] = { char(positions[pos][R] + d[R]) , char(positions[pos][F] + d[F]) };
@@ -278,22 +278,22 @@ struct PieceSet {
     Piece& operator[](int i) { return *(begin() + i); }
     const Piece& operator[](int i) const { return *(begin() + i); }
 
-    Pawn p1;
-    Pawn p2;
-    Pawn p3;
-    Pawn p4;
-    Pawn p5;
-    Pawn p6;
-    Pawn p7;
-    Pawn p8;
-    Rook r1;
+    Pawn   p1;
+    Pawn   p2;
+    Pawn   p3;
+    Pawn   p4;
+    Pawn   p5;
+    Pawn   p6;
+    Pawn   p7;
+    Pawn   p8;
+    Rook   r1;
     Knight n1;
     Bishop b1;
-    Queen q;
-    King k;
+    Queen  q;
+    King   k;
     Bishop b2;
     Knight n2;
-    Rook r2;
+    Rook   r2;
 };
 
 struct State {
@@ -537,6 +537,7 @@ void Chessboard::setPrompt(const std::string& prompt) {
 
 void Chessboard::setGrammar() {
     m_grammar.clear();
+
     std::string result;
     if (m_prompt.empty()) {
         result += "move ::= \" \" ((piece | frompos) \" \" \"to \"?)? topos\n";

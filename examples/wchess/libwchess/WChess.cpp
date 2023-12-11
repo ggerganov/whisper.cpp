@@ -43,7 +43,7 @@ void WChess::run() {
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;
 
-    const std::string k_prompt = have_prompt ? "" : "root to d4, f3";
+    const std::string k_prompt = have_prompt ? "" : "rook to d4, f3";
     int64_t t_ms = 0;
 
     if (ask_prompt) {
@@ -53,6 +53,7 @@ void WChess::run() {
 
         ask_prompt = false;
     }
+
     while (get_audio(pcmf32_cur)) {
         if (!pcmf32_cur.empty()) {
             // fprintf(stdout, "%s: Processing ...\n", __func__);
@@ -86,7 +87,7 @@ void WChess::run() {
                 // fprintf(stdout, "%s: grammar rules:\n'%s'\n", __func__, m_board->grammar().c_str());
 
                 auto grammar_parsed = grammar_parser::parse(m_board->grammar().c_str());
-                auto grammar_rules = grammar_parsed.c_rules();
+                auto grammar_rules  = grammar_parsed.c_rules();
 
                 m_wparams.grammar_rules   = grammar_rules.data();
                 m_wparams.n_grammar_rules = grammar_rules.size();

@@ -186,6 +186,10 @@ int main(int argc, char ** argv) {
     cparams.use_gpu = params.use_gpu;
 
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
+    if (!ctx) {
+        fprintf(stderr, "%s: whisper_init_from_file_with_params() failed!\n", __func__);
+        return 1;
+    }
 
     // init audio
 
