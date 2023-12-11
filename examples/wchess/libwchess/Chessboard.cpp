@@ -83,22 +83,22 @@ char strToType(sview str) {
 // directions
 using Direction = std::array<char, 2>;
 
-constexpr Direction N   = { 0,  1};
-constexpr Direction NNE = { 1,  2};
-constexpr Direction NE  = { 1,  1};
-constexpr Direction ENE = { 2,  1};
-constexpr Direction E   = { 1,  0};
-constexpr Direction ESE = { 2, -1};
-constexpr Direction SE  = { 1, -1};
-constexpr Direction SSE = { 1, -2};
-constexpr Direction S   = { 0, -1};
-constexpr Direction SSW = {-1, -2};
-constexpr Direction SW  = {-1, -1};
-constexpr Direction WSW = {-2, -1};
-constexpr Direction W   = {-1,  0};
-constexpr Direction WNW = {-2,  1};
-constexpr Direction NW  = {-1,  1};
-constexpr Direction NNW = {-1,  2};
+constexpr Direction N   = {(char)  0, (char)  1};
+constexpr Direction NNE = {(char)  1, (char)  2};
+constexpr Direction NE  = {(char)  1, (char)  1};
+constexpr Direction ENE = {(char)  2, (char)  1};
+constexpr Direction E   = {(char)  1, (char)  0};
+constexpr Direction ESE = {(char)  2, (char) -1};
+constexpr Direction SE  = {(char)  1, (char) -1};
+constexpr Direction SSE = {(char)  1, (char) -2};
+constexpr Direction S   = {(char)  0, (char) -1};
+constexpr Direction SSW = {(char) -1, (char) -2};
+constexpr Direction SW  = {(char) -1, (char) -1};
+constexpr Direction WSW = {(char) -2, (char) -1};
+constexpr Direction W   = {(char) -1, (char)  0};
+constexpr Direction WNW = {(char) -2, (char)  1};
+constexpr Direction NW  = {(char) -1, (char)  1};
+constexpr Direction NNW = {(char) -1, (char)  2};
 
 char makeStep(char pos, const Direction& d) {
     char next[2] = { char(positions[pos][R] + d[R]) , char(positions[pos][F] + d[F]) };
@@ -106,7 +106,7 @@ char makeStep(char pos, const Direction& d) {
 }
 
 template<class Modifier>
-char traverse(char pos, const Direction& d, const Modifier& m, char count = 8) {
+char traverse(char pos, const Direction& d, const Modifier& m, int count = 8) {
     while (--count >= 0) {
         pos = makeStep(pos, d);
         if (pos == INVALID_POS || m(pos)) break;
@@ -115,7 +115,12 @@ char traverse(char pos, const Direction& d, const Modifier& m, char count = 8) {
 }
 
 Direction normalize(const Direction& distance) {
-    return {char((distance[R] > 0) - (distance[R] < 0)), char((distance[F] > 0) - (distance[F] < 0))};
+    //return {char((distance[R] > 0) - (distance[R] < 0)), char((distance[F] > 0) - (distance[F] < 0))};
+    const int drp = distance[R] > 0 ? 1 : 0;
+    const int drn = distance[R] < 0 ? 1 : 0;
+    const int dfp = distance[F] > 0 ? 1 : 0;
+    const int dfn = distance[F] < 0 ? 1 : 0;
+    return {char(drp - drn), char(dfp - dfn)};
 }
 
 struct Pin {
