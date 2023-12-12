@@ -126,6 +126,10 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             whisper_print_usage(argc, argv, params);
             exit(0);
         }
+        if (strcmp(WHISPER_VERSION, "@whisper.cpp_VERSION@") != 0 && (arg == "-v" || arg == "--version")) {
+          fprintf(stderr, "%s\n", WHISPER_VERSION);
+            exit(0);
+        }
         else if (arg == "-t"    || arg == "--threads")         { params.n_threads       = std::stoi(argv[++i]); }
         else if (arg == "-p"    || arg == "--processors")      { params.n_processors    = std::stoi(argv[++i]); }
         else if (arg == "-ot"   || arg == "--offset-t")        { params.offset_t_ms     = std::stoi(argv[++i]); }
@@ -183,6 +187,9 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "\n");
     fprintf(stderr, "options:\n");
     fprintf(stderr, "  -h,        --help              [default] show this help message and exit\n");
+    if(strcmp(WHISPER_VERSION, "@whisper.cpp_VERSION@") != 0) {
+      fprintf(stderr, "  -v,        --version           [default] show version number and exit\n");
+    }
     fprintf(stderr, "  -t N,      --threads N         [%-7d] number of threads to use during computation\n",    params.n_threads);
     fprintf(stderr, "  -p N,      --processors N      [%-7d] number of processors to use during computation\n", params.n_processors);
     fprintf(stderr, "  -ot N,     --offset-t N        [%-7d] time offset in milliseconds\n",                    params.offset_t_ms);

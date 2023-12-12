@@ -295,6 +295,9 @@ $(info )
 # Build library
 #
 
+whisper.h: whisper.h.in
+	cp whisper.h.in whisper.h
+
 ggml.o: ggml.c ggml.h ggml-cuda.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
