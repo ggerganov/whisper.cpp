@@ -2,6 +2,10 @@
 
 Simple http server. WAV Files are passed to the inference model via http requests.
 
+https://github.com/ggerganov/whisper.cpp/assets/1991296/e983ee53-8741-4eb5-9048-afe5e4594b8f
+
+## Usage
+
 ```
 ./server -h
 
@@ -29,6 +33,7 @@ options:
   -nf,       --no-fallback       [false  ] do not use temperature fallback while decoding
   -ps,       --print-special     [false  ] print special tokens
   -pc,       --print-colors      [false  ] print colors
+  -pr,       --print-realtime    [false  ] print output in realtime
   -pp,       --print-progress    [false  ] print progress
   -nt,       --no-timestamps     [false  ] do not print timestamps
   -l LANG,   --language LANG     [en     ] spoken language ('auto' for auto-detect)
@@ -38,7 +43,11 @@ options:
   -oved D,   --ov-e-device DNAME [CPU    ] the OpenVINO device used for encode inference
   --host HOST,                   [127.0.0.1] Hostname/ip-adress for the server
   --port PORT,                   [8080   ] Port number for the server
+  --convert,                     [false  ] Convert audio to WAV, requires ffmpeg on the server
 ```
+
+> [!WARNING]  
+> **Do not run the server example with administrative privileges and ensure it's operated in a sandbox environment, especially since it involves risky operations like accepting user file uploads and using ffmpeg for format conversions. Always validate and sanitize inputs to guard against potential security threats.**
 
 ## request examples
 

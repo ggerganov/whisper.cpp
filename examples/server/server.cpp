@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 #include <cstring>
+#include <sstream>
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
@@ -43,6 +44,8 @@ struct server_params
     int32_t port          = 8080;
     int32_t read_timeout  = 600;
     int32_t write_timeout = 600;
+    
+    bool ffmpeg_converter = false;
 };
 
 struct whisper_params {
@@ -72,6 +75,7 @@ struct whisper_params {
     bool no_fallback     = false;
     bool print_special   = false;
     bool print_colors    = false;
+    bool print_realtime  = false;
     bool print_progress  = false;
     bool no_timestamps   = false;
     bool use_gpu         = true;
@@ -144,6 +148,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -nf,       --no-fallback       [%-7s] do not use temperature fallback while decoding\n", params.no_fallback ? "true" : "false");
     fprintf(stderr, "  -ps,       --print-special     [%-7s] print special tokens\n",                           params.print_special ? "true" : "false");
     fprintf(stderr, "  -pc,       --print-colors      [%-7s] print colors\n",                                   params.print_colors ? "true" : "false");
+    fprintf(stderr, "  -pr,       --print-realtime    [%-7s] print output in realtime\n",                       params.print_realtime ? "true" : "false");
     fprintf(stderr, "  -pp,       --print-progress    [%-7s] print progress\n",                                 params.print_progress ? "true" : "false");
     fprintf(stderr, "  -nt,       --no-timestamps     [%-7s] do not print timestamps\n",                        params.no_timestamps ? "true" : "false");
     fprintf(stderr, "  -l LANG,   --language LANG     [%-7s] spoken language ('auto' for auto-detect)\n",       params.language.c_str());
@@ -155,6 +160,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  --host HOST,                   [%-7s] Hostname/ip-adress for the server\n", sparams.hostname.c_str());
     fprintf(stderr, "  --port PORT,                   [%-7d] Port number for the server\n", sparams.port);
     fprintf(stderr, "  --public PATH,                 [%-7s] Path to the public folder\n", sparams.public_path.c_str());
+    fprintf(stderr, "  --convert,                     [%-7s] Convert audio to WAV, requires ffmpeg on the server", sparams.ffmpeg_converter ? "true" : "false");
     fprintf(stderr, "\n");
 }
 
@@ -188,6 +194,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
         else if (arg == "-fp"   || arg == "--font-path")       { params.font_path       = argv[++i]; }
         else if (arg == "-ps"   || arg == "--print-special")   { params.print_special   = true; }
         else if (arg == "-pc"   || arg == "--print-colors")    { params.print_colors    = true; }
+        else if (arg == "-pr"   || arg == "--print-realtime")  { params.print_realtime  = true; }
         else if (arg == "-pp"   || arg == "--print-progress")  { params.print_progress  = true; }
         else if (arg == "-nt"   || arg == "--no-timestamps")   { params.no_timestamps   = true; }
         else if (arg == "-l"    || arg == "--language")        { params.language        = argv[++i]; }
@@ -200,6 +207,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
         else if (                  arg == "--port")            { sparams.port        = std::stoi(argv[++i]); }
         else if (                  arg == "--host")            { sparams.hostname    = argv[++i]; }
         else if (                  arg == "--public")          { sparams.public_path = argv[++i]; }
+        else if (                  arg == "--convert")         { sparams.ffmpeg_converter     = true; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params, sparams);
@@ -216,6 +224,45 @@ struct whisper_print_user_data {
     const std::vector<std::vector<float>> * pcmf32s;
     int progress_prev;
 };
+
+void check_ffmpeg_availibility() {
+    int result = system("ffmpeg -version");
+
+    if (result == 0) {
+        std::cout << "ffmpeg is available." << std::endl;
+    } else {
+        // ffmpeg is not available
+        std::cout << "ffmpeg is not found. Please ensure that ffmpeg is installed ";
+        std::cout << "and that its executable is included in your system's PATH. ";
+        exit(0);
+    }
+}
+
+bool convert_to_wav(const std::string & temp_filename, std::string & error_resp) {
+    std::ostringstream cmd_stream;
+    std::string converted_filename_temp = temp_filename + "_temp.wav";
+    cmd_stream << "ffmpeg -i \"" << temp_filename << "\" -ar 16000 -ac 1 -c:a pcm_s16le \"" << converted_filename_temp << "\" 2>&1";
+    std::string cmd = cmd_stream.str();
+
+    int status = std::system(cmd.c_str());
+    if (status != 0) {
+        error_resp = "{\"error\":\"FFmpeg conversion failed.\"}";
+        return false;
+    }
+
+    // Remove the original file
+    if (remove(temp_filename.c_str()) != 0) {
+        error_resp = "{\"error\":\"Failed to remove the original file.\"}";
+        return false;
+    }
+
+    // Rename the temporary file to match the original filename
+    if (rename(converted_filename_temp.c_str(), temp_filename.c_str()) != 0) {
+        error_resp = "{\"error\":\"Failed to rename the temporary file.\"}";
+        return false;
+    }
+    return true;
+}
 
 std::string estimate_diarization_speaker(std::vector<std::vector<float>> pcmf32s, int64_t t0, int64_t t1, bool id_only = false) {
     std::string speaker = "";
@@ -373,7 +420,7 @@ void get_req_parameters(const Request & req, whisper_params & params)
     {
         params.response_format = req.get_file_value("response-format").content;
     }
-    if (req.has_file("temerature"))
+    if (req.has_file("temperature"))
     {
         params.userdef_temp = std::stof(req.get_file_value("temperature").content);
     }
@@ -404,6 +451,9 @@ int main(int argc, char ** argv) {
         exit(0);
     }
 
+    if (sparams.ffmpeg_converter) {
+        check_ffmpeg_availibility();
+    }
     // whisper init
     struct whisper_context_params cparams;
     cparams.use_gpu = params.use_gpu;
@@ -419,6 +469,9 @@ int main(int argc, char ** argv) {
     whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
 
     Server svr;
+    svr.set_default_headers({{"Server", "whisper.cpp"},
+                             {"Access-Control-Allow-Origin", "*"},
+                             {"Access-Control-Allow-Headers", "content-type"}});
 
     std::string const default_content = "<html>hello</html>";
 
@@ -429,7 +482,7 @@ int main(int argc, char ** argv) {
     });
 
     svr.Post("/inference", [&](const Request &req, Response &res){
-        // aquire whisper model mutex lock
+        // acquire whisper model mutex lock
         whisper_mutex.lock();
 
         // first check user requested fields of the request
@@ -453,20 +506,35 @@ int main(int argc, char ** argv) {
         std::vector<float> pcmf32;               // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
-        // write file to temporary file
-        std::ofstream temp_file{filename, std::ios::binary};
+        // write to temporary file
+        const std::string temp_filename = "whisper_server_temp_file.wav";
+        std::ofstream temp_file{temp_filename, std::ios::binary};
         temp_file << audio_file.content;
+        temp_file.close();
+
+        // if file is not wav, convert to wav
+        
+        if (sparams.ffmpeg_converter) {
+            std::string error_resp = "{\"error\":\"Failed to execute ffmpeg command.\"}";
+            const bool is_converted = convert_to_wav(temp_filename, error_resp);
+            if (!is_converted) {
+                res.set_content(error_resp, "application/json");
+                whisper_mutex.unlock();
+                return;
+            }
+        }
 
         // read wav content into pcmf32
-        if (!::read_wav(filename, pcmf32, pcmf32s, params.diarize)) {
-            fprintf(stderr, "error: failed to read WAV file '%s'\n", filename.c_str());
+        if (!::read_wav(temp_filename, pcmf32, pcmf32s, params.diarize)) {
+            fprintf(stderr, "error: failed to read WAV file '%s'\n", temp_filename.c_str());
             const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
             res.set_content(error_resp, "application/json");
+            std::remove(temp_filename.c_str());
             whisper_mutex.unlock();
             return;
         }
         // remove temp file
-        std::remove(filename.c_str());
+        std::remove(temp_filename.c_str());
 
         printf("Successfully loaded %s\n", filename.c_str());
 
@@ -503,7 +571,6 @@ int main(int argc, char ** argv) {
 
         // run the inference
         {
-
             printf("Running whisper.cpp inference on %s\n", filename.c_str());
             whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
@@ -522,6 +589,7 @@ int main(int argc, char ** argv) {
             wparams.duration_ms      = params.duration_ms;
 
             wparams.thold_pt         = params.word_thold;
+            wparams.max_len          = params.max_len == 0 ? 60 : params.max_len;
             wparams.split_on_word    = params.split_on_word;
 
             wparams.speed_up         = params.speed_up;
@@ -541,7 +609,7 @@ int main(int argc, char ** argv) {
             whisper_print_user_data user_data = { &params, &pcmf32s, 0 };
 
             // this callback is called on each new segment
-            if (!wparams.print_realtime) {
+            if (params.print_realtime) {
                 wparams.new_segment_callback           = whisper_print_segment_callback;
                 wparams.new_segment_callback_user_data = &user_data;
             }
@@ -590,6 +658,50 @@ int main(int argc, char ** argv) {
         {
             std::string results = output_str(ctx, params, pcmf32s);
             res.set_content(results.c_str(), "text/html");
+        }
+        else if (params.response_format == srt_format)
+        {
+            std::stringstream ss;
+            const int n_segments = whisper_full_n_segments(ctx);
+            for (int i = 0; i < n_segments; ++i) {
+                const char * text = whisper_full_get_segment_text(ctx, i);
+                const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+                const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                std::string speaker = "";
+
+                if (params.diarize && pcmf32s.size() == 2)
+                {
+                    speaker = estimate_diarization_speaker(pcmf32s, t0, t1);
+                }
+
+                ss << i + 1 + params.offset_n << "\n";
+                ss << to_timestamp(t0, true) << " --> " << to_timestamp(t1, true) << "\n";
+                ss << speaker << text << "\n\n";
+            }
+            res.set_content(ss.str(), "application/x-subrip");
+        } else if (params.response_format == vtt_format) {
+            std::stringstream ss;
+
+            ss << "WEBVTT\n\n";
+
+            const int n_segments = whisper_full_n_segments(ctx);
+            for (int i = 0; i < n_segments; ++i) {
+                const char * text = whisper_full_get_segment_text(ctx, i);
+                const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+                const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                std::string speaker = "";
+
+                if (params.diarize && pcmf32s.size() == 2)
+                {
+                    speaker = estimate_diarization_speaker(pcmf32s, t0, t1, true);
+                    speaker.insert(0, "<v Speaker");
+                    speaker.append(">");
+                }
+
+                ss << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
+                ss << speaker << text << "\n\n";
+            }
+            res.set_content(ss.str(), "text/vtt");
         }
         // TODO add more output formats
         else

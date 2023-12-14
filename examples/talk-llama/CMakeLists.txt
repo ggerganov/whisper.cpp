@@ -18,6 +18,11 @@ if (WHISPER_SDL2)
         ../../ggml-quants.c
         ../../whisper.cpp)
 
+    if(WIN32)
+    # It requires Windows 8.1 or later for PrefetchVirtualMemory
+    target_compile_definitions(${TARGET} PRIVATE -D_WIN32_WINNT=0x0602)
+    endif()
+
     target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS} ../../)
     target_link_libraries(${TARGET} PRIVATE ${SDL2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 

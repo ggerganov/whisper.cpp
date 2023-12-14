@@ -206,6 +206,7 @@ void AudioInputCallback(void * inUserData,
         params.offset_ms        = 0;
         params.no_context       = true;
         params.single_segment   = self->stateInp.isRealtime;
+        params.no_timestamps    = params.single_segment;
 
         CFTimeInterval startTime = CACurrentMediaTime();
 

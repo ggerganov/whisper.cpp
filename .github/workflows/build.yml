@@ -25,6 +25,7 @@ jobs:
           docker run --platform ${{ matrix.arch }} --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            set -e
             apt update
             apt install -y build-essential libsdl2-dev
             make
@@ -86,6 +87,7 @@ jobs:
           docker run --platform ${{ matrix.arch }} --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            set -e
             apt update
             apt install -y build-essential cmake libsdl2-dev
             cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }}
@@ -113,8 +115,10 @@ jobs:
           docker run --platform ${{ matrix.arch }} --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            set -e
             apt update
-            apt install -y build-essential cmake libsdl2-dev
+            apt install -y clang
+            apt install -y clang build-essential cmake libsdl2-dev
             cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
             make
             ctest -L gh --output-on-failure'
@@ -140,6 +144,7 @@ jobs:
           docker run --platform ${{ matrix.arch }} --rm \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            set -e
             apt update
             apt install -y build-essential cmake
             cmake . -DCMAKE_BUILD_TYPE=Debug -DWHISPER_SANITIZE_${{ matrix.sanitizer }}=ON
@@ -217,10 +222,10 @@ jobs:
         sdl2: [ON]
         include:
           - arch: Win32
-            obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.24/OpenBLAS-0.3.24-x86.zip
+            obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x86.zip
             s2arc: x86
           - arch: x64
-            obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.24/OpenBLAS-0.3.24-x64.zip
+            obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x64.zip
             s2arc: x64
           - sdl2: ON
             s2ver: 2.26.0
@@ -285,6 +290,7 @@ jobs:
         arch: [x64]
         cublas: [ON]
         sdl2: [ON]
+        cuda-toolkit: [12.2.0, 11.8.0]
         include:
           - arch: x64
             s2arc: x64
@@ -300,7 +306,9 @@ jobs:
 
       - name: Install CUDA Toolkit
         id: cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.10
+        uses: Jimver/cuda-toolkit@v0.2.11
+        with:
+          cuda: '${{ matrix.cuda-toolkit }}'
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
@@ -315,10 +323,10 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
           -DWHISPER_CUBLAS=1
 
-      - name: Build
+      - name: Build ${{ matrix.cuda-toolkit }}
         run: |
           cd ./build
-          msbuild ALL_BUILD.vcxproj -t:build -p:configuration=${{ matrix.build }} -p:platform=${{ matrix.arch }}
+          cmake --build . --config ${{ matrix.build }}
 
       - name: Copy CUDA DLLs
         run: >
@@ -335,7 +343,7 @@ jobs:
         if: matrix.sdl2 == 'ON'
         uses: actions/upload-artifact@v1
         with:
-          name: whisper-cublas-bin-${{ matrix.arch }}
+          name: whisper-cublas-${{ matrix.cuda-toolkit }}-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
 
   emscripten:
