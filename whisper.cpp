@@ -372,7 +372,7 @@ static const std::map<whisper_alignment_heads_preset, whisper_aheads> g_aheads {
     { WHISPER_AHEADS_MEDIUM_EN, {18, g_aheads_medium_en} },
     { WHISPER_AHEADS_MEDIUM, {6, g_aheads_medium} },
     { WHISPER_AHEADS_LARGE_V1, {9, g_aheads_large_v1} },
-    { WHISPER_AHEADS_LARVE_V2, {23, g_aheads_large_v2} },
+    { WHISPER_AHEADS_LARGE_V2, {23, g_aheads_large_v2} },
     { WHISPER_AHEADS_LARGE_V3, {10, g_aheads_large_v3} },
 };
 
