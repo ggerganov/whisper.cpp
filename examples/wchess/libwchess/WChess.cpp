@@ -21,6 +21,10 @@ void WChess::set_move(const std::string& moves, float prob) const {
     if (m_cb.set_move) (*m_cb.set_move)(moves, prob);
 }
 
+void WChess::set_grammar(const std::string& grammar) const {
+    if (m_cb.set_grammar) (*m_cb.set_grammar)(grammar);
+}
+
 bool WChess::get_audio(std::vector<float>& pcmf32) const {
     if (m_cb.get_audio) return (*m_cb.get_audio)(pcmf32);
     return false;
@@ -28,6 +32,10 @@ bool WChess::get_audio(std::vector<float>& pcmf32) const {
 
 std::string WChess::stringify_board() const {
     return m_board->stringifyBoard();
+}
+
+std::string WChess::get_grammar() const {
+    return m_board->grammar();
 }
 
 void WChess::run() {
@@ -123,6 +131,7 @@ void WChess::run() {
 
                 if (!command.empty()) {
                     set_move(m_board->process(command), p);
+                    set_grammar(m_board->grammar());
                 }
                 if (m_board->grammar().empty()) {
                     fprintf(stdout, "%s: No more moves possible\n", __func__);

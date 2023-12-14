@@ -4,7 +4,7 @@
         <title>wchess : voice-controlled chess using Whisper + WebAssembly</title>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.3.1/iframeResizer.contentWindow.min.js"></script>
 
-        <meta name="viewport" content="width=device-width, initial-scale=0.4, maximum-scale=1, minimum-scale=1, user-scalable=no"/>
+        <meta name="viewport" content="width=device-width, initial-scale=0.7, maximum-scale=1, minimum-scale=0.7, user-scalable=no"/>
         <meta name="apple-mobile-web-app-capable" content="yes" />
 
         <style>
@@ -57,65 +57,75 @@
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                width: 300px;
+                width: 500px;
+            }
+            #description {
+                width: 500px;
             }
         </style>
         <link rel="stylesheet" href="css/chessboard-1.0.0.min.css" integrity="sha384-q94+BZtLrkL1/ohfjR8c6L+A6qzNH9R2hBLwyoAfu3i/WCvQjzL2RQJ3uNHDISdU" crossorigin="anonymous">
     </head>
     <body onload="loadWhisper()">
         <div id="main-container">
-            <b>wchess : voice-controlled chess using Whisper + WebAssembly</b>
+            <div id="description">
+                <b>wchess : voice-controlled chess using Whisper + WebAssembly</b>
 
-            <br><br>
+                <br><br>
 
-            This is a demonstration of using Whisper to recognize voice commands in the browser.
+                This is a demonstration of using Whisper to recognize voice commands in the browser.
 
-            <br><br>
+                <br><br>
 
-            Usage:<br>
+                Usage:<br>
 
-            <ul>
-                <li>Hold the button and say a chess move (e.g. "e2-e4")</li>
-                <li>Release the button and wait for the move to be recognized</li>
-                <li>Repeat</li>
-            </ul>
+                <ul>
+                    <li>Hold the button and say a chess move (e.g. "Knight to c3")</li>
+                    <li>Release the button and wait for the move to be recognized</li>
+                    <li>Repeat</li>
+                </ul>
 
-            Examples:<br>
+                Examples:<br>
 
-            <ul>
-                <li><b>"d4"</b></li>
-                <li><b>"e2 e4"</b></li>
-                <li><b>"Knight to f3"</b></li>
-                <li><b>"Bishop to b5"</b></li>
-            </ul>
+                <ul>
+                    <li><b>"d4"</b></li>
+                    <li><b>"e2 e4"</b></li>
+                    <li><b>"Knight to f3"</b></li>
+                    <li><b>"Bishop to b5"</b></li>
+                </ul>
 
-            Note that not all chess moves are supported. For example, castling and pawn promotion<br>
-            currently do not work, but can be easily implemented. There could also be some bugs in<br>
-            the move handling logic in general.<br><br>
-            The main purpose of this example is to demonstrate the capabilities of whisper.cpp and<br>
-            its application in the browser.
+                <b>
+                Note that not all chess moves are supported. For example, castling and pawn promotion
+                currently do not work, but can be easily implemented. There could also be some bugs in
+                the move handling logic in general. The main reason for that is to keep the implementation
+                simple. The assumption is that a real application would already have a proper move
+                validation logic in place.</b><br><br>
 
-            <br><br>
+                The main purpose of this example is to demonstrate the capabilities of whisper.cpp and
+                its application in the browser.
 
-            Features:<br>
+                <br><br>
 
-            <ul>
-                <li>Model quantization for reduced memory footprint (~42MB)</li>
-                <li><a href="https://github.com/ggerganov/whisper.cpp/pull/1229">Grammar-based sampling</a> for improved recognition accuracy</li>
-            </ul>
+                Features:<br>
 
-            You can find more about this project on <a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/wchess">GitHub</a>.
+                <ul>
+                    <li>Model quantization for reduced memory footprint (~42MB)</li>
+                    <li><a href="https://github.com/ggerganov/whisper.cpp/pull/1229">Grammar-based sampling</a> for improved recognition accuracy</li>
+                </ul>
 
-            <br><br>
+                You can find more about this project on <a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/wchess">GitHub</a>.
 
-            <b>More examples:</b>
-                <a href="https://whisper.ggerganov.com/">main</a> |
-                <a href="https://whisper.ggerganov.com/bench">bench</a> |
-                <a href="https://whisper.ggerganov.com/stream">stream</a> |
-                <a href="https://whisper.ggerganov.com/command">command</a> |
-                <a href="https://whisper.ggerganov.com/talk">talk</a> |
+                <br><br>
 
-            <br><br>
+                <b>More examples:</b>
+                    <a href="https://whisper.ggerganov.com/">main</a> |
+                    <a href="https://whisper.ggerganov.com/bench">bench</a> |
+                    <a href="https://whisper.ggerganov.com/stream">stream</a> |
+                    <a href="https://whisper.ggerganov.com/command">command</a> |
+                    <a href="https://whisper.ggerganov.com/talk">talk</a> |
+
+                <br><br>
+
+            </div>
 
             <hr>
 
@@ -130,7 +140,7 @@
             </div>
 
             <br>
-            <div id="chessboard" style="width: 300px"></div>
+            <div id="chessboard" style="width: 500px"></div>
             <script src="js/jquery-3.7.1.min.js"></script>
             <script src="js/chessboard-1.0.0.min.js"></script>
             <script>
@@ -148,6 +158,8 @@
                 </div>
 
                 <pre id="state-moves">[The moves will be displayed here]</pre>
+
+                <pre id="state-grammar">[The grammar will be displayed here]</pre>
             </div>
 
             <hr>
@@ -443,6 +455,10 @@
                 else {
                     setStatus('Failed. ' + (move_count % 2 ? 'Black\'s turn' : 'White\'s turn'));
                 }
+            }
+
+            function setGrammar(grammar) {
+                document.getElementById('state-grammar').innerHTML = grammar;
             }
 
         </script>

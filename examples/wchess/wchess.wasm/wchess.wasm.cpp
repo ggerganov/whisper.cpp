@@ -12,6 +12,7 @@ std::mutex  g_mutex;
 std::thread g_worker;
 
 std::condition_variable g_cv;
+
 bool g_running(false);
 std::vector<float> g_pcmf32;
 
@@ -19,6 +20,12 @@ void set_move(const std::string & move, float prob) {
     MAIN_THREAD_EM_ASM({
         setMove(UTF8ToString($0), $1)
     }, move.c_str(), prob);
+}
+
+void set_grammar(const std::string & grammar) {
+    MAIN_THREAD_EM_ASM({
+        setGrammar(UTF8ToString($0))
+    }, grammar.c_str());
 }
 
 bool get_audio(std::vector<float> & audio) {
@@ -62,8 +69,10 @@ void wchess_main(size_t i) {
     WChess::callbacks cb;
     cb.get_audio = get_audio;
     cb.set_move = set_move;
+    cb.set_grammar = set_grammar;
 
     WChess(g_contexts[i], wparams, cb, {}).run();
+
     if (i < g_contexts.size()) {
         whisper_free(g_contexts[i]);
         g_contexts[i] = nullptr;

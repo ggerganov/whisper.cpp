@@ -11,11 +11,13 @@ public:
     using CheckRunningCb = bool (*)();
     using GetAudioCb = bool (*)(std::vector<float> &);
     using SetMovesCb = void (*)(const std::string &, float);
+    using SetGrammarCb = void (*)(const std::string &);
     using ClearAudioCb = void (*)();
 
     struct callbacks {
         GetAudioCb get_audio = nullptr;
         SetMovesCb set_move = nullptr;
+        SetGrammarCb set_grammar = nullptr;
     };
 
     struct settings {
@@ -36,10 +38,16 @@ public:
     ~WChess();
 
     void run();
+
     std::string stringify_board() const;
+
+    std::string get_grammar() const;
+
 private:
     bool get_audio(std::vector<float>& pcmf32) const;
     void set_move(const std::string& moves, float prob) const;
+    void set_grammar(const std::string& grammar) const;
+
     std::string transcribe(
                     const std::vector<float> & pcmf32,
                     float & logprob_min,
