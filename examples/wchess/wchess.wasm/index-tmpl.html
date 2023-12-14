@@ -65,7 +65,7 @@
         </style>
         <link rel="stylesheet" href="css/chessboard-1.0.0.min.css" integrity="sha384-q94+BZtLrkL1/ohfjR8c6L+A6qzNH9R2hBLwyoAfu3i/WCvQjzL2RQJ3uNHDISdU" crossorigin="anonymous">
     </head>
-    <body onload="loadWhisper()">
+    <body>
         <div id="main-container">
             <div id="description">
                 <b>wchess : voice-controlled chess using Whisper + WebAssembly</b>
@@ -79,6 +79,8 @@
                 Usage:<br>
 
                 <ul>
+                    <li>Select a Whisper model</li>
+                    <li>Accept the microphone permission request if prompted</li>
                     <li>Hold the button and say a chess move (e.g. "Knight to c3")</li>
                     <li>Release the button and wait for the move to be recognized</li>
                     <li>Repeat</li>
@@ -89,21 +91,9 @@
                 <ul>
                     <li><b>"d4"</b></li>
                     <li><b>"e2 e4"</b></li>
-                    <li><b>"Knight to f3"</b></li>
+                    <li><b>"Knight f3"</b></li>
                     <li><b>"Bishop to b5"</b></li>
                 </ul>
-
-                <b>
-                Note that not all chess moves are supported. For example, castling and pawn promotion
-                currently do not work, but can be easily implemented. There could also be some bugs in
-                the move handling logic in general. The main reason for that is to keep the implementation
-                simple. The assumption is that a real application would already have a proper move
-                validation logic in place.</b><br><br>
-
-                The main purpose of this example is to demonstrate the capabilities of whisper.cpp and
-                its application in the browser.
-
-                <br><br>
 
                 Features:<br>
 
@@ -111,6 +101,19 @@
                     <li>Model quantization for reduced memory footprint (~42MB)</li>
                     <li><a href="https://github.com/ggerganov/whisper.cpp/pull/1229">Grammar-based sampling</a> for improved recognition accuracy</li>
                 </ul>
+
+                <b>
+                Note that not all chess moves are supported. For example, castling and pawn promotion
+                currently do not work, but can be easily implemented. There could also be some bugs in
+                the move handling logic in general. The main reason for that is to keep the implementation
+                simple. The assumption is that a real application would already have a proper move
+                validation logic in place.<br><br>
+
+                The main purpose of this example is to demonstrate the capabilities of whisper.cpp and
+                its application in the browser for voice recognition.
+                </b>
+
+                <br><br>
 
                 You can find more about this project on <a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/wchess">GitHub</a>.
 
@@ -131,35 +134,38 @@
 
             <div id="model-whisper">
                 Whisper model: <span id="model-whisper-status"></span>
+                <button id="fetch-whisper-tiny-en" onclick="loadWhisper()">tiny.en (Q8_0, 42 MB)</button>
                 <span id="fetch-whisper-progress"></span>
                 <br><br>
-                <button id="clear" onclick="clearCache()">Clear Cache</button>
+                <button id="clear" onclick="clearCache()">Clear browser cache</button>
                 <!--
                     <input type="file" id="file" name="file" onchange="loadFile(event, 'whisper.bin')" />
                 -->
             </div>
 
-            <br>
-            <div id="chessboard" style="width: 500px"></div>
-            <script src="js/jquery-3.7.1.min.js"></script>
-            <script src="js/chessboard-1.0.0.min.js"></script>
-            <script>
-                var board = Chessboard('chessboard', 'start')
-                var move_count = 0;
-            </script>
+            <div id="game">
+                <br>
+                <div id="chessboard" style="width: 500px"></div>
+                <script src="js/jquery-3.7.1.min.js"></script>
+                <script src="js/chessboard-1.0.0.min.js"></script>
+                <script>
+                    var board = Chessboard('chessboard', 'start')
+                    var move_count = 0;
+                </script>
 
-            <br>
+                <br>
 
-            <div id="state">
-                Status: <b><span id="state-status">not started</span></b>
+                <div id="state">
+                    Status: <b><span id="state-status">select model</span></b>
 
-                <div id="input" class="center">
-                    <button id="toggler" class="button" onselectstart="return false" disabled>Hold</button>
+                    <div id="input" class="center">
+                        <button id="toggler" class="button" onselectstart="return false" style="display: none">Hold</button>
+                    </div>
+
+                    <pre id="state-grammar">[The grammar will be displayed here]</pre>
+
+                    <pre id="state-moves">[The moves will be displayed here]</pre>
                 </div>
-
-                <pre id="state-moves">[The moves will be displayed here]</pre>
-
-                <pre id="state-grammar">[The grammar will be displayed here]</pre>
             </div>
 
             <hr>
@@ -229,7 +235,6 @@
                 instance = Module.init(model_file);
 
                 if (instance) {
-                    document.getElementById('toggler').disabled = false;
                     setStatus('Ready');
                     printTextarea("js: whisper initialized, instance: " + instance);
                 }
@@ -279,6 +284,7 @@
                 model_whisper = 'tiny.en-q8_0';
 
                 document.getElementById('model-whisper-status').innerHTML = 'loading "' + model_whisper + '" ... ';
+                document.getElementById('fetch-whisper-tiny-en').style.display = 'none';
 
                 cbProgress = function(p) {
                     let el = document.getElementById('fetch-whisper-progress');
@@ -291,6 +297,30 @@
                 };
 
                 loadRemote(url, dst, size_mb, cbProgress, storeFS, cbCancel, printTextarea);
+
+                // init audio capture so that the user receives a permission request
+                {
+                    let context = new AudioContext({
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: false,
+                        autoGainControl:  true,
+                        noiseSuppression: true,
+                    });
+                    navigator.mediaDevices.getUserMedia({audio: true, video: false})
+                        .then(function(s) {
+                            stream = s;
+                            stream.getTracks().forEach(function(track) {
+                                track.stop();
+                            });
+                        })
+                        .catch(function(err) {
+                            printTextarea('js: error getting audio stream: ' + err);
+                        });
+                    context.close();
+                }
+
+                document.getElementById('toggler').style.display = 'block';
             }
 
             //
@@ -309,7 +339,9 @@
             window.OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
 
             function stopRecording() {
-                mediaRecorder.stop();
+                if (mediaRecorder) {
+                    mediaRecorder.stop();
+                }
             }
 
             function startRecording() {
