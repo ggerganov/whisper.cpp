@@ -33,8 +33,13 @@ White's turn
 
 ## TODO
 
-- Improve web-browser audio capture - sometimes it does not record the voice properly
-- Add support for more languages by making the generated grammar string multi-lingual
 - Fix bugs in the chess moves logic
+- Improve web-browser audio capture - sometimes it does not record the voice properly
+- Add support for more languages by making the generated grammar string multilingual
+- Explore ways to improve the dynamic grammar to be narrower
 
 PRs welcome!
+
+## Thanks
+
+- [chessboardjs](https://chessboardjs.com) for the neat chessboard JS library used in this demo
