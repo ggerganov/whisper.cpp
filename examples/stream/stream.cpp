@@ -252,39 +252,52 @@ int main(int argc, char ** argv) {
         // process new audio
 
         if (!use_vad) {
-            while (true) {
-                audio.get(params.step_ms, pcmf32_new);
+            audio.get(params.length_ms, pcmf32_new);
 
-                if ((int) pcmf32_new.size() > 2*n_samples_step) {
-                    fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, dropping audio ...\n\n", __func__);
-                    audio.clear();
-                    continue;
+            float average = 0.f;
+            int start = 0;
+            int end = 0;
+            const int STEP = 2000;
+            std::vector<float> averages(pcmf32_new.size() / STEP + 1);
+            for (int i = 0; i < int(pcmf32_new.size()); i++)
+            {
+                averages[i / STEP] += fabs(pcmf32_new[pcmf32_new.size() - 1 - i]) * 1000.f;
+            }
+
+            for (int i = 0; i < averages.size(); i++)
+            {
+                int level = std::min(9, int(averages[i] / STEP));
+                printf(level >= 2 ? "%d" : "-", level);
+                if (level >= 2)
+                {
+                    if (start == 0)
+                    {
+                        start = i * STEP;
+                    }
+                    end = i * STEP;
                 }
-
-                if ((int) pcmf32_new.size() >= n_samples_step) {
-                    audio.clear();
+                else if (i * STEP > end + 16000)
+                {
                     break;
                 }
-
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
 
-            const int n_samples_new = pcmf32_new.size();
-
-            // take up to params.length_ms audio from previous iteration
-            const int n_samples_take = std::min((int) pcmf32_old.size(), std::max(0, n_samples_keep + n_samples_len - n_samples_new));
-
-            //printf("processing: take = %d, new = %d, old = %d\n", n_samples_take, n_samples_new, (int) pcmf32_old.size());
-
-            pcmf32.resize(n_samples_new + n_samples_take);
-
-            for (int i = 0; i < n_samples_take; i++) {
-                pcmf32[i] = pcmf32_old[pcmf32_old.size() - n_samples_take + i];
+            printf("\n");
+            if ((start > 16000 || end == pcmf32_new.size() - 1))
+            {
+                start = std::max(start - 8000, 0);
+                end = std::min(end + 8000, (int)pcmf32_new.size() - 1);
+                pcmf32.resize(end - start);
+                for (int i = start; i < end; i++) {
+                    pcmf32[pcmf32.size() - 1 - (i - start)] = pcmf32_new[pcmf32_new.size() - 1 - i];
+                }
+                for (int i = 0; i < std::max(5 * 16000 - (int)pcmf32.size(), 0); i++)
+                {
+                    pcmf32.push_back(0.f);
+                }
             }
-
-            memcpy(pcmf32.data() + n_samples_take, pcmf32_new.data(), n_samples_new*sizeof(float));
-
-            pcmf32_old = pcmf32;
+            else
+                pcmf32.clear();
         } else {
             const auto t_now  = std::chrono::high_resolution_clock::now();
             const auto t_diff = std::chrono::duration_cast<std::chrono::milliseconds>(t_now - t_last).count();
@@ -309,6 +322,7 @@ int main(int argc, char ** argv) {
         }
 
         // run the inference
+        if (pcmf32.size())
         {
             whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
@@ -362,7 +376,10 @@ int main(int argc, char ** argv) {
                     const char * text = whisper_full_get_segment_text(ctx, i);
 
                     if (params.no_timestamps) {
-                        printf("%s", text);
+                        printf("%s\n", text);
+                        std::string cmd = std::string("echo -n ") + text + std::string(" | xclip -selection clipboard");
+                        int r = system(cmd.data());
+
                         fflush(stdout);
 
                         if (params.fname_out.length() > 0) {
@@ -420,8 +437,11 @@ int main(int argc, char ** argv) {
                     }
                 }
             }
+
             fflush(stdout);
         }
+        else
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     audio.pause();
