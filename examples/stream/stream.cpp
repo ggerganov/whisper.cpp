@@ -279,7 +279,7 @@ int main(int argc, char ** argv) {
                     }
                     end = i * STEP;
                 }
-                else if (i * STEP > end + 16000)
+                else if (i * STEP > end + 20000)
                 {
                     break;
                 }
@@ -294,7 +294,7 @@ int main(int argc, char ** argv) {
                 for (int i = start; i < end; i++) {
                     pcmf32[pcmf32.size() - 1 - (i - start)] = pcmf32_new[pcmf32_new.size() - 1 - i];
                 }
-                for (int i = 0; i < std::max(5 * 16000 - (int)pcmf32.size(), 0); i++)
+                for (int i = 0; i < std::max(3 * 16000 - (int)pcmf32.size(), 0); i++)
                 {
                     pcmf32.push_back(0.f);
                 }
