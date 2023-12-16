@@ -377,10 +377,17 @@ int main(int argc, char ** argv) {
 
                 const int n_segments = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n_segments; ++i) {
-                    const char * text = whisper_full_get_segment_text(ctx, i);
+                    std::string text = whisper_full_get_segment_text(ctx, i);
 
                     if (params.no_timestamps) {
-                        printf("[%3.1fs] %s\n", (std::chrono::system_clock::now() - start).count() / 1000000000.f, text);
+                        if (text[0] == ' ') { // Remove initial space
+                            text = text.substr(1);
+                        }
+                        std::toupper(text[0]); // Make the first character uppercase
+                        if (text[text.size() - 1] == '.') { // Remove trailing dot
+                            text.resize(text.size() - 1);
+                        }
+                        printf("[%3.1fs] <%s>\n", (std::chrono::system_clock::now() - start).count() / 1000000000.f, text.data());
                         std::string cmd = std::string("echo -n \"") + text + std::string("\" | xclip -selection clipboard");
                         int r = system(cmd.data());
 
