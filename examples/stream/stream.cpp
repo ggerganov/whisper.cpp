@@ -253,14 +253,13 @@ int main(int argc, char ** argv) {
         }
 
         // process new audio
-
         if (!use_vad) {
-            audio.get(params.length_ms, pcmf32_new);
+            const int STEP = 2000;
+            audio.get(params.length_ms, STEP, pcmf32_new);
 
             float average = 0.f;
             int start = 0;
             int end = 0;
-            const int STEP = 2000;
             std::vector<float> averages(pcmf32_new.size() / STEP, 0);
             for (int i = 0; i < int(averages.size() * STEP); i++)
             {
@@ -311,10 +310,10 @@ int main(int argc, char ** argv) {
                 continue;
             }
 
-            audio.get(2000, pcmf32_new);
+            audio.get(2000, 1, pcmf32_new);
 
             if (::vad_simple(pcmf32_new, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, false)) {
-                audio.get(params.length_ms, pcmf32);
+                audio.get(params.length_ms, 1, pcmf32);
             } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
 

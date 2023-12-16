@@ -169,7 +169,7 @@ void audio_async::callback(uint8_t * stream, int len) {
     }
 }
 
-void audio_async::get(int ms, std::vector<float> & result) {
+void audio_async::get(int ms, int step, std::vector<float> & result) {
     if (!m_dev_id_in) {
         fprintf(stderr, "%s: no audio device to get audio from!\n", __func__);
         return;
@@ -196,7 +196,7 @@ void audio_async::get(int ms, std::vector<float> & result) {
 
         result.resize(n_samples);
 
-        int s0 = m_audio_pos - n_samples;
+        int s0 = (m_audio_pos / step * step) - n_samples;
         if (s0 < 0) {
             s0 += m_audio.size();
         }
