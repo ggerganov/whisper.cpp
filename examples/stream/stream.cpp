@@ -351,6 +351,8 @@ int main(int argc, char ** argv) {
             wparams.prompt_tokens    = params.no_context ? nullptr : prompt_tokens.data();
             wparams.prompt_n_tokens  = params.no_context ? 0       : prompt_tokens.size();
 
+            auto start = std::chrono::system_clock::now();
+
             if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
                 return 6;
@@ -379,7 +381,7 @@ int main(int argc, char ** argv) {
                     const char * text = whisper_full_get_segment_text(ctx, i);
 
                     if (params.no_timestamps) {
-                        printf("%s\n", text);
+                        printf("[%3.1fs] %s\n", (std::chrono::system_clock::now() - start).count() / 1000000000.f, text);
                         std::string cmd = std::string("echo -n \"") + text + std::string("\" | xclip -selection clipboard");
                         int r = system(cmd.data());
 
