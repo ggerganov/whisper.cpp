@@ -33,6 +33,7 @@ struct whisper_params {
     int32_t n_threads  = std::min(4, (int32_t) std::thread::hardware_concurrency());
     int32_t step_ms    = 3000;
     int32_t pressure_t = 1000;
+    int32_t silence_t  = 1000;
     int32_t length_ms  = 30000;
     int32_t keep_ms    = 200;
     int32_t capture_id = -1;
@@ -70,6 +71,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-t"    || arg == "--threads")       { params.n_threads     = std::stoi(argv[++i]); }
         else if (                  arg == "--step")          { params.step_ms       = std::stoi(argv[++i]); }
         else if (                  arg == "--pressure-t")    { params.pressure_t    = std::stoi(argv[++i]); }
+        else if (                  arg == "--silence-t")     { params.silence_t     = std::stoi(argv[++i]); }
         else if (                  arg == "--length")        { params.length_ms     = std::stoi(argv[++i]); }
         else if (                  arg == "--keep")          { params.keep_ms       = std::stoi(argv[++i]); }
         else if (arg == "-c"    || arg == "--capture")       { params.capture_id    = std::stoi(argv[++i]); }
@@ -108,6 +110,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -t N,     --threads N     [%-7d] number of threads to use during computation\n",    params.n_threads);
     fprintf(stderr, "            --step N        [%-7d] audio step size in milliseconds\n",                params.step_ms);
     fprintf(stderr, "            --pressure_t N  [%-7d] pressure threshold\n",                             params.pressure_t);
+    fprintf(stderr, "            --silence_t N   [%-7d] silence time, ms\n",                               params.silence_t);
     fprintf(stderr, "            --length N      [%-7d] audio length in milliseconds\n",                   params.length_ms);
     fprintf(stderr, "            --keep N        [%-7d] audio to keep from previous step in ms\n",         params.keep_ms);
     fprintf(stderr, "  -c ID,    --capture ID    [%-7d] capture device ID\n",                              params.capture_id);
@@ -258,7 +261,7 @@ int main(int argc, char ** argv) {
             audio.get(params.length_ms, STEP, pcmf32_new);
 
             float average = 0.f;
-            int start = 0;
+            int start = -1;
             int end = 0;
             std::vector<float> averages(pcmf32_new.size() / STEP, 0);
             for (int i = 0; i < int(averages.size() * STEP); i++)
@@ -266,34 +269,36 @@ int main(int argc, char ** argv) {
                 averages[i / STEP] += fabs(pcmf32_new[pcmf32_new.size() - 1 - i]) * params.pressure_t;
             }
 
+            const int SOUND_FREQUENCY = 16000;
+            int silenceDuration = SOUND_FREQUENCY * params.silence_t / 1000;
             for (int i = 0; i < averages.size(); i++)
             {
                 int level = std::min(9, int(averages[i] / STEP));
                 printf(level >= 2 ? "%d" : "-", level);
                 if (level >= 2)
                 {
-                    if (start == 0)
+                    if (start < 0)
                     {
                         start = i * STEP;
                     }
                     end = i * STEP;
                 }
-                else if (i * STEP > end + 20000)
+                else if (i * STEP >= end + silenceDuration)
                 {
                     break;
                 }
             }
 
             printf("\n");
-            if (start > 16000)
+            if (start >= silenceDuration)
             {
-                start = std::max(start - 8000, 0);
-                end = std::min(end + 8000, (int)pcmf32_new.size() - 1);
+                start = std::max(start - SOUND_FREQUENCY / 2, 0);
+                end = std::min(end + SOUND_FREQUENCY / 2, (int)pcmf32_new.size() - 1);
                 pcmf32.resize(end - start);
                 for (int i = start; i < end; i++) {
                     pcmf32[pcmf32.size() - 1 - (i - start)] = pcmf32_new[pcmf32_new.size() - 1 - i];
                 }
-                for (int i = 0; i < std::max(3 * 16000 - (int)pcmf32.size(), 0); i++)
+                for (int i = 0; i < std::max(3 * SOUND_FREQUENCY - (int)pcmf32.size(), 0); i++)
                 {
                     pcmf32.push_back(0.f);
                 }
