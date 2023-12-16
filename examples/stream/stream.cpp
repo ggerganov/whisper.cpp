@@ -32,7 +32,8 @@ std::string to_timestamp(int64_t t) {
 struct whisper_params {
     int32_t n_threads  = std::min(4, (int32_t) std::thread::hardware_concurrency());
     int32_t step_ms    = 3000;
-    int32_t length_ms  = 10000;
+    int32_t pressure_t = 1000;
+    int32_t length_ms  = 30000;
     int32_t keep_ms    = 200;
     int32_t capture_id = -1;
     int32_t max_tokens = 32;
@@ -68,6 +69,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         }
         else if (arg == "-t"    || arg == "--threads")       { params.n_threads     = std::stoi(argv[++i]); }
         else if (                  arg == "--step")          { params.step_ms       = std::stoi(argv[++i]); }
+        else if (                  arg == "--pressure-t")    { params.pressure_t    = std::stoi(argv[++i]); }
         else if (                  arg == "--length")        { params.length_ms     = std::stoi(argv[++i]); }
         else if (                  arg == "--keep")          { params.keep_ms       = std::stoi(argv[++i]); }
         else if (arg == "-c"    || arg == "--capture")       { params.capture_id    = std::stoi(argv[++i]); }
@@ -105,6 +107,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -h,       --help          [default] show this help message and exit\n");
     fprintf(stderr, "  -t N,     --threads N     [%-7d] number of threads to use during computation\n",    params.n_threads);
     fprintf(stderr, "            --step N        [%-7d] audio step size in milliseconds\n",                params.step_ms);
+    fprintf(stderr, "            --pressure_t N  [%-7d] pressure threshold\n",                             params.pressure_t);
     fprintf(stderr, "            --length N      [%-7d] audio length in milliseconds\n",                   params.length_ms);
     fprintf(stderr, "            --keep N        [%-7d] audio to keep from previous step in ms\n",         params.keep_ms);
     fprintf(stderr, "  -c ID,    --capture ID    [%-7d] capture device ID\n",                              params.capture_id);
@@ -258,10 +261,10 @@ int main(int argc, char ** argv) {
             int start = 0;
             int end = 0;
             const int STEP = 2000;
-            std::vector<float> averages(pcmf32_new.size() / STEP + 1);
-            for (int i = 0; i < int(pcmf32_new.size()); i++)
+            std::vector<float> averages(pcmf32_new.size() / STEP, 0);
+            for (int i = 0; i < int(averages.size() * STEP); i++)
             {
-                averages[i / STEP] += fabs(pcmf32_new[pcmf32_new.size() - 1 - i]) * 1000.f;
+                averages[i / STEP] += fabs(pcmf32_new[pcmf32_new.size() - 1 - i]) * params.pressure_t;
             }
 
             for (int i = 0; i < averages.size(); i++)
@@ -283,7 +286,7 @@ int main(int argc, char ** argv) {
             }
 
             printf("\n");
-            if ((start > 16000 || end == pcmf32_new.size() - 1))
+            if (start > 16000)
             {
                 start = std::max(start - 8000, 0);
                 end = std::min(end + 8000, (int)pcmf32_new.size() - 1);
@@ -377,7 +380,7 @@ int main(int argc, char ** argv) {
 
                     if (params.no_timestamps) {
                         printf("%s\n", text);
-                        std::string cmd = std::string("echo -n ") + text + std::string(" | xclip -selection clipboard");
+                        std::string cmd = std::string("echo -n \"") + text + std::string("\" | xclip -selection clipboard");
                         int r = system(cmd.data());
 
                         fflush(stdout);
