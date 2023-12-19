@@ -61,7 +61,9 @@ models = [
     "ggml-small.bin",
     "ggml-medium.en.bin",
     "ggml-medium.bin",
-    "ggml-large.bin",
+    "ggml-large-v1.bin",
+    "ggml-large-v2.bin",
+    "ggml-large-v3.bin",
 ]
 
 
