@@ -521,8 +521,7 @@ endif()
 
 if (GGML_SOURCES_CUDA)
     message(STATUS "GGML CUDA sources found, configuring CUDA architecture")
-    set_property(TARGET whisper PROPERTY CUDA_ARCHITECTURES OFF)
-    set_property(TARGET whisper PROPERTY CUDA_SELECT_NVCC_ARCH_FLAGS "Auto")
+    set_property(TARGET whisper PROPERTY CUDA_ARCHITECTURES all)
 endif()
 
 if (EMSCRIPTEN)
