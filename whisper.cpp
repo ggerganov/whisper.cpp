@@ -118,6 +118,9 @@ static void byteswap_tensor(ggml_tensor * tensor) {
 // logging
 //
 
+#ifdef WHISPER_LOGCAT
+#include <android/log.h>
+#endif
 WHISPER_ATTRIBUTE_FORMAT(2, 3)
 static void whisper_log_internal        (ggml_log_level level, const char * format, ...);
 static void whisper_log_callback_default(ggml_log_level level, const char * text, void * user_data);
@@ -140,7 +143,11 @@ static void whisper_log_callback_default(ggml_log_level level, const char * text
 #if defined(WHISPER_DEBUG)
 #define WHISPER_PRINT_DEBUG(...) \
     do { \
+#ifdef WHISPER_LOGCAT \
+        __android_log_print(ANDROID_LOG_DEBUG, "whisper", __VA_ARGS__); \
+#else \
         fprintf(stderr, __VA_ARGS__); \
+#endif \
     } while (0)
 #else
 #define WHISPER_PRINT_DEBUG(...)
@@ -6636,6 +6643,10 @@ static void whisper_log_internal(ggml_log_level level, const char * format, ...)
 static void whisper_log_callback_default(ggml_log_level level, const char * text, void * user_data) {
     (void) level;
     (void) user_data;
+#ifdef WHISPER_LOGCAT
+    __android_log_print(ANDROID_LOG_ERROR, "whisper", "%s", text);
+#else
     fputs(text, stderr);
     fflush(stderr);
+#endif
 }

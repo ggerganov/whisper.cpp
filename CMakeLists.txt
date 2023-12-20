@@ -78,6 +78,7 @@ else()
 endif()
 
 option(WHISPER_PERF "whisper: enable perf timings" OFF)
+option(WHISPER_LOGCAT "whisper: enable android logcat" OFF)
 
 # sanitizers
 
@@ -408,6 +409,10 @@ if (WHISPER_PERF)
     set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_PERF)
 endif()
 
+if (WHISPER_LOGCAT AND ANDROID)
+    set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_LOGCAT)
+endif()
+
 #
 # whisper.coreml - Core ML support
 #
@@ -496,6 +501,10 @@ if (MSVC)
 else()
     target_link_libraries(${TARGET} PRIVATE m ${WHISPER_EXTRA_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 endif()
+
+if (WHISPER_LOGCAT)
+    target_link_libraries(${TARGET} PRIVATE android log)
+endif ()
 
 if (BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET} PUBLIC
