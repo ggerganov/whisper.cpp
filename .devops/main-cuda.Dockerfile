@@ -26,5 +26,9 @@ RUN make
 FROM ${BASE_CUDA_RUN_CONTAINER} AS runtime
 WORKDIR /app
 
+RUN apt-get update && \
+  apt-get install -y curl ffmpeg \
+  && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
 COPY --from=build /app /app
 ENTRYPOINT [ "bash", "-c" ]

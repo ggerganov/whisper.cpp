@@ -37,12 +37,6 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Lowercase repository name
-        id: lowercase
-        run: |
-          REPOSITORY=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
-          echo "REPOSITORY=$REPOSITORY" >> $GITHUB_ENV
-
       - name: Build and push Docker image (versioned)
         if: github.event_name == 'push'
         uses: docker/build-push-action@v5
@@ -50,7 +44,7 @@ jobs:
           context: .
           push: true
           platforms: ${{ matrix.config.platforms }}
-          tags: "ghcr.io/${{ env.REPOSITORY }}:${{ matrix.config.tag }}-${{ env.COMMIT_SHA }}"
+          tags: "ghcr.io/${{ github.repository }}:${{ matrix.config.tag }}-${{ env.COMMIT_SHA }}"
           file: ${{ matrix.config.dockerfile }}
 
       - name: Build and push Docker image (tagged)
@@ -59,5 +53,5 @@ jobs:
           context: .
           push: ${{ github.event_name == 'push' }}
           platforms: ${{ matrix.config.platforms }}
-          tags: "ghcr.io/${{ env.REPOSITORY }}:${{ matrix.config.tag }}"
+          tags: "ghcr.io/${{ github.repository }}:${{ matrix.config.tag }}"
           file: ${{ matrix.config.dockerfile }}
