@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	ModelPath  = "../../models/ggml-tiny.bin"
-	SamplePath = "../../samples/jfk.wav"
+	ModelPath  = "../../../../models/ggml-tiny.bin"
+	SamplePath = "../../../../samples/jfk.wav"
 )
 
 func Test_Whisper_000(t *testing.T) {
