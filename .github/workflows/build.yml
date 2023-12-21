@@ -117,7 +117,6 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y clang
             apt install -y clang build-essential cmake libsdl2-dev
             cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
             make
@@ -167,7 +166,7 @@ jobs:
             s2arc: x64
             jnaPath: win32-x86-64
           - sdl2: ON
-            s2ver: 2.26.0
+            s2ver: 2.28.5
 
     steps:
       - name: Clone
@@ -228,7 +227,7 @@ jobs:
             obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x64.zip
             s2arc: x64
           - sdl2: ON
-            s2ver: 2.26.0
+            s2ver: 2.28.5
 
     steps:
       - name: Clone
@@ -295,7 +294,7 @@ jobs:
           - arch: x64
             s2arc: x64
           - sdl2: ON
-            s2ver: 2.26.0
+            s2ver: 2.28.5
 
     steps:
       - name: Clone
@@ -321,7 +320,8 @@ jobs:
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_CUBLAS=1
+          -DWHISPER_CUBLAS=${{ matrix.cublas }}
+          -DWHISPER_SDL2=${{ matrix.sdl2 }}
 
       - name: Build ${{ matrix.cuda-toolkit }}
         run: |
