@@ -521,7 +521,13 @@ endif()
 
 if (GGML_SOURCES_CUDA)
     message(STATUS "GGML CUDA sources found, configuring CUDA architecture")
-    set_property(TARGET whisper PROPERTY CUDA_ARCHITECTURES OFF)
+    # Only configure gmml CUDA architectures is not globally set
+    if (NOT DEFINED GGML_CUDA_ARCHITECTURES)
+        # Not overriden by user, so set defaults
+        set(GGML_CUDA_ARCHITECTURES 52 61 70)
+    endif()
+    message(STATUS "GGML Configuring CUDA architectures ${GGML_CUDA_ARCHITECTURES}")
+    set_property(TARGET whisper PROPERTY CUDA_ARCHITECTURES ${GGML_CUDA_ARCHITECTURES})
     set_property(TARGET whisper PROPERTY CUDA_SELECT_NVCC_ARCH_FLAGS "Auto")
 endif()
 
