@@ -56,8 +56,8 @@ function list_models {
     printf "\n\n"
 }
 
-if [ "$#" -gt 2 ]; then
-    printf "Usage: $0 <model> <models_path>\n"
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+    printf "Usage: $0 <model> [models_path]\n"
     list_models
 
     exit 1
