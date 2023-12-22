@@ -122,9 +122,18 @@ WHISPER_ATTRIBUTE_FORMAT(2, 3)
 static void whisper_log_internal        (ggml_log_level level, const char * format, ...);
 static void whisper_log_callback_default(ggml_log_level level, const char * text, void * user_data);
 
-#define WHISPER_LOG_INFO(...)  whisper_log_internal(GGML_LOG_LEVEL_INFO , __VA_ARGS__)
-#define WHISPER_LOG_WARN(...)  whisper_log_internal(GGML_LOG_LEVEL_WARN , __VA_ARGS__)
 #define WHISPER_LOG_ERROR(...) whisper_log_internal(GGML_LOG_LEVEL_ERROR, __VA_ARGS__)
+#define WHISPER_LOG_WARN(...)  whisper_log_internal(GGML_LOG_LEVEL_WARN , __VA_ARGS__)
+#define WHISPER_LOG_INFO(...)  whisper_log_internal(GGML_LOG_LEVEL_INFO , __VA_ARGS__)
+
+// define this to enable verbose trace logging - useful for debugging purposes
+// #define WHISPER_DEBUG
+
+#if defined(WHISPER_DEBUG)
+#define WHISPER_LOG_DEBUG(...) whisper_log_internal(GGML_LOG_LEVEL_DEBUG, __VA_ARGS__)
+#else
+#define WHISPER_LOG_DEBUG(...)
+#endif
 
 #define WHISPER_ASSERT(x) \
     do { \
@@ -133,18 +142,6 @@ static void whisper_log_callback_default(ggml_log_level level, const char * text
             abort(); \
         } \
     } while (0)
-
-// define this to enable verbose trace logging - useful for debugging purposes
-//#define WHISPER_DEBUG
-
-#if defined(WHISPER_DEBUG)
-#define WHISPER_PRINT_DEBUG(...) \
-    do { \
-        fprintf(stderr, __VA_ARGS__); \
-    } while (0)
-#else
-#define WHISPER_PRINT_DEBUG(...)
-#endif
 
 //#define WHISPER_USE_FLASH_ATTN
 //#define WHISPER_USE_FLASH_FF
@@ -2166,7 +2163,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
     const int32_t n_kv     = ggml_allocr_is_measure(alloc) ? n_ctx            : kv_self.n;
     const int32_t kv_head  = ggml_allocr_is_measure(alloc) ? n_ctx - n_tokens : kv_self.head;
 
-    //WHISPER_PRINT_DEBUG("%s: n_past = %d, n_tokens = %d, n_audio_ctx = %d, n_ctx = %d\n", __func__, n_past, n_tokens, n_audio_ctx, n_ctx);
+    //WHISPER_LOG_DEBUG("%s: n_past = %d, n_tokens = %d, n_audio_ctx = %d, n_ctx = %d\n", __func__, n_past, n_tokens, n_audio_ctx, n_ctx);
 
     struct ggml_init_params params = {
         /*.mem_size   =*/ wstate.alloc_decode.meta.size(),
@@ -4944,7 +4941,7 @@ static void whisper_sequence_score(
             const auto p = kv.second/(double)cnt;
             entropy -= p*log(p);
 
-            //WHISPER_PRINT_DEBUG("entropy: %d %f %f, count %d\n", kv.first, p, log(p), kv.second);
+            //WHISPER_LOG_DEBUG("entropy: %d %f %f, count %d\n", kv.first, p, log(p), kv.second);
         }
 
         sequence.entropy = entropy;
@@ -5010,7 +5007,7 @@ int whisper_full_with_state(
     // basically don't process anything that is less than 1.0s
     // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
     if (seek_end < seek_start + (params.speed_up ? 50 : 100)) {
-        WHISPER_PRINT_DEBUG("%s: input is too short - %d ms < 1000 ms\n", __func__, (seek_end - seek_start)*10);
+        WHISPER_LOG_DEBUG("%s: input is too short - %d ms < 1000 ms\n", __func__, (seek_end - seek_start)*10);
         return 0;
     }
 
@@ -5199,7 +5196,7 @@ int whisper_full_with_state(
 
             n_decoders_cur = std::max(1, n_decoders_cur);
 
-            WHISPER_PRINT_DEBUG("\n%s: strategy = %d, decoding with %d decoders, temperature = %.2f\n", __func__, params.strategy, n_decoders_cur, t_cur);
+            WHISPER_LOG_DEBUG("\n%s: strategy = %d, decoding with %d decoders, temperature = %.2f\n", __func__, params.strategy, n_decoders_cur, t_cur);
 
             // TAGS: WHISPER_DECODER_INIT
             for (int j = 0; j < n_decoders_cur; ++j) {
@@ -5243,11 +5240,11 @@ int whisper_full_with_state(
                 prompt.insert(prompt.end(), prompt_init.begin(), prompt_init.end());
 
                 // print the prompt
-                WHISPER_PRINT_DEBUG("\n\n");
+                WHISPER_LOG_DEBUG("\n\n");
                 for (int i = 0; i < (int) prompt.size(); i++) {
-                    WHISPER_PRINT_DEBUG("%s: prompt[%d] = %s\n", __func__, i, ctx->vocab.id_to_token.at(prompt[i]).c_str());
+                    WHISPER_LOG_DEBUG("%s: prompt[%d] = %s\n", __func__, i, ctx->vocab.id_to_token.at(prompt[i]).c_str());
                 }
-                WHISPER_PRINT_DEBUG("\n\n");
+                WHISPER_LOG_DEBUG("\n\n");
 
                 whisper_kv_cache_clear(state->kv_self);
 
@@ -5395,7 +5392,7 @@ int whisper_full_with_state(
 
                         whisper_kv_cache_seq_cp(state->kv_self, cur.decoder_idx, WHISPER_MAX_DECODERS + j, -1, -1);
 
-                        WHISPER_PRINT_DEBUG("%s: beam search: decoder %d: from decoder %d: token = %10s, plog = %8.5f, sum_logprobs = %8.5f\n",
+                        WHISPER_LOG_DEBUG("%s: beam search: decoder %d: from decoder %d: token = %10s, plog = %8.5f, sum_logprobs = %8.5f\n",
                                 __func__, j, cur.decoder_idx, ctx->vocab.id_to_token.at(decoder.sequence.tokens.back().id).c_str(), decoder.sequence.tokens.back().plog, decoder.sequence.sum_logprobs_all);
                     }
 
@@ -5438,7 +5435,7 @@ int whisper_full_with_state(
 
                             // do not allow to go back in time
                             if (has_ts && seek_delta > seek_delta_new && result_len < i) {
-                                WHISPER_PRINT_DEBUG("%s: decoder %d: failed due to seek_delta (%d > %d)\n", __func__, j, seek_delta, seek_delta_new);
+                                WHISPER_LOG_DEBUG("%s: decoder %d: failed due to seek_delta (%d > %d)\n", __func__, j, seek_delta, seek_delta_new);
                                 failed = true; // TODO: maybe this is not a failure ?
                                 continue;
                             }
@@ -5453,7 +5450,7 @@ int whisper_full_with_state(
 #ifdef WHISPER_DEBUG
                         {
                             const auto tt = token.pt > 0.10 ? ctx->vocab.id_to_token.at(token.tid) : "[?]";
-                            WHISPER_PRINT_DEBUG("%s: id = %3d, decoder = %d, token = %6d, p = %6.3f, ts = %10s, %6.3f, result_len = %4d '%s'\n",
+                            WHISPER_LOG_DEBUG("%s: id = %3d, decoder = %d, token = %6d, p = %6.3f, ts = %10s, %6.3f, result_len = %4d '%s'\n",
                                     __func__, i, j, token.id, token.p, tt.c_str(), token.pt, result_len, ctx->vocab.id_to_token.at(token.id).c_str());
                         }
 #endif
@@ -5467,7 +5464,7 @@ int whisper_full_with_state(
                                 if (seek + seek_delta + 100 >= seek_end) {
                                     result_len = i + 1;
                                 } else {
-                                    WHISPER_PRINT_DEBUG("%s: decoder %d failed (result_len = 0)\n", __func__, j);
+                                    WHISPER_LOG_DEBUG("%s: decoder %d failed (result_len = 0)\n", __func__, j);
                                     failed = true;
                                     continue;
                                 }
@@ -5478,7 +5475,7 @@ int whisper_full_with_state(
                                 seek_delta = 100*WHISPER_CHUNK_SIZE;
                             }
 
-                            WHISPER_PRINT_DEBUG("%s: decoder %d completed\n", __func__, j);
+                            WHISPER_LOG_DEBUG("%s: decoder %d completed\n", __func__, j);
                             completed = true;
                             continue;
                         }
@@ -5494,7 +5491,7 @@ int whisper_full_with_state(
                     // sometimes, the decoding can get stuck in a repetition loop
                     // this is an attempt to mitigate such cases - we flag the decoding as failed and use a fallback strategy
                     if (i == n_max - 1 && (result_len == 0 || seek_delta < 100*WHISPER_CHUNK_SIZE/2)) {
-                        WHISPER_PRINT_DEBUG("%s: decoder %d: failed due to repetition loop\n", __func__, j);
+                        WHISPER_LOG_DEBUG("%s: decoder %d: failed due to repetition loop\n", __func__, j);
                         failed = true;
                         continue;
                     }
@@ -5536,7 +5533,7 @@ int whisper_full_with_state(
                             continue;
                         }
 
-                        //WHISPER_PRINT_DEBUG("%s: decoder %d: token %d, seek_delta %d\n", __func__, j, decoder.sequence.tokens.back().id, decoder.seek_delta);
+                        //WHISPER_LOG_DEBUG("%s: decoder %d: token %d, seek_delta %d\n", __func__, j, decoder.sequence.tokens.back().id, decoder.seek_delta);
 
                         decoder.i_batch = batch.n_tokens;
 
@@ -5616,11 +5613,11 @@ int whisper_full_with_state(
                     decoder.sequence.tokens.resize(decoder.sequence.result_len);
                     whisper_sequence_score(params, decoder.sequence);
 
-                    WHISPER_PRINT_DEBUG("%s: decoder %2d: score = %8.5f, result_len = %3d, avg_logprobs = %8.5f, entropy = %8.5f\n",
+                    WHISPER_LOG_DEBUG("%s: decoder %2d: score = %8.5f, result_len = %3d, avg_logprobs = %8.5f, entropy = %8.5f\n",
                             __func__, j, decoder.sequence.score, decoder.sequence.result_len, decoder.sequence.avg_logprobs, decoder.sequence.entropy);
 
                     if (decoder.sequence.result_len > 32 && decoder.sequence.entropy < params.entropy_thold) {
-                        WHISPER_PRINT_DEBUG("%s: decoder %2d: failed due to entropy %8.5f < %8.5f\n",
+                        WHISPER_LOG_DEBUG("%s: decoder %2d: failed due to entropy %8.5f < %8.5f\n",
                                 __func__, j, decoder.sequence.entropy, params.entropy_thold);
 
                         decoder.failed = true;
@@ -5635,7 +5632,7 @@ int whisper_full_with_state(
                     }
                 }
 
-                WHISPER_PRINT_DEBUG("%s: best decoder = %d\n", __func__, best_decoder_id);
+                WHISPER_LOG_DEBUG("%s: best decoder = %d\n", __func__, best_decoder_id);
             }
 
             bool success = true;
@@ -5647,7 +5644,7 @@ int whisper_full_with_state(
                 const auto & decoder = state->decoders[best_decoder_id];
 
                 if (decoder.failed || decoder.sequence.avg_logprobs < params.logprob_thold) {
-                    WHISPER_PRINT_DEBUG("%s: failed due to avg_logprobs %8.5f < %8.5f\n", __func__, decoder.sequence.avg_logprobs, params.logprob_thold);
+                    WHISPER_LOG_DEBUG("%s: failed due to avg_logprobs %8.5f < %8.5f\n", __func__, decoder.sequence.avg_logprobs, params.logprob_thold);
                     success = false;
                     state->n_fail_p++;
                 }
@@ -5655,13 +5652,13 @@ int whisper_full_with_state(
 
             if (success) {
                 //for (auto & token : ctx->decoders[best_decoder_id].sequence.tokens) {
-                //    WHISPER_PRINT_DEBUG("%s: token = %d, p = %6.3f, pt = %6.3f, ts = %s, str = %s\n", __func__, token.id, token.p, token.pt, ctx->vocab.id_to_token.at(token.tid).c_str(), ctx->vocab.id_to_token.at(token.id).c_str());
+                //    WHISPER_LOG_DEBUG("%s: token = %d, p = %6.3f, pt = %6.3f, ts = %s, str = %s\n", __func__, token.id, token.p, token.pt, ctx->vocab.id_to_token.at(token.tid).c_str(), ctx->vocab.id_to_token.at(token.id).c_str());
                 //}
 
                 break;
             }
 
-            WHISPER_PRINT_DEBUG("\n%s: failed to decode with temperature = %.2f\n", __func__, t_cur);
+            WHISPER_LOG_DEBUG("\n%s: failed to decode with temperature = %.2f\n", __func__, t_cur);
         }
 
         // output results through a user-provided callback
@@ -5673,7 +5670,7 @@ int whisper_full_with_state(
 
             const auto & tokens_cur = best_decoder.sequence.tokens;
 
-            //WHISPER_PRINT_DEBUG("prompt_init.size() = %d, prompt.size() = %d, result_len = %d, seek_delta = %d\n", prompt_init.size(), prompt.size(), result_len, seek_delta);
+            //WHISPER_LOG_DEBUG("prompt_init.size() = %d, prompt.size() = %d, result_len = %d, seek_delta = %d\n", prompt_init.size(), prompt.size(), result_len, seek_delta);
 
             // update prompt_past
             prompt_past.clear();
@@ -5793,7 +5790,7 @@ int whisper_full_with_state(
             // update audio window
             seek += seek_delta;
 
-            WHISPER_PRINT_DEBUG("seek = %d, seek_delta = %d\n", seek, seek_delta);
+            WHISPER_LOG_DEBUG("seek = %d, seek_delta = %d\n", seek, seek_delta);
         }
     }
 
