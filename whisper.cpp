@@ -487,8 +487,8 @@ static size_t whisper_allocr_size(struct whisper_allocr & allocr) {
 
 // measure the memory usage of a graph and prepare the allocr's internal data buffer
 static void whisper_allocr_graph_init(struct whisper_allocr & allocr, ggml_backend_t backend, std::function<struct ggml_cgraph *()> && get_graph) {
-    auto & alloc  = allocr.alloc;
-    auto & meta   = allocr.meta;
+    auto & alloc = allocr.alloc;
+    auto & meta  = allocr.meta;
 
     alloc = ggml_allocr_new_measure_from_backend(backend);
 
