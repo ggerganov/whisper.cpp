@@ -19,7 +19,7 @@ function get_script_path() {
     fi
 }
 
-models_path="$(get_script_path)"
+models_path="${2:-$(get_script_path)}"
 
 # Whisper models
 models=(
@@ -56,8 +56,8 @@ function list_models {
     printf "\n\n"
 }
 
-if [ "$#" -ne 1 ]; then
-    printf "Usage: $0 <model>\n"
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+    printf "Usage: $0 <model> [models_path]\n"
     list_models
 
     exit 1
@@ -105,7 +105,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-printf "Done! Model '$model' saved in 'models/ggml-$model.bin'\n"
+printf "Done! Model '$model' saved in '$models_path/ggml-$model.bin'\n"
 printf "You can now use it like this:\n\n"
-printf "  $ ./main -m models/ggml-$model.bin -f samples/jfk.wav\n"
+printf "  $ ./main -m $models_path/ggml-$model.bin -f samples/jfk.wav\n"
 printf "\n"
