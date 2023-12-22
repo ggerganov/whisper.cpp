@@ -90,6 +90,13 @@
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 #include <cuda_fp16.h>
+// CUDA 10.2 does not have these macro definitions.
+#ifndef CUBLAS_TF32_TENSOR_OP_MATH
+#define CUBLAS_TF32_TENSOR_OP_MATH CUBLAS_TENSOR_OP_MATH
+#define CUBLAS_COMPUTE_16F CUDA_R_16F
+#define CUBLAS_COMPUTE_32F CUDA_R_32F
+#define cublasComputeType_t cudaDataType_t
+#endif
 #endif // defined(GGML_USE_HIPBLAS)
 
 #include "ggml-cuda.h"
@@ -8843,7 +8850,7 @@ static void ggml_cuda_mul_mat_id(const ggml_tensor * src0, const ggml_tensor * s
         const cudaMemcpyKind src1_kind = src1->backend == GGML_BACKEND_CPU ?
             cudaMemcpyHostToDevice : cudaMemcpyDeviceToDevice;
         const cudaMemcpyKind dst_kind  =  dst->backend == GGML_BACKEND_CPU ?
-            cudaMemcpyHostToDevice : cudaMemcpyDeviceToDevice;
+            cudaMemcpyDeviceToHost : cudaMemcpyDeviceToDevice;
 
         for (int32_t row_id = 0; row_id < n_as; ++row_id) {
             const struct ggml_tensor * src0_row = dst->src[row_id + 2];
