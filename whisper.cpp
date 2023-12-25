@@ -6059,8 +6059,7 @@ struct ggml_tensor * whisper_get_encoder_embedding(struct whisper_context * ctx)
     return ctx->state->embd_enc;
 }
 
-struct ggml_tensor * whisper_get_encoder_embedding_from_state(struct whisper_state * state)
-{
+struct ggml_tensor * whisper_get_encoder_embedding_from_state(struct whisper_state * state) {
     return state->embd_enc;
 }
 
