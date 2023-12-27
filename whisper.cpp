@@ -1678,7 +1678,7 @@ static struct ggml_cgraph * whisper_build_graph_conv(
 
     struct ggml_context * ctx0 = ggml_init(params);
 
-    ggml_cgraph * gf = ggml_new_graph(ctx0);
+    ggml_cgraph * gf = ggml_new_graph_custom(ctx0, WHISPER_MAX_NODES, false);
 
     ggml_allocr * alloc = wstate.alloc_conv.alloc;
 
@@ -1782,7 +1782,9 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
     //if (!ggml_allocr_is_measure(alloc)) {
     //    ggml_backend_tensor_copy(wstate.embd_conv, cur);
     //}
-    struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_conv);
+
+    // struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_conv);
+    struct ggml_tensor * cur = wstate.embd_conv;
 
     const float KQscale = 1.0f/sqrtf(float(n_state)/n_head);
 
@@ -2031,7 +2033,8 @@ static struct ggml_cgraph * whisper_build_graph_cross(
     //if (!ggml_allocr_is_measure(alloc)) {
     //    ggml_backend_tensor_copy(wstate.embd_enc, cur);
     //}
-    struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_enc);
+    // struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_enc);
+    struct ggml_tensor * cur = wstate.embd_enc;
 
     const float  Kscale = pow(float(n_state) / n_head, -0.25);
 
@@ -2083,6 +2086,64 @@ static struct ggml_cgraph * whisper_build_graph_cross(
 //   - n_threads:  number of threads to use
 //   - mel_offset: offset in the mel spectrogram (i.e. audio offset)
 //
+
+static std::vector<float> tensor_to_float(const ggml_tensor * t) {
+    std::vector<float> tv;
+    tv.reserve(ggml_nelements(t));
+
+    std::vector<uint8_t> buf(ggml_nbytes(t));
+    ggml_backend_tensor_get(t, buf.data(), 0, ggml_nbytes(t));
+
+    ggml_type_traits_t tt = ggml_internal_get_type_traits(t->type);
+    size_t bs = ggml_blck_size(t->type);
+    std::vector<float> vq(ggml_blck_size(t->type));
+    bool quantized = ggml_is_quantized(t->type);
+
+    // access elements by index to avoid gaps in views
+    for (int64_t i3 = 0; i3 < t->ne[3]; i3++) {
+        for (int64_t i2 = 0; i2 < t->ne[2]; i2++) {
+            for (int64_t i1 = 0; i1 < t->ne[1]; i1++) {
+                for (int64_t i0 = 0; i0 < t->ne[0]; i0 += bs) {
+                    size_t i = i3*t->nb[3] + i2*t->nb[2] + i1*t->nb[1] + i0/bs*t->nb[0];
+                    if (t->type == GGML_TYPE_F16) {
+                        tv.push_back(ggml_fp16_to_fp32(*(ggml_fp16_t*)&buf[i]));
+                    } else if (t->type == GGML_TYPE_F32) {
+                        tv.push_back(*(float *) &buf[i]);
+                    } else if (t->type == GGML_TYPE_I32) {
+                        tv.push_back((float)*(int32_t *) &buf[i]);
+                    } else if (quantized) {
+                        tt.to_float(&buf[i], vq.data(), bs);
+                        tv.insert(tv.end(), vq.begin(), vq.end());
+                    } else {
+                        GGML_ASSERT(false);
+                    }
+                }
+            }
+        }
+    }
+
+    return tv;
+}
+
+static bool isinf_or_max(float f) {
+    return std::isinf(f) || f == FLT_MAX || f == -FLT_MAX;
+}
+
+static double nmse(const float * a, const float * b, size_t n) {
+    double mse_a_b = 0.0;
+    double mse_a_0 = 0.0;
+
+    for (size_t i = 0; i < n; i++) {
+        float a_i = a[i];
+        float b_i = b[i];
+
+        mse_a_b += (a_i - b_i) * (a_i - b_i);
+        mse_a_0 += a_i * a_i;
+    }
+
+    return mse_a_b / mse_a_0;
+}
+
 static bool whisper_encode_internal(
         whisper_context & wctx,
           whisper_state & wstate,
@@ -2092,6 +2153,76 @@ static bool whisper_encode_internal(
                    void * abort_callback_data) {
     const int64_t t_start_us = ggml_time_us();
 
+    struct callback_userdata {
+        bool   ok;
+        double max_err;
+    };
+
+    callback_userdata ud {
+            true,
+            1e-7,
+    };
+
+    auto callback = [](int index, ggml_tensor * t1, ggml_tensor * t2, void * user_data) -> bool {
+        callback_userdata * ud = (callback_userdata *) user_data;
+
+        if (t1->op == GGML_OP_NONE) {
+            // sentinels must be unchanged
+            std::vector<uint8_t> t1_data(ggml_nbytes(t1));
+            std::vector<uint8_t> t2_data(ggml_nbytes(t2));
+            ggml_backend_tensor_get(t1, t1_data.data(), 0, ggml_nbytes(t1));
+            ggml_backend_tensor_get(t2, t2_data.data(), 0, ggml_nbytes(t2));
+
+            if (memcmp(t1_data.data(), t2_data.data(), ggml_nbytes(t1)) != 0) {
+                printf("sentinel mismatch: %s ", t1->name);
+                ud->ok = false;
+                return true;
+            }
+        }
+
+        std::vector<float> f1 = tensor_to_float(t1);
+        std::vector<float> f2 = tensor_to_float(t2);
+
+        for (size_t i = 0; i < f1.size(); i++) {
+            // check for nans
+            if (std::isnan(f1[i]) || std::isnan(f2[i])) {
+                printf("[%s] NaN at index %zu (%f %f) ", ggml_op_desc(t1), i, f1[i], f2[i]);
+                ud->ok = false;
+                return true;
+            }
+            // check for infs: both must be inf of the same sign, or both must be finite
+            if (isinf_or_max(f1[i]) || isinf_or_max(f2[i])) {
+                if (isinf_or_max(f1[i]) && isinf_or_max(f2[i])) {
+                    if (std::signbit(f1[i]) != std::signbit(f2[i])) {
+                        printf("[%s] inf sign mismatch: %f %f ", ggml_op_desc(t1), f1[i], f2[i]);
+                        ud->ok = false;
+                        return true;
+                    }
+                } else {
+                    printf("[%s] inf mismatch: %f %f ", ggml_op_desc(t1), f1[i], f2[i]);
+                    ud->ok = false;
+                    return true;
+                }
+            }
+        }
+
+        double err = nmse(f1.data(), f2.data(), f1.size());
+        if (err > ud->max_err) {
+            printf("[%s] NMSE = %f ", ggml_op_desc(t1), err);
+            //for (int i = 0; i < f1.size(); i++) {
+            //    printf("%5d %9.6f %9.6f, diff = %9.6f\n", i, f1[i], f2[i], f1[i] - f2[i]);
+            //}
+            //printf("\n");
+            //exit(1);
+            ud->ok = false;
+        }
+        return true;
+
+        GGML_UNUSED(index);
+    };
+
+    ggml_backend_t backend_cpu = ggml_backend_cpu_init();
+
     // conv
     {
         auto & alloc = wstate.alloc_conv.alloc;
@@ -2100,11 +2231,25 @@ static bool whisper_encode_internal(
 
         ggml_cgraph * gf = whisper_build_graph_conv(wctx, wstate, mel_offset);
 
+        for (int i = 0; i < gf->n_nodes; i++) {
+            if (gf->nodes[i]->op == GGML_OP_MUL_MAT) gf->nodes[i]->type = GGML_TYPE_F32;
+        }
+
         ggml_allocr_alloc_graph(alloc, gf);
 
-        if (!whisper_encode_external(wstate)) {
-            ggml_graph_compute_helper(wstate.backend, gf, n_threads);
+        ud = {true, 1e-7};
+
+        ggml_backend_compare_graph_backend(wstate.backend, backend_cpu, gf, callback, &ud);
+
+        if (ud.ok) {
+            printf("\033[1;32mOK\033[0m\n\n");
+        } else {
+            printf("\033[1;31mFAIL\033[0m\n\n");
         }
+
+//        if (!whisper_encode_external(wstate)) {
+//            ggml_graph_compute_helper(wstate.backend, gf, n_threads);
+//        }
     }
 
     // encoder
@@ -2115,9 +2260,23 @@ static bool whisper_encode_internal(
 
         ggml_cgraph * gf = whisper_build_graph_encoder(wctx, wstate);
 
+        for (int i = 0; i < gf->n_nodes; i++) {
+            if (gf->nodes[i]->op == GGML_OP_MUL_MAT) gf->nodes[i]->type = GGML_TYPE_F32;
+        }
+
         ggml_allocr_alloc_graph(alloc, gf);
 
-        ggml_graph_compute_helper(wstate.backend, gf, n_threads);
+        ud = {true, 1e-7};
+
+        ggml_backend_compare_graph_backend(wstate.backend, backend_cpu, gf, callback, &ud);
+
+        if (ud.ok) {
+            printf("\033[1;32mOK\033[0m\n\n");
+        } else {
+            printf("\033[1;31mFAIL\033[0m\n\n");
+        }
+
+//        ggml_graph_compute_helper(wstate.backend, gf, n_threads);
     }
 
     // cross
@@ -2128,9 +2287,25 @@ static bool whisper_encode_internal(
 
         ggml_cgraph * gf = whisper_build_graph_cross(wctx, wstate);
 
+        for (int i = 0; i < gf->n_nodes; i++) {
+            if (gf->nodes[i]->op == GGML_OP_MUL_MAT) gf->nodes[i]->type = GGML_TYPE_F32;
+        }
+
         ggml_allocr_alloc_graph(alloc, gf);
 
-        ggml_graph_compute_helper(wstate.backend, gf, n_threads);
+        ud = {true, 1e-7};
+
+        ggml_backend_compare_graph_backend(wstate.backend, backend_cpu, gf, callback, &ud);
+
+        if (ud.ok) {
+            printf("\033[1;32mOK\033[0m\n\n");
+        } else {
+            printf("\033[1;31mFAIL\033[0m\n\n");
+        }
+
+        return 0;
+
+//        ggml_graph_compute_helper(wstate.backend, gf, n_threads);
     }
 
     wstate.t_encode_us += ggml_time_us() - t_start_us;
