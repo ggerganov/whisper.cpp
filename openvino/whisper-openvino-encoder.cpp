@@ -64,15 +64,15 @@ int whisper_openvino_encode(
         return 0;
     }
 
-    if (mel->n_dims != 2) {
+    if (ggml_n_dims(mel) != 2) {
         fprintf(stderr, "%s: Error! mel ggml_tensor expected to have n_dims=2, but it has n_dims=%d\n",
-            __func__, mel->n_dims);
+            __func__, ggml_n_dims(mel));
         return 0;
     }
 
-    if (out->n_dims != 2) {
+    if (ggml_n_dims(out) != 2) {
         fprintf(stderr, "%s: Error! out ggml_tensor expected to have n_dims=2, but it has n_dims=%d\n",
-            __func__, out->n_dims);
+            __func__, ggml_n_dims(out));
         return 0;
     }
 
