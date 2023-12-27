@@ -2231,9 +2231,9 @@ static bool whisper_encode_internal(
 
         ggml_cgraph * gf = whisper_build_graph_conv(wctx, wstate, mel_offset);
 
-        for (int i = 0; i < gf->n_nodes; i++) {
-            if (gf->nodes[i]->op == GGML_OP_MUL_MAT) gf->nodes[i]->type = GGML_TYPE_F32;
-        }
+//        for (int i = 0; i < gf->n_nodes; i++) {
+//            if (gf->nodes[i]->op == GGML_OP_MUL_MAT) ggml_mul_mat_set_prec(gf->nodes[i], GGML_PREC_F32);
+//        }
 
         ggml_allocr_alloc_graph(alloc, gf);
 
@@ -2260,9 +2260,9 @@ static bool whisper_encode_internal(
 
         ggml_cgraph * gf = whisper_build_graph_encoder(wctx, wstate);
 
-        for (int i = 0; i < gf->n_nodes; i++) {
-            if (gf->nodes[i]->op == GGML_OP_MUL_MAT) gf->nodes[i]->type = GGML_TYPE_F32;
-        }
+//        for (int i = 0; i < gf->n_nodes; i++) {
+//            if (gf->nodes[i]->op == GGML_OP_MUL_MAT) ggml_mul_mat_set_prec(gf->nodes[i], GGML_PREC_F32);
+//        }
 
         ggml_allocr_alloc_graph(alloc, gf);
 
@@ -2287,9 +2287,9 @@ static bool whisper_encode_internal(
 
         ggml_cgraph * gf = whisper_build_graph_cross(wctx, wstate);
 
-        for (int i = 0; i < gf->n_nodes; i++) {
-            if (gf->nodes[i]->op == GGML_OP_MUL_MAT) gf->nodes[i]->type = GGML_TYPE_F32;
-        }
+//        for (int i = 0; i < gf->n_nodes; i++) {
+//            if (gf->nodes[i]->op == GGML_OP_MUL_MAT) ggml_mul_mat_set_prec(gf->nodes[i], GGML_PREC_F32);
+//        }
 
         ggml_allocr_alloc_graph(alloc, gf);
 
