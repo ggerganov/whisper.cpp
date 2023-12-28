@@ -1783,8 +1783,8 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
     //    ggml_backend_tensor_copy(wstate.embd_conv, cur);
     //}
 
-    // struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_conv);
-    struct ggml_tensor * cur = wstate.embd_conv;
+    struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_conv);
+    // struct ggml_tensor * cur = wstate.embd_conv;
 
     const float KQscale = 1.0f/sqrtf(float(n_state)/n_head);
 
@@ -2033,8 +2033,8 @@ static struct ggml_cgraph * whisper_build_graph_cross(
     //if (!ggml_allocr_is_measure(alloc)) {
     //    ggml_backend_tensor_copy(wstate.embd_enc, cur);
     //}
-    // struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_enc);
-    struct ggml_tensor * cur = wstate.embd_enc;
+    struct ggml_tensor * cur = ggml_view_tensor(ctx0, wstate.embd_enc);
+    // struct ggml_tensor * cur = wstate.embd_enc;
 
     const float  Kscale = pow(float(n_state) / n_head, -0.25);
 

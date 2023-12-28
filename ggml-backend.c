@@ -1316,6 +1316,7 @@ static void graph_init_tensor(struct ggml_hash_set hash_set, struct ggml_tensor 
 
     struct ggml_tensor * dst = node_copies[id];
     if (dst->view_src != NULL) {
+        graph_init_tensor(hash_set, node_copies, node_init, src->view_src);
         ggml_backend_view_init(dst->view_src->buffer, dst);
     }
     else {
