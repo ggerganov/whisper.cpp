@@ -4041,7 +4041,6 @@ static struct ggml_tensor * ggml_group_norm_impl(
     result->op = GGML_OP_GROUP_NORM;
     result->grad = is_node ? ggml_dup_tensor(ctx, result) : NULL;
     result->src[0] = a;
-    result->src[1] = NULL; // TODO: maybe store epsilon here?
 
     return result;
 }
@@ -5541,7 +5540,6 @@ static struct ggml_tensor * ggml_upscale_impl(
     result->op_params[0] = scale_factor;
     result->grad = is_node ? ggml_dup_tensor(ctx, result) : NULL;
     result->src[0] = a;
-    result->src[1] = NULL;
 
     return result;
 }
@@ -5846,7 +5844,6 @@ struct ggml_tensor * ggml_get_rel_pos(
     result->op   = GGML_OP_GET_REL_POS;
     result->grad = is_node ? ggml_dup_tensor(ctx, result) : NULL;
     result->src[0] = a;
-    result->src[1] = NULL;
 
     return result;
 }
@@ -9690,7 +9687,7 @@ static void ggml_compute_forward_mul_mat(
             const size_t row_size = ggml_row_size(vec_dot_type, ne10);
 
             assert(params->wsize >= ne11*ne12*ne13*row_size);
-            assert(src1->type == GGML_TYPE_F32);
+            GGML_ASSERT(src1->type == GGML_TYPE_F32);
 
             for (int64_t i13 = 0; i13 < ne13; ++i13) {
                 for (int64_t i12 = 0; i12 < ne12; ++i12) {
@@ -17456,9 +17453,9 @@ static void ggml_opt_acc_grad(int np, struct ggml_tensor * const ps[], float * g
 }
 
 //
-// ADAM
+// Using AdamW - ref: https://arxiv.org/pdf/1711.05101v3.pdf
 //
-//   ref: https://arxiv.org/pdf/1412.6980.pdf
+// (Original Adam - ref: https://arxiv.org/pdf/1412.6980.pdf)
 //
 
 static enum ggml_opt_result ggml_opt_adam(
@@ -19351,7 +19348,7 @@ void gguf_set_kv(struct gguf_context * ctx, struct gguf_context * src) {
                             data[j] = ((struct gguf_str *)src->kv[i].value.arr.data)[j].data;
                         }
                         gguf_set_arr_str(ctx, src->kv[i].key.data, data, src->kv[i].value.arr.n);
-                        free(data);
+                        free((void *)data);
                     } else if (src->kv[i].value.arr.type == GGUF_TYPE_ARRAY) {
                         GGML_ASSERT(false && "nested arrays not supported");
                     } else {
