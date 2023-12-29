@@ -27,21 +27,36 @@ echo "Syncing ggml changes since commit $lc"
 cd $SRC_GGML
 
 git log --oneline $lc..HEAD
+git log --oneline $lc..HEAD | grep -v "(whisper/[0-9]*)" | cut -d' ' -f1 > $SRC_WHISPER/ggml-commits
 
-git format-patch $lc --stdout -- \
-    include/ggml/ggml*.h \
-    src/ggml*.h \
-    src/ggml*.c \
-    src/ggml*.cpp \
-    src/ggml*.m \
-    src/ggml*.metal \
-    src/ggml*.cu \
-    tests/test-opt.cpp \
-    tests/test-grad0.cpp \
-    tests/test-quantize-fns.cpp \
-    tests/test-quantize-perf.cpp \
-    tests/test-backend-ops.cpp \
-    > $SRC_WHISPER/ggml-src.patch
+if [ ! -s $SRC_WHISPER/ggml-commits ]; then
+    rm -v $SRC_WHISPER/ggml-commits
+    echo "No new commits"
+    exit 0
+fi
+
+if [ -f $SRC_WHISPER/ggml-src.patch ]; then
+    rm -v $SRC_WHISPER/ggml-src.patch
+fi
+
+while read c; do
+    git format-patch -k $c~1..$c --stdout -- \
+        include/ggml/ggml*.h \
+        src/ggml*.h \
+        src/ggml*.c \
+        src/ggml*.cpp \
+        src/ggml*.m \
+        src/ggml*.metal \
+        src/ggml*.cu \
+        tests/test-opt.cpp \
+        tests/test-grad0.cpp \
+        tests/test-quantize-fns.cpp \
+        tests/test-quantize-perf.cpp \
+        tests/test-backend-ops.cpp \
+        >> $SRC_WHISPER/ggml-src.patch
+done < $SRC_WHISPER/ggml-commits
+
+rm -v $SRC_WHISPER/ggml-commits
 
 # delete files if empty
 if [ ! -s $SRC_WHISPER/ggml-src.patch ]; then
