@@ -20,6 +20,10 @@ RUN apt-get update && \
     apt-get install -y build-essential \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
+# Ref: https://stackoverflow.com/a/53464012
+ENV CUDA_MAIN_VERSION=12.3
+ENV LD_LIBRARY_PATH /usr/local/cuda-${CUDA_MAIN_VERSION}/compat:$LD_LIBRARY_PATH
+
 COPY .. .
 RUN make
 
