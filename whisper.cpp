@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <cstring>
+#include <cfloat>
 #include <fstream>
 #include <map>
 #include <set>
