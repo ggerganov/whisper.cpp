@@ -156,8 +156,8 @@ void ggml_backend_graph_plan_compute(ggml_backend_t backend, ggml_backend_graph_
     backend->iface.graph_plan_compute(backend, plan);
 }
 
-void ggml_backend_graph_compute(ggml_backend_t backend, struct ggml_cgraph * cgraph) {
-    backend->iface.graph_compute(backend, cgraph);
+bool ggml_backend_graph_compute(ggml_backend_t backend, struct ggml_cgraph * cgraph) {
+    return backend->iface.graph_compute(backend, cgraph);
 }
 
 bool ggml_backend_supports_op(ggml_backend_t backend, const struct ggml_tensor * op) {

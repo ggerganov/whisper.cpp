@@ -152,7 +152,7 @@ static void whisper_log_callback_default(ggml_log_level level, const char * text
 // ggml helpers
 //
 
-static void ggml_graph_compute_helper(
+static bool ggml_graph_compute_helper(
           struct ggml_cgraph * graph,
         std::vector<uint8_t> & buf,
                          int   n_threads,
@@ -168,10 +168,10 @@ static void ggml_graph_compute_helper(
         plan.work_data = buf.data();
     }
 
-    ggml_graph_compute(graph, &plan);
+    return ggml_graph_compute(graph, &plan);
 }
 
-static void ggml_graph_compute_helper(
+static bool ggml_graph_compute_helper(
        struct ggml_backend * backend,
         struct ggml_cgraph * graph,
                        int   n_threads) {
@@ -183,7 +183,7 @@ static void ggml_graph_compute_helper(
         ggml_backend_metal_set_n_cb(backend, n_threads);
     }
 #endif
-    ggml_backend_graph_compute(backend, graph);
+    return ggml_backend_graph_compute(backend, graph);
 }
 
 // faster matrix multiplications for tensors that do not have dimension 0 divisible by "pad"
@@ -2247,9 +2247,11 @@ static bool whisper_encode_internal(
             printf("\033[1;31mFAIL\033[0m\n\n");
         }
 
-//        if (!whisper_encode_external(wstate)) {
-//            ggml_graph_compute_helper(wstate.backend, gf, n_threads);
-//        }
+//         if (!whisper_encode_external(wstate)) {
+//             if (!ggml_graph_compute_helper(wstate.backend, gf, n_threads)) {
+//                 return false;
+//             }
+//         }
     }
 
     // encoder
@@ -2276,7 +2278,9 @@ static bool whisper_encode_internal(
             printf("\033[1;31mFAIL\033[0m\n\n");
         }
 
-//        ggml_graph_compute_helper(wstate.backend, gf, n_threads);
+//         if (!ggml_graph_compute_helper(wstate.backend, gf, n_threads)) {
+//             return false;
+//         }
     }
 
     // cross
@@ -2305,7 +2309,9 @@ static bool whisper_encode_internal(
 
         return 0;
 
-//        ggml_graph_compute_helper(wstate.backend, gf, n_threads);
+//         if (!ggml_graph_compute_helper(wstate.backend, gf, n_threads)) {
+//             return false;
+//         }
     }
 
     wstate.t_encode_us += ggml_time_us() - t_start_us;
@@ -2727,7 +2733,9 @@ static bool whisper_decode_internal(
 
         logits = gf->nodes[gf->n_nodes - 1];
 
-        ggml_graph_compute_helper(wstate.backend, gf, n_threads);
+        if (!ggml_graph_compute_helper(wstate.backend, gf, n_threads)) {
+            return false;
+        }
     }
 
     logits_out.resize(n_tokens*n_vocab);
@@ -3988,6 +3996,7 @@ void whisper_reset_timings(struct whisper_context * ctx) {
         ctx->state->t_sample_us = 0;
         ctx->state->t_encode_us = 0;
         ctx->state->t_decode_us = 0;
+        ctx->state->t_batchd_us = 0;
         ctx->state->t_prompt_us = 0;
         ctx->state->n_sample = 0;
         ctx->state->n_encode = 0;

@@ -255,6 +255,8 @@
 #define GGML_UNREACHABLE() GGML_ASSERT(!"statement should not be reached")
 #elif defined(__GNUC__)
 #define GGML_UNREACHABLE() __builtin_unreachable()
+#elif defined(_MSC_VER)
+#define GGML_UNREACHABLE() __assume(0)
 #else
 #define GGML_UNREACHABLE() ((void) 0)
 #endif
@@ -2196,6 +2198,7 @@ extern "C" {
     //
 
     GGML_API int ggml_cpu_has_avx        (void);
+    GGML_API int ggml_cpu_has_avx_vnni   (void);
     GGML_API int ggml_cpu_has_avx2       (void);
     GGML_API int ggml_cpu_has_avx512     (void);
     GGML_API int ggml_cpu_has_avx512_vbmi(void);

@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.5)
 
-project(whisper.cpp VERSION 1.5.2)
+project(whisper.cpp VERSION 1.5.3)
 
 # Add path to modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
@@ -218,11 +218,17 @@ if (WHISPER_CUBLAS)
         add_compile_definitions(GGML_USE_CUBLAS)
 
         if (WHISPER_STATIC)
-            set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static)
+            if (WIN32)
+                # As of 12.3.1 CUDA Tookit for Windows does not offer a static cublas library
+                set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas CUDA::cublasLt)
+            else ()
+                set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static)
+            endif()
         else()
             set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart CUDA::cublas CUDA::cublasLt)
         endif()
 
+        set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cuda_driver)
     else()
         message(FATAL_ERROR "cuBLAS not found")
     endif()
@@ -338,8 +344,8 @@ else()
         endif()
     else()
         if (EMSCRIPTEN)
-            set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -pthread")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+            set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -pthread -s TOTAL_STACK=5242880")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -s TOTAL_STACK=5242880")
         else()
             if(NOT WHISPER_NO_AVX)
                 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx")

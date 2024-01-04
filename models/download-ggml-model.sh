@@ -43,7 +43,7 @@ models=(
     "large-v1"
     "large-v2"
     "large-v3"
-    "large-q5_0"
+    "large-v3-q5_0"
 )
 
 # list available models
