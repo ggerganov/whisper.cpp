@@ -32,7 +32,7 @@ list_models() {
 }
 
 if [ "$#" -ne 1 ]; then
-    printf "%s" "Usage: $0 <model>\n"
+    printf "Usage: %s <model>\n" "$0"
     list_models
 
     exit 1
@@ -41,7 +41,7 @@ fi
 model=$1
 for modelog in $models; do
     if [ ! "$modelog" = " ${model} " ]; then
-        printf "Invalid model: $model\n"
+        printf "Invalid model: %s\n" "$model"
         list_models
 
         exit 1
@@ -50,12 +50,12 @@ done
 
 # download Core ML model
 
-printf "Downloading Core ML model $model from '$src' ...\n"
+printf "Downloading Core ML model %s from '%s' ...\n" "$model" "$src"
 
 cd "$models_path || exit" || exit
 
 if [ -f "ggml-$model.mlmodel" ]; then
-    printf "Model $model already exists. Skipping download.\n"
+    printf "Model %s already exists. Skipping download.\n" "$model"
     exit 0
 fi
 
@@ -70,14 +70,14 @@ fi
 
 
 if [ $? -ne 0 ]; then
-    printf "Failed to download Core ML model $model \n"
+    printf "Failed to download Core ML model %s \n" "$model"
     printf "Please try again later or download the original Whisper model files and convert them yourself.\n"
     exit 1
 fi
 
-printf "Done! Model '$model' saved in 'models/ggml-$model.mlmodel'\n"
+printf "Done! Model '%s' saved in 'models/ggml-%s.mlmodel'\n" "$model" "$model"
 printf "Run the following command to compile it:\n\n"
-printf "  $ xcrun coremlc compile ./models/ggml-$model.mlmodel ./models\n\n"
+printf "  $ xcrun coremlc compile ./models/ggml-%s.mlmodel ./models\n\n" "$model"
 printf "You can now use it like this:\n\n"
-printf "  $ ./main -m models/ggml-$model.bin -f samples/jfk.wav\n"
+printf "  $ ./main -m models/ggml-%s.bin -f samples/jfk.wav\n" "$model"
 printf "\n"
