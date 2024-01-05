@@ -143,20 +143,7 @@ class AudioEncoderANE(AudioEncoder):
             x = block(x)
 
         x = self.ln_post(x)
-
-        # """
-        # TODO:
-        # I think we need to transpose the result here to make it fit whisper.cpp memory order.
-        # However, even doing this, the results are still wrong. Kind of less wrong compared to
-        # not transposing, but still wrong.
-
-        # Also, I don't know why the original OpenAI implementation does not need to transpose
-
-        # transpose to (batch_size, n_ctx, n_state)
-        # x : torch.Tensor, shape = (batch_size, n_state, 1, n_ctx)
-
-        # """
-        # x = x.transpose(1,3)
+        x = x.squeeze(2).transpose(1, 2)
 
         return x
 
