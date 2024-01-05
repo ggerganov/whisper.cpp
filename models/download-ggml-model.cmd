@@ -8,7 +8,7 @@ popd
 set argc=0
 for %%x in (%*) do set /A argc+=1
 
-set models=tiny.en tiny base.en base small.en small medium.en medium large-v1 large
+set models=tiny.en tiny base.en base small.en small medium.en medium large-v1 large-v2 large
 
 if %argc% neq 1 (
   echo.
@@ -57,8 +57,8 @@ goto :eof
 :list_models
   echo.
   echo Available models:
-  (for %%a in (%models%) do ( 
-    echo %%a 
+  (for %%a in (%models%) do (
+    echo %%a
   ))
   echo.
   exit /b

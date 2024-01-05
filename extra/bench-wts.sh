@@ -13,8 +13,8 @@ fi
 
 #TODO: Make this a command line parameter
 #models="base small large"
-#models="tiny.en tiny base.en base small.en small medium.en medium large-v1 large"
-models="tiny.en base.en small.en medium.en large"
+#models="tiny.en tiny base.en base small.en small medium.en medium large-v1 large-v2 large"
+models="tiny.en base.en small.en medium.en large-v1 large-v2 large"
 
 DURATION=$(ffprobe -i $1 -show_entries format=duration -v quiet -of csv="p=0")
 DURATION=$(printf "%.2f" $DURATION)

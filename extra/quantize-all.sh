@@ -26,6 +26,10 @@ cd ../
 ./quantize ./models/ggml-medium.en.bin ./models/ggml-medium.en-${qtype0}.bin ${qtype0}
 ./quantize ./models/ggml-medium.bin    ./models/ggml-medium-${qtype0}.bin    ${qtype0}
 
+./quantize ./models/ggml-large-v1.bin  ./models/ggml-large-v1-${qtype0}.bin ${qtype0}
+
+./quantize ./models/ggml-large-v2.bin  ./models/ggml-large-v2-${qtype0}.bin ${qtype0}
+
 ./quantize ./models/ggml-large.bin     ./models/ggml-large-${qtype0}.bin ${qtype0}
 
 if [ "$upload" == "1" ]; then
@@ -40,6 +44,10 @@ if [ "$upload" == "1" ]; then
 
     scp ./models/ggml-medium.en-${qtype0}.bin root@linode0:/mnt/Data/ggml/ggml-model-whisper-medium.en-${qtype0}.bin
     scp ./models/ggml-medium-${qtype0}.bin    root@linode0:/mnt/Data/ggml/ggml-model-whisper-medium-${qtype0}.bin
+
+    scp ./models/ggml-large-v1-${qtype0}.bin  root@linode0:/mnt/Data/ggml/ggml-model-whisper-large-v1-${qtype0}.bin
+
+    scp ./models/ggml-large-v2-${qtype0}.bin  root@linode0:/mnt/Data/ggml/ggml-model-whisper-large-v2-${qtype0}.bin
 
     scp ./models/ggml-large-${qtype0}.bin     root@linode0:/mnt/Data/ggml/ggml-model-whisper-large-${qtype0}.bin
 fi
