@@ -282,7 +282,6 @@ int main(int argc, char ** argv) {
     // tune these to your liking
     lcparams.n_ctx      = 2048;
     lcparams.seed       = 1;
-    lcparams.f16_kv     = true;
     lcparams.n_threads  = params.n_threads;
 
     struct llama_context * ctx_llama = llama_new_context_with_model(model_llama, lcparams);
