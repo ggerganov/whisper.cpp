@@ -49,7 +49,7 @@ list_models() {
     printf "\n"
     printf "  Available models:"
     for model in $models; do
-        printf " %s" "$models"
+        printf " %s" "$model"
     done
     printf "\n\n"
 }
