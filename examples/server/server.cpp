@@ -44,7 +44,7 @@ struct server_params
     int32_t port          = 8080;
     int32_t read_timeout  = 600;
     int32_t write_timeout = 600;
-    
+
     bool ffmpeg_converter = false;
 };
 
@@ -60,10 +60,11 @@ struct whisper_params {
     int32_t best_of      =  2;
     int32_t beam_size    = -1;
 
-    float word_thold    =  0.01f;
-    float entropy_thold =  2.40f;
-    float logprob_thold = -1.00f;
-    float userdef_temp  =  0.20f;
+    float word_thold      =  0.01f;
+    float entropy_thold   =  2.40f;
+    float logprob_thold   = -1.00f;
+    float temperature     =  0.00f;
+    float temperature_inc =  0.20f;
 
     bool speed_up        = false;
     bool debug_mode      = false;
@@ -422,7 +423,11 @@ void get_req_parameters(const Request & req, whisper_params & params)
     }
     if (req.has_file("temperature"))
     {
-        params.userdef_temp = std::stof(req.get_file_value("temperature").content);
+        params.temperature = std::stof(req.get_file_value("temperature").content);
+    }
+    if (req.has_file("temperature-inc"))
+    {
+        params.temperature_inc = std::stof(req.get_file_value("temperature-inc").content);
     }
 }
 
@@ -513,7 +518,7 @@ int main(int argc, char ** argv) {
         temp_file.close();
 
         // if file is not wav, convert to wav
-        
+
         if (sparams.ffmpeg_converter) {
             std::string error_resp = "{\"error\":\"Failed to execute ffmpeg command.\"}";
             const bool is_converted = convert_to_wav(temp_filename, error_resp);
@@ -602,7 +607,8 @@ int main(int argc, char ** argv) {
             wparams.greedy.best_of        = params.best_of;
             wparams.beam_search.beam_size = params.beam_size;
 
-            wparams.temperature_inc  = params.userdef_temp;
+            wparams.temperature      = params.temperature;
+            wparams.temperature_inc  = params.temperature_inc;
             wparams.entropy_thold    = params.entropy_thold;
             wparams.logprob_thold    = params.logprob_thold;
 
