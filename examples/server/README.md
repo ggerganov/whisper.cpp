@@ -58,7 +58,7 @@ curl 127.0.0.1:8080/inference \
 -F file="@<file-path>" \
 -F temperature="0.0" \
 -F temperature_inc="0.2" \
--F response-format="json"
+-F response_format="json"
 ```
 
 **/load**

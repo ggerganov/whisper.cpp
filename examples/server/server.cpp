@@ -49,16 +49,16 @@ struct server_params
 };
 
 struct whisper_params {
-    int32_t n_threads    = std::min(4, (int32_t) std::thread::hardware_concurrency());
-    int32_t n_processors =  1;
-    int32_t offset_t_ms  =  0;
-    int32_t offset_n     =  0;
-    int32_t duration_ms  =  0;
-    int32_t progress_step =  5;
-    int32_t max_context  = -1;
-    int32_t max_len      =  0;
-    int32_t best_of      =  2;
-    int32_t beam_size    = -1;
+    int32_t n_threads     = std::min(4, (int32_t) std::thread::hardware_concurrency());
+    int32_t n_processors  = 1;
+    int32_t offset_t_ms   = 0;
+    int32_t offset_n      = 0;
+    int32_t duration_ms   = 0;
+    int32_t progress_step = 5;
+    int32_t max_context   = -1;
+    int32_t max_len       = 0;
+    int32_t best_of       = 2;
+    int32_t beam_size     = -1;
 
     float word_thold      =  0.01f;
     float entropy_thold   =  2.40f;
@@ -396,38 +396,37 @@ std::string output_str(struct whisper_context * ctx, const whisper_params & para
 
 void get_req_parameters(const Request & req, whisper_params & params)
 {
-    // user model configu.has_fileion
-    if (req.has_file("offset-t"))
+    if (req.has_file("offset_t"))
     {
-        params.offset_t_ms = std::stoi(req.get_file_value("offset-t").content);
+        params.offset_t_ms = std::stoi(req.get_file_value("offset_t").content);
     }
-    if (req.has_file("offset-n"))
+    if (req.has_file("offset_n"))
     {
-        params.offset_n = std::stoi(req.get_file_value("offset-n").content);
+        params.offset_n = std::stoi(req.get_file_value("offset_n").content);
     }
     if (req.has_file("duration"))
     {
         params.duration_ms = std::stoi(req.get_file_value("duration").content);
     }
-    if (req.has_file("max-context"))
+    if (req.has_file("max_context"))
     {
-        params.max_context = std::stoi(req.get_file_value("max-context").content);
+        params.max_context = std::stoi(req.get_file_value("max_context").content);
     }
     if (req.has_file("prompt"))
     {
         params.prompt = req.get_file_value("prompt").content;
     }
-    if (req.has_file("response-format"))
+    if (req.has_file("response_format"))
     {
-        params.response_format = req.get_file_value("response-format").content;
+        params.response_format = req.get_file_value("response_format").content;
     }
     if (req.has_file("temperature"))
     {
         params.temperature = std::stof(req.get_file_value("temperature").content);
     }
-    if (req.has_file("temperature-inc"))
+    if (req.has_file("temperature_inc"))
     {
-        params.temperature_inc = std::stof(req.get_file_value("temperature-inc").content);
+        params.temperature_inc = std::stof(req.get_file_value("temperature_inc").content);
     }
 }
 
