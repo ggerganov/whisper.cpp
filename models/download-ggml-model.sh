@@ -63,14 +63,12 @@ fi
 
 model=$1
 
-for _models in $models; do
-    if [ "$_models" != "$model" ]; then
-        printf "Invalid model: %s\n" "%model"
-        list_models
+if ! echo "$models" | grep "$model"; then
+    printf "Invalid model: %s\n" "%model"
+    list_models
 
-        exit 1
-        fi
-done
+    exit 1
+fi
 
 # check if model contains `tdrz` and update the src and pfx accordingly
 if echo "$model" | grep -q "tdrz"; then
