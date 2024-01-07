@@ -44,26 +44,27 @@ struct server_params
     int32_t port          = 8080;
     int32_t read_timeout  = 600;
     int32_t write_timeout = 600;
-    
+
     bool ffmpeg_converter = false;
 };
 
 struct whisper_params {
-    int32_t n_threads    = std::min(4, (int32_t) std::thread::hardware_concurrency());
-    int32_t n_processors =  1;
-    int32_t offset_t_ms  =  0;
-    int32_t offset_n     =  0;
-    int32_t duration_ms  =  0;
-    int32_t progress_step =  5;
-    int32_t max_context  = -1;
-    int32_t max_len      =  0;
-    int32_t best_of      =  2;
-    int32_t beam_size    = -1;
+    int32_t n_threads     = std::min(4, (int32_t) std::thread::hardware_concurrency());
+    int32_t n_processors  = 1;
+    int32_t offset_t_ms   = 0;
+    int32_t offset_n      = 0;
+    int32_t duration_ms   = 0;
+    int32_t progress_step = 5;
+    int32_t max_context   = -1;
+    int32_t max_len       = 0;
+    int32_t best_of       = 2;
+    int32_t beam_size     = -1;
 
-    float word_thold    =  0.01f;
-    float entropy_thold =  2.40f;
-    float logprob_thold = -1.00f;
-    float userdef_temp  =  0.20f;
+    float word_thold      =  0.01f;
+    float entropy_thold   =  2.40f;
+    float logprob_thold   = -1.00f;
+    float temperature     =  0.00f;
+    float temperature_inc =  0.20f;
 
     bool speed_up        = false;
     bool debug_mode      = false;
@@ -395,34 +396,37 @@ std::string output_str(struct whisper_context * ctx, const whisper_params & para
 
 void get_req_parameters(const Request & req, whisper_params & params)
 {
-    // user model configu.has_fileion
-    if (req.has_file("offset-t"))
+    if (req.has_file("offset_t"))
     {
-        params.offset_t_ms = std::stoi(req.get_file_value("offset-t").content);
+        params.offset_t_ms = std::stoi(req.get_file_value("offset_t").content);
     }
-    if (req.has_file("offset-n"))
+    if (req.has_file("offset_n"))
     {
-        params.offset_n = std::stoi(req.get_file_value("offset-n").content);
+        params.offset_n = std::stoi(req.get_file_value("offset_n").content);
     }
     if (req.has_file("duration"))
     {
         params.duration_ms = std::stoi(req.get_file_value("duration").content);
     }
-    if (req.has_file("max-context"))
+    if (req.has_file("max_context"))
     {
-        params.max_context = std::stoi(req.get_file_value("max-context").content);
+        params.max_context = std::stoi(req.get_file_value("max_context").content);
     }
     if (req.has_file("prompt"))
     {
         params.prompt = req.get_file_value("prompt").content;
     }
-    if (req.has_file("response-format"))
+    if (req.has_file("response_format"))
     {
-        params.response_format = req.get_file_value("response-format").content;
+        params.response_format = req.get_file_value("response_format").content;
     }
     if (req.has_file("temperature"))
     {
-        params.userdef_temp = std::stof(req.get_file_value("temperature").content);
+        params.temperature = std::stof(req.get_file_value("temperature").content);
+    }
+    if (req.has_file("temperature_inc"))
+    {
+        params.temperature_inc = std::stof(req.get_file_value("temperature_inc").content);
     }
 }
 
@@ -513,7 +517,7 @@ int main(int argc, char ** argv) {
         temp_file.close();
 
         // if file is not wav, convert to wav
-        
+
         if (sparams.ffmpeg_converter) {
             std::string error_resp = "{\"error\":\"Failed to execute ffmpeg command.\"}";
             const bool is_converted = convert_to_wav(temp_filename, error_resp);
@@ -602,7 +606,8 @@ int main(int argc, char ** argv) {
             wparams.greedy.best_of        = params.best_of;
             wparams.beam_search.beam_size = params.beam_size;
 
-            wparams.temperature_inc  = params.userdef_temp;
+            wparams.temperature      = params.temperature;
+            wparams.temperature_inc  = params.temperature_inc;
             wparams.entropy_thold    = params.entropy_thold;
             wparams.logprob_thold    = params.logprob_thold;
 

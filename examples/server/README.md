@@ -46,7 +46,7 @@ options:
   --convert,                     [false  ] Convert audio to WAV, requires ffmpeg on the server
 ```
 
-> [!WARNING]  
+> [!WARNING]
 > **Do not run the server example with administrative privileges and ensure it's operated in a sandbox environment, especially since it involves risky operations like accepting user file uploads and using ffmpeg for format conversions. Always validate and sanitize inputs to guard against potential security threats.**
 
 ## request examples
@@ -56,8 +56,9 @@ options:
 curl 127.0.0.1:8080/inference \
 -H "Content-Type: multipart/form-data" \
 -F file="@<file-path>" \
--F temperature="0.2" \
--F response-format="json"
+-F temperature="0.0" \
+-F temperature_inc="0.2" \
+-F response_format="json"
 ```
 
 **/load**
