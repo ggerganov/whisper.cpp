@@ -63,8 +63,8 @@ fi
 
 model=$1
 
-if ! echo "$models" | grep "$model"; then
-    printf "Invalid model: %s\n" "%model"
+if ! echo "$models" | grep -w "$model"; then
+    printf "Invalid model: %s\n" "$model"
     list_models
 
     exit 1
