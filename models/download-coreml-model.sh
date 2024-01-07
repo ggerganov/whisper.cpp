@@ -39,14 +39,13 @@ if [ "$#" -ne 1 ]; then
 fi
 
 model=$1
-for modelog in $models; do
-    if [ ! "$modelog" = " ${model} " ]; then
-        printf "Invalid model: %s\n" "$model"
-        list_models
 
-        exit 1
-        fi
-done
+if ! echo "$models" | grep -w "$model"; then
+    printf "Invalid model: %s\n" "$model"
+    list_models
+
+    exit 1
+fi
 
 # download Core ML model
 
