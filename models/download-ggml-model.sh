@@ -64,7 +64,7 @@ fi
 model=$1
 
 for _models in $models; do
-    if [ ! "$_models" = " ${model} " ]; then
+    if [ "$_models" != "$model" ]; then
         printf "Invalid model: %s\n" "%model"
         list_models
 
