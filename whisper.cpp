@@ -1100,7 +1100,7 @@ static ggml_backend_t whisper_backend_init(const whisper_context_params & params
 // see the convert-pt-to-ggml.py script for details
 //
 static bool whisper_model_load(struct whisper_model_loader * loader, whisper_context & wctx) {
-    WHISPER_LOG_INFO("%s: loading model\n", __func__);
+    //WHISPER_LOG_INFO("%s: loading model\n", __func__);
 
     const int64_t t_start_us = ggml_time_us();
 
@@ -1175,19 +1175,19 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             return false;
         }
 
-        WHISPER_LOG_INFO("%s: n_vocab       = %d\n", __func__, hparams.n_vocab);
-        WHISPER_LOG_INFO("%s: n_audio_ctx   = %d\n", __func__, hparams.n_audio_ctx);
-        WHISPER_LOG_INFO("%s: n_audio_state = %d\n", __func__, hparams.n_audio_state);
-        WHISPER_LOG_INFO("%s: n_audio_head  = %d\n", __func__, hparams.n_audio_head);
-        WHISPER_LOG_INFO("%s: n_audio_layer = %d\n", __func__, hparams.n_audio_layer);
-        WHISPER_LOG_INFO("%s: n_text_ctx    = %d\n", __func__, hparams.n_text_ctx);
-        WHISPER_LOG_INFO("%s: n_text_state  = %d\n", __func__, hparams.n_text_state);
-        WHISPER_LOG_INFO("%s: n_text_head   = %d\n", __func__, hparams.n_text_head);
-        WHISPER_LOG_INFO("%s: n_text_layer  = %d\n", __func__, hparams.n_text_layer);
-        WHISPER_LOG_INFO("%s: n_mels        = %d\n", __func__, hparams.n_mels);
-        WHISPER_LOG_INFO("%s: ftype         = %d\n", __func__, model.hparams.ftype);
-        WHISPER_LOG_INFO("%s: qntvr         = %d\n", __func__, qntvr);
-        WHISPER_LOG_INFO("%s: type          = %d (%s%s)\n", __func__, model.type, g_model_name.at(model.type).c_str(), mver.c_str());
+        // WHISPER_LOG_INFO("%s: n_vocab       = %d\n", __func__, hparams.n_vocab);
+        // WHISPER_LOG_INFO("%s: n_audio_ctx   = %d\n", __func__, hparams.n_audio_ctx);
+        // WHISPER_LOG_INFO("%s: n_audio_state = %d\n", __func__, hparams.n_audio_state);
+        // WHISPER_LOG_INFO("%s: n_audio_head  = %d\n", __func__, hparams.n_audio_head);
+        // WHISPER_LOG_INFO("%s: n_audio_layer = %d\n", __func__, hparams.n_audio_layer);
+        // WHISPER_LOG_INFO("%s: n_text_ctx    = %d\n", __func__, hparams.n_text_ctx);
+        // WHISPER_LOG_INFO("%s: n_text_state  = %d\n", __func__, hparams.n_text_state);
+        // WHISPER_LOG_INFO("%s: n_text_head   = %d\n", __func__, hparams.n_text_head);
+        // WHISPER_LOG_INFO("%s: n_text_layer  = %d\n", __func__, hparams.n_text_layer);
+        // WHISPER_LOG_INFO("%s: n_mels        = %d\n", __func__, hparams.n_mels);
+        // WHISPER_LOG_INFO("%s: ftype         = %d\n", __func__, model.hparams.ftype);
+        // WHISPER_LOG_INFO("%s: qntvr         = %d\n", __func__, qntvr);
+        // WHISPER_LOG_INFO("%s: type          = %d (%s%s)\n", __func__, model.type, g_model_name.at(model.type).c_str(), mver.c_str());
     }
 
     // load mel filters
@@ -1288,7 +1288,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             }
         }
 
-        WHISPER_LOG_INFO("%s: n_langs       = %d\n", __func__, vocab.num_languages());
+        //WHISPER_LOG_INFO("%s: n_langs       = %d\n", __func__, vocab.num_languages());
     }
 
     const ggml_type wtype = wctx.wtype;
@@ -1622,7 +1622,7 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             model.n_loaded++;
         }
 
-        WHISPER_LOG_INFO("%s: model size    = %7.2f MB\n", __func__, total_size/1e6);
+        // WHISPER_LOG_INFO("%s: model size    = %7.2f MB\n", __func__, total_size/1e6);
 
         if (model.n_loaded == 0) {
             WHISPER_LOG_WARN("%s: WARN no tensors loaded from model file - assuming empty model for testing\n", __func__);
@@ -3176,7 +3176,7 @@ struct whisper_context_params whisper_context_default_params() {
 }
 
 struct whisper_context * whisper_init_from_file_with_params_no_state(const char * path_model, struct whisper_context_params params) {
-    WHISPER_LOG_INFO("%s: loading model from '%s'\n", __func__, path_model);
+    // WHISPER_LOG_INFO("%s: loading model from '%s'\n", __func__, path_model);
 
     auto fin = std::ifstream(path_model, std::ios::binary);
     if (!fin) {
@@ -3793,8 +3793,8 @@ whisper_token whisper_token_transcribe(struct whisper_context * ctx) {
 void whisper_print_timings(struct whisper_context * ctx) {
     const int64_t t_end_us = ggml_time_us();
 
-    WHISPER_LOG_INFO("\n");
-    WHISPER_LOG_INFO("%s:     load time = %8.2f ms\n", __func__, ctx->t_load_us / 1000.0f);
+    // WHISPER_LOG_INFO("\n");
+    // WHISPER_LOG_INFO("%s:     load time = %8.2f ms\n", __func__, ctx->t_load_us / 1000.0f);
     if (ctx->state != nullptr) {
 
         const int32_t n_sample = std::max(1, ctx->state->n_sample);
@@ -3803,15 +3803,15 @@ void whisper_print_timings(struct whisper_context * ctx) {
         const int32_t n_batchd = std::max(1, ctx->state->n_batchd);
         const int32_t n_prompt = std::max(1, ctx->state->n_prompt);
 
-        WHISPER_LOG_INFO("%s:     fallbacks = %3d p / %3d h\n", __func__, ctx->state->n_fail_p, ctx->state->n_fail_h);
-        WHISPER_LOG_INFO("%s:      mel time = %8.2f ms\n", __func__, ctx->state->t_mel_us / 1000.0f);
-        WHISPER_LOG_INFO("%s:   sample time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_sample_us, n_sample, 1e-3f * ctx->state->t_sample_us / n_sample);
-        WHISPER_LOG_INFO("%s:   encode time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_encode_us, n_encode, 1e-3f * ctx->state->t_encode_us / n_encode);
-        WHISPER_LOG_INFO("%s:   decode time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_decode_us, n_decode, 1e-3f * ctx->state->t_decode_us / n_decode);
-        WHISPER_LOG_INFO("%s:   batchd time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_batchd_us, n_batchd, 1e-3f * ctx->state->t_batchd_us / n_batchd);
-        WHISPER_LOG_INFO("%s:   prompt time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_prompt_us, n_prompt, 1e-3f * ctx->state->t_prompt_us / n_prompt);
+        // WHISPER_LOG_INFO("%s:     fallbacks = %3d p / %3d h\n", __func__, ctx->state->n_fail_p, ctx->state->n_fail_h);
+        // WHISPER_LOG_INFO("%s:      mel time = %8.2f ms\n", __func__, ctx->state->t_mel_us / 1000.0f);
+        // WHISPER_LOG_INFO("%s:   sample time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_sample_us, n_sample, 1e-3f * ctx->state->t_sample_us / n_sample);
+        // WHISPER_LOG_INFO("%s:   encode time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_encode_us, n_encode, 1e-3f * ctx->state->t_encode_us / n_encode);
+        // WHISPER_LOG_INFO("%s:   decode time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_decode_us, n_decode, 1e-3f * ctx->state->t_decode_us / n_decode);
+        // WHISPER_LOG_INFO("%s:   batchd time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_batchd_us, n_batchd, 1e-3f * ctx->state->t_batchd_us / n_batchd);
+        // WHISPER_LOG_INFO("%s:   prompt time = %8.2f ms / %5d runs (%8.2f ms per run)\n", __func__, 1e-3f * ctx->state->t_prompt_us, n_prompt, 1e-3f * ctx->state->t_prompt_us / n_prompt);
     }
-    WHISPER_LOG_INFO("%s:    total time = %8.2f ms\n", __func__, (t_end_us - ctx->t_start_us)/1000.0f);
+    // WHISPER_LOG_INFO("%s:    total time = %8.2f ms\n", __func__, (t_end_us - ctx->t_start_us)/1000.0f);
 }
 
 void whisper_reset_timings(struct whisper_context * ctx) {
@@ -6605,25 +6605,25 @@ void whisper_log_set(ggml_log_callback log_callback, void * user_data) {
 
 GGML_ATTRIBUTE_FORMAT(2, 3)
 static void whisper_log_internal(ggml_log_level level, const char * format, ...) {
-    va_list args;
-    va_start(args, format);
-    char buffer[1024];
-    int len = vsnprintf(buffer, 1024, format, args);
-    if (len < 1024) {
-        g_state.log_callback(level, buffer, g_state.log_callback_user_data);
-    } else {
-        char* buffer2 = new char[len+1];
-        vsnprintf(buffer2, len+1, format, args);
-        buffer2[len] = 0;
-        g_state.log_callback(level, buffer2, g_state.log_callback_user_data);
-        delete[] buffer2;
-    }
-    va_end(args);
+    // va_list args;
+    // va_start(args, format);
+    // char buffer[1024];
+    // int len = vsnprintf(buffer, 1024, format, args);
+    // if (len < 1024) {
+    //     g_state.log_callback(level, buffer, g_state.log_callback_user_data);
+    // } else {
+    //     char* buffer2 = new char[len+1];
+    //     vsnprintf(buffer2, len+1, format, args);
+    //     buffer2[len] = 0;
+    //     g_state.log_callback(level, buffer2, g_state.log_callback_user_data);
+    //     delete[] buffer2;
+    // }
+    // va_end(args);
 }
 
 static void whisper_log_callback_default(ggml_log_level level, const char * text, void * user_data) {
-    (void) level;
-    (void) user_data;
-    fputs(text, stderr);
-    fflush(stderr);
+    // (void) level;
+    // (void) user_data;
+    // fputs(text, stderr);
+    // fflush(stderr);
 }

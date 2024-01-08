@@ -290,7 +290,7 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
     const int s0 = n_segments - n_new;
 
     if (s0 == 0) {
-        printf("\n");
+        // printf("\n");
     }
 
     for (int i = s0; i < n_segments; i++) {
@@ -299,9 +299,9 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
             t1 = whisper_full_get_segment_t1(ctx, i);
         }
 
-        if (!params.no_timestamps) {
-            printf("[%s --> %s]  ", to_timestamp(t0).c_str(), to_timestamp(t1).c_str());
-        }
+        // if (!params.no_timestamps) {
+        //     printf("[%s --> %s]  ", to_timestamp(t0).c_str(), to_timestamp(t1).c_str());
+        // }
 
         if (params.diarize && pcmf32s.size() == 2) {
             speaker = estimate_diarization_speaker(pcmf32s, t0, t1);
@@ -906,15 +906,15 @@ int main(int argc, char ** argv) {
         }
 
         // print system information
-        {
-            fprintf(stderr, "\n");
-            fprintf(stderr, "system_info: n_threads = %d / %d | %s\n",
-                    params.n_threads*params.n_processors, std::thread::hardware_concurrency(), whisper_print_system_info());
-        }
+        // {
+        //     fprintf(stderr, "\n");
+        //     fprintf(stderr, "system_info: n_threads = %d / %d | %s\n",
+        //             params.n_threads*params.n_processors, std::thread::hardware_concurrency(), whisper_print_system_info());
+        // }
 
         // print some info about the processing
         {
-            fprintf(stderr, "\n");
+            //fprintf(stderr, "\n");
             if (!whisper_is_multilingual(ctx)) {
                 if (params.language != "en" || params.translate) {
                     params.language = "en";
@@ -925,15 +925,15 @@ int main(int argc, char ** argv) {
             if (params.detect_language) {
                 params.language = "auto";
             }
-            fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, %d beams + best of %d, lang = %s, task = %s, %stimestamps = %d ...\n",
-                    __func__, fname_inp.c_str(), int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE,
-                    params.n_threads, params.n_processors, params.beam_size, params.best_of,
-                    params.language.c_str(),
-                    params.translate ? "translate" : "transcribe",
-                    params.tinydiarize ? "tdrz = 1, " : "",
-                    params.no_timestamps ? 0 : 1);
+            // fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, %d beams + best of %d, lang = %s, task = %s, %stimestamps = %d ...\n",
+            //         __func__, fname_inp.c_str(), int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE,
+            //         params.n_threads, params.n_processors, params.beam_size, params.best_of,
+            //         params.language.c_str(),
+            //         params.translate ? "translate" : "transcribe",
+            //         params.tinydiarize ? "tdrz = 1, " : "",
+            //         params.no_timestamps ? 0 : 1);
 
-            fprintf(stderr, "\n");
+            // fprintf(stderr, "\n");
         }
 
         // run the inference
@@ -1019,7 +1019,7 @@ int main(int argc, char ** argv) {
 
         // output stuff
         {
-            printf("\n");
+            //printf("\n");
 
             // output to text file
             if (params.output_txt) {
