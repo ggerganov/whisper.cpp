@@ -14,7 +14,7 @@ let package = Package(
         .library(name: "whisper", targets: ["whisper"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/ggerganov/ggml.git", .branch("master"))
+        .package(url: "https://github.com/ggerganov/ggml.git", .revision("8bf3f009e653f6bdac893c4bb6441f88ee55fe48"))
     ],
     targets: [
         .target(
