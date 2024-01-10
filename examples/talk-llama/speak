@@ -9,6 +9,14 @@
 #
 #espeak -v en-us+m$1 -s 225 -p 50 -a 200 -g 5 -k 5 "$2"
 
+# piper
+#
+# https://github.com/rhasspy/piper
+#
+# Tested with Linux:
+#
+#echo "$2" | piper --model ~/en_US-lessac-medium.onnx --output-raw | aplay -q -r 22050 -f S16_LE -t raw -
+
 # for Mac
 say "$2"
 
