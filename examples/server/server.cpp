@@ -545,6 +545,9 @@ int main(int argc, char ** argv) {
 
     std::string const default_content = "<html>hello</html>";
 
+    // store default params so we can reset after each inference request
+    whisper_params default_params = params;
+
     // this is only called if no index.html is found in the public --path
     svr.Get(sparams.request_path + "/", [&default_content](const Request &, Response &res){
         res.set_content(default_content, "text/html");
@@ -784,6 +787,9 @@ int main(int argc, char ** argv) {
             res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
                             "application/json");
         }
+
+        // reset params to thier defaults
+        params = default_params;
 
         // return whisper model mutex lock
         whisper_mutex.unlock();
