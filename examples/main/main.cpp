@@ -982,6 +982,8 @@ int main(int argc, char ** argv) {
             wparams.entropy_thold    = params.entropy_thold;
             wparams.logprob_thold    = params.logprob_thold;
 
+            wparams.no_timestamps    = params.no_timestamps;
+
             whisper_print_user_data user_data = { &params, &pcmf32s, 0 };
 
             // this callback is called on each new segment
