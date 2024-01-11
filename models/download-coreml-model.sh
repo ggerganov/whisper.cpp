@@ -51,7 +51,7 @@ fi
 
 printf "Downloading Core ML model %s from '%s' ...\n" "$model" "$src"
 
-cd "$models_path || exit" || exit
+cd "$models_path" || exit
 
 if [ -f "ggml-$model.mlmodel" ]; then
     printf "Model %s already exists. Skipping download.\n" "$model"
