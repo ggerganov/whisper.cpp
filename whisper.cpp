@@ -6686,7 +6686,7 @@ static void whisper_exp_compute_token_level_timestamps(
 // based on
 // https://github.com/openai/whisper/blob/main/whisper/timing.py#L83
 static ggml_tensor * dtw_and_backtrace(ggml_context * ctx, ggml_tensor * x) {
-    WHISPER_ASSERT(x->n_dims == 2);
+    WHISPER_ASSERT(ggml_n_dims(x) == 2);
 
     int64_t N = x->ne[0];
     int64_t M = x->ne[1];
@@ -6774,7 +6774,7 @@ static ggml_tensor * dtw_and_backtrace(ggml_context * ctx, ggml_tensor * x) {
 static ggml_tensor * median_filter(ggml_context * ctx, ggml_tensor * x, int filter_width) {
     WHISPER_ASSERT(filter_width < x->ne[2]);
     WHISPER_ASSERT(filter_width % 2);
-    WHISPER_ASSERT(x->n_dims == 3);
+    WHISPER_ASSERT(ggml_n_dims(x) == 3);
     WHISPER_ASSERT(x->type == GGML_TYPE_F32);
 
     std::vector<float> filter;
@@ -6919,7 +6919,7 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     // operation (after median filter)
     // IN: Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
     // OUT: Tensor with N_ALIGNMENT_HEADS*N_TOKENS*N_AUDIO_TOKENS dims
-    w = ggml_norm(gctx, w, 0);
+    w = ggml_norm(gctx, w, 1e-9);
     w = ggml_permute(gctx, ggml_permute(gctx, w, 2, 1, 0 ,3), 0, 2, 1, 3);
     struct ggml_cgraph * gf = ggml_new_graph(gctx);
     ggml_build_forward_expand(gf, w);
@@ -6934,9 +6934,7 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     // IN: Tensor with N_ALIGNMENT_HEADS*N_TOKENS*N_AUDIO_TOKENS dims
     // OUT: Tensor with N_TOKENS*N_AUDIO_TOKENS dims
     w = ggml_mean(gctx, w);
-    ggml_tensor * scale = ggml_new_tensor_1d(gctx, GGML_TYPE_F32, 1);
-    ggml_set_f32_1d(scale, 0, -1);
-    w = ggml_scale(gctx, w, scale);
+    w = ggml_scale(gctx, w, -1.0);
     w = ggml_reshape_2d(gctx, w, w->ne[1], w->ne[2]);
     struct ggml_cgraph * gf2 = ggml_new_graph(gctx);
     ggml_build_forward_expand(gf2, w);
