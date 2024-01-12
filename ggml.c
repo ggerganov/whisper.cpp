@@ -132,7 +132,7 @@ void ggml_print_backtrace(void) {
             "-ex", "bt -frame-info source-and-location",
             "-ex", "detach",
             "-ex", "quit",
-            NULL);
+            (char *) NULL);
     } else {
         waitpid(pid, NULL, 0);
     }
@@ -571,6 +571,28 @@ static const ggml_type_traits_t type_traits[GGML_TYPE_COUNT] = {
         .from_float               = quantize_row_q6_K,
         .from_float_reference     = (ggml_from_float_t) quantize_row_q6_K_reference,
         .vec_dot                  = ggml_vec_dot_q6_K_q8_K,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+    },
+    [GGML_TYPE_IQ2_XXS] = {
+        .type_name                = "iq2_xxs",
+        .blck_size                = QK_K,
+        .type_size                = sizeof(block_iq2_xxs),
+        .is_quantized             = true,
+        .to_float                 = (ggml_to_float_t) dequantize_row_iq2_xxs,
+        .from_float               = quantize_row_iq2_xxs,
+        .from_float_reference     = (ggml_from_float_t) quantize_row_iq2_xxs_reference,
+        .vec_dot                  = ggml_vec_dot_iq2_xxs_q8_K,
+        .vec_dot_type             = GGML_TYPE_Q8_K,
+    },
+    [GGML_TYPE_IQ2_XS] = {
+        .type_name                = "iq2_xs",
+        .blck_size                = QK_K,
+        .type_size                = sizeof(block_iq2_xs),
+        .is_quantized             = true,
+        .to_float                 = (ggml_to_float_t) dequantize_row_iq2_xs,
+        .from_float               = quantize_row_iq2_xs,
+        .from_float_reference     = (ggml_from_float_t) quantize_row_iq2_xs_reference,
+        .vec_dot                  = ggml_vec_dot_iq2_xs_q8_K,
         .vec_dot_type             = GGML_TYPE_Q8_K,
     },
     [GGML_TYPE_Q8_K] = {
@@ -2111,6 +2133,8 @@ enum ggml_type ggml_ftype_to_ggml_type(enum ggml_ftype ftype) {
         case GGML_FTYPE_MOSTLY_Q4_K:          wtype = GGML_TYPE_Q4_K;  break;
         case GGML_FTYPE_MOSTLY_Q5_K:          wtype = GGML_TYPE_Q5_K;  break;
         case GGML_FTYPE_MOSTLY_Q6_K:          wtype = GGML_TYPE_Q6_K;  break;
+        case GGML_FTYPE_MOSTLY_IQ2_XXS:       wtype = GGML_TYPE_IQ2_XXS;  break;
+        case GGML_FTYPE_MOSTLY_IQ2_XS:        wtype = GGML_TYPE_IQ2_XS;   break;
         case GGML_FTYPE_UNKNOWN:              wtype = GGML_TYPE_COUNT; break;
         case GGML_FTYPE_MOSTLY_Q4_1_SOME_F16: wtype = GGML_TYPE_COUNT; break;
     }
@@ -4299,13 +4323,13 @@ struct ggml_tensor * ggml_set_2d_inplace(
 static struct ggml_tensor * ggml_cpy_impl(
         struct ggml_context * ctx,
         struct ggml_tensor  * a,
-        struct ggml_tensor  * b,
-        bool inplace) {
+        struct ggml_tensor  * b) {
     GGML_ASSERT(ggml_nelements(a) == ggml_nelements(b));
 
     bool is_node = false;
 
-    if (!inplace && (a->grad || b->grad)) {
+    if (a->grad || b->grad) {
+        // inplace is false and either one have a grad
         is_node = true;
     }
 
@@ -4329,29 +4353,21 @@ struct ggml_tensor * ggml_cpy(
         struct ggml_context * ctx,
         struct ggml_tensor * a,
         struct ggml_tensor * b) {
-    return ggml_cpy_impl(ctx, a, b, false);
-}
-
-struct ggml_tensor * ggml_cpy_inplace(
-        struct ggml_context * ctx,
-        struct ggml_tensor * a,
-        struct ggml_tensor * b) {
-    return ggml_cpy_impl(ctx, a, b, true);
+    return ggml_cpy_impl(ctx, a, b);
 }
 
 // ggml_cont
 
 static struct ggml_tensor * ggml_cont_impl(
         struct ggml_context * ctx,
-        struct ggml_tensor  * a,
-        bool inplace) {
+        struct ggml_tensor  * a) {
     bool is_node = false;
 
-    if (!inplace && a->grad) {
+    if (a->grad) {
         is_node = true;
     }
 
-    struct ggml_tensor * result = inplace ? ggml_view_tensor(ctx, a) : ggml_dup_tensor(ctx, a);
+    struct ggml_tensor * result = ggml_dup_tensor(ctx, a);
     ggml_format_name(result, "%s (cont)", a->name);
 
     result->op   = GGML_OP_CONT;
@@ -4364,13 +4380,7 @@ static struct ggml_tensor * ggml_cont_impl(
 struct ggml_tensor * ggml_cont(
         struct ggml_context * ctx,
         struct ggml_tensor * a) {
-    return ggml_cont_impl(ctx, a, false);
-}
-
-struct ggml_tensor * ggml_cont_inplace(
-        struct ggml_context * ctx,
-        struct ggml_tensor * a) {
-    return ggml_cont_impl(ctx, a, true);
+    return ggml_cont_impl(ctx, a);
 }
 
 // make contiguous, with new shape
@@ -7436,6 +7446,8 @@ static void ggml_compute_forward_add(
         case GGML_TYPE_Q4_K:
         case GGML_TYPE_Q5_K:
         case GGML_TYPE_Q6_K:
+        case GGML_TYPE_IQ2_XXS:
+        case GGML_TYPE_IQ2_XS:
             {
                 ggml_compute_forward_add_q_f32(params, src0, src1, dst);
             } break;
@@ -7700,6 +7712,8 @@ static void ggml_compute_forward_add1(
         case GGML_TYPE_Q4_K:
         case GGML_TYPE_Q5_K:
         case GGML_TYPE_Q6_K:
+        case GGML_TYPE_IQ2_XXS:
+        case GGML_TYPE_IQ2_XS:
             {
                 ggml_compute_forward_add1_q_f32(params, src0, src1, dst);
             } break;
@@ -7814,6 +7828,8 @@ static void ggml_compute_forward_acc(
         case GGML_TYPE_Q4_K:
         case GGML_TYPE_Q5_K:
         case GGML_TYPE_Q6_K:
+        case GGML_TYPE_IQ2_XXS:
+        case GGML_TYPE_IQ2_XS:
         default:
             {
                 GGML_ASSERT(false);
@@ -9704,10 +9720,10 @@ static void ggml_compute_forward_group_norm(
 #if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
 // helper function to determine if it is better to use BLAS or not
 // for large matrices, BLAS is faster
-static bool ggml_compute_forward_mul_mat_use_blas(
-        const struct ggml_tensor * src0,
-        const struct ggml_tensor * src1,
-              struct ggml_tensor * dst) {
+static bool ggml_compute_forward_mul_mat_use_blas(struct ggml_tensor * dst) {
+    const struct ggml_tensor * src0 = dst->src[0];
+    const struct ggml_tensor * src1 = dst->src[1];
+
     //const int64_t ne00 = src0->ne[0];
     //const int64_t ne01 = src0->ne[1];
 
@@ -9787,7 +9803,7 @@ static void ggml_compute_forward_mul_mat(
 #endif
 
 #if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
-    if (ggml_compute_forward_mul_mat_use_blas(src0, src1, dst)) {
+    if (ggml_compute_forward_mul_mat_use_blas(dst)) {
         if (params->ith != 0) {
             return;
         }
@@ -10455,6 +10471,8 @@ static void ggml_compute_forward_out_prod(
         case GGML_TYPE_Q4_K:
         case GGML_TYPE_Q5_K:
         case GGML_TYPE_Q6_K:
+        case GGML_TYPE_IQ2_XXS:
+        case GGML_TYPE_IQ2_XS:
             {
                 ggml_compute_forward_out_prod_q_f32(params, src0, src1, dst);
             } break;
@@ -10629,6 +10647,8 @@ static void ggml_compute_forward_set(
         case GGML_TYPE_Q4_K:
         case GGML_TYPE_Q5_K:
         case GGML_TYPE_Q6_K:
+        case GGML_TYPE_IQ2_XXS:
+        case GGML_TYPE_IQ2_XS:
         default:
             {
                 GGML_ASSERT(false);
@@ -10823,6 +10843,8 @@ static void ggml_compute_forward_get_rows(
         case GGML_TYPE_Q4_K:
         case GGML_TYPE_Q5_K:
         case GGML_TYPE_Q6_K:
+        case GGML_TYPE_IQ2_XXS:
+        case GGML_TYPE_IQ2_XS:
             {
                 ggml_compute_forward_get_rows_q(params, src0, src1, dst);
             } break;
@@ -11459,6 +11481,8 @@ static void ggml_compute_forward_alibi(
         case GGML_TYPE_Q4_K:
         case GGML_TYPE_Q5_K:
         case GGML_TYPE_Q6_K:
+        case GGML_TYPE_IQ2_XXS:
+        case GGML_TYPE_IQ2_XS:
         case GGML_TYPE_Q8_K:
         case GGML_TYPE_I8:
         case GGML_TYPE_I16:
@@ -11533,6 +11557,8 @@ static void ggml_compute_forward_clamp(
         case GGML_TYPE_Q4_K:
         case GGML_TYPE_Q5_K:
         case GGML_TYPE_Q6_K:
+        case GGML_TYPE_IQ2_XXS:
+        case GGML_TYPE_IQ2_XS:
         case GGML_TYPE_Q8_K:
         case GGML_TYPE_I8:
         case GGML_TYPE_I16:
@@ -16301,24 +16327,6 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
 
                 //n_tasks = MIN(n_threads, MAX(1, nr0/128));
                 //printf("nr0 = %8d, nr1 = %8d, nr0*nr1 = %8d, n_tasks%d\n", nr0, nr1, nr0*nr1, n_tasks);
-
-#if defined(GGML_USE_CUBLAS)
-                if (ggml_cuda_can_mul_mat(node->src[0], node->src[1], node)) {
-                    n_tasks = 1; // TODO: this actually is doing nothing
-                                 //       the threads are still spinning
-                }
-#elif defined(GGML_USE_CLBLAST)
-                if (ggml_cl_can_mul_mat(node->src[0], node->src[1], node)) {
-                    n_tasks = 1; // TODO: this actually is doing nothing
-                                 //       the threads are still spinning
-                }
-#endif
-#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
-                if (ggml_compute_forward_mul_mat_use_blas(node->src[0], node->src[1], node)) {
-                    n_tasks = 1; // TODO: this actually is doing nothing
-                                 //       the threads are still spinning
-                }
-#endif
             } break;
         case GGML_OP_MUL_MAT_ID:
             {
@@ -16491,6 +16499,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
             state->shared->node_n += 1;
             return (thread_ret_t) GGML_EXIT_ABORTED;
         }
+
         if (atomic_fetch_sub(&state->shared->n_active, 1) == 1) {
             // all other threads are finished and spinning
             // do finalize and init here so we don't have synchronize again
@@ -16556,14 +16565,18 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
         } else {
             // wait for other threads to finish
             const int last = node_n;
+
+            const bool do_yield = last < 0 || cgraph->nodes[last]->op == GGML_OP_MUL_MAT;
+
             while (true) {
                 // TODO: this sched_yield can have significant impact on the performance - either positive or negative
                 //       depending on the workload and the operating system.
                 //       since it is not clear what is the best approach, it should potentially become user-configurable
                 //       ref: https://github.com/ggerganov/ggml/issues/291
-#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
-                sched_yield();
-#endif
+                // UPD:  adding the do_yield flag seems to resolve the issue universally
+                if (do_yield) {
+                    sched_yield();
+                }
 
                 node_n = atomic_load(&state->shared->node_n);
                 if (node_n != last) break;
@@ -16642,7 +16655,7 @@ struct ggml_cplan ggml_graph_plan(struct ggml_cgraph * cgraph, int n_threads) {
                     } else
 #endif
 #if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
-                    if (ggml_compute_forward_mul_mat_use_blas(node->src[0], node->src[1], node)) {
+                    if (ggml_compute_forward_mul_mat_use_blas(node)) {
                         if (node->src[0]->type != GGML_TYPE_F32) {
                             // here we need memory just for single 2D matrix from src0
                             cur = ggml_type_size(GGML_TYPE_F32)*(node->src[0]->ne[0]*node->src[0]->ne[1]);
@@ -18661,6 +18674,18 @@ size_t ggml_quantize_chunk(enum ggml_type type, const float * src, void * dst, i
                 block_q6_K * block = (block_q6_K*)dst + start / QK_K;
                 result = ggml_quantize_q6_K(src + start, block, n, n, hist);
             } break;
+        case GGML_TYPE_IQ2_XXS:
+            {
+                GGML_ASSERT(start % QK_K == 0);
+                block_iq2_xxs * block = (block_iq2_xxs*)dst + start / QK_K;
+                result = ggml_quantize_iq2_xxs(src + start, block, n, n, hist);
+            } break;
+        case GGML_TYPE_IQ2_XS:
+            {
+                GGML_ASSERT(start % QK_K == 0);
+                block_iq2_xs * block = (block_iq2_xs*)dst + start / QK_K;
+                result = ggml_quantize_iq2_xs(src + start, block, n, n, hist);
+            } break;
         case GGML_TYPE_F16:
             {
                 int elemsize = sizeof(ggml_fp16_t);
@@ -19016,8 +19041,8 @@ struct gguf_context * gguf_init_from_file(const char * fname, struct gguf_init_p
                 (int64_t) info->ne[3];
 
             if (ne % ggml_blck_size(info->type) != 0) {
-                fprintf(stderr, "%s: tensor '%s' number of elements (%" PRId64 ") is not a multiple of block size (%d)\n",
-                        __func__, info->name.data, ne, ggml_blck_size(info->type));
+                fprintf(stderr, "%s: tensor '%s' of type %d (%s) number of elements (%" PRId64 ") is not a multiple of block size (%d)\n",
+                        __func__, info->name.data, (int)info->type, ggml_type_name(info->type), ne, ggml_blck_size(info->type));
                 fclose(file);
                 gguf_free(ctx);
                 return NULL;
