@@ -127,7 +127,7 @@ static void whisper_log_callback_default(ggml_log_level level, const char * text
 #define WHISPER_LOG_INFO(...)  whisper_log_internal(GGML_LOG_LEVEL_INFO , __VA_ARGS__)
 
 // define this to enable verbose trace logging - useful for debugging purposes
-// #define WHISPER_DEBUG
+//#define WHISPER_DEBUG
 
 #if defined(WHISPER_DEBUG)
 #define WHISPER_LOG_DEBUG(...) whisper_log_internal(GGML_LOG_LEVEL_DEBUG, __VA_ARGS__)
@@ -5469,7 +5469,7 @@ int whisper_full_with_state(
                            (params.max_tokens > 0 && i >= params.max_tokens) || // max tokens per segment reached
                            (has_ts && seek + seek_delta + 100 >= seek_end)      // end of audio reached
                            ) {
-                            if (result_len == 0) {
+                            if (result_len == 0 && !params.no_timestamps) {
                                 if (seek + seek_delta + 100 >= seek_end) {
                                     result_len = i + 1;
                                 } else {
@@ -5479,7 +5479,7 @@ int whisper_full_with_state(
                                 }
                             }
 
-                            if (params.single_segment) {
+                            if (params.single_segment || params.no_timestamps) {
                                 result_len = i + 1;
                                 seek_delta = 100*WHISPER_CHUNK_SIZE;
                             }
