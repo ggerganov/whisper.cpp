@@ -130,6 +130,11 @@ func (context *context) SetAudioCtx(n uint) {
 	context.params.SetAudioCtx(int(n))
 }
 
+// Set initial prompt
+func (context *context) SetInitialPrompt(prompt string) {
+	context.params.SetInitialPrompt(prompt)
+}
+
 // ResetTimings resets the mode timings. Should be called before processing
 func (context *context) ResetTimings() {
 	context.model.ctx.Whisper_reset_timings()
