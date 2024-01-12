@@ -7585,9 +7585,9 @@ void ggml_vec_dot_iq2_xs_q8_K(const int n, float * restrict s, const void * rest
 
     const uint64_t * signs64 = (const uint64_t *)keven_signs_q2xs;
 
-    int8x16x4_t q2u;
-    int8x16x4_t q2s;
-    int8x16x4_t q8b;
+    ggml_int8x16x4_t q2u;
+    ggml_int8x16x4_t q2s;
+    ggml_int8x16x4_t q8b;
 
     int32x4x4_t scales32;
 
