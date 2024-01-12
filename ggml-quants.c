@@ -7626,7 +7626,7 @@ void ggml_vec_dot_iq2_xs_q8_K(const int n, float * restrict s, const void * rest
             const int32x4_t p2 = ggml_vdotq_s32(vdupq_n_s32(0), q2u.val[1], q8b.val[1]);
             const int32x4_t p3 = ggml_vdotq_s32(vdupq_n_s32(0), q2u.val[2], q8b.val[2]);
             const int32x4_t p4 = ggml_vdotq_s32(vdupq_n_s32(0), q2u.val[3], q8b.val[3]);
-            const int32x4_t p = ggml_vpaddq_s32(ggml_vpaddq_s32(p1, p2), ggml_vpaddq_s32(p3, p4));
+            const int32x4_t p = vpaddq_s32(vpaddq_s32(p1, p2), vpaddq_s32(p3, p4));
             sumi = vmlaq_s32(sumi, p, scales32.val[ib64]);
             q2 += 8;
         }
