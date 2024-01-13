@@ -67,6 +67,7 @@ struct whisper_params {
     bool use_gpu        = true;
 
     std::string person      = "Georgi";
+    std::string bot_name    = "LLaMA";
     std::string language    = "en";
     std::string model_wsp   = "models/ggml-base.en.bin";
     std::string model_llama = "models/ggml-llama-7B.bin";
@@ -101,7 +102,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-vp"  || arg == "--verbose-prompt") { params.verbose_prompt = true; }
         else if (arg == "-ng"  || arg == "--no-gpu")         { params.use_gpu        = false; }
         else if (arg == "-p"   || arg == "--person")         { params.person         = argv[++i]; }
-        else if (arg == "--session")                         { params.path_session   = argv[++i];}
+        else if (arg == "-bn"   || arg == "--bot-name")      { params.bot_name       = argv[++i]; }
+        else if (arg == "--session")                         { params.path_session   = argv[++i]; }
         else if (arg == "-l"   || arg == "--language")       { params.language       = argv[++i]; }
         else if (arg == "-mw"  || arg == "--model-whisper")  { params.model_wsp      = argv[++i]; }
         else if (arg == "-ml"  || arg == "--model-llama")    { params.model_llama    = argv[++i]; }
@@ -146,6 +148,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -vp,      --verbose-prompt [%-7s] print prompt at start\n",                       params.verbose_prompt ? "true" : "false");
     fprintf(stderr, "  -ng,      --no-gpu         [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
     fprintf(stderr, "  -p NAME,  --person NAME    [%-7s] person name (for prompt selection)\n",          params.person.c_str());
+    fprintf(stderr, "  -bn NAME, --bot-name NAME  [%-7s] bot name (to display)\n",                       params.bot_name.c_str());
     fprintf(stderr, "  -l LANG,  --language LANG  [%-7s] spoken language\n",                             params.language.c_str());
     fprintf(stderr, "  -mw FILE, --model-whisper  [%-7s] whisper model file\n",                          params.model_wsp.c_str());
     fprintf(stderr, "  -ml FILE, --model-llama    [%-7s] llama model file\n",                            params.model_llama.c_str());
@@ -323,12 +326,11 @@ int main(int argc, char ** argv) {
     float prob0 = 0.0f;
 
     const std::string chat_symb = ":";
-    const std::string bot_name  = "LLaMA";
 
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;
 
-    const std::string prompt_whisper = ::replace(k_prompt_whisper, "{1}", bot_name);
+    const std::string prompt_whisper = ::replace(k_prompt_whisper, "{1}", params.bot_name);
 
     // construct the initial prompt for LLaMA inference
     std::string prompt_llama = params.prompt.empty() ? k_prompt_llama : params.prompt;
@@ -337,7 +339,7 @@ int main(int argc, char ** argv) {
     prompt_llama.insert(0, 1, ' ');
 
     prompt_llama = ::replace(prompt_llama, "{0}", params.person);
-    prompt_llama = ::replace(prompt_llama, "{1}", bot_name);
+    prompt_llama = ::replace(prompt_llama, "{1}", params.bot_name);
 
     {
         // get time string
@@ -524,7 +526,7 @@ int main(int argc, char ** argv) {
                 force_speak = false;
 
                 text_heard.insert(0, 1, ' ');
-                text_heard += "\n" + bot_name + chat_symb;
+                text_heard += "\n" + params.bot_name + chat_symb;
                 fprintf(stdout, "%s%s%s", "\033[1m", text_heard.c_str(), "\033[0m");
                 fflush(stdout);
 
