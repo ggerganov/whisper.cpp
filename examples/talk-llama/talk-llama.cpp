@@ -466,7 +466,7 @@ int main(int argc, char ** argv) {
     const bool use_wake_cmd = wake_cmd_length > 0;
 
     if (use_wake_cmd) {
-        printf("%s: the wake-up command is : '%s%s%s'\n", __func__, "\033[1m", wake_cmd.c_str(), "\033[0m");
+        printf("%s : the wake-up command is: '%s%s%s'\n", __func__, "\033[1m", wake_cmd.c_str(), "\033[0m");
     }
 
     printf("\n");
