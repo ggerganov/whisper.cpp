@@ -14,6 +14,7 @@
 #include <thread>
 #include <vector>
 #include <regex>
+#include <sstream>
 
 std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos) {
     auto * model = llama_get_model(ctx);
