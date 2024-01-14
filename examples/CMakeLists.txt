@@ -23,6 +23,8 @@ endif()
 set(TARGET common)
 
 add_library(${TARGET} STATIC
+    console.h
+    console.cpp
     common.h
     common.cpp
     common-ggml.h

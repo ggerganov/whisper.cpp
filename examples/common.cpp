@@ -1,6 +1,7 @@
 #define _USE_MATH_DEFINES // for M_PI
 
 #include "common.h"
+#include "console.h"
 
 // third-party utilities
 // use your favorite implementations
@@ -615,6 +616,55 @@ gpt_vocab::id gpt_sample_top_k_top_p_repeat(
 
 }
 
+namespace utf_8 {
+    bool is_valid(const std::string &str) {
+        uint64_t count = 0; // Count of bytes in the current UTF-8 character
+
+        for (unsigned char c : str) {
+            if (count == 0) {
+                if ((c >> 5) == 0b110) count = 1; // 2-byte character
+                else if ((c >> 4) == 0b1110) count = 2; // 3-byte character
+                else if ((c >> 3) == 0b11110) count = 3; // 4-byte character
+                else if ((c >> 7) == 0b0) count = 0; // 1-byte character
+                else return false; // Invalid UTF-8
+            } else {
+                if ((c >> 6) != 0b10) return false; // Subsequent bytes should start with 10
+                count--;
+            }
+        }
+
+        return count == 0; // Ensure all UTF-8 characters are complete
+    }
+
+    std::vector<std::string> merge_and_split(const std::string &str) {
+        std::vector<std::string> result;
+        std::string buffer;
+        uint64_t count = 0; // Count of bytes in the current UTF-8 character
+
+        for (unsigned char c : str) {
+            if (count == 0) {
+                header:
+                if ((c >> 5) == 0b110) count = 1; // 2-byte character
+                else if ((c >> 4) == 0b1110) count = 2; // 3-byte character
+                else if ((c >> 3) == 0b11110) count = 3; // 4-byte character
+                else count = 0; // Invalid UTF-8 || 1-byte character
+                if (!buffer.empty()) result.push_back(buffer);
+                buffer.clear();
+                buffer += static_cast<char>(c);
+            } else {
+                if ((c >> 6) != 0b10) {
+                    goto header;
+                } // Subsequent bytes should start with 10
+                buffer += static_cast<char>(c);
+                count--;
+            }
+        }
+
+        if (!buffer.empty()) result.push_back(buffer);
+        return result;
+    }
+}
+
 bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector<std::vector<float>>& pcmf32s, bool stereo) {
     drwav wav;
     std::vector<uint8_t> wav_data; // used for pipe input from stdin
@@ -639,7 +689,11 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
 
         fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
     }
+#if _WIN32
+    else if (drwav_init_file_w(&wav, console::UTF8toUTF16(fname).c_str(), nullptr) == false) {
+#else
     else if (drwav_init_file(&wav, fname.c_str(), nullptr) == false) {
+#endif
         fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname.c_str());
         return false;
     }

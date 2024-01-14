@@ -1,4 +1,5 @@
 #include "common.h"
+#include "console.h"
 
 #include "whisper.h"
 
@@ -107,9 +108,9 @@ struct whisper_params {
     std::vector<std::string> fname_out = {};
 };
 
-void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
+void whisper_print_usage(int argc, const char ** argv, const whisper_params & params);
 
-bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
+bool whisper_params_parse(int argc, const char ** argv, whisper_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
@@ -179,7 +180,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     return true;
 }
 
-void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params) {
+void whisper_print_usage(int /*argc*/, const char ** argv, const whisper_params & params) {
     fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options] file0.wav file1.wav ...\n", argv[0]);
     fprintf(stderr, "\n");
@@ -308,7 +309,9 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
 
         if (params.diarize && pcmf32s.size() == 2) {
             speaker = estimate_diarization_speaker(pcmf32s, t0, t1);
+            printf("%s", speaker.c_str());
         }
+
 
         if (params.print_colors) {
             for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
@@ -321,15 +324,24 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
 
                 const char * text = whisper_full_get_token_text(ctx, i, j);
                 const float  p    = whisper_full_get_token_p   (ctx, i, j);
-
-                const int col = std::max(0, std::min((int) k_colors.size() - 1, (int) (std::pow(p, 3)*float(k_colors.size()))));
-
-                printf("%s%s%s%s", speaker.c_str(), k_colors[col].c_str(), text, "\033[0m");
+                const int    col  = std::max(0, std::min((int) k_colors.size() - 1, (int) (std::pow(p, 3)*float(k_colors.size()))));
+//                if (utf_8::is_valid(text)) {
+//                    printf("%s%s%s", k_colors[col].c_str(), text, "\033[0m");
+//                } else {
+                    printf("%s[_%i_]%s", k_colors[col].c_str(), whisper_full_get_token_id(ctx, i, j), "\033[0m");
+//                }
             }
         } else {
             const char * text = whisper_full_get_segment_text(ctx, i);
-
-            printf("%s%s", speaker.c_str(), text);
+            for (auto &k : utf_8::merge_and_split(text)) {
+                if (utf_8::is_valid(k)) {
+                    printf("%s", k.c_str());
+                } else {
+                    for (auto l : k) {
+                        printf("[_%i_]", l);
+                    }
+                }
+            }
         }
 
         if (params.tinydiarize) {
@@ -348,7 +360,11 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
 }
 
 bool output_txt(struct whisper_context * ctx, const char * fname, const whisper_params & params, std::vector<std::vector<float>> pcmf32s) {
-    std::ofstream fout(fname);
+    #if _WIN32
+        std::ofstream fout(console::UTF8toUTF16(fname));
+    #else
+        std::ofstream fout(fname);
+    #endif
     if (!fout.is_open()) {
         fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
         return false;
@@ -375,7 +391,11 @@ bool output_txt(struct whisper_context * ctx, const char * fname, const whisper_
 }
 
 bool output_vtt(struct whisper_context * ctx, const char * fname, const whisper_params & params, std::vector<std::vector<float>> pcmf32s) {
-    std::ofstream fout(fname);
+    #if _WIN32
+        std::ofstream fout(console::UTF8toUTF16(fname));
+    #else
+        std::ofstream fout(fname);
+    #endif
     if (!fout.is_open()) {
         fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
         return false;
@@ -407,7 +427,11 @@ bool output_vtt(struct whisper_context * ctx, const char * fname, const whisper_
 }
 
 bool output_srt(struct whisper_context * ctx, const char * fname, const whisper_params & params, std::vector<std::vector<float>> pcmf32s) {
-    std::ofstream fout(fname);
+    #if _WIN32
+        std::ofstream fout(console::UTF8toUTF16(fname));
+    #else
+        std::ofstream fout(fname);
+    #endif
     if (!fout.is_open()) {
         fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
         return false;
@@ -467,7 +491,11 @@ char *escape_double_quotes_and_backslashes(const char *str) {
 }
 
 bool output_csv(struct whisper_context * ctx, const char * fname, const whisper_params & params, std::vector<std::vector<float>> pcmf32s) {
-    std::ofstream fout(fname);
+    #if _WIN32
+        std::ofstream fout(console::UTF8toUTF16(fname));
+    #else
+        std::ofstream fout(fname);
+    #endif
     if (!fout.is_open()) {
         fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
         return false;
@@ -502,7 +530,11 @@ bool output_csv(struct whisper_context * ctx, const char * fname, const whisper_
 }
 
 bool output_score(struct whisper_context * ctx, const char * fname, const whisper_params & /*params*/, std::vector<std::vector<float>> /*pcmf32s*/) {
-    std::ofstream fout(fname);
+    #if _WIN32
+        std::ofstream fout(console::UTF8toUTF16(fname));
+    #else
+        std::ofstream fout(fname);
+    #endif
     fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
 
     const int n_segments = whisper_full_n_segments(ctx);
@@ -526,7 +558,11 @@ bool output_json(
                const whisper_params & params,
     std::vector<std::vector<float>>   pcmf32s,
                                bool   full) {
-    std::ofstream fout(fname);
+    #if _WIN32
+        std::ofstream fout(console::UTF8toUTF16(fname));
+    #else
+        std::ofstream fout(fname);
+    #endif
     int indent = 0;
 
     auto doindent = [&]() {
@@ -691,7 +727,11 @@ bool output_json(
 // outputs a bash script that uses ffmpeg to generate a video with the subtitles
 // TODO: font parameter adjustments
 bool output_wts(struct whisper_context * ctx, const char * fname, const char * fname_inp, const whisper_params & params, float t_sec, std::vector<std::vector<float>> pcmf32s) {
-    std::ofstream fout(fname);
+    #if _WIN32
+        std::ofstream fout(console::UTF8toUTF16(fname));
+    #else
+        std::ofstream fout(fname);
+    #endif
 
     fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
 
@@ -816,7 +856,11 @@ bool output_wts(struct whisper_context * ctx, const char * fname, const char * f
 }
 
 bool output_lrc(struct whisper_context * ctx, const char * fname, const whisper_params & params, std::vector<std::vector<float>> pcmf32s) {
-    std::ofstream fout(fname);
+    #if _WIN32
+        std::ofstream fout(console::UTF8toUTF16(fname));
+    #else
+        std::ofstream fout(fname);
+    #endif
     if (!fout.is_open()) {
         fprintf(stderr, "%s: failed to open '%s' for writing\n", __func__, fname);
         return false;
@@ -858,7 +902,7 @@ bool output_lrc(struct whisper_context * ctx, const char * fname, const whisper_
 
 void cb_log_disable(enum ggml_log_level , const char * , void * ) { }
 
-int main(int argc, char ** argv) {
+int run(int argc, const char ** argv) {
     whisper_params params;
 
     if (whisper_params_parse(argc, argv, params) == false) {
@@ -1087,3 +1131,23 @@ int main(int argc, char ** argv) {
 
     return 0;
 }
+
+#if _WIN32
+int wmain(int argc, const wchar_t ** argv_UTF16LE) {
+    console::init(true, true);
+    atexit([]() { console::cleanup(); });
+    std::vector<std::string> buffer(argc);
+    std::vector<const char*> argv_UTF8(argc);
+    for (int i = 0; i < argc; ++i) {
+        buffer[i] = console::UTF16toUTF8(argv_UTF16LE[i]);
+        argv_UTF8[i] = buffer[i].c_str();
+    }
+    return run(argc, argv_UTF8.data());
+}
+#else
+int main(int argc, const char ** argv_UTF8) {
+    console::init(true, true);
+    atexit([]() { console::cleanup(); });
+    return run(argc, argv_UTF8);
+}
+#endif
