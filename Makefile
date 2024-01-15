@@ -261,8 +261,8 @@ ifdef WHISPER_GPROF
 endif
 
 ifneq ($(filter aarch64%,$(UNAME_M)),)
-	CFLAGS   += -mcpu=native -mfp16-format=ieee
-	CXXFLAGS += -mcpu=native -mfp16-format=ieee
+	CFLAGS   += -march=native
+	CXXFLAGS += -march=native
 endif
 
 ifneq ($(filter armv6%,$(UNAME_M)),)
