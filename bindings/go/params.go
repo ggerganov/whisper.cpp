@@ -39,6 +39,10 @@ func (p *Params) SetPrintProgress(v bool) {
 	p.print_progress = toBool(v)
 }
 
+func (p *Params) SetPrintRealtime(v bool) {
+	p.print_realtime = toBool(v)
+}
+
 func (p *Params) SetPrintTimestamps(v bool) {
 	p.print_timestamps = toBool(v)
 }
@@ -163,6 +167,9 @@ func (p *Params) String() string {
 	}
 	if p.print_progress {
 		str += " print_progress"
+	}
+	if p.print_realtime {
+		str += " print_realtime"
 	}
 	if p.print_timestamps {
 		str += " print_timestamps"

@@ -275,6 +275,12 @@ static VALUE ruby_whisper_params_set_print_progress(VALUE self, VALUE value) {
 static VALUE ruby_whisper_params_get_print_progress(VALUE self) {
   BOOL_PARAMS_GETTER(self, print_progress)
 }
+static VALUE ruby_whisper_params_set_print_realtime(VALUE self, VALUE value) {
+  BOOL_PARAMS_SETTER(self, print_realtime, value)
+}
+static VALUE ruby_whisper_params_get_print_realtime(VALUE self) {
+  BOOL_PARAMS_GETTER(self, print_realtime)
+}
 static VALUE ruby_whisper_params_set_print_timestamps(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, print_timestamps, value)
 }
@@ -390,6 +396,8 @@ void Init_whisper() {
   rb_define_method(cParams, "print_special=", ruby_whisper_params_set_print_special, 1);
   rb_define_method(cParams, "print_progress", ruby_whisper_params_get_print_progress, 0);
   rb_define_method(cParams, "print_progress=", ruby_whisper_params_set_print_progress, 1);
+  rb_define_method(cParams, "print_realtime", ruby_whisper_params_get_print_realtime, 0);
+  rb_define_method(cParams, "print_realtime=", ruby_whisper_params_set_print_realtime, 1);
   rb_define_method(cParams, "print_timestamps", ruby_whisper_params_get_print_timestamps, 0);
   rb_define_method(cParams, "print_timestamps=", ruby_whisper_params_set_print_timestamps, 1);
   rb_define_method(cParams, "suppress_blank", ruby_whisper_params_get_suppress_blank, 0);

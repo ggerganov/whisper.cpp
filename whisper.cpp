@@ -4367,6 +4367,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.single_segment    =*/ false,
         /*.print_special     =*/ false,
         /*.print_progress    =*/ true,
+        /*.print_realtime    =*/ false,
         /*.print_timestamps  =*/ true,
 
         /*.token_timestamps  =*/ false,
@@ -5774,6 +5775,16 @@ int whisper_full_with_state(
                     }
                 };
 
+                // a lambda function used to extract common procedures
+                auto print_text = [&](int t1) {
+                    if (params.print_timestamps) {
+                        printf("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text.c_str());
+                    } else {
+                        printf("%s", text.c_str());
+                        fflush(stdout);
+                    }
+                };
+
                 // if we have timestamps, output it time chunk by time chunk
                 if (!params.no_timestamps) {
                     int token_offset = 0; // used to locate current time chunk
@@ -5781,6 +5792,8 @@ int whisper_full_with_state(
                     for (int i = 0; i < static_cast<int>(tokens_cur.size()); i++) {
                         process_token(i);
 
+                        // tokens_cur[i].id > timestamp_start means we've reached the end of the current time chunk
+                        // text for this time chunk is fully assembled and ready for the callback function to be invoked
                         if (tokens_cur[i].id > timestamp_start && !params.single_segment) {
                             auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
                             t1 = params.speed_up ? 2*t1 : t1; // adjust t1 if speed_up mode is on
@@ -5788,6 +5801,9 @@ int whisper_full_with_state(
 
                             if (!text.empty()) {
                                 process_text(t1, token_offset, i);
+                                if (params.print_realtime) {
+                                    print_text(t1);
+                                }
                             }
 
                             text.clear();
@@ -5805,6 +5821,9 @@ int whisper_full_with_state(
                         t1 = params.speed_up ? 2*t1 : t1; // adjust t1 if speed_up mode is on
 
                         process_text(t1, 0, static_cast<int>(tokens_cur.size()));
+                        if (params.print_realtime) {
+                            print_text(t1);
+                        }
                     }
                 }
             }
@@ -5871,6 +5890,9 @@ int whisper_full_parallel(
 
     {
         auto params_cur = params;
+
+        // We need to disable the print real-time for this one as well, otherwise it will show only for the first chunk.
+        params_cur.print_realtime = false;
 
         // Run the first transformation using default state but only for the first chunk.
         ret = whisper_full_with_state(ctx, ctx->state, std::move(params_cur), samples, offset_samples + n_samples_per_processor);

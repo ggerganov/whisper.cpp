@@ -91,6 +91,7 @@ func (model *model) NewContext() (Context, error) {
 	params.SetTranslate(false)
 	params.SetPrintSpecial(false)
 	params.SetPrintProgress(false)
+	params.SetPrintRealtime(false)
 	params.SetPrintTimestamps(false)
 	params.SetThreads(runtime.NumCPU())
 	params.SetNoContext(true)

@@ -75,6 +75,13 @@ class TestWhisper < Test::Unit::TestCase
     assert !@params.print_progress
   end
 
+  def test_print_realtime
+    @params.print_realtime = true
+    assert @params.print_realtime
+    @params.print_realtime = false
+    assert !@params.print_realtime
+  end
+
   def test_print_timestamps
     @params.print_timestamps = true
     assert @params.print_timestamps
