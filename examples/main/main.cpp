@@ -995,7 +995,6 @@ int run(int argc, const char ** argv) {
 
             wparams.strategy = params.beam_size > 1 ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY;
 
-            wparams.print_realtime   = false;
             wparams.print_progress   = params.print_progress;
             wparams.print_timestamps = !params.no_timestamps;
             wparams.print_special    = params.print_special;
@@ -1031,10 +1030,8 @@ int run(int argc, const char ** argv) {
             whisper_print_user_data user_data = { &params, &pcmf32s, 0 };
 
             // this callback is called on each new segment
-            if (!wparams.print_realtime) {
-                wparams.new_segment_callback           = whisper_print_segment_callback;
-                wparams.new_segment_callback_user_data = &user_data;
-            }
+            wparams.new_segment_callback           = whisper_print_segment_callback;
+            wparams.new_segment_callback_user_data = &user_data;
 
             if (wparams.print_progress) {
                 wparams.progress_callback           = whisper_print_progress_callback;
