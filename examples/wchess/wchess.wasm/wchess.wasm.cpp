@@ -44,6 +44,7 @@ void wchess_main(size_t i) {
     wparams.translate        = false;
     wparams.no_context       = true;
     wparams.single_segment   = true;
+    wparams.print_realtime   = false;
     wparams.print_progress   = false;
     wparams.print_timestamps = true;
     wparams.print_special    = false;

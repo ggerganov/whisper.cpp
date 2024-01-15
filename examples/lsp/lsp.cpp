@@ -171,6 +171,7 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
     }
     wparams.print_progress   = false;
     wparams.print_special    = params.print_special;
+    wparams.print_realtime   = false;
     wparams.print_timestamps = false;
     wparams.translate        = params.translate;
     wparams.no_context       = jparams.value("no_context", true);
@@ -209,6 +210,7 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
 
     wparams.print_progress   = false;
     wparams.print_special    = params.print_special;
+    wparams.print_realtime   = false;
     wparams.print_timestamps = false;
     wparams.translate        = params.translate;
     wparams.no_context       = true;

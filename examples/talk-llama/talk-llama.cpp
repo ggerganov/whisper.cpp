@@ -181,6 +181,7 @@ std::string transcribe(
 
     wparams.print_progress   = false;
     wparams.print_special    = params.print_special;
+    wparams.print_realtime   = false;
     wparams.print_timestamps = !params.no_timestamps;
     wparams.translate        = params.translate;
     wparams.no_context       = true;
