@@ -208,7 +208,6 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
 
             wparams.strategy = params.beam_size > 1 ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY;
 
-            wparams.print_realtime   = false;
             wparams.print_progress   = params.print_progress;
             wparams.print_timestamps = !params.no_timestamps;
             wparams.print_special    = params.print_special;
@@ -235,10 +234,8 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
             whisper_print_user_data user_data = { &params, &pcmf32s };
 
             // this callback is called on each new segment
-            if (!wparams.print_realtime) {
-                wparams.new_segment_callback           = whisper_print_segment_callback;
-                wparams.new_segment_callback_user_data = &user_data;
-            }
+            wparams.new_segment_callback           = whisper_print_segment_callback;
+            wparams.new_segment_callback_user_data = &user_data;
 
             // example for abort mechanism
             // in this example, we do not abort the processing, but we could if the flag is set to true
