@@ -444,7 +444,6 @@ extern "C" {
         bool single_segment;    // force single segment output (useful for streaming)
         bool print_special;     // print special tokens (e.g. <SOT>, <EOT>, <BEG>, etc.)
         bool print_progress;    // print progress information
-        bool print_realtime;    // print results from within whisper.cpp (avoid it, use callback instead)
         bool print_timestamps;  // print timestamps for each text segment when printing realtime
 
         // [EXPERIMENTAL] token-level timestamps

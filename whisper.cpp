@@ -372,7 +372,7 @@ struct whisper_vocab {
     std::map<id, token> id_to_token;
 
     // reference: https://github.com/openai/whisper/blob/248b6cb124225dd263bb9bd32d060b6517e067f8/whisper/tokenizer.py#L334-L349
-    id token_eot        = 50256;
+    id token_eot        = 50256; // anything before that are normal tokens
     id token_sot        = 50257;
     // task tokens (used only for multilingual models)
     id token_translate  = 50357;
@@ -4367,7 +4367,6 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.single_segment    =*/ false,
         /*.print_special     =*/ false,
         /*.print_progress    =*/ true,
-        /*.print_realtime    =*/ false,
         /*.print_timestamps  =*/ true,
 
         /*.token_timestamps  =*/ false,
@@ -4702,17 +4701,17 @@ static void whisper_process_logits(
         // ref: https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L431-L437
         {
             // logsumexp over timestamps
+            // ref: https://pytorch.org/docs/stable/generated/torch.logsumexp.html
             float timestamp_logprob = -INFINITY;
             {
                 float logsumexp = 0.0f;
-                const float logprob_max = *std::max_element(logprobs.begin() + vocab.token_beg, logprobs.end());
                 for (int i = vocab.token_beg; i < n_logits; ++i) {
                     if (logprobs[i] > -INFINITY) {
-                        logsumexp += expf(logprobs[i] - logprob_max);
+                        logsumexp += expf(logprobs[i]);
                     }
                 }
                 if (logsumexp > 0.0f) {
-                    timestamp_logprob = logf(logsumexp) + logprob_max;
+                    timestamp_logprob = logf(logsumexp);
                 }
             }
 
@@ -5736,17 +5735,14 @@ int whisper_full_with_state(
             }
 
             if (!tokens_cur.empty() && ctx->model.n_loaded > 0) {
-                int  i0 = 0;
-                auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
-
                 std::string text;
                 bool speaker_turn_next = false;
+                auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
+                t0 = params.speed_up ? 2*t0 : t0; // adjust t0 if speed_up mode is on
 
-                for (int i = 0; i < (int) tokens_cur.size(); i++) {
-                    //printf("%s: %18s %6.3f %18s %6.3f\n", __func__,
-                    //        ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].p,
-                    //        ctx->vocab.id_to_token[tokens_cur[i].tid].c_str(), tokens_cur[i].pt);
-
+                // a lambda function used to extract common procedures
+                auto process_token = [&](int i) {
+                    // only extract the normal tokens, unless we specifically ask for the special tokens
                     if (params.print_special || tokens_cur[i].id < whisper_token_eot(ctx)) {
                         text += whisper_token_to_str(ctx, tokens_cur[i].id);
                     }
@@ -5755,80 +5751,19 @@ int whisper_full_with_state(
                     if (params.tdrz_enable && tokens_cur[i].id == whisper_token_solm(ctx)) {
                         speaker_turn_next = true;
                     }
+                };
 
-                    if (tokens_cur[i].id > whisper_token_beg(ctx) && !params.single_segment) {
-                        const auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
+                // a lambda function used to extract common procedures
+                auto process_text = [&](int t1, int token_offset, int end) {
+                    int n_new = 1;
 
-                        if (!text.empty()) {
-                            const auto tt0 = params.speed_up ? 2*t0 : t0;
-                            const auto tt1 = params.speed_up ? 2*t1 : t1;
-
-                            if (params.print_realtime) {
-                                if (params.print_timestamps) {
-                                    printf("[%s --> %s]  %s\n", to_timestamp(tt0).c_str(), to_timestamp(tt1).c_str(), text.c_str());
-                                } else {
-                                    printf("%s", text.c_str());
-                                    fflush(stdout);
-                                }
-                            }
-
-                            //printf("tt0 = %d, tt1 = %d, text = %s, token = %s, token_id = %d, tid = %d\n", tt0, tt1, text.c_str(), ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].id, tokens_cur[i].tid);
-
-                            result_all.push_back({ tt0, tt1, text, {}, speaker_turn_next });
-                            for (int j = i0; j <= i; j++) {
-                                result_all.back().tokens.push_back(tokens_cur[j]);
-                            }
-
-                            int n_new = 1;
-
-                            if (params.token_timestamps) {
-                                whisper_exp_compute_token_level_timestamps(
-                                        *ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
-
-                                if (params.max_len > 0) {
-                                    n_new = whisper_wrap_segment(*ctx, *state, params.max_len, params.split_on_word);
-                                }
-                            }
-                            if (params.new_segment_callback) {
-                                params.new_segment_callback(ctx, state, n_new, params.new_segment_callback_user_data);
-                            }
-                        }
-                        text = "";
-                        while (i < (int) tokens_cur.size() && tokens_cur[i].id > whisper_token_beg(ctx)) {
-                            i++;
-                        }
-                        i--;
-                        t0 = t1;
-                        i0 = i + 1;
-                        speaker_turn_next = false;
-                    }
-                }
-
-                if (!text.empty()) {
-                    const auto t1 = seek + seek_delta;
-
-                    const auto tt0 = params.speed_up ? 2*t0 : t0;
-                    const auto tt1 = params.speed_up ? 2*t1 : t1;
-
-                    if (params.print_realtime) {
-                        if (params.print_timestamps) {
-                            printf("[%s --> %s]  %s\n", to_timestamp(tt0).c_str(), to_timestamp(tt1).c_str(), text.c_str());
-                        } else {
-                            printf("%s", text.c_str());
-                            fflush(stdout);
-                        }
-                    }
-
-                    result_all.push_back({ tt0, tt1, text, {} , speaker_turn_next });
-                    for (int j = i0; j < (int) tokens_cur.size(); j++) {
+                    result_all.push_back({ t0, t1, text, {} , speaker_turn_next });
+                    for (int j = std::max(0, token_offset-1); j <= end; j++) {
                         result_all.back().tokens.push_back(tokens_cur[j]);
                     }
 
-                    int n_new = 1;
-
                     if (params.token_timestamps) {
-                        whisper_exp_compute_token_level_timestamps(
-                                *ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
+                        whisper_exp_compute_token_level_timestamps(*ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
 
                         if (params.max_len > 0) {
                             n_new = whisper_wrap_segment(*ctx, *state, params.max_len, params.split_on_word);
@@ -5836,6 +5771,40 @@ int whisper_full_with_state(
                     }
                     if (params.new_segment_callback) {
                         params.new_segment_callback(ctx, state, n_new, params.new_segment_callback_user_data);
+                    }
+                };
+
+                // if we have timestamps, output it time chunk by time chunk
+                if (!params.no_timestamps) {
+                    int token_offset = 0; // used to locate current time chunk
+                    auto timestamp_start = whisper_token_beg(ctx);
+                    for (int i = 0; i < static_cast<int>(tokens_cur.size()); i++) {
+                        process_token(i);
+
+                        if (tokens_cur[i].id > timestamp_start && !params.single_segment) {
+                            auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
+                            t1 = params.speed_up ? 2*t1 : t1; // adjust t1 if speed_up mode is on
+                            timestamp_start = tokens_cur[i].id;
+
+                            if (!text.empty()) {
+                                process_text(t1, token_offset, i);
+                            }
+
+                            text.clear();
+                            t0 = t1;
+                            token_offset = i + 1;
+                            speaker_turn_next = false;
+                        }
+                    }
+                } else { // otherwise, output it as a whole
+                    for (int i = 0; i < static_cast<int>(tokens_cur.size()); i++) {
+                        process_token(i);
+                    }
+                    if (!text.empty()) {
+                        auto t1 = seek + seek_delta;
+                        t1 = params.speed_up ? 2*t1 : t1; // adjust t1 if speed_up mode is on
+
+                        process_text(t1, 0, static_cast<int>(tokens_cur.size()));
                     }
                 }
             }
@@ -5890,7 +5859,6 @@ int whisper_full_parallel(
 
         params_cur.offset_ms = 0;
         params_cur.print_progress = false;
-        params_cur.print_realtime = false;
 
         params_cur.new_segment_callback = nullptr;
         params_cur.new_segment_callback_user_data = nullptr;
@@ -5903,9 +5871,6 @@ int whisper_full_parallel(
 
     {
         auto params_cur = params;
-
-        // We need to disable the print real-time for this one as well, otherwise it will show only for the first chunk.
-        params_cur.print_realtime = false;
 
         // Run the first transformation using default state but only for the first chunk.
         ret = whisper_full_with_state(ctx, ctx->state, std::move(params_cur), samples, offset_samples + n_samples_per_processor);
