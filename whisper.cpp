@@ -452,9 +452,8 @@ static void whisper_batch_prep_legacy(whisper_batch & batch, const whisper_token
         batch.pos     [i]    = n_past + i;
         batch.n_seq_id[i]    = 1;
         batch.seq_id  [i][0] = seq_id;
-        batch.logits  [i]    = 0;
+        batch.logits  [i]    = 1;
     }
-    batch.logits[n_tokens - 1] = 1;
 }
 
 // replace std::pair by using customized pair struct (reason: std::pair is very slow)
@@ -733,6 +732,7 @@ struct whisper_sequence {
     // the accumulated transcription in the current iteration (used to truncate the tokens array)
     int result_len;
 
+    double no_speech_probs;  // the probabilities of silence
     double sum_logprobs_all; // the sum of the log probabilities of the tokens
     double sum_logprobs;     // the sum of the log probabilities of the tokens (first result_len tokens)
     double avg_logprobs;     // the average log probability of the tokens
@@ -4437,7 +4437,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         case WHISPER_SAMPLING_GREEDY:
             {
                 result.greedy = {
-                    /*.best_of   =*/ 5,
+                    /*.best_of   =*/ 1,
                 };
             } break;
         case WHISPER_SAMPLING_BEAM_SEARCH:
@@ -4462,13 +4462,13 @@ static void whisper_exp_compute_token_level_timestamps(
                          float   thold_pt,
                          float   thold_ptsum);
 
-static inline bool should_split_on_word(const char * txt, bool split_on_word) {
-    if (!split_on_word) return true;
+//static inline bool should_split_on_word(const char * txt, bool split_on_word) {
+//    if (!split_on_word) return true;
+//
+//    return txt[0] == ' ';
+//}
 
-    return txt[0] == ' ';
-}
-
-// wrap the last segment to max_len characters
+// wrap the last segment into segments with max_len number of words
 // returns the number of new segments
 static int whisper_wrap_segment(struct whisper_context & ctx, struct whisper_state & state, int max_len, bool split_on_word) {
     auto segment = state.result_all.back();
@@ -4478,49 +4478,85 @@ static int whisper_wrap_segment(struct whisper_context & ctx, struct whisper_sta
 
     std::string text;
 
-    for (int i = 0; i < (int) segment.tokens.size(); i++) {
-        const auto & token = segment.tokens[i];
-        if (token.id >= whisper_token_eot(&ctx)) {
-            continue;
-        }
-
-        const auto txt = whisper_token_to_str(&ctx, token.id);
-        const int cur = strlen(txt);
-
-        if (acc + cur > max_len && i > 0 && should_split_on_word(txt, split_on_word)) {
-            state.result_all.back().text = std::move(text);
-            state.result_all.back().t1 = token.t0;
-            state.result_all.back().tokens.resize(i);
-            state.result_all.back().speaker_turn_next = false;
-
-            state.result_all.push_back({});
-            state.result_all.back().t0 = token.t0;
-            state.result_all.back().t1 = segment.t1;
-
-            // add tokens [i, end] to the new segment
-            state.result_all.back().tokens.insert(
-                state.result_all.back().tokens.end(),
-                    segment.tokens.begin() + i,
-                    segment.tokens.end());
-
-            state.result_all.back().speaker_turn_next = segment.speaker_turn_next;
-
-            acc = 0;
-            text = "";
-
-            segment = state.result_all.back();
-            i = -1;
-
-            res++;
-        } else {
-            acc += cur;
-            text += txt;
-        }
-    }
-
-    state.result_all.back().text = std::move(text);
+//    for (int i = 0; i < (int) segment.tokens.size(); i++) {
+//        const auto & token = segment.tokens[i];
+//        if (token.id >= whisper_token_eot(&ctx)) {
+//            continue;
+//        }
+//
+//        const auto txt = whisper_token_to_str(&ctx, token.id);
+//        const int cur = strlen(txt);
+//
+//        if (acc + cur > max_len && i > 0 && should_split_on_word(txt, split_on_word)) {
+//            state.result_all.back().text = std::move(text);
+//            state.result_all.back().t1 = token.t0;
+//            state.result_all.back().tokens.resize(i);
+//            state.result_all.back().speaker_turn_next = false;
+//
+//            state.result_all.push_back({});
+//            state.result_all.back().t0 = token.t0;
+//            state.result_all.back().t1 = segment.t1;
+//
+//            // add tokens [i, end] to the new segment
+//            state.result_all.back().tokens.insert(
+//                state.result_all.back().tokens.end(),
+//                    segment.tokens.begin() + i,
+//                    segment.tokens.end());
+//
+//            state.result_all.back().speaker_turn_next = segment.speaker_turn_next;
+//
+//            acc = 0;
+//            text = "";
+//
+//            segment = state.result_all.back();
+//            i = -1;
+//
+//            res++;
+//        } else {
+//            acc += cur;
+//            text += txt;
+//        }
+//    }
+//
+//    state.result_all.back().text = std::move(text);
 
     return res;
+}
+
+// ref: https://github.com/openai/whisper/blob/ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab/whisper/decoding.py#L689-L693
+static void whisper_no_speech_probs(
+              struct whisper_context & ctx,
+               struct whisper_state  & state,
+              struct whisper_decoder & decoder,
+          std::vector<whisper_token> & prompt_init) {
+
+    const auto & vocab= ctx.vocab;
+    const int  n_logits = vocab.id_to_token.size();
+    const int  logits_offset = decoder.i_batch - (prompt_init.size() - 1);
+    printf("[%i, %i, %i]\n", decoder.i_batch, (prompt_init.size() - 1), logits_offset);
+    double no_speech_probs = 0.0;
+
+    WHISPER_ASSERT(n_logits == ctx.vocab.n_vocab);
+
+    // extract the logits for the SOT token
+    // we will be mutating, and therefore we don't want to use the ctx.logits buffer directly
+    auto & logits   = decoder.logits;
+    {
+        logits.resize(n_logits);
+        memcpy(logits.data(), state.logits.data() + logits_offset*n_logits, n_logits*sizeof(float));
+    }
+
+    // softmax
+    // ref: https://pytorch.org/docs/stable/generated/torch.nn.Softmax.html
+    {
+        double sum = 0.0f;
+        for (auto & i : logits) {
+            sum += expf(i);
+        }
+        no_speech_probs = static_cast<double>(expf(logits[vocab.token_nosp]) / sum);
+    }
+
+    decoder.sequence.no_speech_probs = no_speech_probs;
 }
 
 static const std::vector<std::string> non_speech_tokens = {
@@ -5313,7 +5349,11 @@ int whisper_full_with_state(
 
                     state->decoders[0].i_batch = prompt.size() - 1;
 
+                    whisper_no_speech_probs(*ctx, *state, state->decoders[0], prompt_init);
+
                     whisper_process_logits(*ctx, *state, state->decoders[0], params, t_cur);
+
+                    printf("Non-speach: %f\n", state->decoders[0].sequence.no_speech_probs);
 
                     for (int j = 1; j < n_decoders_cur; ++j) {
                         auto & decoder = state->decoders[j];
@@ -5323,6 +5363,7 @@ int whisper_full_with_state(
                         memcpy(decoder.probs.data(),    state->decoders[0].probs.data(),    decoder.probs.size()*sizeof(decoder.probs[0]));
                         memcpy(decoder.logits.data(),   state->decoders[0].logits.data(),   decoder.logits.size()*sizeof(decoder.logits[0]));
                         memcpy(decoder.logprobs.data(), state->decoders[0].logprobs.data(), decoder.logprobs.size()*sizeof(decoder.logprobs[0]));
+                        decoder.sequence.no_speech_probs = state->decoders[0].sequence.no_speech_probs;
                     }
 
                     state->t_sample_us += ggml_time_us() - t_start_sample_us;
@@ -5360,9 +5401,10 @@ int whisper_full_with_state(
                             switch (params.strategy) {
                                 case whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY:
                                     {
+                                        // if t_cur is almost 0, we use argmax
                                         if (t_cur < 1e-6f) {
                                             decoder.sequence.tokens.push_back(whisper_sample_token(*ctx, decoder, true));
-                                        } else {
+                                        } else { // otherwise, we use categorical distribution
                                             decoder.sequence.tokens.push_back(whisper_sample_token(*ctx, decoder, false));
                                         }
 
@@ -5698,8 +5740,11 @@ int whisper_full_with_state(
 
                 if (decoder.failed || decoder.sequence.avg_logprobs < params.logprob_thold) {
                     WHISPER_LOG_DEBUG("%s: failed due to avg_logprobs %8.5f < %8.5f\n", __func__, decoder.sequence.avg_logprobs, params.logprob_thold);
-                    success = false;
-                    state->n_fail_p++;
+                    // ref: https://github.com/openai/whisper/blob/ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab/whisper/transcribe.py#L208-L212
+                    if (decoder.sequence.no_speech_probs < params.no_speech_thold) {
+                        success = false;
+                        state->n_fail_p++;
+                    }
                 }
             }
 
@@ -5712,6 +5757,20 @@ int whisper_full_with_state(
             }
 
             WHISPER_LOG_DEBUG("\n%s: failed to decode with temperature = %.2f\n", __func__, t_cur);
+        }
+
+        // no voice activity check
+        // ref: https://github.com/openai/whisper/blob/ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab/whisper/transcribe.py#L282-L294
+        {
+            const auto & best_decoder = state->decoders[best_decoder_id];
+            const auto seek_delta = best_decoder.seek_delta;
+
+            if (best_decoder.sequence.no_speech_probs > params.no_speech_thold) {
+                if (best_decoder.sequence.avg_logprobs < params.logprob_thold) {
+                    seek += seek_delta;
+                    continue;
+                }
+            }
         }
 
         // output results through a user-provided callback
@@ -5755,11 +5814,11 @@ int whisper_full_with_state(
                 };
 
                 // a lambda function used to extract common procedures
-                auto process_text = [&](int t1, int token_offset, int end) {
+                auto text_callback = [&](int t1, int token_offset, int end) {
                     int n_new = 1;
 
                     result_all.push_back({ t0, t1, text, {} , speaker_turn_next });
-                    for (int j = std::max(0, token_offset-1); j <= end; j++) {
+                    for (int j = std::max(0, token_offset); j <= end; j++) {
                         result_all.back().tokens.push_back(tokens_cur[j]);
                     }
 
@@ -5800,7 +5859,7 @@ int whisper_full_with_state(
                             timestamp_start = tokens_cur[i].id;
 
                             if (!text.empty()) {
-                                process_text(t1, token_offset, i);
+                                text_callback(t1, token_offset, i);
                                 if (params.print_realtime) {
                                     print_text(t1);
                                 }
@@ -5820,7 +5879,7 @@ int whisper_full_with_state(
                         auto t1 = seek + seek_delta;
                         t1 = params.speed_up ? 2*t1 : t1; // adjust t1 if speed_up mode is on
 
-                        process_text(t1, 0, static_cast<int>(tokens_cur.size()));
+                        text_callback(t1, 0, static_cast<int>(tokens_cur.size()));
                         if (params.print_realtime) {
                             print_text(t1);
                         }
@@ -5878,6 +5937,7 @@ int whisper_full_parallel(
 
         params_cur.offset_ms = 0;
         params_cur.print_progress = false;
+        params_cur.print_realtime = false;
 
         params_cur.new_segment_callback = nullptr;
         params_cur.new_segment_callback_user_data = nullptr;
