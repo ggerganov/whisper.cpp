@@ -372,17 +372,17 @@ struct whisper_vocab {
     std::map<id, token> id_to_token;
 
     // reference: https://github.com/openai/whisper/blob/248b6cb124225dd263bb9bd32d060b6517e067f8/whisper/tokenizer.py#L334-L349
-    id token_eot        = 50256; // anything before that are normal tokens
-    id token_sot        = 50257;
+    id token_eot        = 50256; // end of text, anything before that are normal tokens
+    id token_sot        = 50257; // start of transcript
     // task tokens (used only for multilingual models)
     id token_translate  = 50357;
     id token_transcribe = 50358;
     // other special tokens
     id token_solm       = 50359; // [TDRZ] used by tinydiarize models to indicate speaker turn
-    id token_prev       = 50360;
-    id token_nosp       = 50361;
+    id token_prev       = 50360; // TODO: I don't understand the meaning of this token
+    id token_nosp       = 50361; // no speech
     id token_not        = 50362; // no timestamps
-    id token_beg        = 50363; // begin timestamps
+    id token_beg        = 50363; // the first timestamp token <|0.00|>
 
     bool is_multilingual() const {
         return n_vocab >= 51865;
@@ -1261,23 +1261,23 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                 if (i > vocab.token_beg) {
                     word = "[_TT_" + std::to_string(i - vocab.token_beg) + "]";
                 } else if (i == vocab.token_eot) {
-                    word = "[_EOT_]";
+                    word = "[_EOT_]"; // <|endoftext|>
                 } else if (i == vocab.token_sot) {
-                    word = "[_SOT_]";
+                    word = "[_SOT_]"; // <|startoftranscript|>
                 } else if (i == vocab.token_translate) {
                     word = "[_TRANSLATE_]";
                 } else if (i == vocab.token_transcribe) {
                     word = "[_TRANSCRIBE_]";
                 } else if (i == vocab.token_solm) {
-                    word = "[_SOLM_]";
+                    word = "[_SOLM_]"; // <|startoflm|>
                 } else if (i == vocab.token_prev) {
-                    word = "[_PREV_]";
+                    word = "[_PREV_]"; // <|startofprev|>
                 } else if (i == vocab.token_nosp) {
-                    word = "[_NOSP_]";
+                    word = "[_NOSP_]"; // <|nospeech|>
                 } else if (i == vocab.token_not) {
-                    word = "[_NOT_]";
+                    word = "[_NOT_]"; // <|notimestamps|>
                 } else if (i == vocab.token_beg) {
-                    word = "[_BEG_]";
+                    word = "[_BEG_]"; // the first timestamp token <|0.00|>
                 } else if (i > vocab.token_sot && i <= vocab.token_sot + vocab.num_languages()) {
                     word = "[_LANG_" + std::string(whisper_lang_str(i - vocab.token_sot - 1)) + "]";
                 } else {
@@ -4533,7 +4533,6 @@ static void whisper_no_speech_probs(
     const auto & vocab= ctx.vocab;
     const int  n_logits = vocab.id_to_token.size();
     const int  logits_offset = decoder.i_batch - (prompt_init.size() - 1);
-    printf("[%i, %i, %i]\n", decoder.i_batch, (prompt_init.size() - 1), logits_offset);
     double no_speech_probs = 0.0;
 
     WHISPER_ASSERT(n_logits == ctx.vocab.n_vocab);
@@ -5352,8 +5351,6 @@ int whisper_full_with_state(
                     whisper_no_speech_probs(*ctx, *state, state->decoders[0], prompt_init);
 
                     whisper_process_logits(*ctx, *state, state->decoders[0], params, t_cur);
-
-                    printf("Non-speach: %f\n", state->decoders[0].sequence.no_speech_probs);
 
                     for (int j = 1; j < n_decoders_cur; ++j) {
                         auto & decoder = state->decoders[j];
