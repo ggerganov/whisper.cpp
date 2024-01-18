@@ -18,7 +18,7 @@
 #endif
 
 using namespace httplib;
-using json = nlohmann::json;
+using json = nlohmann::ordered_json;
 
 namespace {
 
@@ -681,6 +681,7 @@ int main(int argc, char ** argv) {
             wparams.logprob_thold    = params.logprob_thold;
 
             wparams.no_timestamps    = params.no_timestamps;
+            wparams.token_timestamps = !params.no_timestamps && params.response_format == vjson_format;
 
             whisper_print_user_data user_data = { &params, &pcmf32s, 0 };
 
@@ -778,6 +779,43 @@ int main(int argc, char ** argv) {
                 ss << speaker << text << "\n\n";
             }
             res.set_content(ss.str(), "text/vtt");
+        } else if (params.response_format == vjson_format) {
+            /* try to match openai/whisper's Python format */
+            std::string results = output_str(ctx, params, pcmf32s);
+            json jres = json{{"text", results}};
+            const int n_segments = whisper_full_n_segments(ctx);
+            for (int i = 0; i < n_segments; ++i)
+            {
+                json segment = json{
+                    {"id", i},
+                    {"text", whisper_full_get_segment_text(ctx, i)},
+                };
+
+                if (!params.no_timestamps) {
+                    segment["start"] = whisper_full_get_segment_t0(ctx, i) * 0.01;
+                    segment["end"] = whisper_full_get_segment_t1(ctx, i) * 0.01;
+                }
+
+                const int n_tokens = whisper_full_n_tokens(ctx, i);
+                for (int j = 0; j < n_tokens; ++j) {
+                    whisper_token_data token = whisper_full_get_token_data(ctx, i, j);
+                    if (token.id >= whisper_token_eot(ctx)) {
+                        continue;
+                    }
+
+                    segment["tokens"].push_back(token.id);
+                    json word = json{{"word", whisper_full_get_token_text(ctx, i, j)}};
+                    if (!params.no_timestamps) {
+                        word["start"] = token.t0 * 0.01;
+                        word["end"] = token.t1 * 0.01;
+                    }
+                    word["probability"] = token.p;
+                    segment["words"].push_back(word);
+                }
+                jres["segments"].push_back(segment);
+            }
+            res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
+                            "application/json");
         }
         // TODO add more output formats
         else
