@@ -556,7 +556,7 @@ int main(int argc, char ** argv) {
 
     svr.Post(sparams.request_path + "/inference", [&](const Request &req, Response &res){
         // acquire whisper model mutex lock
-        whisper_mutex.lock();
+        std::lock_guard<std::mutex> lock(whisper_mutex);
 
         // first check user requested fields of the request
         if (!req.has_file("file"))
@@ -564,7 +564,6 @@ int main(int argc, char ** argv) {
             fprintf(stderr, "error: no 'file' field in the request\n");
             const std::string error_resp = "{\"error\":\"no 'file' field in the request\"}";
             res.set_content(error_resp, "application/json");
-            whisper_mutex.unlock();
             return;
         }
         auto audio_file = req.get_file_value("file");
@@ -591,7 +590,6 @@ int main(int argc, char ** argv) {
             const bool is_converted = convert_to_wav(temp_filename, error_resp);
             if (!is_converted) {
                 res.set_content(error_resp, "application/json");
-                whisper_mutex.unlock();
                 return;
             }
 
@@ -602,7 +600,6 @@ int main(int argc, char ** argv) {
                 const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
                 res.set_content(error_resp, "application/json");
                 std::remove(temp_filename.c_str());
-                whisper_mutex.unlock();
                 return;
             }
             // remove temp file
@@ -613,7 +610,6 @@ int main(int argc, char ** argv) {
                 fprintf(stderr, "error: failed to read WAV file\n");
                 const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
                 res.set_content(error_resp, "application/json");
-                whisper_mutex.unlock();
                 return;
             }
         }
@@ -735,7 +731,6 @@ int main(int argc, char ** argv) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
                 const std::string error_resp = "{\"error\":\"failed to process audio\"}";
                 res.set_content(error_resp, "application/json");
-                whisper_mutex.unlock();
                 return;
             }
         }
@@ -840,18 +835,14 @@ int main(int argc, char ** argv) {
 
         // reset params to thier defaults
         params = default_params;
-
-        // return whisper model mutex lock
-        whisper_mutex.unlock();
     });
     svr.Post(sparams.request_path + "/load", [&](const Request &req, Response &res){
-        whisper_mutex.lock();
+        std::lock_guard<std::mutex> lock(whisper_mutex);
         if (!req.has_file("model"))
         {
             fprintf(stderr, "error: no 'model' field in the request\n");
             const std::string error_resp = "{\"error\":\"no 'model' field in the request\"}";
             res.set_content(error_resp, "application/json");
-            whisper_mutex.unlock();
             return;
         }
         std::string model = req.get_file_value("model").content;
@@ -860,7 +851,6 @@ int main(int argc, char ** argv) {
             fprintf(stderr, "error: 'model': %s not found!\n", model.c_str());
             const std::string error_resp = "{\"error\":\"model not found!\"}";
             res.set_content(error_resp, "application/json");
-            whisper_mutex.unlock();
             return;
         }
 
@@ -883,7 +873,6 @@ int main(int argc, char ** argv) {
         res.set_content(success, "application/text");
 
         // check if the model is in the file system
-        whisper_mutex.unlock();
     });
 
     svr.set_exception_handler([](const Request &, Response &res, std::exception_ptr ep) {
