@@ -219,6 +219,11 @@ if (WHISPER_OPENBLAS)
         set(WHISPER_BLAS_LIB "openblas")
     endif ()
     set(BLA_PKGCONFIG_BLAS ${WHISPER_BLAS_LIB})
+    # OpenBLAS prebuilt libraries for Windows do not have "64" suffix in filename.
+    # (But .pc file has "64" suffix in filename for USE_64BITINT=1 Windows build.)
+    if (MSVC)
+        set(WHISPER_BLAS_LIB "openblas")
+    endif ()
 endif()
 
 if (WHISPER_BLAS)
