@@ -211,7 +211,7 @@ ifndef WHISPER_NO_METAL
 endif
 
 ifneq ($(filter-out 0,$(WHISPER_OPENBLAS)),) # OpenBLAS
-	WHISPER_OPENBLAS_INTERFACE64 ?= 1 # use 64-bit interface by default
+	WHISPER_OPENBLAS_INTERFACE64 ?= 0 # use 32-bit interface by default
 	ifneq ($(filter-out 0,$(WHISPER_OPENBLAS_INTERFACE64)),)
 		WHISPER_BLAS_LIB := openblas64
 	else
