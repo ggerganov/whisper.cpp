@@ -505,6 +505,7 @@ else()
 endif()
 
 if (BUILD_SHARED_LIBS)
+    set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_link_libraries(${TARGET} PUBLIC
         ${CMAKE_DL_LIBS}
         )
