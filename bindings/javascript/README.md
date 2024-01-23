@@ -41,7 +41,7 @@ make publish-npm
 
 ## Sample run
 
-```java
+```text
 $ node --experimental-wasm-threads --experimental-wasm-simd ../tests/test-whisper.js
 
 whisper_model_load: loading model from 'whisper.bin'
@@ -63,7 +63,7 @@ whisper_model_load: ggml ctx size =  140.60 MB
 whisper_model_load: memory size   =   22.83 MB
 whisper_model_load: model size    =  140.54 MB
 
-system_info: n_threads = 8 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | NEON = 0 | F16C = 0 | FP16_VA = 0 | WASM_SIMD = 1 | BLAS = 0 | 
+system_info: n_threads = 8 / 10 | AVX = 0 | AVX2 = 0 | AVX512 = 0 | NEON = 0 | F16C = 0 | FP16_VA = 0 | WASM_SIMD = 1 | BLAS = 0 |
 
 operator(): processing 176000 samples, 11.0 sec, 8 threads, 1 processors, lang = en, task = transcribe ...
 

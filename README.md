@@ -91,7 +91,7 @@ make
 
 For a quick demo, simply run `make base.en`:
 
-```java
+```text
 $ make base.en
 
 cc  -I.              -O3 -std=c11   -pthread -DGGML_USE_ACCELERATE   -c ggml.c -o ggml.o
@@ -207,7 +207,7 @@ For detailed usage instructions, run: `./main -h`
 Note that the [main](examples/main) example currently runs only with 16-bit WAV files, so make sure to convert your input before running the tool.
 For example, you can use `ffmpeg` like this:
 
-```java
+```bash
 ffmpeg -i input.mp3 -ar 16000 -ac 1 -c:a pcm_s16le output.wav
 ```
 
@@ -304,7 +304,7 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
 
 - Run the examples as usual. For example:
 
-  ```bash
+  ```text
   ./main -m models/ggml-base.en.bin -f samples/jfk.wav
 
   ...
@@ -388,7 +388,7 @@ This can result in significant speedup in encoder performance. Here are the inst
 
 - Run the examples as usual. For example:
 
-  ```bash
+  ```text
   ./main -m models/ggml-base.en.bin -f samples/jfk.wav
 
   ...
@@ -498,7 +498,7 @@ in about half a minute on a MacBook M1 Pro, using `medium.en` model:
 <details>
   <summary>Expand to see the result</summary>
 
-```java
+```text
 $ ./main -m models/ggml-medium.en.bin -f samples/gb1.wav -t 8
 
 whisper_init_from_file: loading model from 'models/ggml-medium.en.bin'
@@ -579,7 +579,7 @@ This is a naive example of performing real-time inference on audio from your mic
 The [stream](examples/stream) tool samples the audio every half a second and runs the transcription continuously.
 More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
-```java
+```bash
 make stream
 ./stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
 ```
@@ -591,7 +591,7 @@ https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a
 Adding the `--print-colors` argument will print the transcribed text using an experimental color coding strategy
 to highlight words with high or low confidence:
 
-```java
+```bash
 ./main -m models/ggml-base.en.bin -f samples/gb0.wav --print-colors
 ```
 
@@ -601,7 +601,7 @@ to highlight words with high or low confidence:
 
 For example, to limit the line length to a maximum of 16 characters, simply add `-ml 16`:
 
-```java
+```text
 ./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -ml 16
 
 whisper_model_load: loading model from './models/ggml-base.en.bin'
@@ -625,7 +625,7 @@ main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 pr
 
 The `--max-len` argument can be used to obtain word-level timestamps. Simply use `-ml 1`:
 
-```java
+```text
 ./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -ml 1
 
 whisper_model_load: loading model from './models/ggml-base.en.bin'
@@ -696,7 +696,7 @@ This requires to have `ffmpeg` installed.
 
 Here are a few _"typical"_ examples:
 
-```java
+```bash
 ./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -owts
 source ./samples/jfk.wav.wts
 ffplay ./samples/jfk.wav.mp4
@@ -706,7 +706,7 @@ https://user-images.githubusercontent.com/1991296/199337465-dbee4b5e-9aeb-48a3-b
 
 ---
 
-```java
+```bash
 ./main -m ./models/ggml-base.en.bin -f ./samples/mm0.wav -owts
 source ./samples/mm0.wav.wts
 ffplay ./samples/mm0.wav.mp4
@@ -716,7 +716,7 @@ https://user-images.githubusercontent.com/1991296/199337504-cc8fd233-0cb7-4920-9
 
 ---
 
-```java
+```bash
 ./main -m ./models/ggml-base.en.bin -f ./samples/gb0.wav -owts
 source ./samples/gb0.wav.wts
 ffplay ./samples/gb0.wav.mp4
@@ -730,7 +730,7 @@ https://user-images.githubusercontent.com/1991296/199337538-b7b0c7a3-2753-4a88-a
 
 Use the [extra/bench-wts.sh](https://github.com/ggerganov/whisper.cpp/blob/master/extra/bench-wts.sh) script to generate a video in the following format:
 
-```java
+```bash
 ./extra/bench-wts.sh samples/jfk.wav
 ffplay ./samples/jfk.wav.all.mp4
 ```

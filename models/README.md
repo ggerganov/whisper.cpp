@@ -13,7 +13,7 @@ Currently, they are hosted on the following locations:
 
 Sample download:
 
-```bash
+```text
 $ ./download-ggml-model.sh base.en
 Downloading ggml model base.en ...
 models/ggml-base.en.bin          100%[=============================================>] 141.11M  5.41MB/s    in 22s
