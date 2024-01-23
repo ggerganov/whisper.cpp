@@ -1,17 +1,14 @@
 ## Whisper model files in custom `ggml` format
 
-The [original Whisper PyTorch models provided by OpenAI](https://github.com/openai/whisper/blob/main/whisper/__init__.py#L17-L27)
+The [original Whisper PyTorch models provided by OpenAI](https://github.com/openai/whisper/blob/main/whisper/__init__.py#L17-L30)
 are converted to custom `ggml` format in order to be able to load them in C/C++.
 Conversion is performed using the [convert-pt-to-ggml.py](convert-pt-to-ggml.py) script.
 
-You can either obtain the original models and generate the `ggml` files yourself using the conversion script,
-or you can use the [download-ggml-model.sh](download-ggml-model.sh) script to download the already converted models.
-Currently, they are hosted on the following locations:
+There are 3 ways to install models:
 
-- https://huggingface.co/ggerganov/whisper.cpp
-- https://ggml.ggerganov.com
+### 1. Use [download-ggml-model.sh](download-ggml-model.sh) to download pre-converted models
 
-Sample download:
+Example download:
 
 ```text
 $ ./download-ggml-model.sh base.en
@@ -23,9 +20,18 @@ You can now use it like this:
   $ ./main -m models/ggml-base.en.bin -f samples/jfk.wav
 ```
 
-To convert the files yourself, use the convert-pt-to-ggml.py script. Here is an example usage.
-The original PyTorch files are assumed to have been downloaded into ~/.cache/whisper
-Change `~/path/to/repo/whisper/` to the location for your copy of the Whisper source:
+### 2. Manually download pre-converted models
+
+`ggml` models are available from the following locations:
+
+- https://huggingface.co/ggerganov/whisper.cpp/tree/main
+- https://ggml.ggerganov.com
+
+### 3. Convert with [convert-pt-to-ggml.py](convert-pt-to-ggml.py)
+
+Download one of the [models provided by OpenAI](https://github.com/openai/whisper/blob/main/whisper/__init__.py#L17-L30) and generate the `ggml` files using the [convert-pt-to-ggml.py](convert-pt-to-ggml.py) script.
+
+Example conversion, assuming the original PyTorch files have been downloaded into `~/.cache/whisper`. Change `~/path/to/repo/whisper/` to the location for your copy of the Whisper source:
 
 ```bash
 mkdir models/whisper-medium
@@ -33,10 +39,6 @@ python models/convert-pt-to-ggml.py ~/.cache/whisper/medium.pt ~/path/to/repo/wh
 mv ./models/whisper-medium/ggml-model.bin models/ggml-medium.bin
 rmdir models/whisper-medium
 ```
-
-A third option to obtain the model files is to download them from Hugging Face:
-
-https://huggingface.co/ggerganov/whisper.cpp/tree/main
 
 ## Available models
 
