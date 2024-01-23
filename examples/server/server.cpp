@@ -543,7 +543,36 @@ int main(int argc, char ** argv) {
                              {"Access-Control-Allow-Origin", "*"},
                              {"Access-Control-Allow-Headers", "content-type"}});
 
-    std::string const default_content = "<html>hello</html>";
+    std::string const default_content = R"(
+    <html>
+    <head>
+        <title>Whisper.cpp Server</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+        <style> body { font-family: sans-serif; } </style>
+    </head>
+    <body>
+        <h1>Whisper.cpp Server</h1>
+
+        <h2>/inference</h2>
+        <pre>
+    curl 127.0.0.1:)" + std::to_string(sparams.port) + R"(/inference \
+    -H "Content-Type: multipart/form-data" \
+    -F file="@&lt;file-path&gt;" \
+    -F temperature="0.0" \
+    -F temperature_inc="0.2" \
+    -F response_format="json"
+        </pre>
+
+        <h2>/load</h2>
+        <pre>
+    curl 127.0.0.1:)" + std::to_string(sparams.port) + R"(/load \
+    -H "Content-Type: multipart/form-data" \
+    -F model="&lt;path-to-model-file&gt;"
+        </pre>
+    </body>
+    </html>
+    )";
 
     // store default params so we can reset after each inference request
     whisper_params default_params = params;
