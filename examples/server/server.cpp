@@ -787,7 +787,13 @@ int main(int argc, char ** argv) {
         } else if (params.response_format == vjson_format) {
             /* try to match openai/whisper's Python format */
             std::string results = output_str(ctx, params, pcmf32s);
-            json jres = json{{"text", results}};
+            json jres = json{
+                {"task", params.translate ? "translate" : "transcribe"},
+                {"language", whisper_lang_str_full(whisper_full_lang_id(ctx))},
+                {"duration", float(pcmf32.size())/WHISPER_SAMPLE_RATE},
+                {"text", results},
+                {"segments", json::array()}
+            };
             const int n_segments = whisper_full_n_segments(ctx);
             for (int i = 0; i < n_segments; ++i)
             {
@@ -801,6 +807,7 @@ int main(int argc, char ** argv) {
                     segment["end"] = whisper_full_get_segment_t1(ctx, i) * 0.01;
                 }
 
+                float total_logprob = 0;
                 const int n_tokens = whisper_full_n_tokens(ctx, i);
                 for (int j = 0; j < n_tokens; ++j) {
                     whisper_token_data token = whisper_full_get_token_data(ctx, i, j);
@@ -815,8 +822,13 @@ int main(int argc, char ** argv) {
                         word["end"] = token.t1 * 0.01;
                     }
                     word["probability"] = token.p;
+                    total_logprob += token.plog;
                     segment["words"].push_back(word);
                 }
+
+                segment["temperature"] = params.temperature;
+                segment["avg_logprob"] = total_logprob / n_tokens;
+
                 jres["segments"].push_back(segment);
             }
             res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
