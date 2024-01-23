@@ -22,17 +22,17 @@ get_script_path() {
 models_path="${2:-$(get_script_path)}"
 
 # Whisper models
-models="tiny.en
-tiny
+models="tiny
+tiny.en
 tiny-q5_1
 tiny.en-q5_1
-base.en
 base
+base.en
 base-q5_1
 base.en-q5_1
+small
 small.en
 small.en-tdrz
-small
 small-q5_1
 small.en-q5_1
 medium
@@ -41,14 +41,21 @@ medium-q5_0
 medium.en-q5_0
 large-v1
 large-v2
+large-v2-q5_0
 large-v3
 large-v3-q5_0"
 
 # list available models
 list_models() {
     printf "\n"
-    printf "  Available models:"
+    printf "Available models:"
+    model_class=""
     for model in $models; do
+        this_model_class="${model%%[.-]*}"
+        if [ "$this_model_class" != "$model_class" ]; then
+            printf "\n "
+            model_class=$this_model_class
+        fi
         printf " %s" "$model"
     done
     printf "\n\n"
@@ -98,13 +105,11 @@ else
     exit 1
 fi
 
-
 if [ $? -ne 0 ]; then
     printf "Failed to download ggml model %s \n" "$model"
     printf "Please try again later or download the original Whisper model files and convert them yourself.\n"
     exit 1
 fi
-
 
 printf "Done! Model '%s' saved in '%s/ggml-%s.bin'\n" "$model" "$models_path" "$model"
 printf "You can now use it like this:\n\n"
