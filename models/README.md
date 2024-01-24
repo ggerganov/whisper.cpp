@@ -4,7 +4,7 @@ The [original Whisper PyTorch models provided by OpenAI](https://github.com/open
 are converted to custom `ggml` format in order to be able to load them in C/C++.
 Conversion is performed using the [convert-pt-to-ggml.py](convert-pt-to-ggml.py) script.
 
-There are 3 ways to install models:
+There are three ways to obtain `ggml` models:
 
 ### 1. Use [download-ggml-model.sh](download-ggml-model.sh) to download pre-converted models
 

@@ -9,6 +9,9 @@
 src="https://huggingface.co/ggerganov/whisper.cpp"
 pfx="resolve/main/ggml"
 
+BOLD="\033[1m"
+RESET='\033[0m'
+
 # get the path of this script
 get_script_path() {
     if [ -x "$(command -v realpath)" ]; then
@@ -64,6 +67,8 @@ list_models() {
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
     printf "Usage: %s <model> [models_path]\n" "$0"
     list_models
+    printf "___________________________________________________________\n"
+    printf "${BOLD}.en${RESET} = english-only ${BOLD}-q5_[01]${RESET} = quantized ${BOLD}-tdrz${RESET} = tinydiarize\n"
 
     exit 1
 fi
