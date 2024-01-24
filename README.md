@@ -305,7 +305,7 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
 - Run the examples as usual. For example:
 
   ```text
-  ./main -m models/ggml-base.en.bin -f samples/jfk.wav
+  $ ./main -m models/ggml-base.en.bin -f samples/jfk.wav
 
   ...
 
@@ -389,7 +389,7 @@ This can result in significant speedup in encoder performance. Here are the inst
 - Run the examples as usual. For example:
 
   ```text
-  ./main -m models/ggml-base.en.bin -f samples/jfk.wav
+  $ ./main -m models/ggml-base.en.bin -f samples/jfk.wav
 
   ...
 
@@ -602,7 +602,7 @@ to highlight words with high or low confidence:
 For example, to limit the line length to a maximum of 16 characters, simply add `-ml 16`:
 
 ```text
-./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -ml 16
+$ ./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -ml 16
 
 whisper_model_load: loading model from './models/ggml-base.en.bin'
 ...
@@ -626,7 +626,7 @@ main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 pr
 The `--max-len` argument can be used to obtain word-level timestamps. Simply use `-ml 1`:
 
 ```text
-./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -ml 1
+$ ./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -ml 1
 
 whisper_model_load: loading model from './models/ggml-base.en.bin'
 ...
