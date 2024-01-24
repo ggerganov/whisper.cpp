@@ -694,7 +694,7 @@ The [main](examples/main) example provides support for output of karaoke-style m
 currently pronounced word is highlighted. Use the `-wts` argument and run the generated bash script.
 This requires to have `ffmpeg` installed.
 
-Here are a few _"typical"_ examples:
+Here are a few *"typical"* examples:
 
 ```bash
 ./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -owts
