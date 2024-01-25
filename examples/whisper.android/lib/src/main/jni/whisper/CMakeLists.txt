@@ -26,7 +26,6 @@ find_library(LOG_LIB log)
 
 include(FetchContent)
 FetchContent_Declare(ggml SOURCE_DIR ${GGML_HOME})
-FetchContent_MakeAvailable(ggml)
 
 function(build_library target_name)
     add_library(
@@ -56,12 +55,23 @@ function(build_library target_name)
     endif ()
 endfunction()
 
-build_library("whisper") # Default target
-
 if (${ANDROID_ABI} STREQUAL "arm64-v8a")
+    set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
+    set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
+
+    set(GGML_CLBLAST ON)
+    set(CLBLAST_HOME ${WHISPER_LIB_DIR}/../CLBlast)
+    set(OPENCL_ROOT ${WHISPER_LIB_DIR}/../OpenCL-Headers)
+    set(OPENCL_LIB ${CMAKE_SOURCE_DIR}/../../jniLibs/arm64-v8a/libOpenCL.so)
+
+    FetchContent_MakeAvailable(ggml)
     build_library("whisper_v8fp16_va")
 elseif (${ANDROID_ABI} STREQUAL "armeabi-v7a")
+    FetchContent_MakeAvailable(ggml)
     build_library("whisper_vfpv4")
+else()
+    FetchContent_MakeAvailable(ggml)
+    build_library("whisper") # Default target
 endif ()
 
 include_directories(${WHISPER_LIB_DIR})
