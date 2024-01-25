@@ -3,19 +3,30 @@ cmake_minimum_required(VERSION 3.10)
 project(whisper.cpp)
 
 set(CMAKE_CXX_STANDARD 11)
-set(WHISPER_LIB_DIR ${CMAKE_SOURCE_DIR}/../../../../../../../)
+set(WHISPER_LIB_DIR ${CMAKE_SOURCE_DIR}/../../../../../../..)
 
 set(
         SOURCE_FILES
-        ${WHISPER_LIB_DIR}/ggml.c
-        ${WHISPER_LIB_DIR}/ggml-alloc.c
-        ${WHISPER_LIB_DIR}/ggml-backend.c
-        ${WHISPER_LIB_DIR}/ggml-quants.c
         ${WHISPER_LIB_DIR}/whisper.cpp
         ${CMAKE_SOURCE_DIR}/jni.c
 )
 
+option(
+        GGML_HOME
+        "Path to GGML"
+        ${WHISPER_LIB_DIR}/../ggml
+)
+
+# Building from Android doesn't seem to respect the default value, so we set it here explicitly.
+if(NOT GGML_HOME)
+    set(GGML_HOME ${WHISPER_LIB_DIR}/../ggml)
+endif()
+
 find_library(LOG_LIB log)
+
+include(FetchContent)
+FetchContent_Declare(ggml SOURCE_DIR ${GGML_HOME})
+FetchContent_MakeAvailable(ggml)
 
 function(build_library target_name)
     add_library(
@@ -24,7 +35,7 @@ function(build_library target_name)
         ${SOURCE_FILES}
     )
 
-    target_link_libraries(${target_name} ${LOG_LIB} android)
+    target_link_libraries(${target_name} ${LOG_LIB} android ggml)
 
     if (${target_name} STREQUAL "whisper_v8fp16_va")
         target_compile_options(${target_name} PRIVATE -march=armv8.2-a+fp16)
