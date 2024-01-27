@@ -639,7 +639,7 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
 
         fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
     }
-    else if (fname.size() > 256 || fname.size() > 40 && fname.substr(0, 4) == "RIFF" && fname.substr(8, 4) == "WAVE") {
+    else if (fname.size() > 256 && (fname.substr(0, 4) == "RIFF" || fname.substr(8, 4) == "WAVE")) {
         if (drwav_init_memory(&wav, fname.c_str(), fname.size(), nullptr) == false) {
             fprintf(stderr, "error: failed to open WAV file from fname buffer\n");
             return false;
