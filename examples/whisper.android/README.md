@@ -44,9 +44,18 @@ mkdir lib/src/main/jniLibs/arm64-v8a
 adb pull /system/vendor/lib64/egl/libGLES_mali.so lib/src/main/jniLibs/arm64-v8a/libOpenCL.so
 ```
 
-Uncomment the following line in lib/build.gradle.
+In lib/build.gradle, set `GGML_HOME` to the location of GGML, as well as
+required options for turning on CLBlast.
 
 ```gradle
-arguments '-DWHISPER_CLBLAST=ON'
+cmake {
+    arguments "-DGGML_HOME=/path/to/ggml",
+        "-DGGML_CLBLAST=ON",
+        "-DOPENCL_ROOT=/path/to/OpenCL-Headers",
+        "-DOPENCL_LIB=/path/to/libOpenCL.so",
+        "-DCLBLAST_HOME=/path/to/clblast",
+        "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH",
+        "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH"
+}
 ```
 

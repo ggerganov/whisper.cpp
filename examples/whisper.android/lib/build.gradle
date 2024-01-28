@@ -18,8 +18,18 @@ android {
         }
         externalNativeBuild {
             cmake {
-                // Uncomment to use CLBlast on supported architectures.
-                // arguments '-DWHISPER_CLBLAST=ON'
+                // When set, builds whisper.android against the version located at GGML_HOME
+                // instead of the version bundled with whisper.cpp.
+                //
+                // arguments "-DGGML_HOME=${rootDir.absolutePath}/../../../ggml",
+
+                // Turn on CLBlast on supported architectures (requires GGML_HOME):
+                //         "-DGGML_CLBLAST=ON"
+                //         "-DOPENCL_LIB=${rootDir.absolutePath}/lib/src/main/jniLibs/arm64-v8a/libOpenCL.so",
+                //         "-DCLBLAST_HOME=${rootDir.absolutePath}/../../../CLBlast",
+                //         "-DOPENCL_ROOT=${rootDir.absolutePath}/../../../OpenCL-Headers",
+                //         "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH",
+                //         "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH"
             }
         }
     }
