@@ -858,6 +858,10 @@ int main(int argc, char ** argv) {
                 segment["temperature"] = params.temperature;
                 segment["avg_logprob"] = total_logprob / n_tokens;
 
+                // TODO compression_ratio and no_speech_prob are not implemented yet
+                // segment["compression_ratio"] = 0;
+                // segment["no_speech_prob"] = 0;
+
                 jres["segments"].push_back(segment);
             }
             res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
