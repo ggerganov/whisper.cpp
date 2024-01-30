@@ -615,6 +615,21 @@ gpt_vocab::id gpt_sample_top_k_top_p_repeat(
 
 }
 
+bool is_wav_buffer(const std::string buf) {
+    // RIFF ref: https://en.wikipedia.org/wiki/Resource_Interchange_File_Format
+    // WAV ref: https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+    if (buf.size() < 12 || buf.substr(0, 4) != "RIFF" || buf.substr(8, 4) != "WAVE") {
+        return false;
+    }
+
+    uint32_t chunk_size = *reinterpret_cast<const uint32_t*>(buf.data() + 4);
+    if (chunk_size + 8 != buf.size()) {
+        return false;
+    }
+
+    return true;
+}
+
 bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector<std::vector<float>>& pcmf32s, bool stereo) {
     drwav wav;
     std::vector<uint8_t> wav_data; // used for pipe input from stdin
@@ -639,7 +654,7 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
 
         fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
     }
-    else if (fname.size() > 256 && (fname.substr(0, 4) == "RIFF" || fname.substr(8, 4) == "WAVE")) {
+    else if (is_wav_buffer(fname)) {
         if (drwav_init_memory(&wav, fname.c_str(), fname.size(), nullptr) == false) {
             fprintf(stderr, "error: failed to open WAV file from fname buffer\n");
             return false;
