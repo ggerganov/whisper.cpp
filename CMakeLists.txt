@@ -315,7 +315,8 @@ if (WHISPER_ALL_WARNINGS)
 endif()
 
 if (NOT MSVC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=vla")
+    # TODO: temporary disabled until we figure out ggml-metal.m
+    #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=vla")
     #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-math-errno -ffinite-math-only -funsafe-math-optimizations")
 endif()
 
@@ -505,6 +506,7 @@ else()
 endif()
 
 if (BUILD_SHARED_LIBS)
+    set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_link_libraries(${TARGET} PUBLIC
         ${CMAKE_DL_LIBS}
         )

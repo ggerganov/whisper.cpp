@@ -9,6 +9,9 @@
 src="https://huggingface.co/ggerganov/whisper.cpp"
 pfx="resolve/main/ggml"
 
+BOLD="\033[1m"
+RESET='\033[0m'
+
 # get the path of this script
 get_script_path() {
     if [ -x "$(command -v realpath)" ]; then
@@ -22,17 +25,17 @@ get_script_path() {
 models_path="${2:-$(get_script_path)}"
 
 # Whisper models
-models="tiny.en
-tiny
+models="tiny
+tiny.en
 tiny-q5_1
 tiny.en-q5_1
-base.en
 base
+base.en
 base-q5_1
 base.en-q5_1
+small
 small.en
 small.en-tdrz
-small
 small-q5_1
 small.en-q5_1
 medium
@@ -41,14 +44,21 @@ medium-q5_0
 medium.en-q5_0
 large-v1
 large-v2
+large-v2-q5_0
 large-v3
 large-v3-q5_0"
 
 # list available models
 list_models() {
     printf "\n"
-    printf "  Available models:"
+    printf "Available models:"
+    model_class=""
     for model in $models; do
+        this_model_class="${model%%[.-]*}"
+        if [ "$this_model_class" != "$model_class" ]; then
+            printf "\n "
+            model_class=$this_model_class
+        fi
         printf " %s" "$model"
     done
     printf "\n\n"
@@ -57,6 +67,8 @@ list_models() {
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
     printf "Usage: %s <model> [models_path]\n" "$0"
     list_models
+    printf "___________________________________________________________\n"
+    printf "${BOLD}.en${RESET} = english-only ${BOLD}-q5_[01]${RESET} = quantized ${BOLD}-tdrz${RESET} = tinydiarize\n"
 
     exit 1
 fi
@@ -98,13 +110,11 @@ else
     exit 1
 fi
 
-
 if [ $? -ne 0 ]; then
     printf "Failed to download ggml model %s \n" "$model"
     printf "Please try again later or download the original Whisper model files and convert them yourself.\n"
     exit 1
 fi
-
 
 printf "Done! Model '%s' saved in '%s/ggml-%s.bin'\n" "$model" "$models_path" "$model"
 printf "You can now use it like this:\n\n"

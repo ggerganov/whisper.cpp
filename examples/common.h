@@ -140,6 +140,9 @@ namespace utf_8{
 // Audio utils
 //
 
+// Check if a buffer is a WAV audio file
+bool is_wav_buffer(const std::string buf);
+
 // Read WAV audio file and store the PCM data into pcmf32
 // fname can be a buffer of WAV data instead of a filename
 // The sample rate of the audio must be equal to COMMON_SAMPLE_RATE

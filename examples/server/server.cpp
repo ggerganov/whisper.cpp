@@ -543,7 +543,76 @@ int main(int argc, char ** argv) {
                              {"Access-Control-Allow-Origin", "*"},
                              {"Access-Control-Allow-Headers", "content-type"}});
 
-    std::string const default_content = "<html>hello</html>";
+    std::string const default_content = R"(
+    <html>
+    <head>
+        <title>Whisper.cpp Server</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+        <style>
+        body {
+            font-family: sans-serif;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        label {
+            margin-bottom: 0.5rem;
+        }
+        input, select {
+            margin-bottom: 1rem;
+        }
+        button {
+            margin-top: 1rem;
+        }
+        </style>
+    </head>
+    <body>
+        <h1>Whisper.cpp Server</h1>
+
+        <h2>/inference</h2>
+        <pre>
+    curl 127.0.0.1:)" + std::to_string(sparams.port) + R"(/inference \
+    -H "Content-Type: multipart/form-data" \
+    -F file="@&lt;file-path&gt;" \
+    -F temperature="0.0" \
+    -F temperature_inc="0.2" \
+    -F response_format="json"
+        </pre>
+
+        <h2>/load</h2>
+        <pre>
+    curl 127.0.0.1:)" + std::to_string(sparams.port) + R"(/load \
+    -H "Content-Type: multipart/form-data" \
+    -F model="&lt;path-to-model-file&gt;"
+        </pre>
+
+        <div>
+            <h2>Try it out</h2>
+            <form action="/inference" method="POST" enctype="multipart/form-data">
+                <label for="file">Choose an audio file:</label>
+                <input type="file" id="file" name="file" accept="audio/*" required><br>
+
+                <label for="temperature">Temperature:</label>
+                <input type="number" id="temperature" name="temperature" value="0.0" step="0.01" placeholder="e.g., 0.0"><br>
+
+                <label for="response_format">Response Format:</label>
+                <select id="response_format" name="response_format">
+                    <option value="verbose_json">Verbose JSON</option>
+                    <option value="json">JSON</option>
+                    <option value="text">Text</option>
+                    <option value="srt">SRT</option>
+                    <option value="vtt">VTT</option>
+                </select><br>
+
+                <button type="submit">Submit</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    )";
 
     // store default params so we can reset after each inference request
     whisper_params default_params = params;
@@ -787,7 +856,13 @@ int main(int argc, char ** argv) {
         } else if (params.response_format == vjson_format) {
             /* try to match openai/whisper's Python format */
             std::string results = output_str(ctx, params, pcmf32s);
-            json jres = json{{"text", results}};
+            json jres = json{
+                {"task", params.translate ? "translate" : "transcribe"},
+                {"language", whisper_lang_str_full(whisper_full_lang_id(ctx))},
+                {"duration", float(pcmf32.size())/WHISPER_SAMPLE_RATE},
+                {"text", results},
+                {"segments", json::array()}
+            };
             const int n_segments = whisper_full_n_segments(ctx);
             for (int i = 0; i < n_segments; ++i)
             {
@@ -801,6 +876,7 @@ int main(int argc, char ** argv) {
                     segment["end"] = whisper_full_get_segment_t1(ctx, i) * 0.01;
                 }
 
+                float total_logprob = 0;
                 const int n_tokens = whisper_full_n_tokens(ctx, i);
                 for (int j = 0; j < n_tokens; ++j) {
                     whisper_token_data token = whisper_full_get_token_data(ctx, i, j);
@@ -815,8 +891,17 @@ int main(int argc, char ** argv) {
                         word["end"] = token.t1 * 0.01;
                     }
                     word["probability"] = token.p;
+                    total_logprob += token.plog;
                     segment["words"].push_back(word);
                 }
+
+                segment["temperature"] = params.temperature;
+                segment["avg_logprob"] = total_logprob / n_tokens;
+
+                // TODO compression_ratio and no_speech_prob are not implemented yet
+                // segment["compression_ratio"] = 0;
+                // segment["no_speech_prob"] = 0;
+
                 jres["segments"].push_back(segment);
             }
             res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),

@@ -117,7 +117,7 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 		CPUINFO_CMD := sysctl machdep.cpu.features machdep.cpu.leaf7_features
 	else ifeq ($(UNAME_S),Linux)
 		CPUINFO_CMD := cat /proc/cpuinfo
-	else ifneq (,$(filter MINGW32_NT% MINGW64_NT%,$(UNAME_S)))
+	else ifneq (,$(filter MINGW32_NT% MINGW64_NT% MSYS_NT%,$(UNAME_S)))
 		CPUINFO_CMD := cat /proc/cpuinfo
 	else ifneq (,$(filter DragonFly FreeBSD,$(UNAME_S)))
 		CPUINFO_CMD := grep Features /var/run/dmesg.boot
