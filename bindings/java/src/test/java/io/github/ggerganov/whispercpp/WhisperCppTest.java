@@ -58,7 +58,7 @@ class WhisperCppTest {
         assertEquals(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY.ordinal(), params.strategy);
         assertNotEquals(0, params.n_threads);
         assertEquals(16384, params.n_max_text_ctx);
-        assertEquals(1, params.greedy.best_of);
+        assertEquals(5, params.greedy.best_of);
     }
 
     @Test
