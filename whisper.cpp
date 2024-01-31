@@ -4588,7 +4588,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         case WHISPER_SAMPLING_GREEDY:
             {
                 result.greedy = {
-                    /*.best_of   =*/ 1,
+                    /*.best_of   =*/ 5,
                 };
             } break;
         case WHISPER_SAMPLING_BEAM_SEARCH:
