@@ -7,7 +7,7 @@ half a second and runs the transcription continously, just like the
 it.
 
 ```shell
-$ ffmpeg -i capture.wav -acodec pcm_s16le -f s16le -ac 1 -ar 16000 - | ./stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
+$ ffmpeg -i capture.wav -acodec pcm_s16le -f s16le -ac 1 -ar 16000 - | ./stream-stdin -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
 ```
 
 It expects raw, mono audio on stdin.  Because it's raw it can't tell
