@@ -28,6 +28,8 @@ add_library(${TARGET} STATIC
     common-ggml.h
     common-ggml.cpp
     grammar-parser.cpp
+    audio-stdin.h
+    audio-stdin.cpp
     )
 
 include(DefaultTargetOptions)
@@ -69,6 +71,7 @@ elseif(CMAKE_JS_VERSION)
 else()
     add_subdirectory(main)
     add_subdirectory(stream)
+    add_subdirectory(stream-stdin)
     add_subdirectory(server)
     add_subdirectory(command)
     add_subdirectory(bench)
