@@ -5911,11 +5911,11 @@ int whisper_full_with_state(
         // ref: https://github.com/openai/whisper/blob/ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab/whisper/transcribe.py#L282-L294
         {
             const auto & best_decoder = state->decoders[best_decoder_id];
-            const auto seek_delta = best_decoder.seek_delta;
 
             if (best_decoder.sequence.no_speech_probs > params.no_speech_thold) {
                 if (best_decoder.sequence.avg_logprobs < params.logprob_thold) {
-                    seek += seek_delta;
+                    // fast-forward to the next segment boundary
+                    seek += std::min(3000, state->mel.n_len_org - seek);
                     continue;
                 }
             }
@@ -6036,9 +6036,17 @@ int whisper_full_with_state(
             }
 
             // update audio window
-            seek += seek_delta;
-
-            WHISPER_LOG_DEBUG("seek = %d, seek_delta = %d\n", seek, seek_delta);
+            // https://github.com/169/whisper/blob/9e45f474f9ceafd9a5e799ddb451024ffc6d672c/whisper/transcribe.py#L290-L298
+            {
+                const auto & tokens = best_decoder.sequence.tokens;
+                if (tokens[tokens.size() - 1].id > whisper_token_beg(ctx) && tokens[tokens.size() - 2].id < whisper_token_beg(ctx)) {
+                    seek += std::min(3000, state->mel.n_len_org - seek);
+                    WHISPER_LOG_DEBUG("seek = %d, seek_delta = %d\n", seek, std::min(3000, state->mel.n_len_org - seek));
+                } else {
+                    seek += seek_delta;
+                    WHISPER_LOG_DEBUG("seek = %d, seek_delta = %d\n", seek, seek_delta);
+                }
+            }
         }
     }
 
