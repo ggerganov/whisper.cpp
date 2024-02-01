@@ -6036,10 +6036,10 @@ int whisper_full_with_state(
             }
 
             // update audio window
-            // https://github.com/169/whisper/blob/9e45f474f9ceafd9a5e799ddb451024ffc6d672c/whisper/transcribe.py#L290-L298
+            // https://github.com/openai/whisper/blob/ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab/whisper/transcribe.py#L353-L361
             {
                 const auto & tokens = best_decoder.sequence.tokens;
-                if (tokens[tokens.size() - 1].id > whisper_token_beg(ctx) && tokens[tokens.size() - 2].id < whisper_token_beg(ctx)) {
+                if (tokens.size() >= 2 && tokens[tokens.size() - 1].id > whisper_token_beg(ctx) && tokens[tokens.size() - 2].id < whisper_token_beg(ctx)) {
                     seek += std::min(3000, state->mel.n_len_org - seek);
                     WHISPER_LOG_DEBUG("seek = %d, seek_delta = %d\n", seek, std::min(3000, state->mel.n_len_org - seek));
                 } else {
