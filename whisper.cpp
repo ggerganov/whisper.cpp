@@ -5141,7 +5141,7 @@ static std::vector<whisper_token_data> whisper_sample_token_topk(
 // ref: https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L178-L192
 static void whisper_sequence_score(
         const struct whisper_full_params & params,
-        whisper_sequence & sequence) {
+                        whisper_sequence & sequence) {
     if (sequence.result_len == 0) {
         return;
     }
