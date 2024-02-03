@@ -60,6 +60,8 @@ option(WHISPER_NO_AVX2                "whisper: disable AVX2" OFF)
 option(WHISPER_NO_FMA                 "whisper: disable FMA"  OFF)
 option(WHISPER_NO_F16C                "whisper: disable F16c" OFF)
 
+option(DYNAMIC_ARCH                   "dynamically detect x86 instruction sets"  OFF)
+
 option(WHISPER_OPENVINO               "whisper: support for OpenVINO" OFF)
 
 if (APPLE)
@@ -347,6 +349,9 @@ else()
         if (EMSCRIPTEN)
             set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -pthread -s TOTAL_STACK=5242880")
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -s TOTAL_STACK=5242880")
+        elseif (DYNAMIC_ARCH)
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDYNAMIC_ARCH")
+            set(CPU_FEATURES_SOURCES cpu_features.c cpu_features.h)
         else()
             if(NOT WHISPER_NO_AVX)
                 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx")
@@ -478,6 +483,7 @@ add_library(${TARGET}
     ${GGML_SOURCES_METAL}
     ${GGML_SOURCES_CUDA}
     ${GGML_SOURCES_OPENCL}
+    ${CPU_FEATURES_SOURCES}
     whisper.h
     whisper.cpp
     )
