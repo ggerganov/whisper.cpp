@@ -68,6 +68,7 @@ if (APPLE)
     option(WHISPER_METAL_NDEBUG          "whisper: disable Metal debugging"      OFF)
     option(WHISPER_COREML                "whisper: enable Core ML framework"     OFF)
     option(WHISPER_COREML_ALLOW_FALLBACK "whisper: allow non-CoreML fallback"    OFF)
+    option(WHISPER_EMBED_METAL_LIBRARY   "whisper: embed Metal library"          OFF)
 else()
     option(WHISPER_BLAS                  "whisper: use BLAS libraries"  OFF)
     option(WHISPER_BLAS_VENDOR           "whisper: BLAS library vendor" Generic)
@@ -147,6 +148,12 @@ if (APPLE)
 
         # copy ggml-metal.metal to bin directory
         configure_file(ggml-metal.metal bin/ggml-metal.metal COPYONLY)
+
+        if (WHISPER_EMBED_METAL_LIBRARY)
+            enable_language(ASM)
+            set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_EMBED_METAL_LIBRARY)
+            set(GGML_SOURCES_METAL ${GGML_SOURCES_METAL} ggml-metal-embed.s)
+        endif()
     endif()
 
     if (WHISPER_COREML)

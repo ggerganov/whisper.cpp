@@ -339,6 +339,15 @@ ggml-metal.o: ggml-metal.m ggml-metal.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 WHISPER_OBJ += ggml-metal.o
+
+ifdef WHISPER_EMBED_METAL_LIBRARY
+CFLAGS += -DGGML_EMBED_METAL_LIBRARY
+
+ggml-metal-embed.o: ggml-metal-embed.s
+	$(AS) $< -o $@
+
+WHISPER_OBJ += ggml-metal-embed.o
+endif
 endif
 
 libwhisper.a: $(WHISPER_OBJ)
