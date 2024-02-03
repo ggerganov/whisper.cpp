@@ -28,8 +28,6 @@ add_library(${TARGET} STATIC
     common-ggml.h
     common-ggml.cpp
     grammar-parser.cpp
-    audio-stdin.h
-    audio-stdin.cpp
     )
 
 include(DefaultTargetOptions)
