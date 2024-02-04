@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package whispercpp.transcription;
+
+import "google/protobuf/timestamp.proto";
+
+service AudioTranscription {
+    // Method for bidirectional stream transcription of audio
+    // Sends audio binary data (16Khz mono PCM s16le) and receives transcript back
+    rpc TranscribeAudio(stream AudioSegmentRequest) returns (stream TranscriptResponse) {}
+}
+
+message AudioSegmentRequest {
+    bytes audio_data = 1;
+    google.protobuf.Timestamp send_time = 2;
+}
+
+message TranscriptResponse {
+    string transcription = 1;
+    int32 seq_num = 2;
+    google.protobuf.Timestamp start_time = 3;
+    google.protobuf.Timestamp end_time = 4;
+}
