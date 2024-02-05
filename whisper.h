@@ -451,8 +451,7 @@ extern "C" {
         bool  token_timestamps; // enable token-level timestamps
         float thold_pt;         // timestamp token probability threshold (~0.01)
         float thold_ptsum;      // timestamp token sum probability threshold (~0.01)
-        int   max_len;          // max segment length in characters
-        bool  split_on_word;    // split on word rather than on token (when used with max_len)
+        int   max_len;          // max segment length in characters (0 = no limit)
         int   max_tokens;       // max tokens per segment (0 = no limit)
 
         // [EXPERIMENTAL] speed-up techniques
@@ -570,6 +569,10 @@ extern "C" {
     // Language id associated with the provided state
     WHISPER_API int whisper_full_lang_id_from_state(struct whisper_state * state);
 
+    // Get the no speech probability of the specified segment
+    WHISPER_API double whisper_full_get_segment_no_speech_probs           (struct whisper_context * ctx, int i_segment);
+    WHISPER_API double whisper_full_get_segment_no_speech_probs_from_state(struct whisper_state * state, int i_segment);
+
     // Get the start and end time of the specified segment
     WHISPER_API int64_t whisper_full_get_segment_t0           (struct whisper_context * ctx, int i_segment);
     WHISPER_API int64_t whisper_full_get_segment_t0_from_state(struct whisper_state * state, int i_segment);
@@ -604,6 +607,10 @@ extern "C" {
     // Get the probability of the specified token in the specified segment
     WHISPER_API float whisper_full_get_token_p           (struct whisper_context * ctx, int i_segment, int i_token);
     WHISPER_API float whisper_full_get_token_p_from_state(struct whisper_state * state, int i_segment, int i_token);
+
+    // Check if the string is valid UTF-8
+    WHISPER_API bool whisper_utf8_is_valid(const char * str);
+
 
     ////////////////////////////////////////////////////////////////////////////
 
