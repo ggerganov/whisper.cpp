@@ -168,7 +168,7 @@ void audio_async::grpc_send_transcription(std::string transcript, int64_t start_
 {
     if (m_connected) {
       while (m_writing) {  // Let's wait for previous write to finish
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));    
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));    
       }
       m_writing = true;
       TranscriptResponse response;
