@@ -1,4 +1,4 @@
-// Real-time speech recognition of input from a microphone
+// Real-time speech recognition of input from a gRPC audio stream (protobuf)
 //
 // A very quick-n-dirty implementation serving mainly as a proof of concept.
 //
