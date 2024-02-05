@@ -14,7 +14,7 @@ set(
         ${CMAKE_SOURCE_DIR}/jni.c
 )
 
-if(NOT GGML_HOME)
+if (NOT GGML_HOME)
     set(
         SOURCE_FILES
         ${SOURCE_FILES}
@@ -55,7 +55,7 @@ function(build_library target_name)
 
     endif ()
 
-    if(GGML_HOME)
+    if (GGML_HOME)
         include(FetchContent)
         FetchContent_Declare(ggml SOURCE_DIR ${GGML_HOME})
         FetchContent_MakeAvailable(ggml)
