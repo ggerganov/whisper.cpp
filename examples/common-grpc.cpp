@@ -106,7 +106,6 @@ void audio_async::grpc_handler_thread() {
                 case TagType::CONNECT:
                     fprintf(stdout, "\n>>>>>> CLIENT CONNECTED\n");
                     m_connected = true;
-                    m_first_request_time_epoch_ms = 0;
                     grpc_wait_for_request();
                     break;
                 case TagType::WRITE:
@@ -162,16 +161,15 @@ void audio_async::grpc_ingest_request_audio_data() {
     }
 }
 
-Timestamp* audio_async::add_time_to_session_start(int64_t ms) {
+static inline Timestamp* create_grpc_timestamp(int64_t epoch_ms) {
 
-    int64_t sum_ms = m_first_request_time_epoch_ms + ms;
     Timestamp* pb_time = new Timestamp;
-    pb_time->set_seconds(sum_ms / 1000);
-    pb_time->set_nanos(sum_ms % 1000 * 1000000);
+    pb_time->set_seconds(epoch_ms / 1000);
+    pb_time->set_nanos(epoch_ms % 1000 * 1000000);
     return pb_time;
 }
 
-void audio_async::grpc_send_transcription(std::string transcript, int64_t start_time, int64_t end_time) 
+void audio_async::grpc_send_transcription(std::string transcript, int64_t start_time_ms, int64_t end_time_ms) 
 {
     if (m_connected) {
       while (m_writing) {  // Let's wait for previous write to finish
@@ -181,8 +179,8 @@ void audio_async::grpc_send_transcription(std::string transcript, int64_t start_
       TranscriptResponse response;
       response.set_transcription(transcript);
       response.set_seq_num(m_transcript_seq_num++);   
-      response.set_allocated_start_time(add_time_to_session_start(start_time));
-      response.set_allocated_end_time(add_time_to_session_start(end_time));
+      response.set_allocated_start_time(create_grpc_timestamp(start_time_ms));
+      response.set_allocated_end_time(create_grpc_timestamp(end_time_ms));
       mup_stream->Write(response, reinterpret_cast<void*>(TagType::WRITE));
     } else {
       fprintf(stderr, "\n>>>>>> CANNOT SEND TRANSCRIPTION -- NOT CONNECTED\n");
@@ -246,9 +244,7 @@ void audio_async::callback(uint8_t * stream, int len) {
     {
         std::lock_guard<std::mutex> lock(m_mutex);
 
-        if (m_first_request_time_epoch_ms == 0) {
-            m_first_request_time_epoch_ms = TimeUtil::TimestampToMilliseconds(m_request.send_time());
-        }        
+        m_req_head_audio_timestamp_ms = TimeUtil::TimestampToMilliseconds(m_request.send_time());       
 
         if (m_audio_pos + n_samples > m_audio.size()) {
             const size_t n0 = m_audio.size() - m_audio_pos;
@@ -267,7 +263,7 @@ void audio_async::callback(uint8_t * stream, int len) {
 }
 
 // method for processor (whisper) to get next chunk of audio buffer data to transcribe
-void audio_async::get(int ms, std::vector<float> & result, bool reset_request_time) {
+void audio_async::get(int ms, std::vector<float> & result, int64_t & req_start_timestamp_ms, int64_t & req_end_timestamp_ms) {
 
     if (!m_running) {
         fprintf(stderr, "%s: not running!\n", __func__);
@@ -304,9 +300,9 @@ void audio_async::get(int ms, std::vector<float> & result, bool reset_request_ti
             memcpy(result.data(), &m_audio[s0], n_samples * sizeof(float));
         }
 
-        if (reset_request_time) {
-            m_first_request_time_epoch_ms = 0;
-        }
+        // TODO: Naive--may not account for state of circular buffer relative to requested time/size
+        req_start_timestamp_ms = m_req_head_audio_timestamp_ms - (n_samples / m_sample_rate) * 1000;
+        req_end_timestamp_ms = m_req_head_audio_timestamp_ms;
     }
 }
 

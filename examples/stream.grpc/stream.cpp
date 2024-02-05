@@ -276,8 +276,9 @@ int main(int argc, char ** argv) {
 
         if (!use_vad) {
             while (true) {
-                audio.get(params.step_ms, pcmf32_new);
+                audio.get(params.step_ms, pcmf32_new, t_transcript_start_ms, t_transcript_end_ms);
                 if ((int) pcmf32_new.size() > 2*n_samples_step) {
+                    fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, dropping audio ...\n\n", __func__);
                     audio.clear();
                     continue;
                 }
@@ -307,6 +308,7 @@ int main(int argc, char ** argv) {
 
             pcmf32_old = pcmf32;
         } else {
+
             const auto t_now  = std::chrono::high_resolution_clock::now();
             const auto t_diff = std::chrono::duration_cast<std::chrono::milliseconds>(t_now - t_last).count();
 
@@ -316,11 +318,10 @@ int main(int argc, char ** argv) {
                 continue;
             }
 
-            //fprintf(stdout, "\nUSING VAD, SO HARDCODED STEP OF 2000!!!!!!!!!!!!!\n");
-            audio.get(2000, pcmf32_new);
+            audio.get(2000, pcmf32_new, t_transcript_start_ms, t_transcript_end_ms);
 
             if (::vad_simple(pcmf32_new, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, false)) {
-                audio.get(params.length_ms, pcmf32, true);
+                audio.get(params.length_ms, pcmf32, t_transcript_start_ms, t_transcript_end_ms);
             } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -383,12 +384,6 @@ int main(int argc, char ** argv) {
                 for (int i = 0; i < n_segments; ++i) {
                     const char * text = whisper_full_get_segment_text(ctx, i);
 
-                    const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                    const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-
-                    t_transcript_start_ms = t0*10;
-                    t_transcript_end_ms = t1*10;
-
                     if (params.no_timestamps) {
                         printf("%s", text);
                         fflush(stdout);
@@ -397,6 +392,8 @@ int main(int argc, char ** argv) {
                             fout << text;
                         }
                     } else {
+                        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+                        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
                         std::string output = "[" + to_timestamp(t0) + " --> " + to_timestamp(t1) + "]  " + text;
 

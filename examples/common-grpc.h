@@ -41,9 +41,9 @@ public:
     bool is_running();
 
     // get audio data from the circular buffer
-    void get(int ms, std::vector<float> & audio, bool reset_request_time = false);
+    void get(int ms, std::vector<float> & audio, int64_t & req_start_timestamp_ms, int64_t & req_end_timestamp_ms);
     
-    void grpc_send_transcription(std::string transcript, int64_t interval_start_ms = 0, int64_t interval_end_ms = 0) ;
+    void grpc_send_transcription(std::string transcript, int64_t start_time_ms = 0, int64_t end_time_ms = 0) ;
 
 private:
     enum class TagType { READ = 1, WRITE = 2, CONNECT = 3, DONE = 4, FINISH = 5 };
@@ -54,7 +54,6 @@ private:
     void grpc_ingest_request_audio_data();
     void grpc_start_async_service(std::string server_address);
     void grpc_shutdown();
-    Timestamp* add_time_to_session_start(int64_t milliseconds);
 
     // processing buffer load callback to be called by gRPC
     void callback(uint8_t * stream, int len);    
@@ -63,7 +62,7 @@ private:
     int m_len_ms = 0;
     int m_sample_rate = 0;
     int m_transcript_seq_num = 0;
-    int64_t m_first_request_time_epoch_ms = 0;
+    int64_t m_req_head_audio_timestamp_ms = 0;
 
     std::atomic_bool m_running = false;
     std::atomic_bool m_connected = false;
