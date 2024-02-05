@@ -2,7 +2,6 @@
 
 #include <fstream>
 #include <string>
-#include <iostream>
 #include <thread>
 #include <chrono>
 #include <stdio.h>
@@ -10,6 +9,7 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 #include <google/protobuf/util/time_util.h>
+
 #include "transcription.grpc.pb.h"
 
 
@@ -37,7 +37,7 @@ bool audio_async::init(std::string grpc_server_host, int grpc_server_port, int s
     m_sample_rate = sample_rate;
     m_audio.resize((m_sample_rate*m_len_ms)/1000);
 
-    // gRPC startup
+    // gRPC server startup
     grpc::EnableDefaultHealthCheckService(true);
     std::string grpc_server_address = grpc_server_host + ":" + std::to_string(grpc_server_port);
     grpc_start_async_service(grpc_server_address);
@@ -71,20 +71,18 @@ void audio_async::grpc_shutdown() {
 void audio_async::grpc_start_new_connection_listener() {
 
     std::unique_ptr<ServerContext> context = std::make_unique<ServerContext>();
-    // This initiates a single stream for a single client. To allow multiple
-    // clients in different threads to connect, simply 'request' from the
-    // different threads. Each stream is independent but can use the same
-    // completion queue/context objects.
+    // This initiates a single stream for a single client. This implementation is for a single client/thread
+    // at a time (the parallelism of the underlying model does not allow for any more than that anyway)
     m_transcript_seq_num = 1;
     mup_stream.reset(
         new ServerAsyncReaderWriter<TranscriptResponse, AudioSegmentRequest>(context.get()));
     m_service.RequestTranscribeAudio(context.get(), mup_stream.get(), mup_cq.get(), mup_cq.get(),
-        reinterpret_cast<void*>(TagType::CONNECT));
+        reinterpret_cast<void*>(GrpcTagType::CONNECT));
     // This is important as the server should know when the client is done.
-    context->AsyncNotifyWhenDone(reinterpret_cast<void*>(TagType::DONE));    
+    context->AsyncNotifyWhenDone(reinterpret_cast<void*>(GrpcTagType::DONE));    
 }
 
-
+// gRPC async completion queue handler thread runnable method
 void audio_async::grpc_handler_thread() {
 
     while (true) {
@@ -97,25 +95,25 @@ void audio_async::grpc_handler_thread() {
 
             if (ok) {
                 // Inline event handler and quasi-state machine (though this handles asynch reads/writes, so a strict SM is not applicable)
-                switch (static_cast<TagType>(reinterpret_cast<size_t>(got_tag))) {
-                case TagType::READ:
+                switch (static_cast<GrpcTagType>(reinterpret_cast<size_t>(got_tag))) {
+                case GrpcTagType::READ:
                     // Read done, great -- just ingest into processing buffer and wait for next activity (read or transcription write)
                     grpc_ingest_request_audio_data();
                     grpc_wait_for_request();
                     break;
-                case TagType::CONNECT:
-                    fprintf(stdout, "\n>>>>>> CLIENT CONNECTED\n");
+                case GrpcTagType::CONNECT:
+                    fprintf(stdout, "\n>>>>>> gRPC CLIENT CONNECTED\n");
                     m_connected = true;
                     grpc_wait_for_request();
                     break;
-                case TagType::WRITE:
+                case GrpcTagType::WRITE:
                     // Async write done, great -- just wait for next activity (read or new transcription write) now that it is out
                     m_writing = false;
                     break;
-                case TagType::DONE:
+                case GrpcTagType::DONE:
                     m_connected = false;
                     break;
-                case TagType::FINISH:
+                case GrpcTagType::FINISH:
                     pause();
                     break;
                 default:
@@ -124,7 +122,7 @@ void audio_async::grpc_handler_thread() {
             } else {
                 pause();
                 clear();    // clear pointers to any remaining audio data for new connections
-                grpc_start_new_connection_listener();
+                grpc_start_new_connection_listener();   // Now we can allow another client to connect
                 resume();
             }
         } else {
@@ -136,7 +134,7 @@ void audio_async::grpc_handler_thread() {
 void audio_async::grpc_wait_for_request() {
 
     if (m_connected) {
-        mup_stream->Read(&m_request, reinterpret_cast<void*>(TagType::READ));
+        mup_stream->Read(&m_request, reinterpret_cast<void*>(GrpcTagType::READ));
     }
 }
 
@@ -155,10 +153,7 @@ static inline std::vector<float> convert_s16le_string_data_to_floats(std::string
 void audio_async::grpc_ingest_request_audio_data() {
 
     std::vector<float> sampleData = convert_s16le_string_data_to_floats(m_request.audio_data());
-    {
-        //std::lock_guard<std::mutex> lock(m_mutex);
-        this->callback((uint8_t*) sampleData.data(), sampleData.size()*sizeof(float));
-    }
+    callback((uint8_t*) sampleData.data(), sampleData.size()*sizeof(float));
 }
 
 static inline Timestamp* create_grpc_timestamp(int64_t epoch_ms) {
@@ -181,13 +176,13 @@ void audio_async::grpc_send_transcription(std::string transcript, int64_t start_
       response.set_seq_num(m_transcript_seq_num++);   
       response.set_allocated_start_time(create_grpc_timestamp(start_time_ms));
       response.set_allocated_end_time(create_grpc_timestamp(end_time_ms));
-      mup_stream->Write(response, reinterpret_cast<void*>(TagType::WRITE));
+      mup_stream->Write(response, reinterpret_cast<void*>(GrpcTagType::WRITE));
     } else {
-      fprintf(stderr, "\n>>>>>> CANNOT SEND TRANSCRIPTION -- NOT CONNECTED\n");
+      fprintf(stderr, "%s: >>>>>> CANNOT SEND TRANSCRIPTION -- NOT CONNECTED (ANYMORE)\n", __func__);
     }
 }
 //
-// END GRPC PROCESSING
+// END GRPC METHODS
 //
 
 bool audio_async::resume() {
@@ -300,7 +295,7 @@ void audio_async::get(int ms, std::vector<float> & result, int64_t & req_start_t
             memcpy(result.data(), &m_audio[s0], n_samples * sizeof(float));
         }
 
-        // TODO: Naive--may not account for state of circular buffer relative to requested time/size
+        // Naive--may not account for state of circular buffer relative to requested time/size, but probably good enough
         req_start_timestamp_ms = m_req_head_audio_timestamp_ms - (n_samples / m_sample_rate) * 1000;
         req_end_timestamp_ms = m_req_head_audio_timestamp_ms;
     }
