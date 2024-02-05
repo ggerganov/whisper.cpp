@@ -131,11 +131,6 @@ gpt_vocab::id gpt_sample_top_k_top_p_repeat(
         float repeat_penalty,
         std::mt19937 & rng);
 
-namespace utf_8{
-    bool is_valid(const std::string &str);
-    std::vector<std::string> merge_and_split(const std::string &str);
-}
-
 //
 // Audio utils
 //
