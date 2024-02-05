@@ -4633,11 +4633,6 @@ static bool whisper_utf8_is_valid(const std::string &str) {
     return count == 0; // Ensure all UTF-8 characters are complete
 }
 
-static bool whisper_utf8_is_valid(const char * str) {
-    std::string new_str(str);
-    return whisper_utf8_is_valid(new_str);
-}
-
 static std::vector<whisper_pair<std::string, bool>> whisper_utf8_merge_and_split(const std::string &str) {
     std::vector<whisper_pair<std::string, bool>> result;
     std::string buffer;
@@ -6352,6 +6347,11 @@ float whisper_full_get_token_p_from_state(struct whisper_state * state, int i_se
 
 float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token) {
     return ctx->state->result_all[i_segment].tokens[i_token].p;
+}
+
+bool whisper_utf8_is_valid(const char * str) {
+    std::string new_str(str);
+    return whisper_utf8_is_valid(new_str);
 }
 
 // =================================================================================================
