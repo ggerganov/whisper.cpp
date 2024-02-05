@@ -77,7 +77,6 @@ struct whisper_params {
     bool detect_language = false;
     bool diarize         = false;
     bool tinydiarize     = false;
-    bool split_on_word   = false;
     bool no_fallback     = false;
     bool output_txt      = false;
     bool output_vtt      = false;
@@ -149,7 +148,6 @@ bool whisper_params_parse(int argc, const char ** argv, whisper_params & params)
         else if (arg == "-tr"   || arg == "--translate")       { params.translate       = true; }
         else if (arg == "-di"   || arg == "--diarize")         { params.diarize         = true; }
         else if (arg == "-tdrz" || arg == "--tinydiarize")     { params.tinydiarize     = true; }
-        else if (arg == "-sow"  || arg == "--split-on-word")   { params.split_on_word   = true; }
         else if (arg == "-nf"   || arg == "--no-fallback")     { params.no_fallback     = true; }
         else if (arg == "-otxt" || arg == "--output-txt")      { params.output_txt      = true; }
         else if (arg == "-ovtt" || arg == "--output-vtt")      { params.output_vtt      = true; }
@@ -197,7 +195,6 @@ void whisper_print_usage(int /*argc*/, const char ** argv, const whisper_params 
     fprintf(stderr, "  -d  N,     --duration N        [%-7d] duration of audio to process in milliseconds\n",   params.duration_ms);
     fprintf(stderr, "  -mc N,     --max-context N     [%-7d] maximum number of text context tokens to store\n", params.max_context);
     fprintf(stderr, "  -ml N,     --max-len N         [%-7d] maximum segment length in characters\n",           params.max_len);
-    fprintf(stderr, "  -sow,      --split-on-word     [%-7s] split on word rather than on token\n",             params.split_on_word ? "true" : "false");
     fprintf(stderr, "  -bo N,     --best-of N         [%-7d] number of best candidates to keep\n",              params.best_of);
     fprintf(stderr, "  -bs N,     --beam-size N       [%-7d] beam size for beam search\n",                      params.beam_size);
     fprintf(stderr, "  -wt N,     --word-thold N      [%-7.2f] word timestamp probability threshold\n",         params.word_thold);
@@ -320,6 +317,10 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
 
 
         if (params.print_colors) {
+            std::string buffer;
+            float probability_sum = 0;
+            int count = 0;
+
             for (int j = 0; j < whisper_full_n_tokens(ctx, i); ++j) {
                 if (params.print_special == false) {
                     const whisper_token id = whisper_full_get_token_id(ctx, i, j);
@@ -328,26 +329,21 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
                     }
                 }
 
-                const char * text = whisper_full_get_token_text(ctx, i, j);
-                const float  p    = whisper_full_get_token_p   (ctx, i, j);
-                const int    col  = std::max(0, std::min((int) k_colors.size() - 1, (int) (std::pow(p, 3)*float(k_colors.size()))));
-//                if (utf_8::is_valid(text)) {
-//                    printf("%s%s%s", k_colors[col].c_str(), text, "\033[0m");
-//                } else {
-                    printf("%s[_%i_]%s", k_colors[col].c_str(), whisper_full_get_token_id(ctx, i, j), "\033[0m");
-//                }
+                buffer            += whisper_full_get_token_text(ctx, i, j);
+                probability_sum   += whisper_full_get_token_p   (ctx, i, j);
+                count++;
+                const int    col  = std::max(0, std::min((int) k_colors.size() - 1, (int) (std::pow(probability_sum/static_cast<float>(count), 3)*float(k_colors.size()))));
+
+                if (whisper_utf8_is_valid(buffer.c_str())) {
+                    printf("%s%s%s", k_colors[col].c_str(), buffer.c_str(), "\033[0m");
+                    buffer.clear();
+                    probability_sum = 0;
+                    count = 0;
+                }
             }
         } else {
             const char * text = whisper_full_get_segment_text(ctx, i);
-            for (auto &k : utf_8::merge_and_split(text)) {
-                if (utf_8::is_valid(k)) {
-                    printf("%s", k.c_str());
-                } else {
-                    for (auto l : k) {
-                        printf("[_%i_]", l);
-                    }
-                }
-            }
+            printf("%s", text);
         }
 
         if (params.tinydiarize) {
@@ -1016,7 +1012,6 @@ int run(int argc, const char ** argv) {
             wparams.token_timestamps = params.output_wts || params.output_jsn_full || params.max_len > 0;
             wparams.thold_pt         = params.word_thold;
             wparams.max_len          = params.output_wts && params.max_len == 0 ? 60 : params.max_len;
-            wparams.split_on_word    = params.split_on_word;
 
             wparams.speed_up         = params.speed_up;
             wparams.debug_mode       = params.debug_mode;
