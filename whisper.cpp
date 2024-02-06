@@ -4967,13 +4967,14 @@ static void whisper_process_logits(
             float timestamp_logprob = -INFINITY;
             {
                 float logsumexp = 0.0f;
+                const float logprob_max = *std::max_element(logprobs.begin() + vocab.token_beg, logprobs.end());
                 for (int i = vocab.token_beg; i < n_logits; ++i) {
                     if (logprobs[i] > -INFINITY) {
-                        logsumexp += expf(logprobs[i]);
+                        logsumexp += expf(logprobs[i] - logprob_max);
                     }
                 }
                 if (logsumexp > 0.0f) {
-                    timestamp_logprob = logf(logsumexp);
+                    timestamp_logprob = logf(logsumexp) + logprob_max;
                 }
             }
 
