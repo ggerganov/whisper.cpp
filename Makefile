@@ -209,9 +209,9 @@ endif
 
 ifdef WHISPER_CUBLAS
 	ifeq ($(shell expr $(NVCC_VERSION) \>= 11.6), 1)
-		CUDA_ARCH_FLAG=native
+		CUDA_ARCH_FLAG ?= native
 	else
-		CUDA_ARCH_FLAG=all
+		CUDA_ARCH_FLAG ?= all
 	endif
 
 	CFLAGS      += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
