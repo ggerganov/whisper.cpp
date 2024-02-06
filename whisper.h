@@ -86,6 +86,7 @@ extern "C" {
 
     struct whisper_context_params {
         bool  use_gpu;
+        int   gpu_device;  // CUDA device
     };
 
     typedef struct whisper_token_data {
