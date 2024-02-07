@@ -16,7 +16,8 @@ To use:
 ## CLBlast
 
 > [!NOTE]
-> Note: OpenCL does not have the same level of support as CUDA or Metal.
+> - OpenCL does not have the same level of support as CUDA or Metal.
+> - Turning on CLBlast may degrade OpenCL performance if your device isn't already tuned. See [tuning.md](https://github.com/CNugteren/CLBlast/blob/162783a414969464ce3aa5adf5c2554afa5ee93e/doc/tuning.md#already-tuned-for-devices) for a list of devices that are already tuned and what to do if yours is missing.
 
 Build CLBlast.
 
@@ -44,18 +45,14 @@ mkdir lib/src/main/jniLibs/arm64-v8a
 adb pull /system/vendor/lib64/egl/libGLES_mali.so lib/src/main/jniLibs/arm64-v8a/libOpenCL.so
 ```
 
-In lib/build.gradle, set `GGML_HOME` to the location of GGML, as well as
+In gradle.properties, set `GGML_HOME` to the location of GGML, as well as
 required options for turning on CLBlast.
 
-```gradle
-cmake {
-    arguments "-DGGML_HOME=/path/to/ggml",
-        "-DGGML_CLBLAST=ON",
-        "-DOPENCL_ROOT=/path/to/OpenCL-Headers",
-        "-DOPENCL_LIB=/path/to/libOpenCL.so",
-        "-DCLBLAST_HOME=/path/to/clblast",
-        "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH",
-        "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH"
-}
+```
+GGML_HOME=/path/to/ggml
+GGML_CLBLAST=ON
+CLBLAST_HOME=/path/to/CLBlast
+OPENCL_LIB=/path/to/libOpenCL.so
+OPENCL_ROOT=/path/to/OpenCL-Headers
 ```
 
