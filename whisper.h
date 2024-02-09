@@ -457,7 +457,6 @@ extern "C" {
         // [EXPERIMENTAL] speed-up techniques
         // note: these can significantly reduce the quality of the output
         bool speed_up;          // speed-up the audio by 2x using Phase Vocoder
-        bool debug_mode;        // enable debug_mode provides extra info (eg. Dump log_mel)
         int  audio_ctx;         // overwrite the audio context size (0 = use default)
 
         // [EXPERIMENTAL] [TDRZ] tinydiarize
@@ -476,6 +475,7 @@ extern "C" {
         // common decoding parameters:
         bool suppress_blank;    // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/decoding.py#L89
         bool suppress_non_speech_tokens; // ref: https://github.com/openai/whisper/blob/7858aa9c08d98f75575035ecd6481f462d66ca27/whisper/tokenizer.py#L224-L253
+        bool heuristic;
 
         float temperature;      // initial decoding temperature, ref: https://ai.stackexchange.com/a/32478
         float max_initial_ts;   // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/decoding.py#L97
