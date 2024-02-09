@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define WHISPER_VERSION "@whisper.cpp_VERSION@"
+
 #ifdef __GNUC__
 #    define WHISPER_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
 #elif defined(_MSC_VER)
