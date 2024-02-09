@@ -72,7 +72,6 @@ struct whisper_params {
     float no_speech_thold =  0.60f;
 
     bool speed_up        = false;
-    bool debug_mode      = false;
     bool translate       = false;
     bool detect_language = false;
     bool diarize         = false;
@@ -92,6 +91,7 @@ struct whisper_params {
     bool print_progress  = false;
     bool no_timestamps   = false;
     bool suppress_nst    = true;  // suppress non speech tokens
+    bool heuristic       = true;
     bool log_score       = false;
     bool use_gpu         = true;
 
@@ -143,8 +143,8 @@ bool whisper_params_parse(int argc, const char ** argv, whisper_params & params)
         else if (arg == "-lpt"  || arg == "--logprob-thold")   { params.logprob_thold   = std::stof(argv[++i]); }
         else if (arg == "-nst"  || arg == "--nospeech-thold")  { params.no_speech_thold = std::stof(argv[++i]); }
         // else if (arg == "-su"   || arg == "--speed-up")        { params.speed_up        = true; }
-        else if (arg == "-debug"|| arg == "--debug-mode")      { params.debug_mode      = true; }
-        else if (arg == "-snst" || arg == "--suppress-nst")    { params.suppress_nst    = true; }
+        else if (arg == "-nsnst"|| arg == "--no-suppress-nst") { params.suppress_nst    = false; }
+        else if (arg == "-nh"   || arg == "--no-heuristic")    { params.heuristic       = false; }
         else if (arg == "-tr"   || arg == "--translate")       { params.translate       = true; }
         else if (arg == "-di"   || arg == "--diarize")         { params.diarize         = true; }
         else if (arg == "-tdrz" || arg == "--tinydiarize")     { params.tinydiarize     = true; }
@@ -202,8 +202,8 @@ void whisper_print_usage(int /*argc*/, const char ** argv, const whisper_params 
     fprintf(stderr, "  -lpt N,    --logprob-thold N   [%-7.2f] log probability threshold for decoder fail\n",   params.logprob_thold);
     fprintf(stderr, "  -nst N,    --nospeech-thold N  [%-7.2f] no-speech threshold for decoder fail\n",         params.no_speech_thold);
     // fprintf(stderr, "  -su,       --speed-up          [%-7s] speed up audio by x2 (reduced accuracy)\n",        params.speed_up ? "true" : "false");
-    fprintf(stderr, "  -debug,    --debug-mode        [%-7s] enable debug mode (eg. dump log_mel)\n",           params.debug_mode ? "true" : "false");
-    fprintf(stderr, "  -snst,     --suppress-nst      [%-7s] suppress non-speech tokens\n",                     params.suppress_nst ? "true" : "false");
+    fprintf(stderr, "  -nsnst,    --no-suppress-nst   [%-7s] do not suppress non-speech tokens\n",              params.suppress_nst ? "false" : "true");
+    fprintf(stderr, "  -nh,       --no-heuristic      [%-7s] do not use heuristic while decoding\n",            params.heuristic ? "false" : "true");
     fprintf(stderr, "  -tr,       --translate         [%-7s] translate from source language to english\n",      params.translate ? "true" : "false");
     fprintf(stderr, "  -di,       --diarize           [%-7s] stereo audio diarization\n",                       params.diarize ? "true" : "false");
     fprintf(stderr, "  -tdrz,     --tinydiarize       [%-7s] enable tinydiarize (requires a tdrz model)\n",     params.tinydiarize ? "true" : "false");
@@ -1014,7 +1014,7 @@ int run(int argc, const char ** argv) {
             wparams.max_len          = params.output_wts && params.max_len == 0 ? 60 : params.max_len;
 
             wparams.speed_up         = params.speed_up;
-            wparams.debug_mode       = params.debug_mode;
+            wparams.heuristic        = params.heuristic;
 
             wparams.tdrz_enable      = params.tinydiarize; // [TDRZ]
 
