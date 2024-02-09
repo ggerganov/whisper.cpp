@@ -5990,7 +5990,7 @@ int whisper_full_with_state(
 
         // repetition check
         {
-            if (!params.no_timestamps) {
+            if (!params.no_timestamps && params.heuristic) {
                 const auto & best_decoder = state->decoders[best_decoder_id];
                 const auto & tokens_cur = best_decoder.sequence.tokens;
 
