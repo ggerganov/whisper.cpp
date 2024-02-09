@@ -416,6 +416,14 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v3
+        with:
+          path: whisper
+
+      - name: Clone
+        uses: actions/checkout@v3
+        with:
+          repository: ggerganov/ggml
+          path: ggml
 
       - name: Install Java
         uses: actions/setup-java@v3
@@ -428,8 +436,14 @@ jobs:
 
       - name: Build
         run: |
-          cd examples/whisper.android
+          cd whisper/examples/whisper.android
           ./gradlew assembleRelease --no-daemon
+
+      - name: Build with external ggml
+        run: |
+          export PATH_TO_GGML=$PWD/ggml
+          cd whisper/examples/whisper.android
+          ./gradlew assembleRelease --no-daemon -PGGML_HOME=$PATH_TO_GGML
 
   android_java:
     runs-on: ubuntu-latest
