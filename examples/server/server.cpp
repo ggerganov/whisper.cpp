@@ -541,7 +541,7 @@ int main(int argc, char ** argv) {
     Server svr;
     svr.set_default_headers({{"Server", "whisper.cpp"},
                              {"Access-Control-Allow-Origin", "*"},
-                             {"Access-Control-Allow-Headers", "content-type"}});
+                             {"Access-Control-Allow-Headers", "content-type, authorization"}});
 
     std::string const default_content = R"(
     <html>
@@ -621,6 +621,9 @@ int main(int argc, char ** argv) {
     svr.Get(sparams.request_path + "/", [&default_content](const Request &, Response &res){
         res.set_content(default_content, "text/html");
         return false;
+    });
+
+    svr.Options(sparams.request_path + "/inference", [&](const Request &req, Response &res){
     });
 
     svr.Post(sparams.request_path + "/inference", [&](const Request &req, Response &res){
