@@ -340,7 +340,7 @@ ggml-metal.o: ggml-metal.m ggml-metal.h
 
 WHISPER_OBJ += ggml-metal.o
 
-ifdef WHISPER_EMBED_METAL_LIBRARY
+ifdef WHISPER_METAL_EMBED_LIBRARY
 CFLAGS += -DGGML_EMBED_METAL_LIBRARY
 
 ggml-metal-embed.o: ggml-metal-embed.s
