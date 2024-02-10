@@ -3079,7 +3079,7 @@ static std::vector<std::string> bpe_gpt2_preprocess(const std::string & text) {
             else if (collecting_special && (codepoint_type(utf_char) == CODEPOINT_TYPE_LETTER || codepoint_type(utf_char) == CODEPOINT_TYPE_DIGIT || codepoint_type(utf_char) == CODEPOINT_TYPE_WHITESPACE)) {
                 split_condition = true;
             }
-            else if (collecting_whitespace_lookahead && (codepoint_type(utf_char_next) == CODEPOINT_TYPE_LETTER || codepoint_type(utf_char_next) == CODEPOINT_TYPE_DIGIT)) {
+            else if (collecting_whitespace_lookahead && codepoint_type(utf_char_next) != CODEPOINT_TYPE_WHITESPACE) {
                 split_condition = true;
             }
         }
@@ -3101,7 +3101,12 @@ static std::vector<std::string> bpe_gpt2_preprocess(const std::string & text) {
             collecting_whitespace_lookahead = false;
         }
         else {
-            token += utf_char;
+            if (codepoint_type(token) == CODEPOINT_TYPE_PUNCTUATION && codepoint_type(utf_char) == CODEPOINT_TYPE_LETTER) {
+                bpe_words.emplace_back(token);
+                token = utf_char;
+            } else {
+                token += utf_char;
+            }
         }
     }
 
