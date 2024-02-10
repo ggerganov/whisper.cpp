@@ -151,7 +151,7 @@ if (APPLE)
 
         if (WHISPER_METAL_EMBED_LIBRARY)
             enable_language(ASM)
-            set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_EMBED_METAL_LIBRARY)
+            set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_METAL_EMBED_LIBRARY)
             set(GGML_SOURCES_METAL ${GGML_SOURCES_METAL} ggml-metal-embed.s)
         endif()
     endif()

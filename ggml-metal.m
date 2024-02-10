@@ -271,7 +271,7 @@ static struct ggml_metal_context * ggml_metal_init(int n_cb) {
                 return NULL;
             }
         } else {
-#if GGML_EMBED_METAL_LIBRARY
+#if GGML_METAL_EMBED_LIBRARY
             GGML_METAL_LOG_INFO("%s: using embedded metal library\n", __func__);
 
             extern const char ggml_metallib_start[];
