@@ -3007,7 +3007,7 @@ static std::vector<std::string> bpe_gpt2_preprocess(const std::string & text) {
         const std::string & utf_char_next_next = (i + 2 < (int)text_utf.size()) ? text_utf[i + 2] : "";
 
         // handling contractions
-        if (!split_condition && bytes_remain >= 2) {
+        if (!split_condition && bytes_remain >= 2 && token != " ") {
             // 's|'t|'m|'d
             if (utf_char == "\'" && (utf_char_next == "s" || utf_char_next == "t" || utf_char_next == "m" || utf_char_next == "d")) {
                 split_condition = true;
@@ -3023,7 +3023,7 @@ static std::vector<std::string> bpe_gpt2_preprocess(const std::string & text) {
                 continue;
             }
         }
-        if (!split_condition && bytes_remain >= 3) {
+        if (!split_condition && bytes_remain >= 3 && token != " ") {
             // 're|'ve|'ll
             if (utf_char == "\'" && (
                     (utf_char_next == "r" && utf_char_next_next == "e") ||
