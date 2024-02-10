@@ -480,6 +480,7 @@ add_library(${TARGET}
     ${GGML_SOURCES_OPENCL}
     whisper.h
     whisper.cpp
+    unicode.h
     )
 
 include(DefaultTargetOptions)
