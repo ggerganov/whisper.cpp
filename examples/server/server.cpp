@@ -60,7 +60,7 @@ struct whisper_params {
     int32_t max_len       = 0;
     int32_t best_of       = 2;
     int32_t beam_size     = -1;
-    int32_t audio_ctx     = 1500;
+    int32_t audio_ctx     = 0;
 
     float word_thold      =  0.01f;
     float entropy_thold   =  2.40f;
