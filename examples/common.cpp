@@ -1,6 +1,7 @@
 #define _USE_MATH_DEFINES // for M_PI
 
 #include "common.h"
+#include "console.h"
 
 // third-party utilities
 // use your favorite implementations
@@ -660,7 +661,11 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
             return false;
         }
     }
+#if _WIN32
+    else if (drwav_init_file_w(&wav, console::UTF8toUTF16(fname).c_str(), nullptr) == false) {
+#else
     else if (drwav_init_file(&wav, fname.c_str(), nullptr) == false) {
+#endif
         fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname.c_str());
         return false;
     }

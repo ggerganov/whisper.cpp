@@ -68,12 +68,10 @@ struct whisper_params {
     float temperature_inc =  0.20f;
 
     bool speed_up        = false;
-    bool debug_mode      = false;
     bool translate       = false;
     bool detect_language = false;
     bool diarize         = false;
     bool tinydiarize     = false;
-    bool split_on_word   = false;
     bool no_fallback     = false;
     bool print_special   = false;
     bool print_colors    = false;
@@ -135,14 +133,12 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -d  N,     --duration N        [%-7d] duration of audio to process in milliseconds\n",   params.duration_ms);
     fprintf(stderr, "  -mc N,     --max-context N     [%-7d] maximum number of text context tokens to store\n", params.max_context);
     fprintf(stderr, "  -ml N,     --max-len N         [%-7d] maximum segment length in characters\n",           params.max_len);
-    fprintf(stderr, "  -sow,      --split-on-word     [%-7s] split on word rather than on token\n",             params.split_on_word ? "true" : "false");
     fprintf(stderr, "  -bo N,     --best-of N         [%-7d] number of best candidates to keep\n",              params.best_of);
     fprintf(stderr, "  -bs N,     --beam-size N       [%-7d] beam size for beam search\n",                      params.beam_size);
     fprintf(stderr, "  -wt N,     --word-thold N      [%-7.2f] word timestamp probability threshold\n",         params.word_thold);
     fprintf(stderr, "  -et N,     --entropy-thold N   [%-7.2f] entropy threshold for decoder fail\n",           params.entropy_thold);
     fprintf(stderr, "  -lpt N,    --logprob-thold N   [%-7.2f] log probability threshold for decoder fail\n",   params.logprob_thold);
     // fprintf(stderr, "  -su,       --speed-up          [%-7s] speed up audio by x2 (reduced accuracy)\n",        params.speed_up ? "true" : "false");
-    fprintf(stderr, "  -debug,    --debug-mode        [%-7s] enable debug mode (eg. dump log_mel)\n",           params.debug_mode ? "true" : "false");
     fprintf(stderr, "  -tr,       --translate         [%-7s] translate from source language to english\n",      params.translate ? "true" : "false");
     fprintf(stderr, "  -di,       --diarize           [%-7s] stereo audio diarization\n",                       params.diarize ? "true" : "false");
     fprintf(stderr, "  -tdrz,     --tinydiarize       [%-7s] enable tinydiarize (requires a tdrz model)\n",     params.tinydiarize ? "true" : "false");
@@ -187,11 +183,9 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
         else if (arg == "-et"   || arg == "--entropy-thold")   { params.entropy_thold   = std::stof(argv[++i]); }
         else if (arg == "-lpt"  || arg == "--logprob-thold")   { params.logprob_thold   = std::stof(argv[++i]); }
         // else if (arg == "-su"   || arg == "--speed-up")        { params.speed_up        = true; }
-        else if (arg == "-debug"|| arg == "--debug-mode")      { params.debug_mode      = true; }
         else if (arg == "-tr"   || arg == "--translate")       { params.translate       = true; }
         else if (arg == "-di"   || arg == "--diarize")         { params.diarize         = true; }
         else if (arg == "-tdrz" || arg == "--tinydiarize")     { params.tinydiarize     = true; }
-        else if (arg == "-sow"  || arg == "--split-on-word")   { params.split_on_word   = true; }
         else if (arg == "-nf"   || arg == "--no-fallback")     { params.no_fallback     = true; }
         else if (arg == "-fp"   || arg == "--font-path")       { params.font_path       = argv[++i]; }
         else if (arg == "-ps"   || arg == "--print-special")   { params.print_special   = true; }
@@ -445,10 +439,6 @@ void get_req_parameters(const Request & req, whisper_params & params)
     {
         params.logprob_thold = std::stof(req.get_file_value("logprob_thold").content);
     }
-    if (req.has_file("debug_mode"))
-    {
-        params.debug_mode = parse_str_to_bool(req.get_file_value("debug_mode").content);
-    }
     if (req.has_file("translate"))
     {
         params.translate = parse_str_to_bool(req.get_file_value("translate").content);
@@ -460,10 +450,6 @@ void get_req_parameters(const Request & req, whisper_params & params)
     if (req.has_file("tinydiarize"))
     {
         params.tinydiarize = parse_str_to_bool(req.get_file_value("tinydiarize").content);
-    }
-    if (req.has_file("split_on_word"))
-    {
-        params.split_on_word = parse_str_to_bool(req.get_file_value("split_on_word").content);
     }
     if (req.has_file("no_timestamps"))
     {
@@ -740,10 +726,8 @@ int main(int argc, char ** argv) {
 
             wparams.thold_pt         = params.word_thold;
             wparams.max_len          = params.max_len == 0 ? 60 : params.max_len;
-            wparams.split_on_word    = params.split_on_word;
 
             wparams.speed_up         = params.speed_up;
-            wparams.debug_mode       = params.debug_mode;
 
             wparams.tdrz_enable      = params.tinydiarize; // [TDRZ]
 

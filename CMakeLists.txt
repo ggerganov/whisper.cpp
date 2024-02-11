@@ -503,6 +503,7 @@ add_library(${TARGET}
     ${GGML_SOURCES_METAL}
     ${GGML_SOURCES_CUDA}
     ${GGML_SOURCES_OPENCL}
+    unicode.h
     whisper.h
     whisper.cpp
     )

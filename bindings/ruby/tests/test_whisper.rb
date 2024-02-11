@@ -110,13 +110,6 @@ class TestWhisper < Test::Unit::TestCase
     assert !@params.token_timestamps
   end
 
-  def test_split_on_word
-    @params.split_on_word = true
-    assert @params.split_on_word
-    @params.split_on_word = false
-    assert !@params.split_on_word
-  end
-
   def test_speed_up
     @params.speed_up = true
     assert @params.speed_up
