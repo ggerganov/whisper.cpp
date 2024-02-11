@@ -2947,7 +2947,6 @@ static std::vector<whisper_vocab::id> bpe_encode(const whisper_vocab & vocab, co
         int min_idx = -1;
         int min_rank = -1;
 
-
         // iterate over all pairs and find the pair we want to merge the most
         for (int pos=0; pos < tokens.size() - 1; pos++) {
             auto query = vocab.id_to_token.at(tokens[pos]) + vocab.id_to_token.at(tokens[pos+1]);
@@ -2975,8 +2974,6 @@ static std::vector<whisper_vocab::id> bpe_encode(const whisper_vocab & vocab, co
     return tokens;
 }
 
-// This is not perfect
-// Occasionally, it produces different results compared to OpenAI's tiktoken
 static std::vector<std::string> bpe_gpt2_preprocess(const std::string & text) {
     std::vector<std::string> bpe_words;
     std::vector<std::string> bpe_encoded_words;
@@ -2995,15 +2992,17 @@ static std::vector<std::string> bpe_gpt2_preprocess(const std::string & text) {
     bpe_encoded_words.reserve(text.size());
 
     auto cps = codepoints_from_utf8(text);
-    for (size_t i = 0; i < cps.size(); ++i)
+    for (size_t i = 0; i < cps.size(); ++i) {
         text_utf.emplace_back(codepoint_to_utf8(cps[i]));
+    }
 
     for (int i = 0; i < (int)text_utf.size(); i++) {
         const std::string & utf_char = text_utf[i];
         bool split_condition = false;
         int bytes_remain = text_utf.size() - i;
+
         // forward backward lookups
-        const std::string & utf_char_next = (i + 1 < (int)text_utf.size()) ? text_utf[i + 1] : "";
+        const std::string & utf_char_next      = (i + 1 < (int)text_utf.size()) ? text_utf[i + 1] : "";
         const std::string & utf_char_next_next = (i + 2 < (int)text_utf.size()) ? text_utf[i + 2] : "";
 
         // handling contractions
@@ -3136,7 +3135,7 @@ static std::vector<whisper_vocab::id> tokenize(const whisper_vocab & vocab, cons
 
     std::vector<whisper_vocab::id> tokens;
 
-    for (const auto& word : words) {
+    for (const auto & word : words) {
         auto word_tokens = bpe_encode(vocab, word);
         tokens.insert(tokens.end(), word_tokens.begin(), word_tokens.end());
     }
