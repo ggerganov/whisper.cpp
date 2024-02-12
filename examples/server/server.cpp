@@ -60,6 +60,7 @@ struct whisper_params {
     int32_t max_len       = 0;
     int32_t best_of       = 2;
     int32_t beam_size     = -1;
+    int32_t audio_ctx     = 0;
 
     float word_thold      =  0.01f;
     float entropy_thold   =  2.40f;
@@ -138,6 +139,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -sow,      --split-on-word     [%-7s] split on word rather than on token\n",             params.split_on_word ? "true" : "false");
     fprintf(stderr, "  -bo N,     --best-of N         [%-7d] number of best candidates to keep\n",              params.best_of);
     fprintf(stderr, "  -bs N,     --beam-size N       [%-7d] beam size for beam search\n",                      params.beam_size);
+    fprintf(stderr, "  -ac N,     --audio-ctx N       [%-7d] audio context size (0 - all)\n",                   params.audio_ctx);
     fprintf(stderr, "  -wt N,     --word-thold N      [%-7.2f] word timestamp probability threshold\n",         params.word_thold);
     fprintf(stderr, "  -et N,     --entropy-thold N   [%-7.2f] entropy threshold for decoder fail\n",           params.entropy_thold);
     fprintf(stderr, "  -lpt N,    --logprob-thold N   [%-7.2f] log probability threshold for decoder fail\n",   params.logprob_thold);
@@ -183,6 +185,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
         else if (arg == "-ml"   || arg == "--max-len")         { params.max_len         = std::stoi(argv[++i]); }
         else if (arg == "-bo"   || arg == "--best-of")         { params.best_of         = std::stoi(argv[++i]); }
         else if (arg == "-bs"   || arg == "--beam-size")       { params.beam_size       = std::stoi(argv[++i]); }
+        else if (arg == "-ac"   || arg == "--audio-context")   { params.audio_ctx       = std::stoi(argv[++i]); }
         else if (arg == "-wt"   || arg == "--word-thold")      { params.word_thold      = std::stof(argv[++i]); }
         else if (arg == "-et"   || arg == "--entropy-thold")   { params.entropy_thold   = std::stof(argv[++i]); }
         else if (arg == "-lpt"  || arg == "--logprob-thold")   { params.logprob_thold   = std::stof(argv[++i]); }
@@ -432,6 +435,10 @@ void get_req_parameters(const Request & req, whisper_params & params)
     if (req.has_file("beam_size"))
     {
         params.beam_size = std::stoi(req.get_file_value("beam_size").content);
+    }
+    if (req.has_file("audio_ctx"))
+    {
+        params.audio_ctx = std::stof(req.get_file_value("audio_ctx").content);
     }
     if (req.has_file("word_thold"))
     {
@@ -741,6 +748,7 @@ int main(int argc, char ** argv) {
             wparams.thold_pt         = params.word_thold;
             wparams.max_len          = params.max_len == 0 ? 60 : params.max_len;
             wparams.split_on_word    = params.split_on_word;
+            wparams.audio_ctx        = params.audio_ctx;
 
             wparams.speed_up         = params.speed_up;
             wparams.debug_mode       = params.debug_mode;
