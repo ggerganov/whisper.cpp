@@ -1659,25 +1659,19 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         ggml_set_name(cur, "embd_conv");
         wstate.embd_conv = cur;
     } else {
-#ifdef WHISPER_USE_COREML
+        // keep the "mel" tensor alive - we will use it to store the input data for the external encoders
+        // TODO: is there a better way to do this
+        mel = ggml_scale(ctx0, mel, 1.0f);
+        ggml_build_forward_expand(gf, mel);
+
         cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
-        ggml_allocr_alloc(alloc, cur);
-
-        if (!ggml_allocr_is_measure(alloc)) {
-            whisper_coreml_encode(wstate.ctx_coreml, mel->ne[0], mel->ne[1], (float *) mel->data, (float *) cur->data);
-        }
-#endif
-#ifdef WHISPER_USE_OPENVINO
-        cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
-        ggml_allocr_alloc(alloc, cur);
-
-        if (!ggml_allocr_is_measure(alloc)) {
-            whisper_openvino_encode(wstate.ctx_openvino, mel, cur);
-        }
-#endif
-
         ggml_set_name(cur, "embd_enc");
+        ggml_set_output(cur);
         wstate.embd_enc = cur;
+
+        // TODO: without this op, the "embd_enc" tensor ends up being not allocated
+        //       is there a better fix?
+        cur = ggml_scale(ctx0, cur, 1.0f);
     }
 
     ggml_build_forward_expand(gf, cur);
@@ -2037,12 +2031,12 @@ static bool whisper_encode_internal(
             return false;
         }
 
+        struct ggml_tensor * mel = ggml_graph_get_tensor(gf, "mel");
+
         // set the input
         {
             const auto & mel_inp = wstate.mel;
             const int n_ctx      = wstate.exp_n_audio_ctx > 0 ? wstate.exp_n_audio_ctx : wctx.model.hparams.n_audio_ctx;
-
-            struct ggml_tensor * mel = ggml_graph_get_tensor(gf, "mel");
 
             assert(mel->type == GGML_TYPE_F32);
             assert(mel_inp.n_mel == wctx.model.hparams.n_mels);
@@ -2068,6 +2062,12 @@ static bool whisper_encode_internal(
             if (!ggml_graph_compute_helper(wstate.backend, gf, n_threads)) {
                 return false;
             }
+        } else {
+#if defined(WHISPER_USE_COREML)
+            whisper_coreml_encode(wstate.ctx_coreml, mel->ne[0], mel->ne[1], (float *) mel->data, (float *) wstate.embd_enc->data);
+#elif defined(WHISPER_USE_OPENVINO)
+            whisper_openvino_encode(wstate.ctx_openvino, mel, wstate.embd_enc);
+#endif
         }
     }
 
