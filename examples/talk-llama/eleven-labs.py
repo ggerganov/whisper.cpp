@@ -10,11 +10,12 @@ from elevenlabs import generate, play, save
 # Get a Voice object, by name or UUID
 voice = "Arnold" #Possible Voices: Adam Antoni Arnold Bella Domi Elli Josh
 
-# Generate the TTS
-audio = generate(
-  text=str(sys.argv[2:]),
-  voice=voice
-)
+with open(sys.argv[1]) as f:
+  # Generate the TTS
+  audio = generate(
+    text=str(f.read()),
+    voice=voice
+  )
 
-# Save the TTS to a file
-save(audio, "audio.mp3") 
+  # Save the TTS to a file
+  save(audio, "audio.mp3") 

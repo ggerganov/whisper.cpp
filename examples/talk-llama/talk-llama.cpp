@@ -75,6 +75,7 @@ struct whisper_params {
     std::string model_wsp   = "models/ggml-base.en.bin";
     std::string model_llama = "models/ggml-llama-7B.bin";
     std::string speak       = "./examples/talk-llama/speak";
+    std::string speak_file  = "./examples/talk-llama/to_speak.txt";
     std::string prompt      = "";
     std::string fname_out;
     std::string path_session = "";       // path to file for saving/loading model eval state
@@ -113,6 +114,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-mw"  || arg == "--model-whisper")  { params.model_wsp      = argv[++i]; }
         else if (arg == "-ml"  || arg == "--model-llama")    { params.model_llama    = argv[++i]; }
         else if (arg == "-s"   || arg == "--speak")          { params.speak          = argv[++i]; }
+        else if (arg == "-sf"  || arg == "--speak-file")     { params.speak_file     = argv[++i]; }
         else if (arg == "--prompt-file")                     {
             std::ifstream file(argv[++i]);
             std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), back_inserter(params.prompt));
@@ -160,6 +162,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -mw FILE, --model-whisper  [%-7s] whisper model file\n",                          params.model_wsp.c_str());
     fprintf(stderr, "  -ml FILE, --model-llama    [%-7s] llama model file\n",                            params.model_llama.c_str());
     fprintf(stderr, "  -s FILE,  --speak TEXT     [%-7s] command for TTS\n",                             params.speak.c_str());
+    fprintf(stderr, "  -sf FILE, --speak-file     [%-7s] file to pass to TTS\n",                         params.speak_file.c_str());
     fprintf(stderr, "  --prompt-file FNAME        [%-7s] file with custom prompt to start dialog\n",     "");
     fprintf(stderr, "  --session FNAME                   file to cache model state in (may be large!) (default: none)\n");
     fprintf(stderr, "  -f FNAME, --file FNAME     [%-7s] text output file name\n",                       params.fname_out.c_str());
@@ -478,7 +481,6 @@ int main(int argc, char ** argv) {
     audio.clear();
 
     // text inference variables
-    const int voice_id = 2;
     const int n_keep   = embd_inp.size();
     const int n_ctx    = llama_n_ctx(ctx_llama);
 
@@ -748,10 +750,16 @@ int main(int argc, char ** argv) {
                     }
                 }
 
-                text_to_speak = ::replace(text_to_speak, "'", "'\"'\"'");
-                int ret = system((params.speak + " " + std::to_string(voice_id) + " '" + text_to_speak + "'").c_str());
-                if (ret != 0) {
-                    fprintf(stderr, "%s: failed to speak\n", __func__);
+                std::ofstream speak_file(params.speak_file.c_str());
+                if (speak_file.fail()) {
+                    fprintf(stderr, "%s: failed to open speak_file\n", __func__);
+                } else {
+                    speak_file.write(text_to_speak.c_str(), text_to_speak.size());
+                    speak_file.close();
+                    int ret = system((params.speak + " " + params.speak_file).c_str());
+                    if (ret != 0) {
+                        fprintf(stderr, "%s: failed to speak\n", __func__);
+                    }
                 }
 
                 audio.clear();
