@@ -1,10 +1,5 @@
 import sys
-import importlib.util
 import argparse
-
-if importlib.util.find_spec("elevenlabs") is None:
-    print("elevenlabs library is not installed, you can install it to your enviroment using 'pip install elevenlabs'")
-    sys.exit()
 
 parser = argparse.ArgumentParser(description="Generate the TTS")
 parser.add_argument("inputfile")
@@ -16,7 +11,15 @@ group.add_argument("-s", "--savefile", default="audio.mp3",
     help="Save the TTS to a file")
 group.add_argument("-p", "--play", action="store_true",
     help="Play the TTS with ffplay")
+parser.add_argument("-q", "--quiet", action="store_true",
+    help="Quietly skip checking the required library")
 args = parser.parse_args()
+
+if not args.quiet:
+    import importlib.util
+    if importlib.util.find_spec("elevenlabs") is None:
+        print("elevenlabs library is not installed, you can install it to your enviroment using 'pip install elevenlabs'")
+        sys.exit()
 
 from elevenlabs import generate, play, save
 
