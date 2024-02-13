@@ -481,6 +481,7 @@ int main(int argc, char ** argv) {
     audio.clear();
 
     // text inference variables
+    const int voice_id = 2;
     const int n_keep   = embd_inp.size();
     const int n_ctx    = llama_n_ctx(ctx_llama);
 
@@ -554,7 +555,7 @@ int main(int argc, char ** argv) {
                     } else {
                         speak_file.write(params.heard_ok.c_str(), params.heard_ok.size());
                         speak_file.close();
-                        int ret = system((params.speak + " " + params.speak_file).c_str());
+                        int ret = system((params.speak + " " + std::to_string(voice_id) + " " + params.speak_file).c_str());
                         if (ret != 0) {
                             fprintf(stderr, "%s: failed to speak\n", __func__);
                         }
@@ -763,7 +764,7 @@ int main(int argc, char ** argv) {
                 } else {
                     speak_file.write(text_to_speak.c_str(), text_to_speak.size());
                     speak_file.close();
-                    int ret = system((params.speak + " " + params.speak_file).c_str());
+                    int ret = system((params.speak + " " + std::to_string(voice_id) + " " + params.speak_file).c_str());
                     if (ret != 0) {
                         fprintf(stderr, "%s: failed to speak\n", __func__);
                     }

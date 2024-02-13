@@ -1,19 +1,19 @@
 #!/bin/bash
 
 # Usage:
-#  speak <textfile>
+#  speak <voice_id> <textfile>
 
 function installed() { command -v $1 >/dev/null 2>&1; }
 
 if installed espeak; then
-  espeak -v en-us+m2 -s 225 -p 50 -a 200 -g 5 -k 5 -f $1
+  espeak -v en-us+m$1 -s 225 -p 50 -a 200 -g 5 -k 5 -f $2
 
 elif installed piper && installed aplay; then
-  cat $1 | piper --model ~/en_US-lessac-medium.onnx --output-raw | aplay -q -r 22050 -f S16_LE -t raw -
+  cat $2 | piper --model ~/en_US-lessac-medium.onnx --output-raw | aplay -q -r 22050 -f S16_LE -t raw -
 
 # for Mac
 elif installed say; then
-  say -f $1
+  say -f $2
 
 # Eleven Labs
 elif installed python3 && \
@@ -26,10 +26,10 @@ elif installed python3 && \
     #export ELEVEN_API_KEY=your_api_key
     wd=$(dirname $0)
     script=$wd/eleven-labs.py
-    python3 $script -q -p $1 >/dev/null 2>&1
+    python3 $script -q -p -v $1 $2 >/dev/null 2>&1
 
     # Uncomment to keep the audio file
-    #python3 $script -q -s ./audio.mp3 $1 >/dev/null 2>&1
+    #python3 $script -q -s ./audio.mp3 -v $1 $2 >/dev/null 2>&1
     #ffplay -autoexit -nodisp -loglevel quiet -hide_banner -i ./audio.mp3 >/dev/null 2>&1
 
 else
