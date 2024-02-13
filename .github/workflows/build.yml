@@ -229,7 +229,7 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           mkdir build
           cd build
-          cmake -DWHISPER_SYCL=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DLLAMA_SYCL_F16=ON ..
+          cmake -DWHISPER_SYCL=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DWHISPER_SYCL_F16=ON ..
           cmake --build . --config Release -j $(nproc)
   
   windows:
