@@ -548,9 +548,16 @@ int main(int argc, char ** argv) {
 
                 // optionally give audio feedback that the current text is being processed
                 if (!params.heard_ok.empty()) {
-                    int ret = system((params.speak + " " + std::to_string(voice_id) + " '" + params.heard_ok + "'").c_str());
-                    if (ret != 0) {
-                        fprintf(stderr, "%s: failed to speak\n", __func__);
+                    std::ofstream speak_file(params.speak_file.c_str());
+                    if (speak_file.fail()) {
+                        fprintf(stderr, "%s: failed to open speak_file\n", __func__);
+                    } else {
+                        speak_file.write(params.heard_ok.c_str(), params.heard_ok.size());
+                        speak_file.close();
+                        int ret = system((params.speak + " " + params.speak_file).c_str());
+                        if (ret != 0) {
+                            fprintf(stderr, "%s: failed to speak\n", __func__);
+                        }
                     }
                 }
 
