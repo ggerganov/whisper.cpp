@@ -3,8 +3,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Generate the TTS")
 parser.add_argument("inputfile")
-parser.add_argument("-v", "--voice", type=int, default=2,
-    choices=[0, 1, 2, 3, 4, 5, 6],
+parser.add_argument("-v", "--voice", type=int, default=21,
     help="Get a voice object by number")
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-s", "--savefile", default="audio.mp3",
@@ -21,12 +20,14 @@ if not args.quiet:
         print("elevenlabs library is not installed, you can install it to your enviroment using 'pip install elevenlabs'")
         sys.exit()
 
-from elevenlabs import generate, play, save
+from elevenlabs import voices, generate, play, save, DEFAULT_VOICE
 
 with open(args.inputfile) as f:
+    voicelist = [DEFAULT_VOICE]
+    voicelist += voices()[:]
     audio = generate(
         text=str(f.read()),
-        voice=["Adam", "Antoni", "Arnold", "Bella", "Domi", "Elli", "Josh"][args.voice]
+        voice=voicelist[args.voice % len(voicelist)]
     )
     if args.play:
         play(audio)
