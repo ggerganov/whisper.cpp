@@ -156,9 +156,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dwhisper_sycl: [ON]
-        dcmake_c_compiler: [icx]
-        dcmake_cxx_compiler: [icpx] 
+        dwhisper_sycl: ON
+        dcmake_c_compiler: icx
+        dcmake_cxx_compiler: icpx 
         arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
 
     continue-on-error: true
@@ -200,7 +200,7 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           mkdir build
           cd build
-          cmake -DWHISPER_SYCL={{ matrix.dwhisper_sycl }} -DCMAKE_C_COMPILER={{ matrix.dcmake_c_compiler }} -DCMAKE_CXX_COMPILER={{ matrix.dcmake_cxx_compiler }} ..
+          cmake -DWHISPER_SYCL=${{ matrix.dwhisper_sycl }} -DCMAKE_C_COMPILER=${{ matrix.dcmake_c_compiler }} -DCMAKE_CXX_COMPILER=${{ matrix.dcmake_cxx_compiler }} ..
           cmake --build . --config Release -j $(nproc)
   
   windows:
