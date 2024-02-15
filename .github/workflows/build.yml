@@ -152,11 +152,23 @@ jobs:
 
   ubuntu-22-cmake-sycl:
     runs-on: ubuntu-22.04
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        dwhisper_sycl: [ON]
+        dcmake_c_compiler: [icx]
+        dcmake_cxx_compiler: [icpx] 
+        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
 
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v2
+      - name: Clone
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
 
       - name: add oneAPI to apt
         shell: bash
@@ -181,55 +193,14 @@ jobs:
       - name: Clone
         id: checkout
         uses: actions/checkout@v3
-
+            
       - name: Build
         id: cmake_build
         run: |
           source /opt/intel/oneapi/setvars.sh
           mkdir build
           cd build
-          cmake -DWHISPER_SYCL=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx ..
-          cmake --build . --config Release -j $(nproc)
-  
-  ubuntu-22-cmake-sycl-fp16:
-    runs-on: ubuntu-22.04
-
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: add oneAPI to apt
-        shell: bash
-        run: |
-          cd /tmp
-          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
-
-      - name: install oneAPI dpcpp compiler
-        shell: bash
-        run: |
-          sudo apt update
-          sudo apt install intel-oneapi-compiler-dpcpp-cpp
-
-      - name: install oneAPI MKL library
-        shell: bash
-        run: |
-          sudo apt install intel-oneapi-mkl-devel
-
-      - name: Clone
-        id: checkout
-        uses: actions/checkout@v3
-
-      - name: Build
-        id: cmake_build
-        run: |
-          source /opt/intel/oneapi/setvars.sh
-          mkdir build
-          cd build
-          cmake -DWHISPER_SYCL=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DWHISPER_SYCL_F16=ON ..
+          cmake -DWHISPER_SYCL={{ matrix.dwhisper_sycl }} -DCMAKE_C_COMPILER={{ matrix.dcmake_c_compiler }} -DCMAKE_CXX_COMPILER={{ matrix.dcmake_cxx_compiler }} ..
           cmake --build . --config Release -j $(nproc)
   
   windows:
