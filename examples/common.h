@@ -306,3 +306,6 @@ int timestamp_to_sample(int64_t t, int n_samples, int whisper_sample_rate);
 
 // check if file exists using ifstream
 bool is_file_exist(const char *fileName);
+
+// write text to file, and call system("command voice_id file")
+bool speak_with_file(const std::string & command, const std::string & text, const std::string & path, int voice_id);

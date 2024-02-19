@@ -357,17 +357,7 @@ int main(int argc, char ** argv) {
                 gpt2_set_prompt(ctx_gpt, prompt_base.c_str());
 
                 text_to_speak = ::replace(text_to_speak, params.person + ": ", "");
-                std::ofstream speak_file(params.speak_file.c_str());
-                if (speak_file.fail()) {
-                    fprintf(stderr, "%s: failed to open speak_file\n", __func__);
-                } else {
-                    speak_file.write(text_to_speak.c_str(), text_to_speak.size());
-                    speak_file.close();
-                    int ret = system((params.speak + " " + std::to_string(voice_id) + " " + params.speak_file).c_str());
-                    if (ret != 0) {
-                        fprintf(stderr, "%s: system() failed!\n", __func__);
-                    }
-                }
+                speak_with_file(params.speak, text_to_speak, params.speak_file, voice_id);
 
                 audio.clear();
 
