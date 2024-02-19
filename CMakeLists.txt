@@ -76,6 +76,8 @@ else()
     option(WHISPER_CUBLAS                "whisper: support for cuBLAS"  OFF)
     option(WHISPER_HIPBLAS               "whisper: support for hipBLAS" OFF)
     option(WHISPER_CLBLAST               "whisper: use CLBlast"         OFF)
+
+    option(WHISPER_DYNAMIC_CUDA          "whisper: load CUDA dynamically"  OFF)
 endif()
 
 option(WHISPER_PERF "whisper: enable perf timings" OFF)
@@ -242,7 +244,7 @@ if (WHISPER_CUBLAS)
 
         add_compile_definitions(GGML_USE_CUBLAS)
 
-        if (WHISPER_STATIC)
+        if (WHISPER_STATIC OR WHISPER_DYNAMIC_CUDA)
             if (WIN32)
                 # As of 12.3.1 CUDA Tookit for Windows does not offer a static cublas library
                 set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas CUDA::cublasLt)
@@ -253,7 +255,12 @@ if (WHISPER_CUBLAS)
             set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart CUDA::cublas CUDA::cublasLt)
         endif()
 
-        set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cuda_driver)
+        if (WHISPER_DYNAMIC_CUDA)
+            set(GGML_SOURCES_CUDA ${GGML_SOURCES_CUDA} cuda-loader.c)
+        else()
+            set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cuda_driver)
+        endif()
+
     else()
         message(FATAL_ERROR "cuBLAS not found")
     endif()

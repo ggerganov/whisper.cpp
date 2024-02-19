@@ -280,7 +280,8 @@ inline static void * ggml_calloc(size_t num, size_t size) {
 #else
 #include <cblas.h>
 #endif
-#elif defined(GGML_USE_CUBLAS)
+#endif
+#if defined(GGML_USE_CUBLAS)
 #include "ggml-cuda.h"
 #elif defined(GGML_USE_CLBLAST)
 #include "ggml-opencl.h"
@@ -20743,7 +20744,11 @@ int ggml_cpu_has_wasm_simd(void) {
 }
 
 int ggml_cpu_has_blas(void) {
-#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS) || defined(GGML_USE_CUBLAS) || defined(GGML_USE_VULKAN) || defined(GGML_USE_CLBLAST) || defined(GGML_USE_SYCL)
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
+    return 1;
+#elif defined(GGML_USE_CUBLAS)
+    return ggml_cublas_loaded();
+#elif defined(GGML_USE_VULKAN) || defined(GGML_USE_CLBLAST) || defined(GGML_USE_SYCL)
     return 1;
 #else
     return 0;
@@ -20752,7 +20757,7 @@ int ggml_cpu_has_blas(void) {
 
 int ggml_cpu_has_cublas(void) {
 #if defined(GGML_USE_CUBLAS)
-    return 1;
+    return ggml_cublas_loaded();
 #else
     return 0;
 #endif
