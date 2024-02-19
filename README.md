@@ -339,7 +339,7 @@ This can result in significant speedup in encoder performance. Here are the inst
   python -m venv openvino_conv_env
   openvino_conv_env\Scripts\activate
   python -m pip install --upgrade pip
-  pip install -r openvino-conversion-requirements.txt
+  pip install -r requirements-openvino.txt
   ```
 
   Linux and macOS:
@@ -349,7 +349,7 @@ This can result in significant speedup in encoder performance. Here are the inst
   python3 -m venv openvino_conv_env
   source openvino_conv_env/bin/activate
   python -m pip install --upgrade pip
-  pip install -r openvino-conversion-requirements.txt
+  pip install -r requirements-openvino.txt
   ```
 
 - Generate an OpenVINO encoder model. For example, to generate a `base.en` model, use:
