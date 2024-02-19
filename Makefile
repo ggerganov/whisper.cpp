@@ -185,6 +185,8 @@ ifndef WHISPER_NO_ACCELERATE
 	# Mac M1 - include Accelerate framework
 	ifeq ($(UNAME_S),Darwin)
 		CFLAGS  += -DGGML_USE_ACCELERATE
+		CFLAGS  += -DACCELERATE_NEW_LAPACK
+		CFLAGS  += -DACCELERATE_LAPACK_ILP64
 		LDFLAGS += -framework Accelerate
 	endif
 endif
