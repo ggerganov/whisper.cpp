@@ -22,11 +22,6 @@
 #include <vector>
 #include <map>
 
-bool file_exists(const std::string & fname) {
-    std::ifstream f(fname.c_str());
-    return f.good();
-}
-
 // command-line parameters
 struct whisper_params {
     int32_t n_threads  = std::min(4, (int32_t) std::thread::hardware_concurrency());
@@ -736,7 +731,7 @@ int main(int argc, char ** argv) {
 
     if (!params.grammar.empty()) {
         auto & grammar = params.grammar_parsed;
-        if (file_exists(params.grammar.c_str())) {
+        if (is_file_exist(params.grammar.c_str())) {
             // read grammar from file
             std::ifstream ifs(params.grammar.c_str());
             const std::string txt = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
