@@ -468,7 +468,7 @@ static void ggml_gallocr_allocate_node(ggml_gallocr_t galloc, struct ggml_tensor
             for (int i = 0; i < GGML_MAX_SRC; i++) {
                 struct ggml_tensor * parent = node->src[i];
                 if (parent == NULL) {
-                    break;
+                    continue;
                 }
 
                 // if the node's data is external, then we cannot re-use it
@@ -565,7 +565,7 @@ static void ggml_gallocr_alloc_graph_impl(ggml_gallocr_t galloc, struct ggml_cgr
         for (int j = 0; j < GGML_MAX_SRC; j++) {
             struct ggml_tensor * src = node->src[j];
             if (src == NULL) {
-                break;
+                continue;
             }
 
             ggml_gallocr_hash_get(galloc, src)->n_children += 1;
@@ -599,7 +599,7 @@ static void ggml_gallocr_alloc_graph_impl(ggml_gallocr_t galloc, struct ggml_cgr
         for (int j = 0; j < GGML_MAX_SRC; j++) {
             struct ggml_tensor * parent = node->src[j];
             if (parent == NULL) {
-                break;
+                continue;
             }
             ggml_gallocr_allocate_node(galloc, parent, buffer_id);
         }
@@ -611,7 +611,7 @@ static void ggml_gallocr_alloc_graph_impl(ggml_gallocr_t galloc, struct ggml_cgr
         for (int j = 0; j < GGML_MAX_SRC; j++) {
             struct ggml_tensor * parent = node->src[j];
             if (parent == NULL) {
-                break;
+                continue;
             }
             AT_PRINTF("%s", parent->name);
             if (j < GGML_MAX_SRC - 1 && node->src[j + 1] != NULL) {
@@ -624,7 +624,7 @@ static void ggml_gallocr_alloc_graph_impl(ggml_gallocr_t galloc, struct ggml_cgr
         for (int j = 0; j < GGML_MAX_SRC; j++) {
             struct ggml_tensor * parent = node->src[j];
             if (parent == NULL) {
-                break;
+                continue;
             }
             struct hash_node * p_hn = ggml_gallocr_hash_get(galloc, parent);
             p_hn->n_children -= 1;
@@ -810,7 +810,7 @@ static bool ggml_gallocr_needs_realloc(ggml_gallocr_t galloc, struct ggml_cgraph
         for (int j = 0; j < GGML_MAX_SRC; j++) {
             struct ggml_tensor * src = node->src[j];
             if (src == NULL) {
-                break;
+                continue;
             }
             if (!ggml_gallocr_node_needs_realloc(galloc, src, node_alloc, &node_alloc->src[j])) {
 #ifndef NDEBUG
@@ -857,7 +857,7 @@ bool ggml_gallocr_alloc_graph(ggml_gallocr_t galloc, struct ggml_cgraph * graph)
         for (int j = 0; j < GGML_MAX_SRC; j++) {
             struct ggml_tensor * src = node->src[j];
             if (src == NULL) {
-                break;
+                continue;
             }
             ggml_gallocr_init_tensor(galloc, src, node_alloc->buffer_id, &node_alloc->src[j]);
         }
