@@ -10,6 +10,8 @@
 #include <vector>
 #include <cstring>
 
+#include <sys/stat.h>
+
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
@@ -839,6 +841,20 @@ int main(int argc, char ** argv) {
     if (whisper_params_parse(argc, argv, params) == false) {
         whisper_print_usage(argc, argv, params);
         return 1;
+    }
+
+    // remove non-existent files
+    for (auto it = params.fname_inp.begin(); it != params.fname_inp.end();) {
+        struct stat st;
+        const auto fname_inp = it->c_str();
+
+        if (stat(fname_inp, &st) == -1) {
+            fprintf(stderr, "error: input file not found '%s'\n", fname_inp);
+            it = params.fname_inp.erase(it);
+            continue;
+        }
+
+        it++;
     }
 
     if (params.fname_inp.empty()) {
