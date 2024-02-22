@@ -438,6 +438,19 @@ inline static ggml_int8x16x4_t ggml_vld1q_s8_x4(const int8_t * ptr) {
     return res;
 }
 
+// NOTE: not tested
+inline static int8x16_t ggml_vqtbl1q_s8(int8x16_t a, int8x16_t b) {
+    int8x8_t a0 = vget_low_s8 (a);
+    int8x8_t a1 = vget_high_s8(a);
+    int8x8_t b0 = vget_low_s8 (b);
+    int8x8_t b1 = vget_high_s8(b);
+
+    int8x8_t res0 = vtbl1_s8(a0, b0);
+    int8x8_t res1 = vtbl1_s8(a1, b1);
+
+    return vcombine_s8(res0, res1);
+}
+
 #else
 
 #define ggml_int16x8x2_t  int16x8x2_t
@@ -451,6 +464,7 @@ inline static ggml_int8x16x4_t ggml_vld1q_s8_x4(const int8_t * ptr) {
 #define ggml_vld1q_u8_x4  vld1q_u8_x4
 #define ggml_vld1q_s8_x2  vld1q_s8_x2
 #define ggml_vld1q_s8_x4  vld1q_s8_x4
+#define ggml_vqtbl1q_s8   vqtbl1q_s8
 
 #endif
 
@@ -9506,10 +9520,10 @@ void ggml_vec_dot_iq4_nl_q8_0(int n, float * restrict s, size_t bs, const void *
         q8b.val[2]    = vld1q_s8(y[ib+1].qs);
         q8b.val[3]    = vld1q_s8(y[ib+1].qs + 16);
 
-        q4b.val[0] = vqtbl1q_s8(values, vandq_u8(q4bits.val[0], m4b));
-        q4b.val[1] = vqtbl1q_s8(values, vshrq_n_u8(q4bits.val[0], 4));
-        q4b.val[2] = vqtbl1q_s8(values, vandq_u8(q4bits.val[1], m4b));
-        q4b.val[3] = vqtbl1q_s8(values, vshrq_n_u8(q4bits.val[1], 4));
+        q4b.val[0] = ggml_vqtbl1q_s8(values, vandq_u8  (q4bits.val[0], m4b));
+        q4b.val[1] = ggml_vqtbl1q_s8(values, vshrq_n_u8(q4bits.val[0], 4));
+        q4b.val[2] = ggml_vqtbl1q_s8(values, vandq_u8  (q4bits.val[1], m4b));
+        q4b.val[3] = ggml_vqtbl1q_s8(values, vshrq_n_u8(q4bits.val[1], 4));
 
         prod_1 = ggml_vdotq_s32(ggml_vdotq_s32(vdupq_n_s32(0), q4b.val[0], q8b.val[0]), q4b.val[1], q8b.val[1]);
         prod_2 = ggml_vdotq_s32(ggml_vdotq_s32(vdupq_n_s32(0), q4b.val[2], q8b.val[2]), q4b.val[3], q8b.val[3]);
