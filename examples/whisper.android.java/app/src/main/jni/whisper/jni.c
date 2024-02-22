@@ -9,7 +9,7 @@
 #include "ggml.h"
 
 #define UNUSED(x) (void)(x)
-#define TAG "JNI"
+#define TAG "KANTV"
 
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,     TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,     TAG, __VA_ARGS__)
@@ -184,7 +184,7 @@ Java_com_whispercpp_java_whisper_WhisperLib_fullTranscribe(
 
     whisper_reset_timings(context);
 
-    LOGI("About to run whisper_full");
+    LOGI("[Native]About to run whisper_full");
     if (whisper_full(context, params, audio_data_arr, audio_data_length) != 0) {
         LOGI("Failed to run the model");
     } else {

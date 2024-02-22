@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--1、对应内部内存卡根目录：Context.getFileDir()-->
+    <external-path path="." name="external_storage_root" />
+
+    <files-path name="int_root" path="/" />
+
+    <!--2、对应应用默认缓存根目录：Context.getCacheDir()-->
+    <cache-path name="app_cache" path="/" />
+
+    <!--3、对应外部内存卡根目录：Environment.getExternalStorageDirectory()-->
+    <external-path name="ext_root" path="pictures/" />
+
+    <!--4、对应外部内存卡根目录下的APP公共目录：Context.getExternalFileDir(String)-->
+    <external-files-path name="ext_pub" path="/" />
+
+    <!--5、对应外部内存卡根目录下的APP缓存目录：Context.getExternalCacheDir()-->
+    <external-cache-path name="ext_cache" path="/" />
+
+</paths>
