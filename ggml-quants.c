@@ -9314,7 +9314,7 @@ void ggml_vec_dot_iq1_s_q8_K  (int n, float * GGML_RESTRICT s, size_t bs, const 
     uint16_t gindex[8];
     uint16x8x2_t vindex;
     int8x16x4_t q1b;
-    int8x16x4_t q8b;
+    ggml_vld1q_s8_x4 q8b;
     uint16x8x4_t scales;
     int32x4x2_t sumi;
     int32x4x2_t dotq;
