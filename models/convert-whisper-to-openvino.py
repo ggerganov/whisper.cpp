@@ -3,6 +3,7 @@ import torch
 from whisper import load_model
 import os
 from openvino.tools import mo
+from openvino.frontend import FrontEndManager
 from openvino.runtime import serialize
 import shutil
 
@@ -11,7 +12,7 @@ def convert_encoder(hparams, encoder, mname):
 
     mel = torch.zeros((1, hparams.n_mels, 3000))
 
-    onnx_folder=os.path.join(os.path.dirname(__file__),"onnx_encoder")
+    onnx_folder = os.path.join(os.path.dirname(__file__), "onnx_encoder")
 
     #create a directory to store the onnx model, and other collateral that is saved during onnx export procedure
     if not os.path.isdir(onnx_folder):
@@ -19,6 +20,7 @@ def convert_encoder(hparams, encoder, mname):
 
     onnx_path = os.path.join(onnx_folder, "whisper_encoder.onnx")
 
+    # Export the PyTorch model to ONNX
     torch.onnx.export(
         encoder,
         mel,
@@ -27,11 +29,16 @@ def convert_encoder(hparams, encoder, mname):
         output_names=["output_features"]
     )
 
-    # use model optimizer to convert onnx to OpenVINO IR format
-    encoder_model = mo.convert_model(onnx_path, compress_to_fp16=True)
-    serialize(encoder_model, xml_path=os.path.join(os.path.dirname(__file__),"ggml-" + mname + "-encoder-openvino.xml"))
+    # Convert ONNX to OpenVINO IR format using the frontend
+    fem = FrontEndManager()
+    onnx_fe = fem.load_by_framework("onnx")
+    onnx_model = onnx_fe.load(onnx_path)
+    ov_model = onnx_fe.convert(onnx_model)
 
-    #cleanup
+    # Serialize the OpenVINO model to XML and BIN files
+    serialize(ov_model, xml_path=os.path.join(os.path.dirname(__file__), "ggml-" + mname + "-encoder-openvino.xml"))
+
+    # Cleanup
     if os.path.isdir(onnx_folder):
         shutil.rmtree(onnx_folder)
 
