@@ -439,16 +439,27 @@ inline static ggml_int8x16x4_t ggml_vld1q_s8_x4(const int8_t * ptr) {
 }
 
 // NOTE: not tested
-inline static int8x16_t ggml_vqtbl1q_s8(int8x16_t a, int8x16_t b) {
-    int8x8_t a0 = vget_low_s8 (a);
-    int8x8_t a1 = vget_high_s8(a);
-    int8x8_t b0 = vget_low_s8 (b);
-    int8x8_t b1 = vget_high_s8(b);
+inline static int8x16_t ggml_vqtbl1q_s8(int8x16_t a, uint8x16_t b) {
+    int8x16_t res;
 
-    int8x8_t res0 = vtbl1_s8(a0, b0);
-    int8x8_t res1 = vtbl1_s8(a1, b1);
+    res[ 0] = a[b[ 0]];
+    res[ 1] = a[b[ 1]];
+    res[ 2] = a[b[ 2]];
+    res[ 3] = a[b[ 3]];
+    res[ 4] = a[b[ 4]];
+    res[ 5] = a[b[ 5]];
+    res[ 6] = a[b[ 6]];
+    res[ 7] = a[b[ 7]];
+    res[ 8] = a[b[ 8]];
+    res[ 9] = a[b[ 9]];
+    res[10] = a[b[10]];
+    res[11] = a[b[11]];
+    res[12] = a[b[12]];
+    res[13] = a[b[13]];
+    res[14] = a[b[14]];
+    res[15] = a[b[15]];
 
-    return vcombine_s8(res0, res1);
+    return res;
 }
 
 #else
