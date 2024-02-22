@@ -101,6 +101,7 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_Q3_K_XS       = 22, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ3_XXS       = 23, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_IQ1_S         = 24, // except 1d tensors
+        LLAMA_FTYPE_MOSTLY_IQ4_NL        = 25, // except 1d tensors
 
         LLAMA_FTYPE_GUESSED = 1024, // not specified in the model file
     };
@@ -707,7 +708,7 @@ extern "C" {
 
     /// Apply chat template. Inspired by hf apply_chat_template() on python.
     /// Both "model" and "custom_template" are optional, but at least one is required. "custom_template" has higher precedence than "model"
-    /// NOTE: This function only support some known jinja templates. It is not a jinja parser.
+    /// NOTE: This function does not use a jinja parser. It only support a pre-defined list of template. See more: https://github.com/ggerganov/llama.cpp/wiki/Templates-supported-by-llama_chat_apply_template
     /// @param tmpl A Jinja template to use for this chat. If this is nullptr, the model’s default chat template will be used instead.
     /// @param chat Pointer to a list of multiple llama_chat_message
     /// @param n_msg Number of llama_chat_message in this chat
