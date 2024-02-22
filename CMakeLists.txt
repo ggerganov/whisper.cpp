@@ -536,6 +536,8 @@ add_library(${TARGET}
     ${GGML_SOURCES_METAL}
     ${GGML_SOURCES_CUDA}
     ${GGML_SOURCES_OPENCL}
+    ${GGML_SOURCES_SYCL}
+    ${GGML_HEADERS_SYCL}
     whisper.h
     whisper.cpp
     )
