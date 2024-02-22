@@ -288,7 +288,7 @@ int main(int argc, char ** argv) {
 
     // llama init
 
-    llama_backend_init(true);
+    llama_backend_init();
 
     auto lmparams = llama_model_default_params();
     if (!params.use_gpu) {

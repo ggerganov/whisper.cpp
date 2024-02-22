@@ -54,6 +54,9 @@ if (WHISPER_SDL2)
     set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 
+# add json lib
+add_library(json_cpp INTERFACE json.hpp)
+
 # examples
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
