@@ -10,8 +10,6 @@
 #include <vector>
 #include <cstring>
 
-#include <sys/stat.h>
-
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
@@ -845,10 +843,9 @@ int main(int argc, char ** argv) {
 
     // remove non-existent files
     for (auto it = params.fname_inp.begin(); it != params.fname_inp.end();) {
-        struct stat st;
         const auto fname_inp = it->c_str();
 
-        if (stat(fname_inp, &st) == -1) {
+        if (*it != "-" && !is_file_exist(fname_inp)) {
             fprintf(stderr, "error: input file not found '%s'\n", fname_inp);
             it = params.fname_inp.erase(it);
             continue;
