@@ -70,12 +70,14 @@ if (APPLE)
     option(WHISPER_COREML_ALLOW_FALLBACK "whisper: allow non-CoreML fallback"    OFF)
     option(WHISPER_METAL_EMBED_LIBRARY   "whisper: embed Metal library"          OFF)
 else()
-    option(WHISPER_BLAS                  "whisper: use BLAS libraries"  OFF)
-    option(WHISPER_BLAS_VENDOR           "whisper: BLAS library vendor" Generic)
-    option(WHISPER_OPENBLAS              "whisper: prefer OpenBLAS"     OFF)
-    option(WHISPER_CUBLAS                "whisper: support for cuBLAS"  OFF)
-    option(WHISPER_HIPBLAS               "whisper: support for hipBLAS" OFF)
-    option(WHISPER_CLBLAST               "whisper: use CLBlast"         OFF)
+    option(WHISPER_BLAS                  "whisper: use BLAS libraries"                        OFF)
+    option(WHISPER_BLAS_VENDOR           "whisper: BLAS library vendor"                       Generic)
+    option(WHISPER_OPENBLAS              "whisper: prefer OpenBLAS"                           OFF)
+    option(WHISPER_CUBLAS                "whisper: support for cuBLAS"                        OFF)
+    option(WHISPER_HIPBLAS               "whisper: support for hipBLAS"                       OFF)
+    option(WHISPER_CLBLAST               "whisper: use CLBlast"                               OFF)
+    option(WHISPER_SYCL                  "whisper: use SYCL"                                  OFF)
+    option(WHISPER_SYCL_F16              "whisper: use 16 bit floats for sycl calculations"   OFF)
 endif()
 
 option(WHISPER_PERF "whisper: enable perf timings" OFF)
@@ -105,6 +107,13 @@ endif()
 # dependencies
 
 find_package(Threads REQUIRED)
+
+#compile flag sycl
+if (WHISPER_SYCL)
+    set(CMAKE_CXX_STANDARD 17)
+else()
+    set(CMAKE_CXX_STANDARD 11)
+endif()
 
 # on APPLE
 if (APPLE)
@@ -309,6 +318,30 @@ if( WHISPER_OPENVINO )
     find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 endif()
 
+if (WHISPER_SYCL)
+    if ( NOT DEFINED ENV{ONEAPI_ROOT})
+        message(FATAL_ERROR "Not detect ENV {ONEAPI_ROOT}, please install oneAPI & source it, like: source /opt/intel/oneapi/setvars.sh")
+    endif()
+    #todo: AOT
+
+    find_package(IntelSYCL REQUIRED)
+    if (WHISPER_SYCL_F16)
+        add_compile_definitions(GGML_SYCL_F16)
+    endif()
+    add_compile_definitions(GGML_USE_SYCL)
+
+    add_compile_options(-I./) #include DPCT
+    add_compile_options(-I/${SYCL_INCLUDE_DIR})
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-narrowing")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -L${MKLROOT}/lib")
+
+    set(GGML_HEADERS_SYCL ggml-sycl.h)
+    set(GGML_SOURCES_SYCL ggml-sycl.cpp)
+
+    set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} sycl OpenCL mkl_core pthread m dl mkl_sycl_blas mkl_intel_ilp64 mkl_tbb_thread)
+endif()
 # compiler flags
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -503,6 +536,8 @@ add_library(${TARGET}
     ${GGML_SOURCES_METAL}
     ${GGML_SOURCES_CUDA}
     ${GGML_SOURCES_OPENCL}
+    ${GGML_SOURCES_SYCL}
+    ${GGML_HEADERS_SYCL}
     whisper.h
     whisper.cpp
     )

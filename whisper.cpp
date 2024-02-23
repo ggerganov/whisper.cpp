@@ -12,6 +12,10 @@
 #include "ggml-cuda.h"
 #endif
 
+#ifdef GGML_USE_SYCL
+#include "ggml-sycl.h"
+#endif
+
 #ifdef WHISPER_USE_OPENVINO
 #include "openvino/whisper-openvino-encoder.h"
 #endif
@@ -1048,6 +1052,16 @@ static ggml_backend_t whisper_backend_init(const whisper_context_params & params
             WHISPER_LOG_ERROR("%s: Metal GPU does not support family 7 - falling back to CPU\n", __func__);
             ggml_backend_free(backend_gpu);
             backend_gpu = NULL;
+        }
+    }
+#endif
+
+#ifdef GGML_USE_SYCL
+    if (params.use_gpu) {
+        WHISPER_LOG_INFO("%s: using SYCL backend\n", __func__);
+        backend_gpu = ggml_backend_sycl_init(params.gpu_device);
+        if (!backend_gpu) {
+            WHISPER_LOG_ERROR("%s: ggml_backend_sycl_init() failed\n", __func__);
         }
     }
 #endif
