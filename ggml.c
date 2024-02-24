@@ -2084,8 +2084,17 @@ void ggml_numa_init(enum ggml_numa_strategy numa_flag) {
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 28)
     getcpu_ret = getcpu(&current_cpu, &g_state.numa.current_node);
 #else
-    // old glibc doesn't have a wrapper for this call. Fall back on direct syscall
-    getcpu_ret = syscall(SYS_getcpu,&current_cpu,&g_state.numa.current_node);
+    // old glibc doesn't have a wrapper for this call. Fall back on
+    // direct syscall
+    getcpu_ret = syscall(
+#  if defined(SYS_getcpu)
+			 SYS_getcpu,
+#  elif defined(SYS_get_cpu)
+			 SYS_get_cpu,
+#  else
+#    error "Unable fo find getcpu syscall define"
+#  endif /* SYS_getcpu */
+			 &current_cpu,&g_state.numa.current_node);
 #endif
 
     if (g_state.numa.n_nodes < 1 || g_state.numa.total_cpus < 1 || getcpu_ret != 0) {
