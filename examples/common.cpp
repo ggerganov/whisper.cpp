@@ -863,3 +863,21 @@ bool is_file_exist(const char *fileName)
     std::ifstream infile(fileName);
     return infile.good();
 }
+
+bool speak_with_file(const std::string & command, const std::string & text, const std::string & path, int voice_id)
+{
+    std::ofstream speak_file(path.c_str());
+    if (speak_file.fail()) {
+        fprintf(stderr, "%s: failed to open speak_file\n", __func__);
+        return false;
+    } else {
+        speak_file.write(text.c_str(), text.size());
+        speak_file.close();
+        int ret = system((command + " " + std::to_string(voice_id) + " " + path).c_str());
+        if (ret != 0) {
+            fprintf(stderr, "%s: failed to speak\n", __func__);
+            return false;
+        }
+    }
+    return true;
+}
