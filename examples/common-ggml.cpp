@@ -65,6 +65,7 @@ bool ggml_common_quantize_0(
         case GGML_FTYPE_MOSTLY_IQ2_XXS:
         case GGML_FTYPE_MOSTLY_IQ2_XS:
         case GGML_FTYPE_MOSTLY_IQ3_XXS:
+        case GGML_FTYPE_MOSTLY_IQ3_S:
         case GGML_FTYPE_MOSTLY_IQ1_S:
         case GGML_FTYPE_MOSTLY_IQ4_NL:
                 {
@@ -199,6 +200,7 @@ bool ggml_common_quantize_0(
                 case GGML_TYPE_IQ2_XXS:
                 case GGML_TYPE_IQ2_XS:
                 case GGML_TYPE_IQ3_XXS:
+                case GGML_TYPE_IQ3_S:
                 case GGML_TYPE_IQ1_S:
                 case GGML_TYPE_IQ4_NL:
                 case GGML_TYPE_COUNT:
