@@ -351,6 +351,7 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
     { "yue", { 99,  "cantonese",      } },
 };
 
+// [EXPERIMENTAL] Token-level timestamps with DTW
 static const whisper_ahead g_aheads_tiny_en[] = { {1, 0}, {2, 0}, {2, 5}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 4} };
 static const whisper_ahead g_aheads_tiny[] = { {2, 2}, {3, 0}, {3, 2}, {3, 3}, {3, 4}, {3, 5} };
 static const whisper_ahead g_aheads_base_en[] = { {3, 3}, {4, 7}, {5, 1}, {5, 5}, {5, 7} };
@@ -375,6 +376,7 @@ static const std::map<whisper_alignment_heads_preset, whisper_aheads> g_aheads {
     { WHISPER_AHEADS_LARGE_V2, {23, g_aheads_large_v2} },
     { WHISPER_AHEADS_LARGE_V3, {10, g_aheads_large_v3} },
 };
+static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_params & cparams, int il);
 
 struct whisper_mel {
     int n_len;
@@ -775,6 +777,13 @@ struct whisper_decoder {
     mutable std::mt19937 rng; // used for sampling at t > 0.0
 };
 
+// [EXPERIMENTAL] Token-level timestamps with DTW
+struct whisper_aheads_masks {
+    std::vector<struct ggml_tensor *> m;    // One mask per text layer.
+    struct ggml_context * ctx = nullptr;
+    ggml_backend_buffer_t buffer = nullptr;
+};
+
 struct whisper_state {
     int64_t t_sample_us = 0;
     int64_t t_encode_us = 0;
@@ -849,7 +858,8 @@ struct whisper_state {
     std::vector<float> energy; // PCM signal energy
 
     // [EXPERIMENTAL] Token-level timestamps with DTW
-    std::vector<ggml_tensor * > cross_QKs;
+    whisper_aheads_masks aheads_masks;
+    ggml_tensor * aheads_cross_QKs;
 
     // [EXPERIMENTAL] speed-up techniques
     int32_t exp_n_audio_ctx = 0; // 0 - use default
@@ -1053,6 +1063,81 @@ static void whisper_kv_cache_seq_cp(
             cache.cells[i].seq_id.insert(seq_id_dst);
         }
     }
+}
+
+// [EXPERIMENTAL] Token-level timestamps with DTW
+static bool aheads_masks_init(
+    const whisper_context_params & cparams,
+    const whisper_hparams & hparams,
+    struct whisper_aheads_masks & aheads_masks,
+    ggml_backend_t   backend) {
+
+    const int64_t n_text_layer = hparams.n_text_layer;
+    const int64_t n_heads = hparams.n_text_head;
+
+    struct ggml_init_params params = {
+        /*.mem_size   =*/ n_text_layer*ggml_tensor_overhead(),
+        /*.mem_buffer =*/ nullptr,
+        /*.no_alloc   =*/ true,
+    };
+
+    aheads_masks.ctx = ggml_init(params);
+
+    if (!aheads_masks.ctx) {
+        WHISPER_LOG_ERROR("%s: failed to allocate memory for the aheads_masks context\n", __func__);
+        return false;
+    }
+
+    for (int64_t il = 0; il < n_text_layer; ++il) {
+        auto aheads = get_alignment_heads_by_layer(cparams, il);
+        if (!aheads.empty())
+            aheads_masks.m.push_back(ggml_new_tensor_2d(aheads_masks.ctx, GGML_TYPE_F32, n_heads, aheads.size()));
+        else
+            aheads_masks.m.push_back(nullptr);
+    }
+
+    aheads_masks.buffer = ggml_backend_alloc_ctx_tensors(aheads_masks.ctx, backend);
+    if (!aheads_masks.buffer) {
+        WHISPER_LOG_ERROR("%s: failed to allocate memory for aheads_masks\n", __func__);
+        return false;
+    }
+
+    for (int64_t il = 0; il < n_text_layer; ++il) {
+        if (aheads_masks.m[il] != nullptr) {
+            auto aheads = get_alignment_heads_by_layer(cparams, il);
+            aheads_masks.m[il] = ggml_set_zero(aheads_masks.m[il]);
+            for (size_t ih = 0; ih < aheads.size(); ++ih) {
+                ggml_set_f32_nd(aheads_masks.m[il], aheads[ih], ih, 0, 0, 1.0f);
+            }
+        }
+
+        /*if (aheads_masks.m[il] != nullptr) {
+            fprintf(stderr, "Printing mask for tl %ld\n", il);
+            for (int i = 0; i < aheads_masks.m[il]->ne[1]; ++i) {
+                for (int j = 0;  j < aheads_masks.m[il]->ne[0]; ++j) {
+                    fprintf(stderr, "%.2f ", ggml_get_f32_nd(aheads_masks.m[il], j, i, 0, 0));
+                }
+                fprintf(stderr, "\n");
+            }
+        }*/
+    }
+
+    return true;
+}
+
+static void aheads_masks_free(struct whisper_aheads_masks & aheads_masks) {
+    ggml_free(aheads_masks.ctx);
+    ggml_backend_buffer_free(aheads_masks.buffer);
+    aheads_masks.ctx = nullptr;
+}
+
+static size_t aheads_masks_nbytes(struct whisper_aheads_masks & aheads_masks) {
+    size_t size = 0;
+    for (size_t i = 0; i < aheads_masks.m.size(); ++i) {
+        if (aheads_masks.m[i] != nullptr)
+            size += ggml_nbytes(aheads_masks.m[i]);
+    }
+    return size;
 }
 
 static ggml_backend_t whisper_backend_init(const whisper_context_params & params) {
@@ -2184,6 +2269,9 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
     struct ggml_tensor * inpL = cur;
 
+    // [EXPERIMENTAL] Token-level timestamps with DTW
+    struct ggml_tensor * aheads_cross_QKs = NULL;
+
     for (int il = 0; il < n_layer; ++il) {
         const auto & layer = model.layers_decoder[il];
 
@@ -2367,8 +2455,21 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
             // since it is only needed for dtw timestamps and useless on all other decoding
             // calls. Should be counted when allocating memory for the decoder graph though.
             // [EXPERIMENTAL] Token-level timestamps with DTW
-            struct ggml_tensor * KQ_copy = ggml_cpy(ctx0, KQ_soft_max, ggml_new_tensor_3d(ctx0, GGML_TYPE_F32, KQ_soft_max->ne[0], KQ_soft_max->ne[1], KQ_soft_max->ne[2]));
-            wstate.cross_QKs.push_back(KQ_copy);
+            if (wctx.params.dtw_token_timestamps) {
+                if (wstate.aheads_masks.m[il] != nullptr) {
+                    struct ggml_tensor * aheads_KQs = ggml_reshape_2d(ctx0, KQ_soft_max, KQ_soft_max->ne[0] * KQ_soft_max->ne[1], KQ_soft_max->ne[2]);
+                    aheads_KQs = ggml_transpose(ctx0, aheads_KQs);
+                    aheads_KQs = ggml_cont(ctx0, aheads_KQs);
+                    aheads_KQs = ggml_mul_mat(ctx0, wstate.aheads_masks.m[il], aheads_KQs);
+                    aheads_KQs = ggml_transpose(ctx0, aheads_KQs);
+                    aheads_KQs = ggml_cont(ctx0, aheads_KQs);
+                    aheads_KQs = ggml_reshape_3d(ctx0, aheads_KQs, KQ_soft_max->ne[0], KQ_soft_max->ne[1], wstate.aheads_masks.m[il]->ne[1]);
+                    if (aheads_cross_QKs == NULL)
+                        aheads_cross_QKs = aheads_KQs;
+                    else
+                        aheads_cross_QKs = ggml_concat(ctx0, aheads_cross_QKs, aheads_KQs);
+                }
+            }
 
             struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V, KQ_soft_max);
 
@@ -2459,8 +2560,11 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
     // since it is only needed for dtw timestamps and useless on all other decoding
     // calls. Should be counted when allocating memory for the decoder graph though.
     // [EXPERIMENTAL] Token-level timestamps with DTW
-    for (int il = 0; il < n_layer; ++il)
-        ggml_build_forward_expand(gf, wstate.cross_QKs[il]);
+    if (aheads_cross_QKs != NULL) {
+        aheads_cross_QKs = ggml_transpose(ctx0, aheads_cross_QKs);
+        ggml_build_forward_expand(gf, aheads_cross_QKs);
+    }
+    wstate.aheads_cross_QKs = aheads_cross_QKs;
 
     ggml_build_forward_expand(gf, logits);
 
@@ -2497,8 +2601,6 @@ static bool whisper_decode_internal(
     auto & logits_out = wstate.logits;
 
     struct ggml_tensor * logits;
-
-    wstate.cross_QKs.clear();
 
     // find KV slot for the batch
     {
@@ -3045,6 +3147,18 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         WHISPER_LOG_INFO("%s: kv cross size = %7.2f MB\n", __func__, memory_size / 1e6);
     }
 
+    // [EXPERIMENTAL] Token-level timestamps with DTW
+    if (!aheads_masks_init(ctx->params, ctx->model.hparams, state->aheads_masks, ctx->backend)) {
+        WHISPER_LOG_ERROR("%s: aheads_masks_init() failed for alignment heads masks\n", __func__);
+        whisper_free_state(state);
+        return nullptr;
+    }
+
+    {
+        const size_t memory_size = aheads_masks_nbytes(state->aheads_masks);
+        WHISPER_LOG_INFO("%s: aligment heads masks size = %ld B\n", __func__, memory_size);
+    }
+
 #ifdef WHISPER_USE_COREML
     const auto path_coreml = whisper_get_coreml_path_encoder(ctx->path_model);
 
@@ -3203,8 +3317,20 @@ int whisper_ctx_init_openvino_encoder(
 
 struct whisper_context_params whisper_context_default_params() {
     struct whisper_context_params result = {
-        /*.use_gpu    =*/ true,
-        /*.gpu_device =*/ 0,
+        /*.use_gpu              =*/ true,
+        /*.gpu_device           =*/ 0,
+
+        /*.dtw_token_timestamps =*/ false,
+        /*.dtw_aheads_preset    =*/ WHISPER_AHEADS_NONE,
+        /*.dtw_n_top_most       =*/ {
+            /*.n                =*/ -1,
+        },
+        /*.dtw_custom           =*/ {
+            /*.aheads           =*/ {
+                /*.n_heads      =*/ 0,
+                /*.heads        =*/ NULL,
+            }
+        }
     };
     return result;
 }
@@ -3398,6 +3524,9 @@ void whisper_free_state(struct whisper_state * state) {
         ggml_gallocr_free(state->alloc_decode.alloc);
 
         ggml_backend_free(state->backend);
+
+        // [EXPERIMENTAL] Token-level timestamps with DTW
+        aheads_masks_free(state->aheads_masks);
 
         delete state;
     }
@@ -4361,18 +4490,6 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.max_len           =*/ 0,
         /*.split_on_word     =*/ false,
         /*.max_tokens        =*/ 0,
-
-        /*.dtw_token_timestamps =*/ false,
-        /*.dtw_ah_preset        =*/ WHISPER_AHEADS_NONE,
-        /*.dtw_n_top_most      =*/ {
-            /*.n   =*/ -1,
-        },
-        /*.dtw_custom           =*/ {
-            /*.aheads           =*/ {
-                /*.n_heads      =*/ 0,
-                /*.heads        =*/ NULL,
-            }
-        },
 
         /*.speed_up          =*/ false,
         /*.debug_mode        =*/ false,
@@ -5870,8 +5987,8 @@ int whisper_full_with_state(
             // FIXME: will timestamp offsets be correct?
             // [EXPERIMENTAL] Token-level timestamps with DTW
             const auto n_segments = state->result_all.size() - n_segments_before;
-            if (params.dtw_token_timestamps && n_segments) {
-                const int n_frames = std::min(WHISPER_CHUNK_SIZE * 100, seek_end - seek);
+            if (ctx->params.dtw_token_timestamps && n_segments) {
+                const int n_frames = std::min(WHISPER_CHUNK_SIZE * 100, seek_delta);
                 whisper_exp_compute_token_level_timestamps_dtw(
                     ctx, state, params, result_all.size() - n_segments, n_segments, seek, n_frames, 7, params.n_threads);
             }
@@ -6682,6 +6799,24 @@ static void whisper_exp_compute_token_level_timestamps(
 // token level timestamps - dtw version
 //
 
+//FIXME implemnt custom and n_top_most
+static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_params & cparams, int il) {
+    std::vector<uint32_t> ret;
+    if (cparams.dtw_aheads_preset == WHISPER_AHEADS_NONE)
+        return ret;
+    else if (cparams.dtw_aheads_preset == WHISPER_AHEADS_N_TOP_MOST) {
+        return ret;
+    } else {
+        const auto aheads = cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM ? cparams.dtw_custom.aheads : g_aheads.at(cparams.dtw_aheads_preset);
+        for (size_t i = 0; i < aheads.n_heads; ++i) {
+            if (aheads.heads[i].n_text_layer == il)
+                ret.push_back(aheads.heads[i].n_head);
+        }
+    }
+
+    return ret;
+}
+
 // dtw + backtrace to return found path
 // based on
 // https://github.com/openai/whisper/blob/main/whisper/timing.py#L83
@@ -6805,13 +6940,30 @@ static ggml_tensor * median_filter(ggml_context * ctx, ggml_tensor * x, int filt
     return r;
 }
 
+
 static ggml_tensor * get_alignment_heads_QKs(
                        ggml_context * ctx,
                struct whisper_state * state,
-        struct whisper_full_params    params,
                                int    n_audio_tokens)
 {
-    const auto n_text_layers = (int) state->cross_QKs.size();
+    WHISPER_ASSERT(state->aheads_cross_QKs != NULL);
+    WHISPER_ASSERT(n_audio_tokens <= state->aheads_cross_QKs->ne[1]);
+
+    const auto n_tokens = state->aheads_cross_QKs->ne[0];
+    const auto n_heads = state->aheads_cross_QKs->ne[2];
+    ggml_tensor * ret = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, n_tokens, n_audio_tokens, n_heads);
+    for (int i = 0; i < n_tokens; ++i) {
+        for (int j = 0; j < n_audio_tokens; ++j) {
+            for (int k = 0; k < n_heads; ++k) {
+                const float v = ggml_get_f32_nd(state->aheads_cross_QKs, i, j, k, 0);
+                ggml_set_f32_nd(ret, i, j, k, 0, v);
+            }
+        }
+    }
+    return ret;
+
+
+    /*const auto n_text_layers = (int) state->cross_QKs.size();
     const auto heads_per_layer = state->cross_QKs[0]->ne[2];
     const auto n_tokens = state->cross_QKs[0]->ne[1];
 
@@ -6849,7 +7001,7 @@ static ggml_tensor * get_alignment_heads_QKs(
             }
         }
         return w;
-    }
+    }*/
 }
 
 
@@ -6866,13 +7018,13 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
 {
     WHISPER_ASSERT(medfilt_width % 2);
     WHISPER_ASSERT(n_frames <= ctx->model.hparams.n_audio_ctx * 2);
-    WHISPER_ASSERT(params.dtw_ah_preset != WHISPER_AHEADS_NONE);
+    WHISPER_ASSERT(ctx->params.dtw_aheads_preset != WHISPER_AHEADS_NONE);
 
     // FIXME: Allocating mem everytime we call this func
     // Our ggml buffer should be pre-allocated somewhere during init and reused
     // when we call this function
     struct ggml_init_params gparams = {
-        /*.mem_size   =*/ 32*1024*1024,
+        /*.mem_size   =*/ 128*1024*1024,
         /*.mem_buffer =*/ NULL,
         /*.no_alloc   =*/ false,
     };
@@ -6901,6 +7053,7 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     // Get result tokens, pass then along to decoder to get cross attention QKs
     // used in timestamping
     // Each QK is audio_ctx*N_TOKENS*N_HEADS_PER_LAYER
+    whisper_kv_cache_clear(state->kv_self);
     if (whisper_decode_with_state(ctx, state, tokens.data(), tokens.size(), 0, n_threads) != 0) {
         WHISPER_LOG_INFO("DECODER FAILED\n");
         WHISPER_ASSERT(0);
@@ -6911,7 +7064,19 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     // IN: N_TEXT_LAYERS tensors with audio_ctx*N_TOKENS*N_HEADS dims
     // OUT: Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
     const auto n_audio_tokens = n_frames/2;
-    ggml_tensor * w = get_alignment_heads_QKs(gctx, state, params, n_audio_tokens);
+    ggml_tensor * w = get_alignment_heads_QKs(gctx, state, n_audio_tokens);
+
+    /*fprintf(stderr, "Printing W\n");
+    for (int k = 0; k < w->ne[2]; ++k) {
+        fprintf(stderr, "Head %d:\n", k);
+        for (int j = 0; j < w->ne[1]; ++j) {
+            for (int i = 0; i < w->ne[0]; ++i) {
+                fprintf(stderr, "%.2e ", ggml_get_f32_nd(w, i, j, k, 0));
+            }
+            fprintf(stderr, "\n");
+        }
+        fprintf(stderr, "\n");
+    }*/
 
     // Normalize - in original OpenAI code, this is done over dim=-2. In this case,
     // we already permuted N_TOKENS dimension to rows on last loop, becase ggml_norm

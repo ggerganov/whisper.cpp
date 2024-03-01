@@ -84,9 +84,47 @@ extern "C" {
     typedef int32_t whisper_token;
     typedef int32_t whisper_seq_id;
 
+    enum whisper_alignment_heads_preset {
+        WHISPER_AHEADS_NONE,
+        WHISPER_AHEADS_N_TOP_MOST,  // All heads from the N-top-most text-layers
+        WHISPER_AHEADS_CUSTOM,
+        WHISPER_AHEADS_TINY_EN,
+        WHISPER_AHEADS_TINY,
+        WHISPER_AHEADS_BASE_EN,
+        WHISPER_AHEADS_BASE,
+        WHISPER_AHEADS_SMALL_EN,
+        WHISPER_AHEADS_SMALL,
+        WHISPER_AHEADS_MEDIUM_EN,
+        WHISPER_AHEADS_MEDIUM,
+        WHISPER_AHEADS_LARGE_V1,
+        WHISPER_AHEADS_LARGE_V2,
+        WHISPER_AHEADS_LARGE_V3,
+    };
+
+    typedef struct whisper_ahead {
+        int n_text_layer;
+        int n_head;
+    } whisper_ahead;
+
+    typedef struct whisper_aheads {
+        size_t n_heads;
+        const whisper_ahead * heads;
+    } whisper_aheads;
+
     struct whisper_context_params {
         bool  use_gpu;
         int   gpu_device;  // CUDA device
+
+        // FIXME: not sure if the way dtw_n_top_most and dtw_custom are structured is comfortable?
+        // [EXPERIMENTAL] DTW-based token-level timestamps
+        bool dtw_token_timestamps;
+        enum whisper_alignment_heads_preset dtw_aheads_preset;
+        struct {
+            int n;
+        } dtw_n_top_most;
+        struct {
+            whisper_aheads aheads;
+        } dtw_custom;
     };
 
     typedef struct whisper_token_data {
@@ -150,32 +188,6 @@ extern "C" {
         uint32_t             value; // Unicode code point or rule ID
     } whisper_grammar_element;
 
-    enum whisper_alignment_heads_preset {
-        WHISPER_AHEADS_NONE,
-        WHISPER_AHEADS_N_TOP_MOST,  // All heads from the N-top-most text-layers
-        WHISPER_AHEADS_CUSTOM,
-        WHISPER_AHEADS_TINY_EN,
-        WHISPER_AHEADS_TINY,
-        WHISPER_AHEADS_BASE_EN,
-        WHISPER_AHEADS_BASE,
-        WHISPER_AHEADS_SMALL_EN,
-        WHISPER_AHEADS_SMALL,
-        WHISPER_AHEADS_MEDIUM_EN,
-        WHISPER_AHEADS_MEDIUM,
-        WHISPER_AHEADS_LARGE_V1,
-        WHISPER_AHEADS_LARGE_V2,
-        WHISPER_AHEADS_LARGE_V3,
-    };
-
-	typedef struct whisper_ahead {
-		int n_text_layer;
-		int n_head;
-	} whisper_ahead;
-
-	typedef struct whisper_aheads {
-		size_t n_heads;
-		const whisper_ahead * heads;
-	} whisper_aheads;
 
     // Various functions for loading a ggml whisper model.
     // Allocate (almost) all memory needed for the model.
@@ -482,19 +494,6 @@ extern "C" {
         int   max_len;          // max segment length in characters
         bool  split_on_word;    // split on word rather than on token (when used with max_len)
         int   max_tokens;       // max tokens per segment (0 = no limit)
-
-        // FIXME: not sure if the way dtw_n_top_most and dtw_custom are structured is comfortable?
-        // [EXPERIMENTAL] DTW-based token-level timestamps
-        bool dtw_token_timestamps;
-        enum whisper_alignment_heads_preset dtw_ah_preset;
-
-        struct {
-            int n;
-        } dtw_n_top_most;
-
-        struct {
-            whisper_aheads aheads;
-        } dtw_custom;
 
         // [EXPERIMENTAL] speed-up techniques
         // note: these can significantly reduce the quality of the output
