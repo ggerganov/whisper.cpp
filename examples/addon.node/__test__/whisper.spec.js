@@ -10,15 +10,17 @@ const whisperAsync = promisify(whisper);
 const whisperParamsMock = {
   language: "en",
   model: path.join(__dirname, "../../../models/ggml-base.en.bin"),
-  fname_inp: path.join(__dirname, "../../../samples/jfk.wav"),
+  fname_inp: [path.join(__dirname, "../../../samples/jfk.wav")],
   use_gpu: true,
 };
 
 describe("Run whisper.node", () => {
     test("it should receive a non-empty value", async () => {
-        let result = await whisperAsync(whisperParamsMock);
-
-        expect(result.length).toBeGreaterThan(0);
+        let { res } = await whisperAsync(whisperParamsMock, ({ index }) => {
+          console.log(index)
+        });
+        
+        expect(res.length).toBeGreaterThan(0);
     }, 10000);
 });
 
