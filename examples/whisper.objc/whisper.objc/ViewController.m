@@ -61,7 +61,13 @@ void AudioInputCallback(void * inUserData,
         NSLog(@"Loading model from %@", modelPath);
 
         // create ggml context
-        stateInp.ctx = whisper_init_from_file([modelPath UTF8String]);
+
+        struct whisper_context_params cparams = whisper_context_default_params();
+#if TARGET_OS_SIMULATOR
+        cparams.use_gpu = false;
+        NSLog(@"Running on simulator, using CPU");
+#endif
+        stateInp.ctx = whisper_init_from_file_with_params([modelPath UTF8String], cparams);
 
         // check if the model was loaded successfully
         if (stateInp.ctx == NULL) {
@@ -200,6 +206,7 @@ void AudioInputCallback(void * inUserData,
         params.offset_ms        = 0;
         params.no_context       = true;
         params.single_segment   = self->stateInp.isRealtime;
+        params.no_timestamps    = params.single_segment;
 
         CFTimeInterval startTime = CACurrentMediaTime();
 

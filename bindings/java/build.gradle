@@ -9,6 +9,7 @@ archivesBaseName = 'whispercpp'
 group = 'io.github.ggerganov'
 version = '1.4.0'
 
+
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 

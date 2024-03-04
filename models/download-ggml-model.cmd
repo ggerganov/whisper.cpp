@@ -8,7 +8,7 @@ popd
 set argc=0
 for %%x in (%*) do set /A argc+=1
 
-set models=tiny.en tiny base.en base small.en small medium.en medium large-v1 large
+set models=tiny.en tiny base.en base small.en small medium.en medium large-v1 large-v2 large-v3
 
 if %argc% neq 1 (
   echo.
@@ -40,7 +40,7 @@ if exist "ggml-%model%.bin" (
   goto :eof
 )
 
-PowerShell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-%model%.bin -OutFile ggml-%model%.bin"
+PowerShell -NoProfile -ExecutionPolicy Bypass -Command "Start-BitsTransfer -Source https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-%model%.bin -Destination ggml-%model%.bin"
 
 if %ERRORLEVEL% neq 0 (
   echo Failed to download ggml model %model%
@@ -57,8 +57,8 @@ goto :eof
 :list_models
   echo.
   echo Available models:
-  (for %%a in (%models%) do ( 
-    echo %%a 
+  (for %%a in (%models%) do (
+    echo %%a
   ))
   echo.
   exit /b

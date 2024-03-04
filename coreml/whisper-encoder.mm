@@ -24,9 +24,9 @@ struct whisper_coreml_context * whisper_coreml_init(const char * path_model) {
 
     // select which device to run the Core ML model on
     MLModelConfiguration *config = [[MLModelConfiguration alloc] init];
-    config.computeUnits = MLComputeUnitsCPUAndGPU;
+    // config.computeUnits = MLComputeUnitsCPUAndGPU;
     //config.computeUnits = MLComputeUnitsCPUAndNeuralEngine;
-    //config.computeUnits = MLComputeUnitsAll;
+    config.computeUnits = MLComputeUnitsAll;
 
     const void * data = CFBridgingRetain([[whisper_encoder_impl alloc] initWithContentsOfURL:url_model configuration:config error:nil]);
 
@@ -48,13 +48,15 @@ void whisper_coreml_free(struct whisper_coreml_context * ctx) {
 
 void whisper_coreml_encode(
         const whisper_coreml_context * ctx,
+                             int64_t   n_ctx,
+                             int64_t   n_mel,
                                float * mel,
                                float * out) {
     MLMultiArray * inMultiArray = [
         [MLMultiArray alloc] initWithDataPointer: mel
-                                           shape: @[@1, @80, @3000]
+                                           shape: @[@1, @(n_mel), @(n_ctx)]
                                         dataType: MLMultiArrayDataTypeFloat32
-                                         strides: @[@(240000), @(3000), @1]
+                                         strides: @[@(n_ctx*n_mel), @(n_ctx), @1]
                                      deallocator: nil
                                            error: nil
     ];

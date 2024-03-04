@@ -31,12 +31,14 @@ struct whisper_params {
     bool print_special = false;
     bool print_energy  = false;
     bool no_timestamps = true;
+    bool use_gpu       = true;
 
     std::string person    = "Santa";
     std::string language  = "en";
     std::string model_wsp = "models/ggml-base.en.bin";
     std::string model_gpt = "models/ggml-gpt-2-117M.bin";
     std::string speak     = "./examples/talk/speak";
+    std::string speak_file= "./examples/talk/to_speak.txt";
     std::string fname_out;
 };
 
@@ -61,11 +63,13 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-tr"  || arg == "--translate")     { params.translate     = true; }
         else if (arg == "-ps"  || arg == "--print-special") { params.print_special = true; }
         else if (arg == "-pe"  || arg == "--print-energy")  { params.print_energy  = true; }
+        else if (arg == "-ng"  || arg == "--no-gpu")        { params.use_gpu       = false; }
         else if (arg == "-p"   || arg == "--person")        { params.person        = argv[++i]; }
         else if (arg == "-l"   || arg == "--language")      { params.language      = argv[++i]; }
         else if (arg == "-mw"  || arg == "--model-whisper") { params.model_wsp     = argv[++i]; }
         else if (arg == "-mg"  || arg == "--model-gpt")     { params.model_gpt     = argv[++i]; }
         else if (arg == "-s"   || arg == "--speak")         { params.speak         = argv[++i]; }
+        else if (arg == "-sf"  || arg == "--speak_file")    { params.speak_file    = argv[++i]; }
         else if (arg == "-f"   || arg == "--file")          { params.fname_out     = argv[++i]; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
@@ -94,11 +98,13 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -tr,      --translate     [%-7s] translate from source language to english\n",   params.translate ? "true" : "false");
     fprintf(stderr, "  -ps,      --print-special [%-7s] print special tokens\n",                        params.print_special ? "true" : "false");
     fprintf(stderr, "  -pe,      --print-energy  [%-7s] print sound energy (for debugging)\n",          params.print_energy ? "true" : "false");
+    fprintf(stderr, "  -ng,      --no-gpu        [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
     fprintf(stderr, "  -p NAME,  --person NAME   [%-7s] person name (for prompt selection)\n",          params.person.c_str());
     fprintf(stderr, "  -l LANG,  --language LANG [%-7s] spoken language\n",                             params.language.c_str());
     fprintf(stderr, "  -mw FILE, --model-whisper [%-7s] whisper model file\n",                          params.model_wsp.c_str());
     fprintf(stderr, "  -mg FILE, --model-gpt     [%-7s] gpt model file\n",                              params.model_gpt.c_str());
     fprintf(stderr, "  -s FILE,  --speak TEXT    [%-7s] command for TTS\n",                             params.speak.c_str());
+    fprintf(stderr, "  -sf FILE, --speak_file    [%-7s] file to pass to TTS\n",                         params.speak_file.c_str());
     fprintf(stderr, "  -f FNAME, --file FNAME    [%-7s] text output file name\n",                       params.fname_out.c_str());
     fprintf(stderr, "\n");
 }
@@ -181,8 +187,10 @@ int main(int argc, char ** argv) {
     }
 
     // whisper init
+    struct whisper_context_params cparams = whisper_context_default_params();
+    cparams.use_gpu = params.use_gpu;
 
-    struct whisper_context * ctx_wsp = whisper_init_from_file(params.model_wsp.c_str());
+    struct whisper_context * ctx_wsp = whisper_init_from_file_with_params(params.model_wsp.c_str(), cparams);
 
     // gpt init
 
@@ -311,7 +319,7 @@ int main(int argc, char ** argv) {
                     std::string prompt = ::replace(::replace(k_prompt, "{0}", params.person), "{1}", prompt_base);
 
                     text_to_speak = gpt2_gen_text(ctx_gpt, prompt.c_str(), params.max_tokens);
-                    text_to_speak = std::regex_replace(text_to_speak, std::regex("[^a-zA-Z0-9\\.,\\?!\\s\\:\\'\\-]"), "");
+                    //text_to_speak = std::regex_replace(text_to_speak, std::regex("[^a-zA-Z0-9\\.,\\?!\\s\\:\\'\\-]"), "");
                     text_to_speak = text_to_speak.substr(0, text_to_speak.find_first_of('\n'));
 
                     // remove first 2 lines of base prompt
@@ -349,10 +357,7 @@ int main(int argc, char ** argv) {
                 gpt2_set_prompt(ctx_gpt, prompt_base.c_str());
 
                 text_to_speak = ::replace(text_to_speak, params.person + ": ", "");
-                int ret = system((params.speak + " " + std::to_string(voice_id) + " \"" + text_to_speak + "\"").c_str());
-                if (ret != 0) {
-                    fprintf(stderr, "%s: system() failed!\n", __func__);
-                }
+                speak_with_file(params.speak, text_to_speak, params.speak_file, voice_id);
 
                 audio.clear();
 

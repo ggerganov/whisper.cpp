@@ -21,7 +21,7 @@ help()
     echo "Usage: ./twitch.sh -s [step] -m [model] -t [threads] [url]"
     echo "options:"
     echo "-s       Step in seconds (default is $step)."
-    echo "-m       Choose model, options are: 'tiny.en' 'tiny' 'base.en' 'base' 'small.en' 'small' 'medium.en' 'medium' 'large-v1' 'large' (default is '$model')."
+    echo "-m       Choose model, options are: 'tiny.en' 'tiny' 'base.en' 'base' 'small.en' 'small' 'medium.en' 'medium' 'large-v1' 'large-v2' 'large-v3' (default is '$model')."
     echo "-t       Number of threads to use."
     echo "-h       Print this help page."
     echo

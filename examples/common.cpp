@@ -38,12 +38,12 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
             params.seed = std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "-t" || arg == "--threads") {
             params.n_threads = std::stoi(get_next_arg(i, argc, argv, arg, params));
-        } else if (arg == "-ngl" || arg == "--gpu-layers" || arg == "--n-gpu-layers") {
-            params.n_gpu_layers = std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "-p" || arg == "--prompt") {
             params.prompt = get_next_arg(i, argc, argv, arg, params);
         } else if (arg == "-n" || arg == "--n_predict") {
             params.n_predict = std::stoi(get_next_arg(i, argc, argv, arg, params));
+        } else if (arg == "-np" || arg == "--n_parallel") {
+            params.n_parallel = std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "--top_k") {
             params.top_k = std::stoi(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "--top_p") {
@@ -56,6 +56,12 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
             params.repeat_penalty = std::stof(get_next_arg(i, argc, argv, arg, params));
         } else if (arg == "-b" || arg == "--batch_size") {
             params.n_batch= std::stoi(get_next_arg(i, argc, argv, arg, params));
+        } else if (arg == "-c" || arg == "--context") {
+            params.n_ctx= std::stoi(get_next_arg(i, argc, argv, arg, params));
+        } else if (arg == "-ngl" || arg == "--gpu-layers" || arg == "--n-gpu-layers") {
+            params.n_gpu_layers = std::stoi(get_next_arg(i, argc, argv, arg, params));
+        } else if (arg == "--ignore-eos") {
+            params.ignore_eos = true;
         } else if (arg == "-m" || arg == "--model") {
             params.model = get_next_arg(i, argc, argv, arg, params);
         } else if (arg == "-i" || arg == "--interactive") {
@@ -97,7 +103,6 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     fprintf(stderr, "  -h, --help            show this help message and exit\n");
     fprintf(stderr, "  -s SEED, --seed SEED  RNG seed (default: -1)\n");
     fprintf(stderr, "  -t N, --threads N     number of threads to use during computation (default: %d)\n", params.n_threads);
-    fprintf(stderr, "  -ngl N, --gpu-layers N  number of layers to offload to GPU on supported models (default: %d)\n", params.n_gpu_layers);
     fprintf(stderr, "  -p PROMPT, --prompt PROMPT\n");
     fprintf(stderr, "                        prompt to start generation with (default: random)\n");
     fprintf(stderr, "  -f FNAME, --file FNAME\n");
@@ -111,6 +116,9 @@ void gpt_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     fprintf(stderr, "  --repeat-last-n N     last n tokens to consider for penalize (default: %d, 0 = disabled)\n", params.repeat_last_n);
     fprintf(stderr, "  --repeat-penalty N    penalize repeat sequence of tokens (default: %.2f, 1.0 = disabled)\n", (double)params.repeat_penalty);
     fprintf(stderr, "  -b N, --batch_size N  batch size for prompt processing (default: %d)\n", params.n_batch);
+    fprintf(stderr, "  -c N, --context N     context / KV cache size (default: %d)\n", params.n_ctx);
+    fprintf(stderr, "  --ignore-eos          ignore EOS token during generation\n");
+    fprintf(stderr, "  -ngl N, --gpu-layers N  number of layers to offload to GPU on supported models (default: %d)\n", params.n_gpu_layers);
     fprintf(stderr, "  -m FNAME, --model FNAME\n");
     fprintf(stderr, "                        model path (default: %s)\n", params.model.c_str());
     fprintf(stderr, "\n");
@@ -607,6 +615,21 @@ gpt_vocab::id gpt_sample_top_k_top_p_repeat(
 
 }
 
+bool is_wav_buffer(const std::string buf) {
+    // RIFF ref: https://en.wikipedia.org/wiki/Resource_Interchange_File_Format
+    // WAV ref: https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+    if (buf.size() < 12 || buf.substr(0, 4) != "RIFF" || buf.substr(8, 4) != "WAVE") {
+        return false;
+    }
+
+    uint32_t chunk_size = *reinterpret_cast<const uint32_t*>(buf.data() + 4);
+    if (chunk_size + 8 != buf.size()) {
+        return false;
+    }
+
+    return true;
+}
+
 bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector<std::vector<float>>& pcmf32s, bool stereo) {
     drwav wav;
     std::vector<uint8_t> wav_data; // used for pipe input from stdin
@@ -630,6 +653,12 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
         }
 
         fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
+    }
+    else if (is_wav_buffer(fname)) {
+        if (drwav_init_memory(&wav, fname.c_str(), fname.size(), nullptr) == false) {
+            fprintf(stderr, "error: failed to open WAV file from fname buffer\n");
+            return false;
+        }
     }
     else if (drwav_init_file(&wav, fname.c_str(), nullptr) == false) {
         fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname.c_str());
@@ -806,4 +835,49 @@ void sam_print_usage(int /*argc*/, char ** argv, const sam_params & params) {
     fprintf(stderr, "  -o FNAME, --out FNAME\n");
     fprintf(stderr, "                        output file (default: %s)\n", params.fname_out.c_str());
     fprintf(stderr, "\n");
+}
+
+//  500 -> 00:05.000
+// 6000 -> 01:00.000
+std::string to_timestamp(int64_t t, bool comma) {
+    int64_t msec = t * 10;
+    int64_t hr = msec / (1000 * 60 * 60);
+    msec = msec - hr * (1000 * 60 * 60);
+    int64_t min = msec / (1000 * 60);
+    msec = msec - min * (1000 * 60);
+    int64_t sec = msec / 1000;
+    msec = msec - sec * 1000;
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d%s%03d", (int) hr, (int) min, (int) sec, comma ? "," : ".", (int) msec);
+
+    return std::string(buf);
+}
+
+int timestamp_to_sample(int64_t t, int n_samples, int whisper_sample_rate) {
+    return std::max(0, std::min((int) n_samples - 1, (int) ((t*whisper_sample_rate)/100)));
+}
+
+bool is_file_exist(const char *fileName)
+{
+    std::ifstream infile(fileName);
+    return infile.good();
+}
+
+bool speak_with_file(const std::string & command, const std::string & text, const std::string & path, int voice_id)
+{
+    std::ofstream speak_file(path.c_str());
+    if (speak_file.fail()) {
+        fprintf(stderr, "%s: failed to open speak_file\n", __func__);
+        return false;
+    } else {
+        speak_file.write(text.c_str(), text.size());
+        speak_file.close();
+        int ret = system((command + " " + std::to_string(voice_id) + " " + path).c_str());
+        if (ret != 0) {
+            fprintf(stderr, "%s: failed to speak\n", __func__);
+            return false;
+        }
+    }
+    return true;
 }

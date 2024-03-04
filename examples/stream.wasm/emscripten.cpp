@@ -103,11 +103,11 @@ void stream_main(size_t index) {
 
             {
                 const int n_segments = whisper_full_n_segments(ctx);
-                for (int i = n_segments - 1; i < n_segments; ++i) {
-                    const char * text = whisper_full_get_segment_text(ctx, i);
+                if (n_segments > 0) {
+                    const char * text = whisper_full_get_segment_text(ctx, n_segments - 1);
 
-                    const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                    const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                    const int64_t t0 = whisper_full_get_segment_t0(ctx, n_segments - 1);
+                    const int64_t t1 = whisper_full_get_segment_t1(ctx, n_segments - 1);
 
                     printf("transcribed: %s\n", text);
 
@@ -132,7 +132,7 @@ EMSCRIPTEN_BINDINGS(stream) {
     emscripten::function("init", emscripten::optional_override([](const std::string & path_model) {
         for (size_t i = 0; i < g_contexts.size(); ++i) {
             if (g_contexts[i] == nullptr) {
-                g_contexts[i] = whisper_init_from_file(path_model.c_str());
+                g_contexts[i] = whisper_init_from_file_with_params(path_model.c_str(), whisper_context_default_params());
                 if (g_contexts[i] != nullptr) {
                     g_running = true;
                     if (g_worker.joinable()) {

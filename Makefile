@@ -1,4 +1,4 @@
-default: main bench quantize
+default: main bench quantize server
 
 ifndef UNAME_S
 UNAME_S := $(shell uname -s)
@@ -41,6 +41,12 @@ endif
 CFLAGS   = -I.              -O3 -DNDEBUG -std=c11   -fPIC
 CXXFLAGS = -I. -I./examples -O3 -DNDEBUG -std=c++11 -fPIC
 LDFLAGS  =
+
+ifdef MACOSX_DEPLOYMENT_TARGET
+	CFLAGS   += -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
+	CXXFLAGS += -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
+	LDFLAGS  += -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
+endif
 
 # clock_gettime came in POSIX.1b (1993)
 # CLOCK_MONOTONIC came in POSIX.1-2001 / SUSv3 as optional
@@ -99,6 +105,16 @@ ifeq ($(filter $(UNAME_S),Linux Darwin DragonFly FreeBSD NetBSD OpenBSD Haiku),$
 	CXXFLAGS += -pthread
 endif
 
+# detect Windows
+ifneq ($(findstring _NT,$(UNAME_S)),)
+	_WIN32 := 1
+endif
+
+# Windows Sockets 2 (Winsock) for network-capable apps
+ifeq ($(_WIN32),1)
+	LWINSOCK2 := -lws2_32
+endif
+
 # Architecture specific
 # TODO: probably these flags need to be tweaked on some architectures
 #       feel free to update the Makefile for your architecture and send a pull request or issue
@@ -107,7 +123,7 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 		CPUINFO_CMD := sysctl machdep.cpu.features machdep.cpu.leaf7_features
 	else ifeq ($(UNAME_S),Linux)
 		CPUINFO_CMD := cat /proc/cpuinfo
-	else ifneq (,$(filter MINGW32_NT% MINGW64_NT%,$(UNAME_S)))
+	else ifneq (,$(filter MINGW32_NT% MINGW64_NT% MSYS_NT%,$(UNAME_S)))
 		CPUINFO_CMD := cat /proc/cpuinfo
 	else ifneq (,$(filter DragonFly FreeBSD,$(UNAME_S)))
 		CPUINFO_CMD := grep Features /var/run/dmesg.boot
@@ -169,6 +185,8 @@ ifndef WHISPER_NO_ACCELERATE
 	# Mac M1 - include Accelerate framework
 	ifeq ($(UNAME_S),Darwin)
 		CFLAGS  += -DGGML_USE_ACCELERATE
+		CFLAGS  += -DACCELERATE_NEW_LAPACK
+		CFLAGS  += -DACCELERATE_LAPACK_ILP64
 		LDFLAGS += -framework Accelerate
 	endif
 endif
@@ -199,14 +217,14 @@ endif
 
 ifdef WHISPER_CUBLAS
 	ifeq ($(shell expr $(NVCC_VERSION) \>= 11.6), 1)
-		CUDA_ARCH_FLAG=native
+		CUDA_ARCH_FLAG ?= native
 	else
-		CUDA_ARCH_FLAG=all
+		CUDA_ARCH_FLAG ?= all
 	endif
 
 	CFLAGS      += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
 	CXXFLAGS    += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
-	LDFLAGS     += -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib
+	LDFLAGS     += -lcuda -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L/usr/lib/wsl/lib
 	WHISPER_OBJ += ggml-cuda.o
 	NVCC        = nvcc
 	NVCCFLAGS   = --forward-unknown-to-host-compiler -arch=$(CUDA_ARCH_FLAG)
@@ -301,7 +319,13 @@ ggml.o: ggml.c ggml.h ggml-cuda.h
 ggml-alloc.o: ggml-alloc.c ggml.h ggml-alloc.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
-WHISPER_OBJ += ggml-alloc.o
+ggml-backend.o: ggml-backend.c ggml.h ggml-backend.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
+
+ggml-quants.o: ggml-quants.c ggml.h ggml-quants.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
+
+WHISPER_OBJ += ggml.o ggml-alloc.o ggml-backend.o ggml-quants.o
 
 whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -323,16 +347,34 @@ ggml-metal.o: ggml-metal.m ggml-metal.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 WHISPER_OBJ += ggml-metal.o
+
+ifdef WHISPER_METAL_EMBED_LIBRARY
+CFLAGS += -DGGML_METAL_EMBED_LIBRARY
+
+ggml-metal-embed.o: ggml-metal.metal
+	@echo "Embedding Metal library"
+	$(eval TEMP_ASSEMBLY=$(shell mktemp))
+	@echo ".section __DATA, __ggml_metallib" > $(TEMP_ASSEMBLY)
+	@echo ".globl _ggml_metallib_start" >> $(TEMP_ASSEMBLY)
+	@echo "_ggml_metallib_start:" >> $(TEMP_ASSEMBLY)
+	@echo ".incbin \"$<\"" >> $(TEMP_ASSEMBLY)
+	@echo ".globl _ggml_metallib_end" >> $(TEMP_ASSEMBLY)
+	@echo "_ggml_metallib_end:" >> $(TEMP_ASSEMBLY)
+	@$(AS) $(TEMP_ASSEMBLY) -o $@
+	@rm -f ${TEMP_ASSEMBLY}
+
+WHISPER_OBJ += ggml-metal-embed.o
+endif
 endif
 
-libwhisper.a: ggml.o $(WHISPER_OBJ)
-	$(AR) rcs libwhisper.a ggml.o $(WHISPER_OBJ)
+libwhisper.a: $(WHISPER_OBJ)
+	$(AR) rcs libwhisper.a $(WHISPER_OBJ)
 
-libwhisper.so: ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so ggml.o $(WHISPER_OBJ) $(LDFLAGS)
+libwhisper.so: $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so $(WHISPER_OBJ) $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream command talk talk-llama bench quantize lsp libwhisper.a libwhisper.so
+	rm -f *.o main stream command talk talk-llama bench quantize server lsp libwhisper.a libwhisper.so
 
 #
 # Examples
@@ -343,30 +385,33 @@ CC_SDL=`sdl2-config --cflags --libs`
 SRC_COMMON     = examples/common.cpp examples/common-ggml.cpp
 SRC_COMMON_SDL = examples/common-sdl.cpp
 
-main: examples/main/main.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/main/main.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ) -o main $(LDFLAGS)
+main: examples/main/main.cpp $(SRC_COMMON) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/main/main.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o main $(LDFLAGS)
 	./main -h
 
-bench: examples/bench/bench.cpp ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp ggml.o $(WHISPER_OBJ) -o bench $(LDFLAGS)
+bench: examples/bench/bench.cpp $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp $(WHISPER_OBJ) -o bench $(LDFLAGS)
 
-quantize: examples/quantize/quantize.cpp ggml.o $(WHISPER_OBJ) $(SRC_COMMON)
-	$(CXX) $(CXXFLAGS) examples/quantize/quantize.cpp $(SRC_COMMON) ggml.o $(WHISPER_OBJ) -o quantize $(LDFLAGS)
+quantize: examples/quantize/quantize.cpp $(WHISPER_OBJ) $(SRC_COMMON)
+	$(CXX) $(CXXFLAGS) examples/quantize/quantize.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o quantize $(LDFLAGS)
 
-stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
+server: examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o server $(LDFLAGS) $(LWINSOCK2)
 
-command: examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
+stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
 
-lsp: examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o lsp $(CC_SDL) $(LDFLAGS)
+command: examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
 
-talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o talk $(CC_SDL) $(LDFLAGS)
+lsp: examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o lsp $(CC_SDL) $(LDFLAGS)
 
-talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) ggml.o $(WHISPER_OBJ) -o talk-llama $(CC_SDL) $(LDFLAGS)
+talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o talk $(CC_SDL) $(LDFLAGS)
+
+talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o talk-llama $(CC_SDL) $(LDFLAGS)
 
 #
 # Audio samples
@@ -411,9 +456,10 @@ samples:
 .PHONY: medium.en
 .PHONY: medium
 .PHONY: large-v1
-.PHONY: large
+.PHONY: large-v2
+.PHONY: large-v3
 
-tiny.en tiny base.en base small.en small medium.en medium large-v1 large: main
+tiny.en tiny base.en base small.en small medium.en medium large-v1 large-v2 large-v3: main
 	bash ./models/download-ggml-model.sh $@
 	@echo ""
 	@echo "==============================================="
