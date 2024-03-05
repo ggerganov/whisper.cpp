@@ -1,22 +1,33 @@
-const path = require("path");
+import * as path from 'path'
+
 const { whisper } = require(path.join(
   __dirname,
   "../../build/Release/whisper-addon"
 ));
-const { promisify } = require("util");
 
-const whisperAsync = promisify(whisper);
+function whisperAsync(params: WhisperParams, callback?: (index: number) => any) {
+  return new Promise<Array<WhisperResultItem>>((resolve, reject) => {
+    whisper(params, (error: Error, result: {res: Array<WhisperResultItem>, index: number}) => {
+      if(error) {
+        return reject(error);
+      } else if(result.res){
+        return resolve(result.res);
+      }
+      callback?.(result.index)
+    })
+  })
+}
 
 const whisperParams = {
   language: "en",
   model: path.join(__dirname, "../../models/ggml-base.en.bin"),
   fname_inp: ["../../samples/jfk.wav"],
   use_gpu: true,
-};
+} satisfies WhisperParams;
 
-const arguments = process.argv.slice(2);
+const args = process.argv.slice(2);
 const params = Object.fromEntries(
-  arguments.reduce((pre, item) => {
+  args.reduce((pre, item) => {
     if (item.startsWith("--")) {
       return [...pre, item.slice(2).split("=")];
     }
@@ -32,6 +43,6 @@ for (const key in params) {
 
 console.log("whisperParams =", whisperParams);
 
-whisperAsync(whisperParams).then(({res}) => {
+whisperAsync(whisperParams).then((res) => {
   console.log(`Result from whisper: ${res}`);
 });
