@@ -187,7 +187,7 @@ static bool ggml_graph_compute_helper(
         ggml_backend_metal_set_n_cb(backend, n_threads);
     }
 #endif
-    return ggml_backend_graph_compute(backend, graph);
+    return ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS;
 }
 
 // faster matrix multiplications for tensors that do not have dimension 0 divisible by "pad"
