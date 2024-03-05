@@ -6903,7 +6903,44 @@ static ggml_tensor * dtw_and_backtrace(ggml_context * ctx, ggml_tensor * x) {
     return r;
 }
 
-static ggml_tensor * median_filter(ggml_context * ctx, ggml_tensor * x, int filter_width) {
+struct median_filter_user_data {
+    int filter_width;
+};
+
+static void median_filter(struct ggml_tensor * dst , const struct ggml_tensor * a, int ith, int nth, void * userdata) {
+    int filter_width = ((median_filter_user_data *) userdata)->filter_width;
+    WHISPER_ASSERT(nth == 1);
+    WHISPER_ASSERT(ith == 0);
+    WHISPER_ASSERT(filter_width < a->ne[2]);
+    WHISPER_ASSERT(filter_width % 2);
+    WHISPER_ASSERT(ggml_n_dims(a) == 3);
+    WHISPER_ASSERT(a->type == GGML_TYPE_F32);
+
+    std::vector<float> filter;
+    filter.reserve(filter_width);
+    for (int64_t i = 0; i < a->ne[0]; ++i) {
+        for (int64_t j = 0; j < a->ne[1]; ++j) {
+            for (int64_t k = 0; k < a->ne[2]; ++k) {
+                for (int64_t off = -filter_width/2; off <= filter_width/2; ++off) {
+                    // "reflect" padding
+                    int64_t idx = k + off;
+                    if (idx < 0)
+                        idx = -idx;
+                    else if (idx >= a->ne[2])
+                        idx = 2*(a->ne[2] - 1) - idx;
+
+                    filter.push_back(ggml_get_f32_nd(a, i, j, idx, 0));
+                }
+                std::sort(filter.begin(), filter.end());
+                const float v = filter[filter.size()/2];
+                ggml_set_f32_nd(dst, i, j, k, 0, v);
+                filter.clear();
+            }
+        }
+    }
+}
+
+/*static ggml_tensor * median_filter(ggml_context * ctx, ggml_tensor * x, int filter_width) {
     WHISPER_ASSERT(filter_width < x->ne[2]);
     WHISPER_ASSERT(filter_width % 2);
     WHISPER_ASSERT(ggml_n_dims(x) == 3);
@@ -6935,7 +6972,7 @@ static ggml_tensor * median_filter(ggml_context * ctx, ggml_tensor * x, int filt
     }
 
     return r;
-}
+}*/
 
 static void whisper_exp_compute_token_level_timestamps_dtw(
             struct whisper_context * ctx,
@@ -7003,6 +7040,10 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     WHISPER_ASSERT(n_audio_tokens <= state->aheads_cross_QKs->ne[1]);
     const auto n_tokens = state->aheads_cross_QKs->ne[0];
     const auto n_heads = state->aheads_cross_QKs->ne[2];
+
+    // IN: Tensor with N_TOKENS*audio_ctx*N_ALIGNMENT_HEADS dims
+    // OUT:Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
+    // FIXME: can probably be replaced with a view. I failed to get right strides
     ggml_tensor * w = ggml_new_tensor_3d(gctx, GGML_TYPE_F32, n_tokens, n_audio_tokens, n_heads);
     for (int i = 0; i < n_tokens; ++i) {
         for (int j = 0; j < n_audio_tokens; ++j) {
@@ -7012,37 +7053,40 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
             }
         }
     }
+    /*const auto row_stride = state->aheads_cross_QKs->nb[1] + state->aheads_cross_QKs->nb[0] * (state->aheads_cross_QKs->ne[0] - n_audio_tokens);
+    const auto slice_stride = state->aheads_cross_QKs->nb[2] + state->aheads_cross_QKs->nb[0] * (state->aheads_cross_QKs->ne[0] - n_audio_tokens);
+    ggml_tensor * w = ggml_view_3d(gctx, state->aheads_cross_QKs, n_audio_tokens, n_tokens, n_heads, row_stride, slice_stride, 0);*/
 
     // Normalize - in original OpenAI code, this is done over dim=-2. In this case,
-    // we already permuted N_TOKENS dimension to rows on last loop, becase ggml_norm
-    // operates over rows. Afterwards, permute to a shape that facilitates mean
+    // we already permuted N_TOKENS dimension to columns on last loop, becase ggml_norm
+    // operates over columns. Afterwards, permute to a shape that facilitates mean
     // operation (after median filter)
     // IN: Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
     // OUT: Tensor with N_ALIGNMENT_HEADS*N_TOKENS*N_AUDIO_TOKENS dims
     w = ggml_norm(gctx, w, 1e-9);
     w = ggml_permute(gctx, ggml_permute(gctx, w, 2, 1, 0 ,3), 0, 2, 1, 3);
-    struct ggml_cgraph * gf = ggml_new_graph(gctx);
-    ggml_build_forward_expand(gf, w);
-    ggml_graph_compute_with_ctx(gctx, gf, n_threads);
 
     // Pass median filter - this is done over AUDIO_TOKENS dimension.
     // IN: Tensor with N_ALIGNMENT_HEADS*N_TOKENS*N_AUDIO_TOKENS dims
     // OUT: Same dims
-    w = median_filter(gctx, w, medfilt_width);
+    median_filter_user_data mf_user_data = {medfilt_width};
+    w = ggml_map_custom1(gctx, w, median_filter, 1, &mf_user_data);
 
-    // Take mean over rows, scale by -1, reshape to 2D tensor
+    // Take mean over columns, scale by -1, reshape to 2D tensor
     // IN: Tensor with N_ALIGNMENT_HEADS*N_TOKENS*N_AUDIO_TOKENS dims
     // OUT: Tensor with N_TOKENS*N_AUDIO_TOKENS dims
     w = ggml_mean(gctx, w);
     w = ggml_scale(gctx, w, -1.0);
     w = ggml_reshape_2d(gctx, w, w->ne[1], w->ne[2]);
-    struct ggml_cgraph * gf2 = ggml_new_graph(gctx);
-    ggml_build_forward_expand(gf2, w);
-    ggml_graph_compute_with_ctx(gctx, gf2, n_threads);
 
-    // FIXME: manually removing SOT/EOT might not be the most efficient way? (e.g. use ggml funcs)
+    // Compute
+    struct ggml_cgraph * gf = ggml_new_graph(gctx);
+    ggml_build_forward_expand(gf, w);
+    ggml_graph_compute_with_ctx(gctx, gf, n_threads);
+
     // Remove SOT sequence and EOT
     // Out dimension is (N_TOKENS-sot_sequence_length-1)*N_AUDIO_TOKENS
+    // FIXME: can probably be replaced with a view. I failed to get right strides
     ggml_tensor * matrix = ggml_new_tensor_2d(gctx, GGML_TYPE_F32, w->ne[0] - sot_sequence_length - 1, w->ne[1]);
     for (int64_t i = 0; i < matrix->ne[0]; ++i) {
         for (int64_t j = 0; j < matrix->ne[1]; ++j) {
