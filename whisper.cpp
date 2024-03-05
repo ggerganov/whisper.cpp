@@ -859,7 +859,7 @@ struct whisper_state {
 
     // [EXPERIMENTAL] Token-level timestamps with DTW
     whisper_aheads_masks aheads_masks;
-    ggml_tensor * aheads_cross_QKs;
+    ggml_tensor * aheads_cross_QKs = nullptr;
 
     // [EXPERIMENTAL] speed-up techniques
     int32_t exp_n_audio_ctx = 0; // 0 - use default
@@ -2216,6 +2216,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
          whisper_context & wctx,
          whisper_state   & wstate,
      const whisper_batch & batch,
+                    bool   save_alignment_heads_QKs,
                     bool   worst_case) {
     const auto & model   = wctx.model;
     const auto & hparams = model.hparams;
@@ -2270,7 +2271,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
     struct ggml_tensor * inpL = cur;
 
     // [EXPERIMENTAL] Token-level timestamps with DTW
-    struct ggml_tensor * aheads_cross_QKs = NULL;
+    struct ggml_tensor * aheads_cross_QKs = nullptr;
 
     for (int il = 0; il < n_layer; ++il) {
         const auto & layer = model.layers_decoder[il];
@@ -2451,9 +2452,6 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
             struct ggml_tensor * KQ_soft_max = ggml_soft_max(ctx0, KQ);
 
-            // FIXME: maybe this additional node should by part of pipeline if requested,
-            // since it is only needed for dtw timestamps and useless on all other decoding
-            // calls. Should be counted when allocating memory for the decoder graph though.
             // [EXPERIMENTAL] Token-level timestamps with DTW
             if (wctx.params.dtw_token_timestamps) {
                 if (wstate.aheads_masks.m[il] != nullptr) {
@@ -2556,15 +2554,14 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
     struct ggml_tensor * logits = ggml_mul_mat(ctx0, model.d_te, cur);
 
-    // FIXME: maybe this additional node should by part of pipeline if requested,
-    // since it is only needed for dtw timestamps and useless on all other decoding
-    // calls. Should be counted when allocating memory for the decoder graph though.
     // [EXPERIMENTAL] Token-level timestamps with DTW
-    if (aheads_cross_QKs != NULL) {
+    if (aheads_cross_QKs != nullptr) {
         aheads_cross_QKs = ggml_transpose(ctx0, aheads_cross_QKs);
-        ggml_build_forward_expand(gf, aheads_cross_QKs);
+        if (save_alignment_heads_QKs) {
+            ggml_build_forward_expand(gf, aheads_cross_QKs);
+            wstate.aheads_cross_QKs = aheads_cross_QKs;
+        }
     }
-    wstate.aheads_cross_QKs = aheads_cross_QKs;
 
     ggml_build_forward_expand(gf, logits);
 
@@ -2588,6 +2585,7 @@ static bool whisper_decode_internal(
           whisper_state & wstate,
     const whisper_batch & batch,
               const int   n_threads,
+                   bool   save_alignment_heads_QKs,
     ggml_abort_callback   abort_callback,
                    void * abort_callback_data) {
     const int64_t t_start_us = ggml_time_us();
@@ -2619,7 +2617,7 @@ static bool whisper_decode_internal(
     {
         auto & alloc = wstate.alloc_decode.alloc;
 
-        ggml_cgraph * gf = whisper_build_graph_decoder(wctx, wstate, batch, false);
+        ggml_cgraph * gf = whisper_build_graph_decoder(wctx, wstate, batch, save_alignment_heads_QKs, false);
 
         if (!ggml_gallocr_alloc_graph(alloc, gf)) {
             // should never happen as we pre-allocate the memory
@@ -3148,15 +3146,14 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     }
 
     // [EXPERIMENTAL] Token-level timestamps with DTW
-    if (!aheads_masks_init(ctx->params, ctx->model.hparams, state->aheads_masks, ctx->backend)) {
-        WHISPER_LOG_ERROR("%s: aheads_masks_init() failed for alignment heads masks\n", __func__);
-        whisper_free_state(state);
-        return nullptr;
-    }
-
-    {
+    if (ctx->params.dtw_token_timestamps) {
+        if (!aheads_masks_init(ctx->params, ctx->model.hparams, state->aheads_masks, ctx->backend)) {
+            WHISPER_LOG_ERROR("%s: aheads_masks_init() failed for alignment heads masks\n", __func__);
+            whisper_free_state(state);
+            return nullptr;
+        }
         const size_t memory_size = aheads_masks_nbytes(state->aheads_masks);
-        WHISPER_LOG_INFO("%s: aligment heads masks size = %ld B\n", __func__, memory_size);
+        WHISPER_LOG_INFO("%s: alignment heads masks size = %ld B\n", __func__, memory_size);
     }
 
 #ifdef WHISPER_USE_COREML
@@ -3251,7 +3248,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
                     whisper_batch_prep_legacy(state->batch, nullptr, n_tokens, n_past, 0);
 
-                    return whisper_build_graph_decoder(*ctx, *state, state->batch, true);
+                    return whisper_build_graph_decoder(*ctx, *state, state->batch, true, true);
                 });
 
         if (!ok) {
@@ -3647,7 +3644,7 @@ int whisper_decode_with_state(struct whisper_context * ctx, struct whisper_state
 
     whisper_kv_cache_seq_rm(state->kv_self, 0, n_past, -1);
 
-    if (!whisper_decode_internal(*ctx, *state, state->batch, n_threads, nullptr, nullptr)) {
+    if (!whisper_decode_internal(*ctx, *state, state->batch, n_threads, false, nullptr, nullptr)) {
         WHISPER_LOG_ERROR("%s: failed to eval\n", __func__);
         return 1;
     }
@@ -5441,7 +5438,7 @@ int whisper_full_with_state(
 
                 whisper_batch_prep_legacy(state->batch, prompt.data(), prompt.size(), 0, 0);
 
-                if (!whisper_decode_internal(*ctx, *state, state->batch, params.n_threads, params.abort_callback, params.abort_callback_user_data)) {
+                if (!whisper_decode_internal(*ctx, *state, state->batch, params.n_threads, false, params.abort_callback, params.abort_callback_user_data)) {
                     WHISPER_LOG_ERROR("%s: failed to decode\n", __func__);
                     return -7;
                 }
@@ -5741,7 +5738,7 @@ int whisper_full_with_state(
 
                     assert(batch.n_tokens > 0);
 
-                    if (!whisper_decode_internal(*ctx, *state, state->batch, params.n_threads, params.abort_callback, params.abort_callback_user_data)) {
+                    if (!whisper_decode_internal(*ctx, *state, state->batch, params.n_threads, false, params.abort_callback, params.abort_callback_user_data)) {
                         WHISPER_LOG_ERROR("%s: failed to decode\n", __func__);
                         return -8;
                     }
@@ -6803,9 +6800,9 @@ static void whisper_exp_compute_token_level_timestamps(
 static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_params & cparams, int il) {
     std::vector<uint32_t> ret;
     if (cparams.dtw_aheads_preset == WHISPER_AHEADS_NONE)
-        return ret;
+        abort();
     else if (cparams.dtw_aheads_preset == WHISPER_AHEADS_N_TOP_MOST) {
-        return ret;
+        abort();
     } else {
         const auto aheads = cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM ? cparams.dtw_custom.aheads : g_aheads.at(cparams.dtw_aheads_preset);
         for (size_t i = 0; i < aheads.n_heads; ++i) {
@@ -6940,71 +6937,6 @@ static ggml_tensor * median_filter(ggml_context * ctx, ggml_tensor * x, int filt
     return r;
 }
 
-
-static ggml_tensor * get_alignment_heads_QKs(
-                       ggml_context * ctx,
-               struct whisper_state * state,
-                               int    n_audio_tokens)
-{
-    WHISPER_ASSERT(state->aheads_cross_QKs != NULL);
-    WHISPER_ASSERT(n_audio_tokens <= state->aheads_cross_QKs->ne[1]);
-
-    const auto n_tokens = state->aheads_cross_QKs->ne[0];
-    const auto n_heads = state->aheads_cross_QKs->ne[2];
-    ggml_tensor * ret = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, n_tokens, n_audio_tokens, n_heads);
-    for (int i = 0; i < n_tokens; ++i) {
-        for (int j = 0; j < n_audio_tokens; ++j) {
-            for (int k = 0; k < n_heads; ++k) {
-                const float v = ggml_get_f32_nd(state->aheads_cross_QKs, i, j, k, 0);
-                ggml_set_f32_nd(ret, i, j, k, 0, v);
-            }
-        }
-    }
-    return ret;
-
-
-    /*const auto n_text_layers = (int) state->cross_QKs.size();
-    const auto heads_per_layer = state->cross_QKs[0]->ne[2];
-    const auto n_tokens = state->cross_QKs[0]->ne[1];
-
-    if (params.dtw_ah_preset == WHISPER_AHEADS_N_TOP_MOST) {
-        WHISPER_ASSERT(params.dtw_n_top_most.n <= n_text_layers);
-        const auto n_heads = heads_per_layer * params.dtw_n_top_most.n;
-
-        // FIXME: manually stacking + clipping + permuting might not be the most efficient way? (e.g. use ggml funcs)
-        ggml_tensor * w = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, n_tokens, n_audio_tokens, n_heads);
-        for (int k = 0; k < n_heads; ++k) {
-            for (int i = 0; i < n_audio_tokens; ++i) {
-                for (int j = 0; j < state->cross_QKs[0]->ne[1]; ++j) {
-                    auto text_layer = n_text_layers - (k / heads_per_layer) - 1;
-                    auto head = k % heads_per_layer;
-                    const float v = ggml_get_f32_nd(state->cross_QKs[text_layer], i, j, head, 0);
-                    ggml_set_f32_nd(w, j, i, k, 0, v);
-                }
-            }
-        }
-        return w;
-
-    } else {
-        const auto alignment_heads = params.dtw_ah_preset == WHISPER_AHEADS_CUSTOM ? params.dtw_custom.aheads : g_aheads.at(params.dtw_ah_preset);
-        ggml_tensor * w = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, state->cross_QKs[0]->ne[1], n_audio_tokens, alignment_heads.n_heads);
-
-        // FIXME: manually stacking + clipping + permuting might not be the most efficient way? (e.g. use ggml funcs)
-        for (size_t k = 0; k < alignment_heads.n_heads; ++k) {
-            for (int i = 0; i < n_audio_tokens; ++i) {
-                for (int j = 0; j < state->cross_QKs[0]->ne[1]; ++j) {
-                    auto text_layer = alignment_heads.heads[k].n_text_layer;
-                    auto head = alignment_heads.heads[k].n_head;
-                    const float v = ggml_get_f32_nd(state->cross_QKs[text_layer], i, j, head, 0);
-                    ggml_set_f32_nd(w, j, i, k, 0, v);
-                }
-            }
-        }
-        return w;
-    }*/
-}
-
-
 static void whisper_exp_compute_token_level_timestamps_dtw(
             struct whisper_context * ctx,
               struct whisper_state * state,
@@ -7052,31 +6984,34 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
 
     // Get result tokens, pass then along to decoder to get cross attention QKs
     // used in timestamping
-    // Each QK is audio_ctx*N_TOKENS*N_HEADS_PER_LAYER
+    // Decoder already returns only alignment head QKs, already concatenated in
+    // one tensor.
     whisper_kv_cache_clear(state->kv_self);
-    if (whisper_decode_with_state(ctx, state, tokens.data(), tokens.size(), 0, n_threads) != 0) {
+    whisper_batch_prep_legacy(state->batch, tokens.data(), tokens.size(), 0, 0);
+    whisper_kv_cache_seq_rm(state->kv_self, 0, 0, -1);
+    if (!whisper_decode_internal(*ctx, *state, state->batch, n_threads, true, nullptr, nullptr)) {
         WHISPER_LOG_INFO("DECODER FAILED\n");
         WHISPER_ASSERT(0);
     }
+    WHISPER_ASSERT(state->aheads_cross_QKs != nullptr);
 
-    // Stack alignment heads + clip unused audio tokens
-    // We permute dimensions so we can compute normalization on next step
-    // IN: N_TEXT_LAYERS tensors with audio_ctx*N_TOKENS*N_HEADS dims
-    // OUT: Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
+    // Clip unused audio tokens
+    // IN: Tensor with N_TOKENS*audio_ctx*N_ALIGNMENT_HEADS dims
+    // OUT:Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
     const auto n_audio_tokens = n_frames/2;
-    ggml_tensor * w = get_alignment_heads_QKs(gctx, state, n_audio_tokens);
-
-    /*fprintf(stderr, "Printing W\n");
-    for (int k = 0; k < w->ne[2]; ++k) {
-        fprintf(stderr, "Head %d:\n", k);
-        for (int j = 0; j < w->ne[1]; ++j) {
-            for (int i = 0; i < w->ne[0]; ++i) {
-                fprintf(stderr, "%.2e ", ggml_get_f32_nd(w, i, j, k, 0));
+    WHISPER_ASSERT(state->aheads_cross_QKs != NULL);
+    WHISPER_ASSERT(n_audio_tokens <= state->aheads_cross_QKs->ne[1]);
+    const auto n_tokens = state->aheads_cross_QKs->ne[0];
+    const auto n_heads = state->aheads_cross_QKs->ne[2];
+    ggml_tensor * w = ggml_new_tensor_3d(gctx, GGML_TYPE_F32, n_tokens, n_audio_tokens, n_heads);
+    for (int i = 0; i < n_tokens; ++i) {
+        for (int j = 0; j < n_audio_tokens; ++j) {
+            for (int k = 0; k < n_heads; ++k) {
+                const float v = ggml_get_f32_nd(state->aheads_cross_QKs, i, j, k, 0);
+                ggml_set_f32_nd(w, i, j, k, 0, v);
             }
-            fprintf(stderr, "\n");
         }
-        fprintf(stderr, "\n");
-    }*/
+    }
 
     // Normalize - in original OpenAI code, this is done over dim=-2. In this case,
     // we already permuted N_TOKENS dimension to rows on last loop, becase ggml_norm
