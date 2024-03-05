@@ -28,6 +28,18 @@ class WhisperContext private constructor(private var ptr: Long) {
             }
         }
     }
+    suspend fun streamTranscribeData(data: FloatArray): String = withContext(scope.coroutineContext) {
+        require(ptr != 0L)
+        val numThreads = WhisperCpuConfig.preferredThreadCount
+        Log.d(LOG_TAG, "Selecting $numThreads threads")
+        WhisperLib.fullStreamTranscribe(ptr, numThreads, data)
+        val textCount = WhisperLib.getTextSegmentCount(ptr)
+        return@withContext buildString {
+            for (i in 0 until textCount) {
+                append(WhisperLib.getTextSegment(ptr, i))
+            }
+        }
+    }
 
     suspend fun benchMemory(nthreads: Int): String = withContext(scope.coroutineContext) {
         return@withContext WhisperLib.benchMemcpy(nthreads)
@@ -134,6 +146,7 @@ private class WhisperLib {
         external fun getSystemInfo(): String
         external fun benchMemcpy(nthread: Int): String
         external fun benchGgmlMulMat(nthread: Int): String
+        external fun fullStreamTranscribe(contextPtr: Long, numThreads: Int, audioData: FloatArray)
     }
 }
 

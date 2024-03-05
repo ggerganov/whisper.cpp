@@ -192,7 +192,45 @@ Java_com_whispercpp_whisper_WhisperLib_00024Companion_fullTranscribe(
     }
     (*env)->ReleaseFloatArrayElements(env, audio_data, audio_data_arr, JNI_ABORT);
 }
+//streaming attempt:
+JNIEXPORT void JNICALL
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_fullStreamTranscribe(
+        JNIEnv *env, jobject thiz, jlong context_ptr, jint num_threads, jfloatArray audio_data) {
+    UNUSED(thiz);
+    struct whisper_context *context = (struct whisper_context *) context_ptr;
+    jfloat *audio_data_arr = (*env)->GetFloatArrayElements(env, audio_data, NULL);
+    const jsize audio_data_length = (*env)->GetArrayLength(env, audio_data);
 
+    // The below adapted from the Objective-C iOS sample
+    struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    params.print_realtime = true;
+    params.print_progress = false;
+    params.print_timestamps = true;
+    params.print_special = false;
+    params.translate = false;
+    params.language = "en";
+    params.n_threads = num_threads; //how many threads can I use on an S23?
+    //potentially use an initial prompt for custom vocabularies?
+    // initial_prompt: Optional[str]
+    //        Optional text to provide as a prompt for the first window. This can be used to provide, or
+    //        "prompt-engineer" a context for transcription, e.g. custom vocabularies or proper nouns
+    //        to make it more likely to predict those word correctly.
+    //params.initial_prompt = "Transcription of Tactical Combat Casualty Drugs such as Fentanyl, Ibuprofen, Amoxicillin, Epinephrine, TXA, Hextend, Ketamine, Oral Transmucosal Fentanyl Citrate. ";
+    params.offset_ms = 0;
+    params.no_context = true;
+    params.single_segment   = true; //hard code for true, objc example has it based on a button press
+    params.no_timestamps    = params.single_segment; //from streaming objc example
+
+    whisper_reset_timings(context);
+
+    LOGI("About to run whisper_full");
+    if (whisper_full(context, params, audio_data_arr, audio_data_length) != 0) {
+        LOGI("Failed to run the model");
+    } else {
+        whisper_print_timings(context);
+    }
+    (*env)->ReleaseFloatArrayElements(env, audio_data, audio_data_arr, JNI_ABORT);
+}
 JNIEXPORT jint JNICALL
 Java_com_whispercpp_whisper_WhisperLib_00024Companion_getTextSegmentCount(
         JNIEnv *env, jobject thiz, jlong context_ptr) {
