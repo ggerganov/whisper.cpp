@@ -7,15 +7,17 @@
   android:orientation="vertical"
   tools:context=".MainActivity">
 
+  <TextView
+      android:id="@+id/sysinfo"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text=""
+      android:scrollbarAlwaysDrawHorizontalTrack="true"
+      />
   <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
-    <Button
-      android:id="@+id/systemInfoBtn"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:text="System Info" />
 
     <Button
       android:id="@+id/loadModelBtn"
@@ -23,30 +25,22 @@
       android:layout_height="wrap_content"
       android:text="Load model" />
 
-  </LinearLayout>
-
-  <LinearLayout
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content">
 
     <Button
       android:id="@+id/transcriptSampleBtn"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:text="Transcribe sample" />
+        android:layout_marginLeft="20dp"
+      android:text="Exec inference" />
 
-    <Button
-      android:id="@+id/clearBtn"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:text="Clear" />
+
   </LinearLayout>
 
   <TextView
     android:id="@+id/sample_text"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="Hello World!"
+    android:text=""
     app:layout_constraintBottom_toBottomOf="parent"
     app:layout_constraintLeft_toLeftOf="parent"
     app:layout_constraintRight_toRightOf="parent"

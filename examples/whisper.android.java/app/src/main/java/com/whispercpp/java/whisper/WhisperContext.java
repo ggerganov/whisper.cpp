@@ -63,6 +63,7 @@ public class WhisperContext {
         }
         int numThreads = WhisperCpuConfig.getPreferredThreadCount();
         Log.d(LOG_TAG, "Selecting " + numThreads + " threads");
+        CDELog.j(LOG_TAG, "Selecting " + numThreads + " threads");
 
         List<WhisperSegment> segments = new ArrayList<>();
         synchronized (this) {
@@ -72,6 +73,7 @@ public class WhisperContext {
           for (int i = 0; i < textCount; i++) {
             long start = WhisperLib.getTextSegmentT0(ptr, i);
             String sentence = WhisperLib.getTextSegment(ptr, i);
+            sentence += "\n";
             long end = WhisperLib.getTextSegmentT1(ptr, i);
 //            result.append();
             segments.add(new WhisperSegment(start, end, sentence));
