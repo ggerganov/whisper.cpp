@@ -62,6 +62,14 @@ bool ggml_common_quantize_0(
         case GGML_FTYPE_ALL_F32:
         case GGML_FTYPE_MOSTLY_F16:
         case GGML_FTYPE_MOSTLY_Q4_1_SOME_F16:
+        case GGML_FTYPE_MOSTLY_IQ2_XXS:
+        case GGML_FTYPE_MOSTLY_IQ2_XS:
+        case GGML_FTYPE_MOSTLY_IQ2_S:
+        case GGML_FTYPE_MOSTLY_IQ3_XXS:
+        case GGML_FTYPE_MOSTLY_IQ3_S:
+        case GGML_FTYPE_MOSTLY_IQ1_S:
+        case GGML_FTYPE_MOSTLY_IQ4_NL:
+        case GGML_FTYPE_MOSTLY_IQ4_XS:
                 {
                     fprintf(stderr, "%s: invalid model type %d\n", __func__, ftype);
                     return false;
@@ -182,7 +190,7 @@ bool ggml_common_quantize_0(
                 case GGML_TYPE_Q5_K:
                 case GGML_TYPE_Q6_K:
                     {
-                        cur_size = ggml_quantize_chunk((ggml_type) ttype, data_f32.data(), work.data(), 0, nelements, hist_cur.data());
+                        cur_size = ggml_quantize_chunk((ggml_type) ttype, data_f32.data(), work.data(), 0, nelements/ne[0], ne[0], hist_cur.data(), nullptr);
                     } break;
                 case GGML_TYPE_F32:
                 case GGML_TYPE_F16:
@@ -191,6 +199,14 @@ bool ggml_common_quantize_0(
                 case GGML_TYPE_I32:
                 case GGML_TYPE_Q8_1:
                 case GGML_TYPE_Q8_K:
+                case GGML_TYPE_IQ2_XXS:
+                case GGML_TYPE_IQ2_XS:
+                case GGML_TYPE_IQ2_S:
+                case GGML_TYPE_IQ3_XXS:
+                case GGML_TYPE_IQ3_S:
+                case GGML_TYPE_IQ1_S:
+                case GGML_TYPE_IQ4_NL:
+                case GGML_TYPE_IQ4_XS:
                 case GGML_TYPE_COUNT:
                     {
                         fprintf(stderr, "%s: unsupported quantization type %d (%s)\n", __func__, ttype, ggml_type_name((ggml_type) ttype));

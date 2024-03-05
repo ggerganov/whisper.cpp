@@ -38,17 +38,18 @@ type Context interface {
 	IsMultilingual() bool     // Return true if the model is multilingual.
 	Language() string         // Get language
 
-	SetOffset(time.Duration)      // Set offset
-	SetDuration(time.Duration)    // Set duration
-	SetThreads(uint)              // Set number of threads to use
-	SetSpeedup(bool)              // Set speedup flag
-	SetSplitOnWord(bool)          // Set split on word flag
-	SetTokenThreshold(float32)    // Set timestamp token probability threshold
-	SetTokenSumThreshold(float32) // Set timestamp token sum probability threshold
-	SetMaxSegmentLength(uint)     // Set max segment length in characters
-	SetTokenTimestamps(bool)      // Set token timestamps flag
-	SetMaxTokensPerSegment(uint)  // Set max tokens per segment (0 = no limit)
-	SetAudioCtx(uint)             // Set audio encoder context
+	SetOffset(time.Duration)        // Set offset
+	SetDuration(time.Duration)      // Set duration
+	SetThreads(uint)                // Set number of threads to use
+	SetSpeedup(bool)                // Set speedup flag
+	SetSplitOnWord(bool)            // Set split on word flag
+	SetTokenThreshold(float32)      // Set timestamp token probability threshold
+	SetTokenSumThreshold(float32)   // Set timestamp token sum probability threshold
+	SetMaxSegmentLength(uint)       // Set max segment length in characters
+	SetTokenTimestamps(bool)        // Set token timestamps flag
+	SetMaxTokensPerSegment(uint)    // Set max tokens per segment (0 = no limit)
+	SetAudioCtx(uint)               // Set audio encoder context
+	SetInitialPrompt(prompt string) // Set initial prompt
 
 	// Process mono audio data and return any errors.
 	// If defined, newly generated segments are passed to the

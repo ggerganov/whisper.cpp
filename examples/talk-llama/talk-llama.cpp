@@ -14,6 +14,7 @@
 #include <thread>
 #include <vector>
 #include <regex>
+#include <sstream>
 
 std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos) {
     auto * model = llama_get_model(ctx);
@@ -67,10 +68,14 @@ struct whisper_params {
     bool use_gpu        = true;
 
     std::string person      = "Georgi";
+    std::string bot_name    = "LLaMA";
+    std::string wake_cmd    = "";
+    std::string heard_ok    = "";
     std::string language    = "en";
     std::string model_wsp   = "models/ggml-base.en.bin";
     std::string model_llama = "models/ggml-llama-7B.bin";
     std::string speak       = "./examples/talk-llama/speak";
+    std::string speak_file  = "./examples/talk-llama/to_speak.txt";
     std::string prompt      = "";
     std::string fname_out;
     std::string path_session = "";       // path to file for saving/loading model eval state
@@ -101,11 +106,15 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-vp"  || arg == "--verbose-prompt") { params.verbose_prompt = true; }
         else if (arg == "-ng"  || arg == "--no-gpu")         { params.use_gpu        = false; }
         else if (arg == "-p"   || arg == "--person")         { params.person         = argv[++i]; }
-        else if (arg == "--session")                         { params.path_session   = argv[++i];}
+        else if (arg == "-bn"   || arg == "--bot-name")      { params.bot_name       = argv[++i]; }
+        else if (arg == "--session")                         { params.path_session   = argv[++i]; }
+        else if (arg == "-w"   || arg == "--wake-command")   { params.wake_cmd       = argv[++i]; }
+        else if (arg == "-ho"  || arg == "--heard-ok")       { params.heard_ok       = argv[++i]; }
         else if (arg == "-l"   || arg == "--language")       { params.language       = argv[++i]; }
         else if (arg == "-mw"  || arg == "--model-whisper")  { params.model_wsp      = argv[++i]; }
         else if (arg == "-ml"  || arg == "--model-llama")    { params.model_llama    = argv[++i]; }
         else if (arg == "-s"   || arg == "--speak")          { params.speak          = argv[++i]; }
+        else if (arg == "-sf"  || arg == "--speak-file")     { params.speak_file     = argv[++i]; }
         else if (arg == "--prompt-file")                     {
             std::ifstream file(argv[++i]);
             std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), back_inserter(params.prompt));
@@ -146,10 +155,14 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -vp,      --verbose-prompt [%-7s] print prompt at start\n",                       params.verbose_prompt ? "true" : "false");
     fprintf(stderr, "  -ng,      --no-gpu         [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
     fprintf(stderr, "  -p NAME,  --person NAME    [%-7s] person name (for prompt selection)\n",          params.person.c_str());
+    fprintf(stderr, "  -bn NAME, --bot-name NAME  [%-7s] bot name (to display)\n",                       params.bot_name.c_str());
+    fprintf(stderr, "  -w TEXT,  --wake-command T [%-7s] wake-up command to listen for\n",               params.wake_cmd.c_str());
+    fprintf(stderr, "  -ho TEXT, --heard-ok TEXT  [%-7s] said by TTS before generating reply\n",         params.heard_ok.c_str());
     fprintf(stderr, "  -l LANG,  --language LANG  [%-7s] spoken language\n",                             params.language.c_str());
     fprintf(stderr, "  -mw FILE, --model-whisper  [%-7s] whisper model file\n",                          params.model_wsp.c_str());
     fprintf(stderr, "  -ml FILE, --model-llama    [%-7s] llama model file\n",                            params.model_llama.c_str());
     fprintf(stderr, "  -s FILE,  --speak TEXT     [%-7s] command for TTS\n",                             params.speak.c_str());
+    fprintf(stderr, "  -sf FILE, --speak-file     [%-7s] file to pass to TTS\n",                         params.speak_file.c_str());
     fprintf(stderr, "  --prompt-file FNAME        [%-7s] file with custom prompt to start dialog\n",     "");
     fprintf(stderr, "  --session FNAME                   file to cache model state in (may be large!) (default: none)\n");
     fprintf(stderr, "  -f FNAME, --file FNAME     [%-7s] text output file name\n",                       params.fname_out.c_str());
@@ -224,6 +237,18 @@ std::string transcribe(
     return result;
 }
 
+std::vector<std::string> get_words(const std::string &txt) {
+    std::vector<std::string> words;
+
+    std::istringstream iss(txt);
+    std::string word;
+    while (iss >> word) {
+        words.push_back(word);
+    }
+
+    return words;
+}
+
 const std::string k_prompt_whisper = R"(A conversation with a person called {1}.)";
 
 const std::string k_prompt_llama = R"(Text transcript of a never ending dialog, where {0} interacts with an AI assistant named {1}.
@@ -259,14 +284,14 @@ int main(int argc, char ** argv) {
 
     // whisper init
 
-    struct whisper_context_params cparams;
+    struct whisper_context_params cparams = whisper_context_default_params();
     cparams.use_gpu = params.use_gpu;
 
     struct whisper_context * ctx_wsp = whisper_init_from_file_with_params(params.model_wsp.c_str(), cparams);
 
     // llama init
 
-    llama_backend_init(true);
+    llama_backend_init();
 
     auto lmparams = llama_model_default_params();
     if (!params.use_gpu) {
@@ -282,7 +307,6 @@ int main(int argc, char ** argv) {
     // tune these to your liking
     lcparams.n_ctx      = 2048;
     lcparams.seed       = 1;
-    lcparams.f16_kv     = true;
     lcparams.n_threads  = params.n_threads;
 
     struct llama_context * ctx_llama = llama_new_context_with_model(model_llama, lcparams);
@@ -324,12 +348,11 @@ int main(int argc, char ** argv) {
     float prob0 = 0.0f;
 
     const std::string chat_symb = ":";
-    const std::string bot_name  = "LLaMA";
 
     std::vector<float> pcmf32_cur;
     std::vector<float> pcmf32_prompt;
 
-    const std::string prompt_whisper = ::replace(k_prompt_whisper, "{1}", bot_name);
+    const std::string prompt_whisper = ::replace(k_prompt_whisper, "{1}", params.bot_name);
 
     // construct the initial prompt for LLaMA inference
     std::string prompt_llama = params.prompt.empty() ? k_prompt_llama : params.prompt;
@@ -338,7 +361,7 @@ int main(int argc, char ** argv) {
     prompt_llama.insert(0, 1, ' ');
 
     prompt_llama = ::replace(prompt_llama, "{0}", params.person);
-    prompt_llama = ::replace(prompt_llama, "{1}", bot_name);
+    prompt_llama = ::replace(prompt_llama, "{1}", params.bot_name);
 
     {
         // get time string
@@ -440,6 +463,16 @@ int main(int argc, char ** argv) {
     bool need_to_save_session = !path_session.empty() && n_matching_session_tokens < (embd_inp.size() * 3 / 4);
 
     printf("%s : done! start speaking in the microphone\n", __func__);
+
+    // show wake command if enabled
+    const std::string wake_cmd = params.wake_cmd;
+    const int wake_cmd_length = get_words(wake_cmd).size();
+    const bool use_wake_cmd = wake_cmd_length > 0;
+
+    if (use_wake_cmd) {
+        printf("%s : the wake-up command is: '%s%s%s'\n", __func__, "\033[1m", wake_cmd.c_str(), "\033[0m");
+    }
+
     printf("\n");
     printf("%s%s", params.person.c_str(), chat_symb.c_str());
     fflush(stdout);
@@ -485,10 +518,38 @@ int main(int argc, char ** argv) {
 
                 audio.get(params.voice_ms, pcmf32_cur);
 
-                std::string text_heard;
+                std::string all_heard;
 
                 if (!force_speak) {
-                    text_heard = ::trim(::transcribe(ctx_wsp, params, pcmf32_cur, prompt_whisper, prob0, t_ms));
+                    all_heard = ::trim(::transcribe(ctx_wsp, params, pcmf32_cur, prompt_whisper, prob0, t_ms));
+                }
+
+                const auto words = get_words(all_heard);
+
+                std::string wake_cmd_heard;
+                std::string text_heard;
+
+                for (int i = 0; i < (int) words.size(); ++i) {
+                    if (i < wake_cmd_length) {
+                        wake_cmd_heard += words[i] + " ";
+                    } else {
+                        text_heard += words[i] + " ";
+                    }
+                }
+
+                // check if audio starts with the wake-up command if enabled
+                if (use_wake_cmd) {
+                    const float sim = similarity(wake_cmd_heard, wake_cmd);
+
+                    if ((sim < 0.7f) || (text_heard.empty())) {
+                        audio.clear();
+                        continue;
+                    }
+                }
+
+                // optionally give audio feedback that the current text is being processed
+                if (!params.heard_ok.empty()) {
+                    speak_with_file(params.speak, params.heard_ok, params.speak_file, voice_id);
                 }
 
                 // remove text between brackets using regex
@@ -525,7 +586,7 @@ int main(int argc, char ** argv) {
                 force_speak = false;
 
                 text_heard.insert(0, 1, ' ');
-                text_heard += "\n" + bot_name + chat_symb;
+                text_heard += "\n" + params.bot_name + chat_symb;
                 fprintf(stdout, "%s%s%s", "\033[1m", text_heard.c_str(), "\033[0m");
                 fflush(stdout);
 
@@ -658,6 +719,7 @@ int main(int argc, char ** argv) {
                             text_to_speak += llama_token_to_piece(ctx_llama, id);
 
                             printf("%s", llama_token_to_piece(ctx_llama, id).c_str());
+                            fflush(stdout);
                         }
                     }
 
@@ -686,11 +748,7 @@ int main(int argc, char ** argv) {
                     }
                 }
 
-                text_to_speak = ::replace(text_to_speak, "'", "'\"'\"'");
-                int ret = system((params.speak + " " + std::to_string(voice_id) + " '" + text_to_speak + "'").c_str());
-                if (ret != 0) {
-                    fprintf(stderr, "%s: failed to speak\n", __func__);
-                }
+                speak_with_file(params.speak, text_to_speak, params.speak_file, voice_id);
 
                 audio.clear();
             }

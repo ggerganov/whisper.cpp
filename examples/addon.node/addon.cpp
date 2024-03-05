@@ -52,27 +52,6 @@ struct whisper_print_user_data {
     const std::vector<std::vector<float>> * pcmf32s;
 };
 
-//  500 -> 00:05.000
-// 6000 -> 01:00.000
-std::string to_timestamp(int64_t t, bool comma = false) {
-    int64_t msec = t * 10;
-    int64_t hr = msec / (1000 * 60 * 60);
-    msec = msec - hr * (1000 * 60 * 60);
-    int64_t min = msec / (1000 * 60);
-    msec = msec - min * (1000 * 60);
-    int64_t sec = msec / 1000;
-    msec = msec - sec * 1000;
-
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%02d:%02d:%02d%s%03d", (int) hr, (int) min, (int) sec, comma ? "," : ".", (int) msec);
-
-    return std::string(buf);
-}
-
-int timestamp_to_sample(int64_t t, int n_samples) {
-    return std::max(0, std::min((int) n_samples - 1, (int) ((t*WHISPER_SAMPLE_RATE)/100)));
-}
-
 void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper_state * state, int n_new, void * user_data) {
     const auto & params  = *((whisper_print_user_data *) user_data)->params;
     const auto & pcmf32s = *((whisper_print_user_data *) user_data)->pcmf32s;
@@ -104,8 +83,8 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
         if (params.diarize && pcmf32s.size() == 2) {
             const int64_t n_samples = pcmf32s[0].size();
 
-            const int64_t is0 = timestamp_to_sample(t0, n_samples);
-            const int64_t is1 = timestamp_to_sample(t1, n_samples);
+            const int64_t is0 = timestamp_to_sample(t0, n_samples, WHISPER_SAMPLE_RATE);
+            const int64_t is1 = timestamp_to_sample(t1, n_samples, WHISPER_SAMPLE_RATE);
 
             double energy0 = 0.0f;
             double energy1 = 0.0f;
@@ -154,7 +133,7 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
 
     // whisper init
 
-    struct whisper_context_params cparams;
+    struct whisper_context_params cparams = whisper_context_default_params();
     cparams.use_gpu = params.use_gpu;
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 

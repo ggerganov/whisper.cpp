@@ -86,6 +86,7 @@ extern "C" {
 
     struct whisper_context_params {
         bool  use_gpu;
+        int   gpu_device;  // CUDA device
     };
 
     typedef struct whisper_token_data {
@@ -411,11 +412,6 @@ extern "C" {
     // If it returns false, the computation is aborted
     typedef bool (*whisper_encoder_begin_callback)(struct whisper_context * ctx, struct whisper_state * state, void * user_data);
 
-    // Abort callback
-    // If not NULL, called before ggml computation
-    // If it returns true, the computation is aborted
-    typedef bool (*whisper_abort_callback)(void * user_data);
-
     // Logits filter callback
     // Can be used to modify the logits before sampling
     // If not NULL, called after applying temperature to logits
@@ -512,7 +508,7 @@ extern "C" {
         void * encoder_begin_callback_user_data;
 
         // called each time before ggml computation starts
-        whisper_abort_callback abort_callback;
+        ggml_abort_callback abort_callback;
         void * abort_callback_user_data;
 
         // called by each decoder to filter obtained logits

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # This script downloads Whisper model files that have already been converted to ggml format.
 # This way you don't have to convert them yourself.
@@ -9,103 +9,114 @@
 src="https://huggingface.co/ggerganov/whisper.cpp"
 pfx="resolve/main/ggml"
 
+BOLD="\033[1m"
+RESET='\033[0m'
+
 # get the path of this script
-function get_script_path() {
+get_script_path() {
     if [ -x "$(command -v realpath)" ]; then
-        echo "$(dirname "$(realpath "$0")")"
+        dirname "$(realpath "$0")"
     else
-        local ret="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)"
-        echo "$ret"
+        _ret="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit ; pwd -P)"
+        echo "$_ret"
     fi
 }
 
-models_path="$(get_script_path)"
+models_path="${2:-$(get_script_path)}"
 
 # Whisper models
-models=(
-    "tiny.en"
-    "tiny"
-    "tiny-q5_1"
-    "tiny.en-q5_1"
-    "base.en"
-    "base"
-    "base-q5_1"
-    "base.en-q5_1"
-    "small.en"
-    "small.en-tdrz"
-    "small"
-    "small-q5_1"
-    "small.en-q5_1"
-    "medium"
-    "medium.en"
-    "medium-q5_0"
-    "medium.en-q5_0"
-    "large-v1"
-    "large-v2"
-    "large-v3"
-    "large-q5_0"
-)
+models="tiny
+tiny.en
+tiny-q5_1
+tiny.en-q5_1
+base
+base.en
+base-q5_1
+base.en-q5_1
+small
+small.en
+small.en-tdrz
+small-q5_1
+small.en-q5_1
+medium
+medium.en
+medium-q5_0
+medium.en-q5_0
+large-v1
+large-v2
+large-v2-q5_0
+large-v3
+large-v3-q5_0"
 
 # list available models
-function list_models {
+list_models() {
     printf "\n"
-    printf "  Available models:"
-    for model in "${models[@]}"; do
-        printf " $model"
+    printf "Available models:"
+    model_class=""
+    for model in $models; do
+        this_model_class="${model%%[.-]*}"
+        if [ "$this_model_class" != "$model_class" ]; then
+            printf "\n "
+            model_class=$this_model_class
+        fi
+        printf " %s" "$model"
     done
     printf "\n\n"
 }
 
-if [ "$#" -ne 1 ]; then
-    printf "Usage: $0 <model>\n"
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+    printf "Usage: %s <model> [models_path]\n" "$0"
     list_models
+    printf "___________________________________________________________\n"
+    printf "${BOLD}.en${RESET} = english-only ${BOLD}-q5_[01]${RESET} = quantized ${BOLD}-tdrz${RESET} = tinydiarize\n"
 
     exit 1
 fi
 
 model=$1
 
-if [[ ! " ${models[@]} " =~ " ${model} " ]]; then
-    printf "Invalid model: $model\n"
+if ! echo "$models" | grep -q -w "$model"; then
+    printf "Invalid model: %s\n" "$model"
     list_models
 
     exit 1
 fi
 
 # check if model contains `tdrz` and update the src and pfx accordingly
-if [[ $model == *"tdrz"* ]]; then
+if echo "$model" | grep -q "tdrz"; then
     src="https://huggingface.co/akashmjn/tinydiarize-whisper.cpp"
     pfx="resolve/main/ggml"
 fi
 
+echo "$model" | grep -q '^"tdrz"*$'
+
 # download ggml model
 
-printf "Downloading ggml model $model from '$src' ...\n"
+printf "Downloading ggml model %s from '%s' ...\n" "$model" "$src"
 
-cd "$models_path"
+cd "$models_path" || exit
 
 if [ -f "ggml-$model.bin" ]; then
-    printf "Model $model already exists. Skipping download.\n"
+    printf "Model %s already exists. Skipping download.\n" "$model"
     exit 0
 fi
 
 if [ -x "$(command -v wget)" ]; then
-    wget --no-config --quiet --show-progress -O ggml-$model.bin $src/$pfx-$model.bin
+    wget --no-config --quiet --show-progress -O ggml-"$model".bin $src/$pfx-"$model".bin
 elif [ -x "$(command -v curl)" ]; then
-    curl -L --output ggml-$model.bin $src/$pfx-$model.bin
+    curl -L --output ggml-"$model".bin $src/$pfx-"$model".bin
 else
     printf "Either wget or curl is required to download models.\n"
     exit 1
 fi
 
-
 if [ $? -ne 0 ]; then
-    printf "Failed to download ggml model $model \n"
+    printf "Failed to download ggml model %s \n" "$model"
     printf "Please try again later or download the original Whisper model files and convert them yourself.\n"
     exit 1
 fi
 
-printf "Done! Model '$model' saved in 'models/ggml-$model.bin'\n"
+printf "Done! Model '%s' saved in '%s/ggml-%s.bin'\n" "$model" "$models_path" "$model"
 printf "You can now use it like this:\n\n"
-printf "  $ ./main -m models/ggml-$model.bin -f samples/jfk.wav\n"
+printf "  $ ./main -m %s/ggml-%s.bin -f samples/jfk.wav\n" "$models_path" "$model"
 printf "\n"

@@ -117,7 +117,6 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y clang
             apt install -y clang build-essential cmake libsdl2-dev
             cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
             make
@@ -151,6 +150,106 @@ jobs:
             make
             ctest -L gh --output-on-failure'
 
+  ubuntu-22-cmake-sycl:
+    runs-on: ubuntu-22.04
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        dwhisper_sycl: [ON]
+        dcmake_c_compiler: [icx]
+        dcmake_cxx_compiler: [icpx] 
+        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+
+    continue-on-error: true
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+        
+      - name: add oneAPI to apt
+        shell: bash
+        run: |
+          cd /tmp
+          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
+
+      - name: install oneAPI dpcpp compiler
+        shell: bash
+        run: |
+          sudo apt update
+          sudo apt install intel-oneapi-compiler-dpcpp-cpp
+
+      - name: install oneAPI MKL library
+        shell: bash
+        run: |
+          sudo apt install intel-oneapi-mkl-devel
+
+      - name: Clone
+        id: checkout
+        uses: actions/checkout@v3
+            
+      - name: Build
+        id: cmake_build
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          mkdir build
+          cd build
+          cmake -DWHISPER_SYCL=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx ..
+          cmake --build . --config Release -j $(nproc)
+
+  ubuntu-22-cmake-sycl-fp16:
+    runs-on: ubuntu-22.04
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        dwhisper_sycl: [ON]
+        dcmake_c_compiler: [icx]
+        dcmake_cxx_compiler: [icpx] 
+        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+
+    continue-on-error: true
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+        
+      - name: add oneAPI to apt
+        shell: bash
+        run: |
+          cd /tmp
+          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
+
+      - name: install oneAPI dpcpp compiler
+        shell: bash
+        run: |
+          sudo apt update
+          sudo apt install intel-oneapi-compiler-dpcpp-cpp
+
+      - name: install oneAPI MKL library
+        shell: bash
+        run: |
+          sudo apt install intel-oneapi-mkl-devel
+
+      - name: Clone
+        id: checkout
+        uses: actions/checkout@v3
+            
+      - name: Build
+        id: cmake_build
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          mkdir build
+          cd build
+          cmake -DWHISPER_SYCL_F16=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx ..
+          cmake --build . --config Release -j $(nproc)
+  
   windows:
     runs-on: windows-latest
 
@@ -167,7 +266,7 @@ jobs:
             s2arc: x64
             jnaPath: win32-x86-64
           - sdl2: ON
-            s2ver: 2.26.0
+            s2ver: 2.28.5
 
     steps:
       - name: Clone
@@ -224,11 +323,14 @@ jobs:
           - arch: Win32
             obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x86.zip
             s2arc: x86
+            clblast: OFF
           - arch: x64
             obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x64.zip
             s2arc: x64
+            clblast: ON
+            clver: 1.6.1
           - sdl2: ON
-            s2ver: 2.26.0
+            s2ver: 2.28.5
 
     steps:
       - name: Clone
@@ -253,6 +355,18 @@ jobs:
           7z x sdl2.zip
           echo "SDL2_DIR=$env:GITHUB_WORKSPACE/SDL2-${{ matrix.s2ver }}/cmake" >> $env:GITHUB_ENV
 
+      - name: Install OpenCL
+        if: matrix.clblast == 'ON'
+        run: vcpkg.exe --triplet=${{ matrix.arch }}-windows install opencl
+
+      - name: Fetch CLBlast and set CLBlast_DIR
+        if: matrix.clblast == 'ON'
+        run: |
+          C:/msys64/usr/bin/wget.exe -qO clblast.zip https://github.com/CNugteren/CLBlast/releases/download/${{ matrix.clver }}/CLBlast-${{ matrix.clver }}-windows-x64.zip
+          7z x clblast.zip
+          7z x CLBlast-${{ matrix.clver }}-windows-x64.7z
+          echo "CLBlast_DIR=$env:GITHUB_WORKSPACE/CLBlast-${{ matrix.clver }}-windows-x64/lib/cmake/CLBlast" >> $env:GITHUB_ENV
+
       - name: Configure
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
@@ -260,6 +374,7 @@ jobs:
           -DWHISPER_OPENBLAS=${{ matrix.blas }}
           -DCMAKE_LIBRARY_PATH="$env:OPENBLAS_PATH/lib"
           -DWHISPER_SDL2=${{ matrix.sdl2 }}
+          -DWHISPER_CLBLAST=${{ matrix.clblast }}
 
       - name: Build
         run: |
@@ -274,11 +389,15 @@ jobs:
         if: matrix.sdl2 == 'ON'
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
 
+      - name: Copy clblast.dll
+        if: matrix.clblast == 'ON'
+        run: copy "$env:CLBlast_DIR/../../clblast.dll" build/bin/${{ matrix.build }}
+
       - name: Upload binaries
         if: matrix.blas == 'ON' && matrix.sdl2 == 'ON'
         uses: actions/upload-artifact@v1
         with:
-          name: whisper-blas-bin-${{ matrix.arch }}
+          name: whisper-blas${{ matrix.clblast == 'ON' && '-clblast' || ''}}-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
 
   windows-cublas:
@@ -295,7 +414,7 @@ jobs:
           - arch: x64
             s2arc: x64
           - sdl2: ON
-            s2ver: 2.26.0
+            s2ver: 2.28.5
 
     steps:
       - name: Clone
@@ -321,7 +440,8 @@ jobs:
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_CUBLAS=1
+          -DWHISPER_CUBLAS=${{ matrix.cublas }}
+          -DWHISPER_SDL2=${{ matrix.sdl2 }}
 
       - name: Build ${{ matrix.cuda-toolkit }}
         run: |
@@ -396,6 +516,14 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v3
+        with:
+          path: whisper
+
+      - name: Clone
+        uses: actions/checkout@v3
+        with:
+          repository: ggerganov/ggml
+          path: ggml
 
       - name: Install Java
         uses: actions/setup-java@v3
@@ -408,8 +536,14 @@ jobs:
 
       - name: Build
         run: |
-          cd examples/whisper.android
+          cd whisper/examples/whisper.android
           ./gradlew assembleRelease --no-daemon
+
+      - name: Build with external ggml
+        run: |
+          export PATH_TO_GGML=$PWD/ggml
+          cd whisper/examples/whisper.android
+          ./gradlew assembleRelease --no-daemon -PGGML_HOME=$PATH_TO_GGML
 
   android_java:
     runs-on: ubuntu-latest
@@ -434,7 +568,7 @@ jobs:
       - name: Build
         run: |
           cd examples/whisper.android.java
-          chmod +x ./gradlew 
+          chmod +x ./gradlew
           ./gradlew assembleRelease
 
   java:

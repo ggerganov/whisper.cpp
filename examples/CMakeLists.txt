@@ -14,6 +14,10 @@ if (WHISPER_SDL2)
     message(STATUS "SDL2_LIBRARIES = ${SDL2_LIBRARIES}")
 endif()
 
+if (WHISPER_CLBLAST)
+    find_package(CLBlast REQUIRED)
+endif()
+
 # common
 
 set(TARGET common)
@@ -50,6 +54,9 @@ if (WHISPER_SDL2)
     set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 
+# add json lib
+add_library(json_cpp INTERFACE json.hpp)
+
 # examples
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -72,4 +79,9 @@ else()
     add_subdirectory(talk)
     add_subdirectory(talk-llama)
     add_subdirectory(lsp)
+    if (LLAMA_SYCL)
+        add_subdirectory(sycl)
+    endif()
 endif()
+
+add_subdirectory(wchess)
