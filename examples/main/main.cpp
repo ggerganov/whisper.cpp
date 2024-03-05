@@ -85,7 +85,7 @@ void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
 char* whisper_param_turn_lowercase(char* in){
     int string_len = strlen(in);
     for(int i = 0; i < string_len; i++){
-        *(in+i) = tolower(*(in+i));
+        *(in+i) = tolower((unsigned char)*(in+i));
     }
     return in;
 }
