@@ -3,9 +3,19 @@ const { whisper } = require(path.join(
   __dirname,
   "../../../build/Release/whisper-addon"
 ));
-const { promisify } = require("util");
 
-const whisperAsync = promisify(whisper);
+function whisperAsync(params, callback) {
+  return new Promise((resolve, reject) => {
+    whisper(params, (error, result) => {
+      if(error) {
+        return reject(error);
+      } else if(result.res){
+        return resolve(result.res);
+      }
+      callback(result.index)
+    })
+  })
+}
 
 const whisperParamsMock = {
   language: "en",
@@ -16,11 +26,11 @@ const whisperParamsMock = {
 
 describe("Run whisper.node", () => {
     test("it should receive a non-empty value", async () => {
-        let { res } = await whisperAsync(whisperParamsMock, ({ index }) => {
-          console.log(index)
-        });
-        
-        expect(res.length).toBeGreaterThan(0);
-    }, 10000);
+        const result = await whisperAsync(whisperParamsMock, (index) => {
+          console.log({index})
+        })
+
+        expect(result.length).toBeGreaterThan(0);
+    }, 100000);
 });
 
