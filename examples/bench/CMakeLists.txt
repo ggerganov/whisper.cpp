@@ -1,6 +1,31 @@
-set(TARGET bench)
-add_executable(${TARGET} bench.cpp)
+cmake_minimum_required(VERSION 3.4.1)
 
-include(DefaultTargetOptions)
+project(bench)
+set(CMAKE_VERBOSE_MAKEFILE on  )
 
-target_link_libraries(${TARGET} PRIVATE whisper ${CMAKE_THREAD_LIBS_INIT})
+set(TARGET             ${TARGET_NAME})
+set(WHISPERCPP_PATH    ${PROJECT_SOURCE_DIR}/../../)
+
+message("whispercpp path  : " ${WHISPERCPP_PATH})
+
+IF (${BUILD_TARGET} MATCHES "android")
+    add_definitions(-DTARGET_ANDROID=1)
+    link_libraries(log)
+ENDIF()
+
+
+IF (${BUILD_TARGET} MATCHES "x86")
+    add_definitions(-D__gnu_linux__)
+    add_definitions(-D_GNU_SOURCE)
+    link_libraries(pthread m)
+ENDIF()
+
+include_directories(${WHISPERCPP_PATH}/)
+
+add_executable(${TARGET} bench.cpp
+    ${WHISPERCPP_PATH}/ggml.c
+    ${WHISPERCPP_PATH}/ggml-alloc.c
+    ${WHISPERCPP_PATH}/ggml-backend.c
+    ${WHISPERCPP_PATH}/ggml-quants.c
+    ${WHISPERCPP_PATH}/whisper.cpp
+)
