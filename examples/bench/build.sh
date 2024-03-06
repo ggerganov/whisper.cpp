@@ -4,7 +4,7 @@
 
 set -e
 
-TARGET=benchmark
+TARGET=bench
 BUILD_TYPE=Release
 #BUILD_TYPE=Debug
 

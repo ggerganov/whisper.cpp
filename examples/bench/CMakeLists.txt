@@ -6,7 +6,8 @@ set(CMAKE_VERBOSE_MAKEFILE on  )
 set(TARGET             ${TARGET_NAME})
 set(WHISPERCPP_PATH    ${PROJECT_SOURCE_DIR}/../../)
 
-message("whispercpp path  : " ${WHISPERCPP_PATH})
+message("target         : "  ${TARGET})
+message("whispercpp path: "  ${WHISPERCPP_PATH})
 
 IF (${BUILD_TARGET} MATCHES "android")
     add_definitions(-DTARGET_ANDROID=1)
