@@ -1,3 +1,7 @@
+#!/bin/bash
+
+# generate bench tool for target x86-linux and target Android
+
 set -e
 
 TARGET=benchmark
