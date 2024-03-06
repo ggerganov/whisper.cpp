@@ -376,7 +376,7 @@ static const std::map<whisper_alignment_heads_preset, whisper_aheads> g_aheads {
     { WHISPER_AHEADS_LARGE_V2, {23, g_aheads_large_v2} },
     { WHISPER_AHEADS_LARGE_V3, {10, g_aheads_large_v3} },
 };
-static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_params & cparams, int il);
+static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_params & cparams, int il, int32_t n_text_layer, int32_t n_head);
 
 struct whisper_mel {
     int n_len;
@@ -1072,11 +1072,52 @@ static bool aheads_masks_init(
     struct whisper_aheads_masks & aheads_masks,
     ggml_backend_t   backend) {
 
-    const int64_t n_text_layer = hparams.n_text_layer;
-    const int64_t n_heads = hparams.n_text_head;
+    const int32_t n_text_layer = hparams.n_text_layer;
+    const int32_t n_head = hparams.n_text_head;
+
+    // Sanity checks
+    if (cparams.dtw_aheads_preset == WHISPER_AHEADS_NONE) {
+        WHISPER_LOG_ERROR("%s: dtw_aheads_preset should be != DTW_AHEADS_NONE\n", __func__);
+        return false;
+    } else if (cparams.dtw_aheads_preset == WHISPER_AHEADS_N_TOP_MOST) {
+        if (cparams.dtw_n_top_most.n > n_text_layer || cparams.dtw_n_top_most.n <= 0) {
+            WHISPER_LOG_ERROR("%s: dtw_n_top_most.n must be between %d and %d for this model.", __func__, 1, n_text_layer);
+            return false;
+        }
+    } else {
+        const auto aheads = cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM ? cparams.dtw_custom.aheads : g_aheads.at(cparams.dtw_aheads_preset);
+        if (cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM) {
+            if (aheads.n_heads == 0) {
+                WHISPER_LOG_ERROR("%s: dtw_custom.aheads.n_heads should be > 0", __func__);
+                return false;
+            }
+            if (aheads.heads == NULL) {
+                WHISPER_LOG_ERROR("%s: dtw_custom.aheads.heads unset", __func__);
+                return false;
+            }
+        }
+        for (size_t i = 0; i < aheads.n_heads; ++i) {
+            if (aheads.heads[i].n_text_layer >= n_text_layer) {
+                WHISPER_LOG_ERROR("%s: tried to set alignment head on text layer %d, but model only has %d text layers", __func__, aheads.heads[i].n_text_layer + 1, n_text_layer);
+                return false;
+            }
+            if (aheads.heads[i].n_text_layer < 0) {
+                WHISPER_LOG_ERROR("%s: tried to set alignment head on text layer < 0", __func__);
+                return false;
+            }
+            if (aheads.heads[i].n_head >= n_head) {
+                WHISPER_LOG_ERROR("%s: tried to set alignment head on head %d, but model only has %d heads", __func__, aheads.heads[i].n_head + 1, n_head);
+                return false;
+            }
+            if (aheads.heads[i].n_head < 0) {
+                WHISPER_LOG_ERROR("%s: tried to set alignment head on head < 0", __func__);
+                return false;
+            }
+        }
+    }
 
     struct ggml_init_params params = {
-        /*.mem_size   =*/ n_text_layer*ggml_tensor_overhead(),
+        /*.mem_size   =*/ (size_t) static_cast<size_t>(n_text_layer)*ggml_tensor_overhead(),
         /*.mem_buffer =*/ nullptr,
         /*.no_alloc   =*/ true,
     };
@@ -1089,9 +1130,9 @@ static bool aheads_masks_init(
     }
 
     for (int64_t il = 0; il < n_text_layer; ++il) {
-        auto aheads = get_alignment_heads_by_layer(cparams, il);
+        auto aheads = get_alignment_heads_by_layer(cparams, il, n_text_layer, n_head);
         if (!aheads.empty())
-            aheads_masks.m.push_back(ggml_new_tensor_2d(aheads_masks.ctx, GGML_TYPE_F32, n_heads, aheads.size()));
+            aheads_masks.m.push_back(ggml_new_tensor_2d(aheads_masks.ctx, GGML_TYPE_F32, n_head, aheads.size()));
         else
             aheads_masks.m.push_back(nullptr);
     }
@@ -1104,22 +1145,17 @@ static bool aheads_masks_init(
 
     for (int64_t il = 0; il < n_text_layer; ++il) {
         if (aheads_masks.m[il] != nullptr) {
-            auto aheads = get_alignment_heads_by_layer(cparams, il);
+            auto aheads = get_alignment_heads_by_layer(cparams, il, n_text_layer, n_head);
             aheads_masks.m[il] = ggml_set_zero(aheads_masks.m[il]);
             for (size_t ih = 0; ih < aheads.size(); ++ih) {
                 ggml_set_f32_nd(aheads_masks.m[il], aheads[ih], ih, 0, 0, 1.0f);
             }
         }
+    }
 
-        /*if (aheads_masks.m[il] != nullptr) {
-            fprintf(stderr, "Printing mask for tl %ld\n", il);
-            for (int i = 0; i < aheads_masks.m[il]->ne[1]; ++i) {
-                for (int j = 0;  j < aheads_masks.m[il]->ne[0]; ++j) {
-                    fprintf(stderr, "%.2f ", ggml_get_f32_nd(aheads_masks.m[il], j, i, 0, 0));
-                }
-                fprintf(stderr, "\n");
-            }
-        }*/
+    if (aheads_masks.m.empty()) {
+        WHISPER_LOG_ERROR("%s: \n", __func__);
+        return false;
     }
 
     return true;
@@ -2555,7 +2591,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
     struct ggml_tensor * logits = ggml_mul_mat(ctx0, model.d_te, cur);
 
     // [EXPERIMENTAL] Token-level timestamps with DTW
-    if (aheads_cross_QKs != nullptr) {
+    if (wctx.params.dtw_token_timestamps && aheads_cross_QKs != nullptr) {
         aheads_cross_QKs = ggml_transpose(ctx0, aheads_cross_QKs);
         if (save_alignment_heads_QKs) {
             ggml_build_forward_expand(gf, aheads_cross_QKs);
@@ -3248,7 +3284,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
                     whisper_batch_prep_legacy(state->batch, nullptr, n_tokens, n_past, 0);
 
-                    return whisper_build_graph_decoder(*ctx, *state, state->batch, true, true);
+                    return whisper_build_graph_decoder(*ctx, *state, state->batch, ctx->params.dtw_token_timestamps, true);
                 });
 
         if (!ok) {
@@ -6796,13 +6832,18 @@ static void whisper_exp_compute_token_level_timestamps(
 // token level timestamps - dtw version
 //
 
-//FIXME implemnt custom and n_top_most
-static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_params & cparams, int il) {
+// n_text_layer -> total text layers on model
+// n_head -> total heads per text layer on model
+static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_params & cparams, int il, int n_text_layer, int n_head) {
     std::vector<uint32_t> ret;
-    if (cparams.dtw_aheads_preset == WHISPER_AHEADS_NONE)
-        abort();
-    else if (cparams.dtw_aheads_preset == WHISPER_AHEADS_N_TOP_MOST) {
-        abort();
+    if (cparams.dtw_aheads_preset == WHISPER_AHEADS_NONE) {
+        return ret;
+    } else if (cparams.dtw_aheads_preset == WHISPER_AHEADS_N_TOP_MOST) {
+        if (il >= n_text_layer - cparams.dtw_n_top_most.n) {
+            for (int32_t i = 0; i < n_head; ++i) {
+                ret.push_back(i);
+            }
+        }
     } else {
         const auto aheads = cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM ? cparams.dtw_custom.aheads : g_aheads.at(cparams.dtw_aheads_preset);
         for (size_t i = 0; i < aheads.n_heads; ++i) {
@@ -6810,7 +6851,6 @@ static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_
                 ret.push_back(aheads.heads[i].n_head);
         }
     }
-
     return ret;
 }
 
