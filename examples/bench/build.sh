@@ -10,12 +10,16 @@ BUILD_TYPE=Release
 
 
 if [ -z ${ANDROID_NDK} ]; then
-    echo "ANDROID_NDK not set"
+    echo -e "ANDROID_NDK not set"
+    echo -e "like this:\n"
+    echo -e "export ANDROID_NDK=/opt/android-ndk-r21e"
     exit 1
 fi
 
 if [ ! -d ${ANDROID_NDK} ]; then
-    echo "pls set ANDROID_NDK properly"
+    echo -e "pls set ANDROID_NDK properly"
+    echo -e "like this:\n"
+    echo -e "export ANDROID_NDK=/opt/android-ndk-r21e"
     exit 1
 fi
 
