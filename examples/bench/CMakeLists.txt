@@ -11,6 +11,7 @@ message("whispercpp path: "  ${WHISPERCPP_PATH})
 
 IF (${BUILD_TARGET} MATCHES "android")
     add_definitions(-DTARGET_ANDROID=1)
+    add_definitions(-D__ARM_NEON)
     link_libraries(log)
 ENDIF()
 
