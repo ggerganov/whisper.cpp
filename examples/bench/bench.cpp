@@ -8,7 +8,7 @@
 // command-line parameters
 struct whisper_params {
     int32_t n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency());
-    int32_t what = 0; // what to benchmark: 0 - whisper ecoder, 1 - memcpy, 2 - ggml_mul_mat
+    int32_t what = 0; // what to benchmark: 0 - whisper encoder, 1 - memcpy, 2 - ggml_mul_mat
 
     std::string model = "models/ggml-base.en.bin";
 
