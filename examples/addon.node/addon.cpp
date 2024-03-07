@@ -44,6 +44,8 @@ struct whisper_params {
 
     std::vector<std::string> fname_inp = {};
     std::vector<std::string> fname_out = {};
+    // buffer
+    std::vector<uint8_t> buffer;
 };
 
 struct whisper_print_user_data {
@@ -142,16 +144,21 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
         return 3;
     }
 
-    for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
-        const auto fname_inp = params.fname_inp[f];
-        const auto fname_out = f < (int)params.fname_out.size() && !params.fname_out[f].empty() ? params.fname_out[f] : params.fname_inp[f];
+    // for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
+        // const auto fname_inp = params.fname_inp[f];
+        // const auto fname_out = f < (int)params.fname_out.size() && !params.fname_out[f].empty() ? params.fname_out[f] : params.fname_inp[f];
 
         std::vector<float> pcmf32; // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
-        if (!::read_wav(fname_inp, pcmf32, pcmf32s, params.diarize)) {
-            fprintf(stderr, "error: failed to read WAV file '%s'\n", fname_inp.c_str());
-            continue;
+
+
+        // TODO here below we should use read_wav_from_buffer instead of read_wav or create a new run function
+        // to avoid reading the file from the disk. Also there will be only one buffer I think so we can remove the
+        // for loop 
+        if (!::read_wav_from_buffer(params.buffer, pcmf32, pcmf32s, params.diarize)) {
+            fprintf(stderr, "error: failed to read audio from buffer\n");
+            // continue;
         }
 
         // print system information
@@ -171,8 +178,9 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
                     fprintf(stderr, "%s: WARNING: model is not multilingual, ignoring language and translation options\n", __func__);
                 }
             }
-            fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, lang = %s, task = %s, timestamps = %d ...\n",
-                    __func__, fname_inp.c_str(), int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE,
+            // fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, lang = %s, task = %s, timestamps = %d ...\n",
+            fprintf(stderr, "%s: processing  (%d samples, %.1f sec), %d threads, %d processors, lang = %s, task = %s, timestamps = %d ...\n",
+                    __func__, int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE,
                     params.n_threads, params.n_processors,
                     params.language.c_str(),
                     params.translate ? "translate" : "transcribe",
@@ -237,7 +245,7 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
                 return 10;
             }
         }
-    }
+    // }
 
     const int n_segments = whisper_full_n_segments(ctx);
     result.resize(n_segments);
@@ -299,10 +307,22 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
   bool use_gpu = whisper_params.Get("use_gpu").As<Napi::Boolean>();
 
+
+ Napi::ArrayBuffer arrayBuffer =  whisper_params.Get("array_buffer").As<Napi::ArrayBuffer>();
+
+
+
+  std::int32_t n_threads = whisper_params.Get("n_threads").As<Napi::Number>();
+
+
+  std::vector<uint8_t> buffer(static_cast<uint8_t*>(arrayBuffer.Data()), static_cast<uint8_t*>(arrayBuffer.Data()) + arrayBuffer.ByteLength());
+
   params.language = language;
   params.model = model;
   params.fname_inp.emplace_back(input);
   params.use_gpu = use_gpu;
+  params.n_threads = n_threads;
+  params.buffer = buffer;
 
   Napi::Function callback = info[1].As<Napi::Function>();
   Worker* worker = new Worker(callback, params);

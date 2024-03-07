@@ -1,17 +1,28 @@
 const path = require("path");
 const { whisper } = require(path.join(
   __dirname,
-  "../../build/Release/whisper-addon"
+  "../../build/bin/Release/whisper-addon.node"
 ));
 const { promisify } = require("util");
 
 const whisperAsync = promisify(whisper);
+
+const fname_inp = "../../samples/jfk.wav",
+// load fname_inp to ArrayBuffer
+const fs = require("fs");
+const buffer = fs.readFileSync(fname_inp);
+const arrayBuffer = buffer.buffer.slice(
+  buffer.byteOffset,
+  buffer.byteOffset + buffer.byteLength
+);
 
 const whisperParams = {
   language: "en",
   model: path.join(__dirname, "../../models/ggml-base.en.bin"),
   fname_inp: "../../samples/jfk.wav",
   use_gpu: true,
+  n_threads: 4,
+  array_buffer: arrayBuffer,
 };
 
 const arguments = process.argv.slice(2);
