@@ -50,5 +50,19 @@ ls -l ${TARGET}
 cd -
 }
 
+
+function build_x86
+{
+cmake -H. -B./out/x86 -DTARGET_NAME=${TARGET} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DBUILD_TARGET="x86"
+cd ./out/x86
+make
+
+ls -l ${TARGET}
+/bin/cp -fv ${TARGET} ../../${TARGET}
+cd -
+}
+
+
+#build_x86
+#build_armv7a
 build_arm64
-build_armv7a
