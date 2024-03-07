@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.10)
 
 project(bench)
 set(CMAKE_VERBOSE_MAKEFILE on  )
@@ -10,7 +10,7 @@ message("target         : "  ${TARGET})
 message("whispercpp path: "  ${WHISPERCPP_PATH})
 
 IF (${BUILD_TARGET} MATCHES "android")
-    add_definitions(-DTARGET_ANDROID=1)
+    add_definitions(-DTARGET_ANDROID)
     add_definitions(-D__ARM_NEON)
     link_libraries(log)
 ENDIF()

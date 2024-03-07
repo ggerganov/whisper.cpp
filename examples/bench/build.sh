@@ -1,13 +1,11 @@
 #!/bin/bash
 
-# generate bench tool for target x86-linux and target Android
+# generate bench tool for Android-based device
 
 set -e
 
 TARGET=bench
 BUILD_TYPE=Release
-#BUILD_TYPE=Debug
-
 
 if [ -z ${ANDROID_NDK} ]; then
     echo -e "ANDROID_NDK not set"
@@ -52,18 +50,5 @@ ls -l ${TARGET}
 cd -
 }
 
-
-function build_x86
-{
-cmake -H. -B./out/x86 -DTARGET_NAME=${TARGET} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DBUILD_TARGET="x86"
-cd ./out/x86
-make
-
-ls -l ${TARGET}
-/bin/cp -fv ${TARGET} ../../${TARGET}_x86
-cd -
-}
-
 build_arm64
 build_armv7a
-build_x86
