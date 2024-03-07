@@ -860,6 +860,7 @@ struct whisper_state {
     // [EXPERIMENTAL] Token-level timestamps with DTW
     whisper_aheads_masks aheads_masks;
     ggml_tensor * aheads_cross_QKs = nullptr;
+    std::vector<float> aheads_cross_QKs_data;
 
     // [EXPERIMENTAL] speed-up techniques
     int32_t exp_n_audio_ctx = 0; // 0 - use default
@@ -2593,6 +2594,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
     // [EXPERIMENTAL] Token-level timestamps with DTW
     if (wctx.params.dtw_token_timestamps && aheads_cross_QKs != nullptr) {
         aheads_cross_QKs = ggml_transpose(ctx0, aheads_cross_QKs);
+        aheads_cross_QKs = ggml_cont(ctx0, aheads_cross_QKs);
         if (save_alignment_heads_QKs) {
             ggml_build_forward_expand(gf, aheads_cross_QKs);
             wstate.aheads_cross_QKs = aheads_cross_QKs;
@@ -3363,7 +3365,8 @@ struct whisper_context_params whisper_context_default_params() {
                 /*.n_heads      =*/ 0,
                 /*.heads        =*/ NULL,
             }
-        }
+        },
+        /*.dtw_mem_size         =*/ 1024*1024*128,
     };
     return result;
 }
@@ -7025,15 +7028,16 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
                                int   medfilt_width,
                                int   n_threads)
 {
+    const int n_audio_ctx = state->exp_n_audio_ctx > 0 ? state->exp_n_audio_ctx : ctx->model.hparams.n_audio_ctx;
     WHISPER_ASSERT(medfilt_width % 2);
-    WHISPER_ASSERT(n_frames <= ctx->model.hparams.n_audio_ctx * 2);
+    WHISPER_ASSERT(n_frames <= n_audio_ctx * 2);
     WHISPER_ASSERT(ctx->params.dtw_aheads_preset != WHISPER_AHEADS_NONE);
 
     // FIXME: Allocating mem everytime we call this func
     // Our ggml buffer should be pre-allocated somewhere during init and reused
     // when we call this function
     struct ggml_init_params gparams = {
-        /*.mem_size   =*/ 128*1024*1024,
+        /*.mem_size   =*/ ctx->params.dtw_mem_size,
         /*.mem_buffer =*/ NULL,
         /*.no_alloc   =*/ false,
     };
@@ -7072,30 +7076,31 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     }
     WHISPER_ASSERT(state->aheads_cross_QKs != nullptr);
 
-    // Clip unused audio tokens
-    // IN: Tensor with N_TOKENS*audio_ctx*N_ALIGNMENT_HEADS dims
-    // OUT:Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
     const auto n_audio_tokens = n_frames/2;
     WHISPER_ASSERT(state->aheads_cross_QKs != NULL);
     WHISPER_ASSERT(n_audio_tokens <= state->aheads_cross_QKs->ne[1]);
     const auto n_tokens = state->aheads_cross_QKs->ne[0];
     const auto n_heads = state->aheads_cross_QKs->ne[2];
 
+    // Copy data from decoder buffer to a local CPU tensor, discarding unused audio 
+    // tokens (i.e. discarding rows at the end of tensor)
     // IN: Tensor with N_TOKENS*audio_ctx*N_ALIGNMENT_HEADS dims
-    // OUT:Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
-    // FIXME: can probably be replaced with a view. I failed to get right strides
+    // OUT: Tensor with N_TOKENS*N_AUDIO_TOKENS*N_ALIGNMENT_HEADS dims
+    WHISPER_ASSERT(state->aheads_cross_QKs->type == GGML_TYPE_F32);
+    WHISPER_ASSERT(ggml_is_contiguous(state->aheads_cross_QKs));
     ggml_tensor * w = ggml_new_tensor_3d(gctx, GGML_TYPE_F32, n_tokens, n_audio_tokens, n_heads);
-    for (int i = 0; i < n_tokens; ++i) {
+    auto & data = state->aheads_cross_QKs_data;
+    data.resize(n_tokens * n_audio_ctx * n_heads);
+    ggml_backend_tensor_get(state->aheads_cross_QKs, data.data(), 0, sizeof(float) * n_tokens * n_audio_ctx * n_heads);
+    for (int k = 0; k < n_heads; ++k) {
         for (int j = 0; j < n_audio_tokens; ++j) {
-            for (int k = 0; k < n_heads; ++k) {
-                const float v = ggml_get_f32_nd(state->aheads_cross_QKs, i, j, k, 0);
-                ggml_set_f32_nd(w, i, j, k, 0, v);
-            }
+            memcpy(
+                (char *) w->data + j * w->nb[1] + k * w->nb[2],
+                data.data() + j * n_tokens + k * n_tokens * n_audio_ctx,
+                n_tokens * sizeof(float)
+            );
         }
     }
-    /*const auto row_stride = state->aheads_cross_QKs->nb[1] + state->aheads_cross_QKs->nb[0] * (state->aheads_cross_QKs->ne[0] - n_audio_tokens);
-    const auto slice_stride = state->aheads_cross_QKs->nb[2] + state->aheads_cross_QKs->nb[0] * (state->aheads_cross_QKs->ne[0] - n_audio_tokens);
-    ggml_tensor * w = ggml_view_3d(gctx, state->aheads_cross_QKs, n_audio_tokens, n_tokens, n_heads, row_stride, slice_stride, 0);*/
 
     // Normalize - in original OpenAI code, this is done over dim=-2. In this case,
     // we already permuted N_TOKENS dimension to columns on last loop, becase ggml_norm
@@ -7112,31 +7117,23 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     median_filter_user_data mf_user_data = {medfilt_width};
     w = ggml_map_custom1(gctx, w, median_filter, 1, &mf_user_data);
 
-    // Take mean over columns, scale by -1, reshape to 2D tensor
+    // Take mean over columns, scale by -1, reshape to 2D tensor, remove SOT sequence and EOT
     // IN: Tensor with N_ALIGNMENT_HEADS*N_TOKENS*N_AUDIO_TOKENS dims
     // OUT: Tensor with N_TOKENS*N_AUDIO_TOKENS dims
     w = ggml_mean(gctx, w);
     w = ggml_scale(gctx, w, -1.0);
     w = ggml_reshape_2d(gctx, w, w->ne[1], w->ne[2]);
 
+    // Remove SOT sequence and EOT
+    // Out dimension is (N_TOKENS-sot_sequence_length-1)*N_AUDIO_TOKENS
+    w = ggml_view_2d(gctx, w, w->ne[0] - sot_sequence_length - 1, w->ne[1], w->nb[1], sot_sequence_length * w->nb[0]);
+
     // Compute
     struct ggml_cgraph * gf = ggml_new_graph(gctx);
     ggml_build_forward_expand(gf, w);
     ggml_graph_compute_with_ctx(gctx, gf, n_threads);
 
-    // Remove SOT sequence and EOT
-    // Out dimension is (N_TOKENS-sot_sequence_length-1)*N_AUDIO_TOKENS
-    // FIXME: can probably be replaced with a view. I failed to get right strides
-    ggml_tensor * matrix = ggml_new_tensor_2d(gctx, GGML_TYPE_F32, w->ne[0] - sot_sequence_length - 1, w->ne[1]);
-    for (int64_t i = 0; i < matrix->ne[0]; ++i) {
-        for (int64_t j = 0; j < matrix->ne[1]; ++j) {
-            float v = ggml_get_f32_nd(w, i + sot_sequence_length, j, 0, 0);
-            ggml_set_f32_nd(matrix, i, j, 0, 0, v);
-        }
-    }
-
-    // dtw
-    ggml_tensor * alignment = dtw_and_backtrace(gctx, matrix);
+    ggml_tensor * alignment = dtw_and_backtrace(gctx, w);
 
     // Place timestamps on segments
     int32_t last_v = 0;
