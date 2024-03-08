@@ -413,7 +413,7 @@ struct whisper_batch {
 
     whisper_token  *  token;
     whisper_pos    *  pos;
-    int32_t        *  n_seq_id;
+    int32_t        *  n_seq_id; // always 1, here for consistency with llama.cpp
     whisper_seq_id ** seq_id;   // null terminated
     int8_t         *  logits;
 };
