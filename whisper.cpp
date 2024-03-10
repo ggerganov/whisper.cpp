@@ -4759,6 +4759,19 @@ static void whisper_process_logits(
 #endif
 }
 
+static bool whisper_sequence_tokens_equal(const whisper_sequence & a, const whisper_sequence & b) {
+    if (a.tokens.size() != b.tokens.size()) {
+        return false;
+    }
+    // sequences are more likely to diverge at the end
+    for (int i = a.tokens.size() - 1; i >= 0; i--) {
+        if (a.tokens[i].id != b.tokens[i].id) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static whisper_token_data whisper_sample_token(
             whisper_context & ctx,
       const whisper_decoder & decoder,
@@ -5378,7 +5391,7 @@ int whisper_full_with_state(
 
                         auto & cur = beam_candidates[cur_c++];
 
-                        while (beam_candidates.size() > cur_c && beam_candidates[cur_c].sequence.sum_logprobs_all == cur.sequence.sum_logprobs_all && i > 0) {
+                        while (beam_candidates.size() > cur_c && whisper_sequence_tokens_equal(beam_candidates[cur_c].sequence, cur.sequence) && i > 0) {
                             ++cur_c;
                         }
 
