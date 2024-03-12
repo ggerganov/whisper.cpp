@@ -115,8 +115,8 @@ extern "C" {
         bool  use_gpu;
         int   gpu_device;  // CUDA device
 
+        // [EXPERIMENTAL] Token-level timestamps with DTW
         // FIXME: not sure if the way dtw_n_top_most and dtw_custom are structured is comfortable?
-        // [EXPERIMENTAL] DTW-based token-level timestamps
         bool dtw_token_timestamps;
         enum whisper_alignment_heads_preset dtw_aheads_preset;
         struct {
@@ -142,9 +142,9 @@ extern "C" {
         int64_t t0;        // start time of the token
         int64_t t1;        //   end time of the token
 
-        // dtw token-level timestamp data
+        // [EXPERIMENTAL] Token-level timestamps with DTW
         // do not use if you haven't computed token-level timestamps with dtw
-        // (I think) roughly corresponds to the moment in audio in which the token was output
+        // Roughly corresponds to the moment in audio in which the token was output
         int64_t t_dtw;
 
         float vlen;        // voice length of the token
@@ -188,7 +188,6 @@ extern "C" {
         enum whisper_gretype type;
         uint32_t             value; // Unicode code point or rule ID
     } whisper_grammar_element;
-
 
     // Various functions for loading a ggml whisper model.
     // Allocate (almost) all memory needed for the model.
@@ -658,10 +657,6 @@ extern "C" {
     // Control logging output; default behavior is to print to stderr
 
     WHISPER_API void whisper_log_set(ggml_log_callback log_callback, void * user_data);
-
-    // test dtw
-    //WHISPER_API void whisper_test_dtw(float* in, size_t in_ne0, size_t in_ne1, int32_t **out, size_t *out_ne0, size_t *out_ne1);
-    //WHISPER_API void whisper_test_dtw_timestamp_funcs(float* in, size_t in_ne0, size_t in_ne1, size_t in_ne2, float **out, size_t *out_ne0, size_t *out_ne1, size_t *out_ne2);
 
 #ifdef __cplusplus
 }
