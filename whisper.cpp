@@ -187,7 +187,7 @@ static bool ggml_graph_compute_helper(
         ggml_backend_metal_set_n_cb(backend, n_threads);
     }
 #endif
-    return ggml_backend_graph_compute(backend, graph);
+    return ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS;
 }
 
 // faster matrix multiplications for tensors that do not have dimension 0 divisible by "pad"
@@ -413,7 +413,7 @@ struct whisper_batch {
 
     whisper_token  *  token;
     whisper_pos    *  pos;
-    int32_t        *  n_seq_id;
+    int32_t        *  n_seq_id; // always 1, here for consistency with llama.cpp
     whisper_seq_id ** seq_id;   // null terminated
     int8_t         *  logits;
 };
@@ -3852,7 +3852,7 @@ const char * whisper_print_system_info(void) {
     s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
     s += "CUDA = "      + std::to_string(ggml_cpu_has_cublas())    + " | ";
     s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
-    s += "OPENVINO = "  + std::to_string(whisper_has_openvino())   + " | ";
+    s += "OPENVINO = "  + std::to_string(whisper_has_openvino())          ;
 
     return s.c_str();
 }
@@ -4759,6 +4759,19 @@ static void whisper_process_logits(
 #endif
 }
 
+static bool whisper_sequence_tokens_equal(const whisper_sequence & a, const whisper_sequence & b) {
+    if (a.tokens.size() != b.tokens.size()) {
+        return false;
+    }
+    // sequences are more likely to diverge at the end
+    for (int i = a.tokens.size() - 1; i >= 0; i--) {
+        if (a.tokens[i].id != b.tokens[i].id) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static whisper_token_data whisper_sample_token(
             whisper_context & ctx,
       const whisper_decoder & decoder,
@@ -5357,7 +5370,10 @@ int whisper_full_with_state(
                             beam_candidates.begin(),
                             beam_candidates.end(),
                             [](const beam_candidate & a, const beam_candidate & b) {
-                        return a.sequence.sum_logprobs_all > b.sequence.sum_logprobs_all;
+                        if (a.sequence.sum_logprobs_all != b.sequence.sum_logprobs_all) {
+                            return a.sequence.sum_logprobs_all > b.sequence.sum_logprobs_all;
+                        }
+                        return a.decoder_idx < b.decoder_idx;
                     });
 
                     uint32_t cur_c = 0;
@@ -5375,7 +5391,7 @@ int whisper_full_with_state(
 
                         auto & cur = beam_candidates[cur_c++];
 
-                        while (beam_candidates.size() > cur_c && beam_candidates[cur_c].sequence.sum_logprobs_all == cur.sequence.sum_logprobs_all && i > 0) {
+                        while (beam_candidates.size() > cur_c && whisper_sequence_tokens_equal(beam_candidates[cur_c].sequence, cur.sequence) && i > 0) {
                             ++cur_c;
                         }
 

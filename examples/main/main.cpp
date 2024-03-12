@@ -82,6 +82,14 @@ struct whisper_params {
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
 
+char* whisper_param_turn_lowercase(char* in){
+    int string_len = strlen(in);
+    for(int i = 0; i < string_len; i++){
+        *(in+i) = tolower((unsigned char)*(in+i));
+    }
+    return in;
+}
+
 bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -135,7 +143,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-pc"   || arg == "--print-colors")    { params.print_colors    = true; }
         else if (arg == "-pp"   || arg == "--print-progress")  { params.print_progress  = true; }
         else if (arg == "-nt"   || arg == "--no-timestamps")   { params.no_timestamps   = true; }
-        else if (arg == "-l"    || arg == "--language")        { params.language        = argv[++i]; }
+        else if (arg == "-l"    || arg == "--language")        { params.language        = whisper_param_turn_lowercase(argv[++i]); }
         else if (arg == "-dl"   || arg == "--detect-language") { params.detect_language = true; }
         else if (                  arg == "--prompt")          { params.prompt          = argv[++i]; }
         else if (arg == "-m"    || arg == "--model")           { params.model           = argv[++i]; }
