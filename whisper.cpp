@@ -5015,7 +5015,7 @@ int whisper_full_with_state(
     // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
     if (seek_end < seek_start + (params.speed_up ? 50 : 100)) {
         WHISPER_LOG_DEBUG("%s: input is too short - %d ms < 1000 ms\n", __func__, (seek_end - seek_start)*10);
-        return 0;
+        return -1;
     }
 
     // a set of temperatures to use
