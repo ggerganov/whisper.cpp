@@ -1144,13 +1144,27 @@ static bool aheads_masks_init(
         return false;
     }
 
+    // Set data on mask tensors
+    // Since this must be backend agnostic, we get tensor data with
+    // ggml_backend_tensor_get, copy our desired values and send it back
+    // to backend with ggml_backend_tensor_set
+    std::vector<float> mask_data;
     for (int64_t il = 0; il < n_text_layer; ++il) {
         if (aheads_masks.m[il] != nullptr) {
             auto aheads = get_alignment_heads_by_layer(cparams, il, n_text_layer, n_head);
-            aheads_masks.m[il] = ggml_set_zero(aheads_masks.m[il]);
+
+            size_t data_size = aheads_masks.m[il]->ne[0] * aheads_masks.m[il]->ne[1] * sizeof(float);
+            mask_data.resize(data_size);
+            ggml_backend_tensor_get(aheads_masks.m[il], mask_data.data(), 0, data_size);
+            memset(mask_data.data(), 0, data_size);
+
             for (size_t ih = 0; ih < aheads.size(); ++ih) {
-                ggml_set_f32_nd(aheads_masks.m[il], aheads[ih], ih, 0, 0, 1.0f);
+                size_t pos = (aheads[ih] + (ih * aheads_masks.m[il]->ne[0] * aheads[ih])) * sizeof(float);
+                float v = 1.0f;
+                memcpy(mask_data.data() + pos, &v, sizeof(float));
             }
+
+            ggml_backend_tensor_set(aheads_masks.m[il], mask_data.data(), 0, data_size);
         }
     }
 
