@@ -6024,7 +6024,7 @@ int whisper_full_with_state(
             // [EXPERIMENTAL] Token-level timestamps with DTW
             const auto n_segments = state->result_all.size() - n_segments_before;
             if (ctx->params.dtw_token_timestamps && n_segments) {
-                const int n_frames = std::min(WHISPER_CHUNK_SIZE * 100, seek_delta);
+                const int n_frames = std::min(std::min(WHISPER_CHUNK_SIZE * 100, seek_delta), seek_end - seek);
                 whisper_exp_compute_token_level_timestamps_dtw(
                     ctx, state, params, result_all.size() - n_segments, n_segments, seek, n_frames, 7, params.n_threads);
             }
