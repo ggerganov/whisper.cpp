@@ -43,6 +43,10 @@ As an example, here is a video of running the model on an iPhone 13 device - ful
 
 https://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-bf96-1d8c27b98c81.mp4
 
+As an another example, here is a video of running the model on a Xiaomi 14 device - fully offline, on-device:[whisper.android](https://github.com/cdeos/kantv/issues/64)
+
+https://github.com/cdeos/kantv/assets/6889919/0f79799a-ca56-4b6d-a83b-239c955b0372
+
 You can also easily make your own offline voice assistant application: [command](examples/command)
 
 https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a76d-5735c25c49da.mp4
