@@ -1680,6 +1680,8 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         wstate.embd_enc = cur;
     }
 
+    ggml_set_output(cur);
+
     ggml_build_forward_expand(gf, cur);
 
     ggml_free(ctx0);
