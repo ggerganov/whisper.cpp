@@ -18,6 +18,9 @@ sudo apt-get install libsdl2-dev
 # On Fedora Linux:
 sudo dnf install SDL2 SDL2-devel
 
+# Install SDL2 on Mac OS
+brew install sdl2
+
 # Build the "talk" executable
 make talk
 
