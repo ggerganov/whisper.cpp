@@ -77,7 +77,7 @@ Then, download one of the Whisper [models](models/README.md) converted in [`ggml
 bash ./models/download-ggml-model.sh base.en
 ```
 
-- Build the [main](examples/main) example and transcribe an audio file like this:
+Now build the [main](examples/main) example and transcribe an audio file like this:
 
 ```bash
 # requirements Fedora
