@@ -77,9 +77,14 @@ Then, download one of the Whisper [models](models/README.md) converted in [`ggml
 bash ./models/download-ggml-model.sh base.en
 ```
 
-Now build the [main](examples/main) example and transcribe an audio file like this:
+- Build the [main](examples/main) example and transcribe an audio file like this:
 
 ```bash
+# requirements Fedora
+sudo dnf install wget gcc-c++
+
+# note: you will need an active internet process for the download of samples
+
 # build the main example
 make
 
