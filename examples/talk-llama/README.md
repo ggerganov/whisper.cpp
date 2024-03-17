@@ -15,8 +15,12 @@ https://github.com/ggerganov/whisper.cpp/assets/1991296/d97a3788-bf2a-4756-9a43-
 The `talk-llama` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
 
 ```bash
-# Install SDL2 on Linux
+# Install SDL2
+# On Debian based linux distributions:
 sudo apt-get install libsdl2-dev
+
+# On Fedora Linux:
+sudo dnf install SDL2 SDL2-devel
 
 # Install SDL2 on Mac OS
 brew install sdl2
