@@ -37,8 +37,12 @@ https://user-images.githubusercontent.com/1991296/207435352-8fc4ed3f-bde5-4555-9
 The `command` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
 
 ```bash
-# Install SDL2 on Linux
+# Install SDL2
+# On Debian based linux distributions:
 sudo apt-get install libsdl2-dev
+
+# On Fedora Linux:
+sudo dnf install SDL2 SDL2-devel
 
 # Install SDL2 on Mac OS
 brew install sdl2
