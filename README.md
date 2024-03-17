@@ -80,10 +80,9 @@ bash ./models/download-ggml-model.sh base.en
 Now build the [main](examples/main) example and transcribe an audio file like this:
 
 ```bash
+# Note: an active internet connection is needed for download of samples.
 # requirements Fedora
 sudo dnf install wget gcc-c++
-
-# note: you will need an active internet process for the download of samples
 
 # build the main example
 make
