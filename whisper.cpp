@@ -352,30 +352,32 @@ static const std::map<std::string, std::pair<int, std::string>> g_lang = {
 };
 
 // [EXPERIMENTAL] Token-level timestamps with DTW
-static const whisper_ahead g_aheads_tiny_en[] = { {1, 0}, {2, 0}, {2, 5}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 4} };
-static const whisper_ahead g_aheads_tiny[] = { {2, 2}, {3, 0}, {3, 2}, {3, 3}, {3, 4}, {3, 5} };
-static const whisper_ahead g_aheads_base_en[] = { {3, 3}, {4, 7}, {5, 1}, {5, 5}, {5, 7} };
-static const whisper_ahead g_aheads_base[] = { {3, 1}, {4, 2}, {4, 3}, {4, 7}, {5, 1}, {5, 2}, {5, 4}, {5, 6} };
-static const whisper_ahead g_aheads_small_en[] = { {6, 6}, {7, 0}, {7, 3}, {7, 8}, {8, 2}, {8, 5}, {8, 7}, {9, 0}, {9, 4}, {9, 8}, {9, 10}, {10, 0}, {10, 1}, {10, 2}, {10, 3}, {10, 6}, {10, 11}, {11, 2}, {11, 4} };
-static const whisper_ahead g_aheads_small[] = { {5, 3}, {5, 9}, {8, 0}, {8, 4}, {8, 7}, {8, 8}, {9, 0}, {9, 7}, {9, 9}, {10, 5} };
+static const whisper_ahead g_aheads_tiny_en[]   = { {1, 0}, {2, 0}, {2, 5}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 4} };
+static const whisper_ahead g_aheads_tiny[]      = { {2, 2}, {3, 0}, {3, 2}, {3, 3}, {3, 4}, {3, 5} };
+static const whisper_ahead g_aheads_base_en[]   = { {3, 3}, {4, 7}, {5, 1}, {5, 5}, {5, 7} };
+static const whisper_ahead g_aheads_base[]      = { {3, 1}, {4, 2}, {4, 3}, {4, 7}, {5, 1}, {5, 2}, {5, 4}, {5, 6} };
+static const whisper_ahead g_aheads_small_en[]  = { {6, 6}, {7, 0}, {7, 3}, {7, 8}, {8, 2}, {8, 5}, {8, 7}, {9, 0}, {9, 4}, {9, 8}, {9, 10}, {10, 0}, {10, 1}, {10, 2}, {10, 3}, {10, 6}, {10, 11}, {11, 2}, {11, 4} };
+static const whisper_ahead g_aheads_small[]     = { {5, 3}, {5, 9}, {8, 0}, {8, 4}, {8, 7}, {8, 8}, {9, 0}, {9, 7}, {9, 9}, {10, 5} };
 static const whisper_ahead g_aheads_medium_en[] = { {11, 4}, {14, 1}, {14, 12}, {14, 14}, {15, 4}, {16, 0}, {16, 4}, {16, 9}, {17, 12}, {17, 14}, {18, 7}, {18, 10}, {18, 15}, {20, 0}, {20, 3}, {20, 9}, {20, 14}, {21, 12} };
-static const whisper_ahead g_aheads_medium[] = { {13, 15}, {15, 4}, {15, 15}, {16, 1}, {20, 0}, {23, 4} };
-static const whisper_ahead g_aheads_large_v1[] = { {9, 19}, {11, 2}, {11, 4}, {11, 17}, {22, 7}, {22, 11}, {22, 17}, {23, 2}, {23, 15} };
-static const whisper_ahead g_aheads_large_v2[] = { {10, 12}, {13, 17}, {16, 11}, {16, 12}, {16, 13}, {17, 15}, {17, 16}, {18, 4}, {18, 11}, {18, 19}, {19, 11}, {21, 2}, {21, 3}, {22, 3}, {22, 9}, {22, 12}, {23, 5}, {23, 7}, {23, 13}, {25, 5}, {26, 1}, {26, 12}, {27, 15} };
-static const whisper_ahead g_aheads_large_v3[] = { {7, 0}, {10, 17}, {12, 18}, {13, 12}, {16, 1}, {17, 14}, {19, 11}, {21, 4}, {24, 1}, {25, 6} };
+static const whisper_ahead g_aheads_medium[]    = { {13, 15}, {15, 4}, {15, 15}, {16, 1}, {20, 0}, {23, 4} };
+static const whisper_ahead g_aheads_large_v1[]  = { {9, 19}, {11, 2}, {11, 4}, {11, 17}, {22, 7}, {22, 11}, {22, 17}, {23, 2}, {23, 15} };
+static const whisper_ahead g_aheads_large_v2[]  = { {10, 12}, {13, 17}, {16, 11}, {16, 12}, {16, 13}, {17, 15}, {17, 16}, {18, 4}, {18, 11}, {18, 19}, {19, 11}, {21, 2}, {21, 3}, {22, 3}, {22, 9}, {22, 12}, {23, 5}, {23, 7}, {23, 13}, {25, 5}, {26, 1}, {26, 12}, {27, 15} };
+static const whisper_ahead g_aheads_large_v3[]  = { {7, 0}, {10, 17}, {12, 18}, {13, 12}, {16, 1}, {17, 14}, {19, 11}, {21, 4}, {24, 1}, {25, 6} };
+
 static const std::map<whisper_alignment_heads_preset, whisper_aheads> g_aheads {
-    { WHISPER_AHEADS_TINY_EN, {8, g_aheads_tiny_en} },
-    { WHISPER_AHEADS_TINY, {6, g_aheads_tiny} },
-    { WHISPER_AHEADS_BASE_EN, {5, g_aheads_base_en} },
-    { WHISPER_AHEADS_BASE, {8, g_aheads_base} },
-    { WHISPER_AHEADS_SMALL_EN, {19, g_aheads_small_en} },
-    { WHISPER_AHEADS_SMALL, {10, g_aheads_small} },
-    { WHISPER_AHEADS_MEDIUM_EN, {18, g_aheads_medium_en} },
-    { WHISPER_AHEADS_MEDIUM, {6, g_aheads_medium} },
-    { WHISPER_AHEADS_LARGE_V1, {9, g_aheads_large_v1} },
-    { WHISPER_AHEADS_LARGE_V2, {23, g_aheads_large_v2} },
-    { WHISPER_AHEADS_LARGE_V3, {10, g_aheads_large_v3} },
+    { WHISPER_AHEADS_TINY_EN,   {  8, g_aheads_tiny_en   } },
+    { WHISPER_AHEADS_TINY,      {  6, g_aheads_tiny      } },
+    { WHISPER_AHEADS_BASE_EN,   {  5, g_aheads_base_en   } },
+    { WHISPER_AHEADS_BASE,      {  8, g_aheads_base      } },
+    { WHISPER_AHEADS_SMALL_EN,  { 19, g_aheads_small_en  } },
+    { WHISPER_AHEADS_SMALL,     { 10, g_aheads_small     } },
+    { WHISPER_AHEADS_MEDIUM_EN, { 18, g_aheads_medium_en } },
+    { WHISPER_AHEADS_MEDIUM,    {  6, g_aheads_medium    } },
+    { WHISPER_AHEADS_LARGE_V1,  {  9, g_aheads_large_v1  } },
+    { WHISPER_AHEADS_LARGE_V2,  { 23, g_aheads_large_v2  } },
+    { WHISPER_AHEADS_LARGE_V3,  { 10, g_aheads_large_v3  } },
 };
+
 static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_params & cparams, int il, int32_t n_text_layer, int32_t n_head);
 
 struct whisper_mel {
@@ -1132,10 +1134,11 @@ static bool aheads_masks_init(
 
     for (int64_t il = 0; il < n_text_layer; ++il) {
         auto aheads = get_alignment_heads_by_layer(cparams, il, n_text_layer, n_head);
-        if (!aheads.empty())
+        if (!aheads.empty()) {
             aheads_masks.m.push_back(ggml_new_tensor_2d(aheads_masks.ctx, GGML_TYPE_F32, n_head, aheads.size()));
-        else
+        } else {
             aheads_masks.m.push_back(nullptr);
+        }
     }
 
     aheads_masks.buffer = ggml_backend_alloc_ctx_tensors(aheads_masks.ctx, backend);
@@ -6036,11 +6039,13 @@ int whisper_full_with_state(
 
             // FIXME: will timestamp offsets be correct?
             // [EXPERIMENTAL] Token-level timestamps with DTW
-            const auto n_segments = state->result_all.size() - n_segments_before;
-            if (ctx->params.dtw_token_timestamps && n_segments) {
-                const int n_frames = std::min(std::min(WHISPER_CHUNK_SIZE * 100, seek_delta), seek_end - seek);
-                whisper_exp_compute_token_level_timestamps_dtw(
-                    ctx, state, params, result_all.size() - n_segments, n_segments, seek, n_frames, 7, params.n_threads);
+            {
+                const auto n_segments = state->result_all.size() - n_segments_before;
+                if (ctx->params.dtw_token_timestamps && n_segments) {
+                    const int n_frames = std::min(std::min(WHISPER_CHUNK_SIZE * 100, seek_delta), seek_end - seek);
+                    whisper_exp_compute_token_level_timestamps_dtw(
+                            ctx, state, params, result_all.size() - n_segments, n_segments, seek, n_frames, 7, params.n_threads);
+                }
             }
 
             // update audio window
@@ -6864,8 +6869,9 @@ static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_
     } else {
         const auto aheads = cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM ? cparams.dtw_custom.aheads : g_aheads.at(cparams.dtw_aheads_preset);
         for (size_t i = 0; i < aheads.n_heads; ++i) {
-            if (aheads.heads[i].n_text_layer == il)
+            if (aheads.heads[i].n_text_layer == il) {
                 ret.push_back(aheads.heads[i].n_head);
+            }
         }
     }
     return ret;
@@ -6981,10 +6987,11 @@ static void median_filter(struct ggml_tensor * dst , const struct ggml_tensor * 
                 for (int64_t off = -filter_width/2; off <= filter_width/2; ++off) {
                     // "reflect" padding
                     int64_t idx = k + off;
-                    if (idx < 0)
+                    if (idx < 0) {
                         idx = -idx;
-                    else if (idx >= a->ne[2])
+                    } else if (idx >= a->ne[2]) {
                         idx = 2*(a->ne[2] - 1) - idx;
+                    }
 
                     filter.push_back(ggml_get_f32_nd(a, i, j, idx, 0));
                 }
@@ -7037,8 +7044,9 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
         auto & segment = state->result_all[i];
         for (auto &t: segment.tokens) {
             // Only text tokens
-            if (t.id < whisper_token_eot(ctx))
+            if (t.id < whisper_token_eot(ctx)) {
                 tokens.push_back(t.id);
+            }
         }
     }
     tokens.push_back(whisper_token_eot(ctx));
