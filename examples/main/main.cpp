@@ -649,7 +649,8 @@ bool output_json(
                                     times_o(token.t0, token.t1, false);
                                 }
                                 value_i("id", token.id, false);
-                                value_f("p", token.p, true);
+                                value_f("p", token.p, false);
+                                value_f("t_dtw", token.t_dtw, true);
                             end_obj(j == (n - 1));
                         }
                         end_arr(!params.diarize && !params.tinydiarize);
@@ -888,6 +889,12 @@ int main(int argc, char ** argv) {
 
     struct whisper_context_params cparams = whisper_context_default_params();
     cparams.use_gpu = params.use_gpu;
+
+    // TODO: expose these parameters to the command-line
+    if (false) {
+        cparams.dtw_token_timestamps = true;
+        cparams.dtw_aheads_preset    = WHISPER_AHEADS_BASE_EN; // Match correctly with the model you are using.
+    }
 
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
