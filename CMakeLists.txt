@@ -156,7 +156,8 @@ if (APPLE)
 
         set(GGML_SOURCES_METAL ggml-metal.m ggml-metal.h)
 
-        # copy ggml-metal.metal to bin directory
+        # copy ggml-common.h and ggml-metal.metal to bin directory
+        configure_file(ggml-common.h    bin/ggml-common.h    COPYONLY)
         configure_file(ggml-metal.metal bin/ggml-metal.metal COPYONLY)
 
         if (WHISPER_METAL_EMBED_LIBRARY)

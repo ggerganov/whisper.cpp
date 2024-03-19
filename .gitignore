@@ -6,6 +6,7 @@
 .vs/
 .vscode/
 .DS_Store
+.vimspector.json
 
 build/
 build-coreml/
