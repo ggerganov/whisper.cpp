@@ -1162,7 +1162,7 @@ static bool aheads_masks_init(
             memset(mask_data.data(), 0, data_size);
 
             for (size_t ih = 0; ih < aheads.size(); ++ih) {
-                size_t pos = (aheads[ih] + (ih * aheads_masks.m[il]->ne[0] * aheads[ih])) * sizeof(float);
+                size_t pos = (aheads[ih] + (ih * aheads_masks.m[il]->ne[0] * aheads[ih]));
                 float v = 1.0f;
                 memcpy(mask_data.data() + pos, &v, sizeof(float));
             }
