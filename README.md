@@ -18,9 +18,9 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - [4-bit and 5-bit integer quantization support](https://github.com/ggerganov/whisper.cpp#quantization)
 - Zero memory allocations at runtime
 - Support for CPU-only inference
-- [Efficient GPU support for NVIDIA](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
+- [Efficient GPU support for NVIDIA](./README.md#nvidia-gpu-support-via-cublas)
 - [Partial OpenCL GPU support via CLBlast](https://github.com/ggerganov/whisper.cpp#opencl-gpu-support-via-clblast)
-- [OpenVINO Support](https://github.com/ggerganov/whisper.cpp#openvino-support)
+- [OpenVINO Support](./README.md#openvino-support)
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 
 Supported platforms:
@@ -406,6 +406,19 @@ This can result in significant speedup in encoder performance. Here are the inst
 
   The first time run on an OpenVINO device is slow, since the OpenVINO framework will compile the IR (Intermediate Representation) model to a device-specific 'blob'. This device-specific blob will get
   cached for the next run.
+
+  ### OpenVINO pre-generated models
+  The pre-generated models are being tested and prepared for upload to Huggingface (see #1893). For now, the models are available in the following IPFS folders:
+
+  |Model index|[IPFS CID](https://docs.ipfs.tech/concepts/content-addressing/)|HTTP Link|
+|------------------|-----|---------------|
+|`tiny`|`bafybeiba7jggi3qjhxaibz6x2lj7yyodfmu3c73wam5audas4vfiyonraq`|[Download](https://bafybeiba7jggi3qjhxaibz6x2lj7yyodfmu3c73wam5audas4vfiyonraq.ipfs.dweb.link)|
+|`base`|`bafybeidxae4d7boax6qk3qjpeodi64zp6dyxh5mrqtvroah3e54jh3w3hq`|[Download](https://bafybeidxae4d7boax6qk3qjpeodi64zp6dyxh5mrqtvroah3e54jh3w3hq.ipfs.dweb.link/)|
+|`small`|`bafybeiam4oa6re22vlxwylq5xfipxwudwzbeo7jyclvayvkdvwn2riqw3m`|[Download](https://bafybeiam4oa6re22vlxwylq5xfipxwudwzbeo7jyclvayvkdvwn2riqw3m.ipfs.dweb.link/)|
+|`medium`|`bafybeibywkcnezurmnvmikf2sungw6fz3wmq32uimoq34mcgk3weqgq7mu`|[Download](https://bafybeibywkcnezurmnvmikf2sungw6fz3wmq32uimoq34mcgk3weqgq7mu.ipfs.dweb.link/)|
+|`large`|`bafybeihmxbgp4dpdxhao4wd6q3nyixcprbyubhd7wsxs67agqh3pvbotdq`|[Donwload](https://bafybeihmxbgp4dpdxhao4wd6q3nyixcprbyubhd7wsxs67agqh3pvbotdq.ipfs.dweb.link)|
+|`whisper-original`|`bafybeieh5ysdrout4kiae6pmnvljkvtbnabdpeni7m7tntwx7hi2efy7me`|[Download](https://bafybeieh5ysdrout4kiae6pmnvljkvtbnabdpeni7m7tntwx7hi2efy7me.ipfs.dweb.link)|
+The download links are generated over [dweb.link](https://dweb.link). For download any other available IPFS-HTTP gateway could be used to download.
 
 For more information about the Core ML implementation please refer to PR [#1037](https://github.com/ggerganov/whisper.cpp/pull/1037).
 
