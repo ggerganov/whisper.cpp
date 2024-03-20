@@ -1083,19 +1083,19 @@ static bool aheads_masks_init(
         WHISPER_LOG_ERROR("%s: dtw_aheads_preset should be != DTW_AHEADS_NONE\n", __func__);
         return false;
     } else if (cparams.dtw_aheads_preset == WHISPER_AHEADS_N_TOP_MOST) {
-        if (cparams.dtw_n_top_most.n > n_text_layer || cparams.dtw_n_top_most.n <= 0) {
-            WHISPER_LOG_ERROR("%s: dtw_n_top_most.n must be between %d and %d for this model.", __func__, 1, n_text_layer);
+        if (cparams.dtw_n_top > n_text_layer || cparams.dtw_n_top <= 0) {
+            WHISPER_LOG_ERROR("%s: dtw_n_top must be between %d and %d for this model.", __func__, 1, n_text_layer);
             return false;
         }
     } else {
-        const auto aheads = cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM ? cparams.dtw_custom.aheads : g_aheads.at(cparams.dtw_aheads_preset);
+        const auto aheads = cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM ? cparams.dtw_aheads : g_aheads.at(cparams.dtw_aheads_preset);
         if (cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM) {
             if (aheads.n_heads == 0) {
-                WHISPER_LOG_ERROR("%s: dtw_custom.aheads.n_heads should be > 0", __func__);
+                WHISPER_LOG_ERROR("%s: dtw_aheads.n_heads should be > 0", __func__);
                 return false;
             }
             if (aheads.heads == NULL) {
-                WHISPER_LOG_ERROR("%s: dtw_custom.aheads.heads unset", __func__);
+                WHISPER_LOG_ERROR("%s: dtw_aheads.heads unset", __func__);
                 return false;
             }
         }
@@ -3374,14 +3374,10 @@ struct whisper_context_params whisper_context_default_params() {
 
         /*.dtw_token_timestamps =*/ false,
         /*.dtw_aheads_preset    =*/ WHISPER_AHEADS_NONE,
-        /*.dtw_n_top_most       =*/ {
-            /*.n                =*/ -1,
-        },
-        /*.dtw_custom           =*/ {
-            /*.aheads           =*/ {
-                /*.n_heads      =*/ 0,
-                /*.heads        =*/ NULL,
-            }
+        /*.dtw_n_top            =*/ -1,
+        /*.dtw_aheads           =*/ {
+            /*.n_heads          =*/ 0,
+            /*.heads            =*/ NULL,
         },
         /*.dtw_mem_size         =*/ 1024*1024*128,
     };
@@ -6861,13 +6857,13 @@ static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_
     if (cparams.dtw_aheads_preset == WHISPER_AHEADS_NONE) {
         return ret;
     } else if (cparams.dtw_aheads_preset == WHISPER_AHEADS_N_TOP_MOST) {
-        if (il >= n_text_layer - cparams.dtw_n_top_most.n) {
+        if (il >= n_text_layer - cparams.dtw_n_top) {
             for (int32_t i = 0; i < n_head; ++i) {
                 ret.push_back(i);
             }
         }
     } else {
-        const auto aheads = cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM ? cparams.dtw_custom.aheads : g_aheads.at(cparams.dtw_aheads_preset);
+        const auto aheads = cparams.dtw_aheads_preset == WHISPER_AHEADS_CUSTOM ? cparams.dtw_aheads : g_aheads.at(cparams.dtw_aheads_preset);
         for (size_t i = 0; i < aheads.n_heads; ++i) {
             if (aheads.heads[i].n_text_layer == il) {
                 ret.push_back(aheads.heads[i].n_head);

@@ -116,16 +116,13 @@ extern "C" {
         int   gpu_device;  // CUDA device
 
         // [EXPERIMENTAL] Token-level timestamps with DTW
-        // FIXME: not sure if the way dtw_n_top_most and dtw_custom are structured is comfortable?
         bool dtw_token_timestamps;
         enum whisper_alignment_heads_preset dtw_aheads_preset;
-        struct {
-            int n;
-        } dtw_n_top_most;
-        struct {
-            whisper_aheads aheads;
-        } dtw_custom;
-        size_t dtw_mem_size;
+
+        int dtw_n_top;
+        struct whisper_aheads dtw_aheads;
+
+        size_t dtw_mem_size; // TODO: remove
     };
 
     typedef struct whisper_token_data {
