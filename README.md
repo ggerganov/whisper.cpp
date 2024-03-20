@@ -408,7 +408,7 @@ This can result in significant speedup in encoder performance. Here are the inst
   cached for the next run.
 
   ### OpenVINO pre-generated models
-  The pre-generated models are being tested and prepared for upload to Huggingface (see #1893). For now, the models are available in the following IPFS folders:
+  The pre-generated models are being tested and prepared for upload to Huggingface (see [#1893](https://github.com/ggerganov/whisper.cpp/issues/1893)). For now, the models are available in the following IPFS folders:
 
 |Model index|[IPFS CID](https://docs.ipfs.tech/concepts/content-addressing/)|HTTP Link|
 |------------------|-----|---------------|
