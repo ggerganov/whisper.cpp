@@ -410,7 +410,7 @@ This can result in significant speedup in encoder performance. Here are the inst
   ### OpenVINO pre-generated models
   The pre-generated models are being tested and prepared for upload to Huggingface (see #1893). For now, the models are available in the following IPFS folders:
 
-  |Model index|[IPFS CID](https://docs.ipfs.tech/concepts/content-addressing/)|HTTP Link|
+|Model index|[IPFS CID](https://docs.ipfs.tech/concepts/content-addressing/)|HTTP Link|
 |------------------|-----|---------------|
 |`tiny`|`bafybeiba7jggi3qjhxaibz6x2lj7yyodfmu3c73wam5audas4vfiyonraq`|[Download](https://bafybeiba7jggi3qjhxaibz6x2lj7yyodfmu3c73wam5audas4vfiyonraq.ipfs.dweb.link)|
 |`base`|`bafybeidxae4d7boax6qk3qjpeodi64zp6dyxh5mrqtvroah3e54jh3w3hq`|[Download](https://bafybeidxae4d7boax6qk3qjpeodi64zp6dyxh5mrqtvroah3e54jh3w3hq.ipfs.dweb.link/)|
