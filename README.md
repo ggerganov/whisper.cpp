@@ -417,7 +417,7 @@ This can result in significant speedup in encoder performance. Here are the inst
 |`small`|`bafybeiam4oa6re22vlxwylq5xfipxwudwzbeo7jyclvayvkdvwn2riqw3m`|[Download](https://bafybeiam4oa6re22vlxwylq5xfipxwudwzbeo7jyclvayvkdvwn2riqw3m.ipfs.dweb.link/)|
 |`medium`|`bafybeibywkcnezurmnvmikf2sungw6fz3wmq32uimoq34mcgk3weqgq7mu`|[Download](https://bafybeibywkcnezurmnvmikf2sungw6fz3wmq32uimoq34mcgk3weqgq7mu.ipfs.dweb.link/)|
 |`large`|`bafybeihmxbgp4dpdxhao4wd6q3nyixcprbyubhd7wsxs67agqh3pvbotdq`|[Donwload](https://bafybeihmxbgp4dpdxhao4wd6q3nyixcprbyubhd7wsxs67agqh3pvbotdq.ipfs.dweb.link)|
-|`whisper-original`|`bafybeieh5ysdrout4kiae6pmnvljkvtbnabdpeni7m7tntwx7hi2efy7me`|[Download](https://bafybeieh5ysdrout4kiae6pmnvljkvtbnabdpeni7m7tntwx7hi2efy7me.ipfs.dweb.link)|
+|`whisper-original`|`bafybeifiqguwimjqwhufoasmq75oyezvy2ylb6hu2evwlyqar6cvq7cjxy`|[Download](https://bafybeifiqguwimjqwhufoasmq75oyezvy2ylb6hu2evwlyqar6cvq7cjxy.ipfs.dweb.link)|
 
 The download links are generated over [dweb.link](https://dweb.link). For download any other available IPFS-HTTP gateway could be used to download.
 
