@@ -28,6 +28,8 @@ COPY .. .
 RUN make
 
 FROM ${BASE_CUDA_RUN_CONTAINER} AS runtime
+ENV CUDA_MAIN_VERSION=12.3
+ENV LD_LIBRARY_PATH /usr/local/cuda-${CUDA_MAIN_VERSION}/compat:$LD_LIBRARY_PATH
 WORKDIR /app
 
 RUN apt-get update && \
