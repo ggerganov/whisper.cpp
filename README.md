@@ -418,6 +418,7 @@ This can result in significant speedup in encoder performance. Here are the inst
 |`medium`|`bafybeibywkcnezurmnvmikf2sungw6fz3wmq32uimoq34mcgk3weqgq7mu`|[Download](https://bafybeibywkcnezurmnvmikf2sungw6fz3wmq32uimoq34mcgk3weqgq7mu.ipfs.dweb.link/)|
 |`large`|`bafybeihmxbgp4dpdxhao4wd6q3nyixcprbyubhd7wsxs67agqh3pvbotdq`|[Donwload](https://bafybeihmxbgp4dpdxhao4wd6q3nyixcprbyubhd7wsxs67agqh3pvbotdq.ipfs.dweb.link)|
 |`whisper-original`|`bafybeieh5ysdrout4kiae6pmnvljkvtbnabdpeni7m7tntwx7hi2efy7me`|[Download](https://bafybeieh5ysdrout4kiae6pmnvljkvtbnabdpeni7m7tntwx7hi2efy7me.ipfs.dweb.link)|
+
 The download links are generated over [dweb.link](https://dweb.link). For download any other available IPFS-HTTP gateway could be used to download.
 
 For more information about the Core ML implementation please refer to PR [#1037](https://github.com/ggerganov/whisper.cpp/pull/1037).
