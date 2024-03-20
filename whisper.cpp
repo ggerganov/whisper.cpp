@@ -2516,10 +2516,11 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                     aheads_KQs = ggml_transpose(ctx0, aheads_KQs);
                     aheads_KQs = ggml_cont(ctx0, aheads_KQs);
                     aheads_KQs = ggml_reshape_3d(ctx0, aheads_KQs, KQ_soft_max->ne[0], KQ_soft_max->ne[1], wstate.aheads_masks.m[il]->ne[1]);
-                    if (aheads_cross_QKs == NULL)
+                    if (aheads_cross_QKs == NULL) {
                         aheads_cross_QKs = aheads_KQs;
-                    else
+                    } else {
                         aheads_cross_QKs = ggml_concat(ctx0, aheads_cross_QKs, aheads_KQs);
+                    }
                 }
             }
 
