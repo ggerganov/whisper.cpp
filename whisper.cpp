@@ -5349,11 +5349,11 @@ int whisper_full_with_state(
         }
     }
 
-    // distilled models require the "no_timestamps" token
+    // first release distilled models require the "no_timestamps" token
     {
-        const bool is_distil = ctx->model.hparams.n_text_layer == 2;
+        const bool is_distil = ctx->model.hparams.n_text_layer == 2 && ctx->model.hparams.n_vocab != 51866;
         if (is_distil && !params.no_timestamps) {
-            WHISPER_LOG_WARN("%s: using distilled model - forcing no_timestamps\n", __func__);
+            WHISPER_LOG_WARN("%s: using first release distilled models - forcing no_timestamps\n", __func__);
             params.no_timestamps = true;
         }
     }
