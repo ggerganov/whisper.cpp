@@ -34,7 +34,7 @@ build-sanitize-thread/
 /quantize
 /server
 /lsp
-
+/models
 arm_neon.h
 sync.sh
 libwhisper.a
