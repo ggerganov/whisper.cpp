@@ -94,6 +94,20 @@ Getting help:
 
   * Follow the discussion for the go bindings [here](https://github.com/ggerganov/whisper.cpp/discussions/312)
 
+## Notes
+
+### CUDA
+
+If you are using the binding with cuda and having linker issues, you may need to set the `CGO_LDFLAGS` environment variable to include the cuda libraries. For example:
+
+```bash
+CGO_LDFLAGS="-L/usr/local/cuda-11.7/targets/x86_64-linux/lib/stubs/ -L/usr/local/cuda/lib64/ -lcuda -lcublas -lcudart -lculibos -lcublasLt"
+```
+
+Note that the exact paths and libraries may vary depending on your system and CUDA installation, notice some symbols are present in the `stubs` directory and others in the `lib64` directory.
+
+See also https://github.com/ggerganov/whisper.cpp/issues/1553 for more information.
+
 ## License
 
 The license for the Go bindings is the same as the license for the rest of the whisper.cpp project, which is the MIT License. See the `LICENSE` file for more details.
