@@ -345,6 +345,10 @@ extern "C" {
                      whisper_token * tokens,
                                int   n_max_tokens);
 
+    // Return the number of tokens in the provided text
+    // Equivalent to: -whisper_tokenize(ctx, text, NULL, 0)
+    int whisper_token_count(struct whisper_context * ctx, const char * text);
+
     // Largest language id (i.e. number of available languages - 1)
     WHISPER_API int whisper_lang_max_id();
 
@@ -504,7 +508,7 @@ extern "C" {
         // tokens to provide to the whisper decoder as initial prompt
         // these are prepended to any existing text context from a previous call
         // use whisper_tokenize() to convert text to tokens
-        // maximum of whisper_n_text_ctx()/2 tokens are used
+        // maximum of whisper_n_text_ctx()/2 tokens are used (typically 224)
         const char * initial_prompt;
         const whisper_token * prompt_tokens;
         int prompt_n_tokens;

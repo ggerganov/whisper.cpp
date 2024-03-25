@@ -3731,6 +3731,10 @@ int whisper_tokenize(struct whisper_context * ctx, const char * text, whisper_to
     return res.size();
 }
 
+int whisper_token_count(struct whisper_context * ctx, const char * text) {
+    return -whisper_tokenize(ctx, text, NULL, 0);
+}
+
 int whisper_lang_max_id() {
     auto max_id = 0;
     for (const auto & kv : g_lang) {
