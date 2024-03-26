@@ -5,6 +5,7 @@
 #include <cmath>
 #include <fstream>
 #include <cstdio>
+#include <regex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -73,6 +74,9 @@ struct whisper_params {
 
     // [TDRZ] speaker turn string
     std::string tdrz_speaker_turn = " [SPEAKER_TURN]"; // TODO: set from command line
+
+    // A regular expression that matches tokens to suppress
+    std::string suppress_regex;
 
     std::string openvino_encode_device = "CPU";
 
@@ -154,6 +158,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         else if (arg == "-dtw"  || arg == "--dtw")             { params.dtw             = argv[++i]; }
         else if (arg == "-ls"   || arg == "--log-score")       { params.log_score       = true; }
         else if (arg == "-ng"   || arg == "--no-gpu")          { params.use_gpu         = false; }
+        else if (                  arg == "--suppress-regex")  { params.suppress_regex = argv[++i]; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -214,6 +219,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -dtw MODEL --dtw MODEL         [%-7s] compute token-level timestamps\n",                 params.dtw.c_str());
     fprintf(stderr, "  -ls,       --log-score         [%-7s] log best decoder scores of tokens\n",              params.log_score?"true":"false");
     fprintf(stderr, "  -ng,       --no-gpu            [%-7s] disable GPU\n",                                    params.use_gpu ? "false" : "true");
+    fprintf(stderr, "  --suppress-regex REGEX         [%-7s] regular expression matching tokens to suppress\n", params.suppress_regex.c_str());
     fprintf(stderr, "\n");
 }
 
@@ -996,6 +1002,8 @@ int main(int argc, char ** argv) {
             wparams.debug_mode       = params.debug_mode;
 
             wparams.tdrz_enable      = params.tinydiarize; // [TDRZ]
+
+            wparams.suppress_regex   = params.suppress_regex.c_str();
 
             wparams.initial_prompt   = params.prompt.c_str();
 
