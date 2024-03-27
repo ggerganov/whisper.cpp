@@ -414,11 +414,11 @@ For more information about the Core ML implementation please refer to PR [#1037]
 With NVIDIA cards the processing of the models is done efficiently on the GPU via cuBLAS and custom CUDA kernels.
 First, make sure you have installed `cuda`: https://developer.nvidia.com/cuda-downloads
 
-Now build `whisper.cpp` with cuBLAS support:
+Now build `whisper.cpp` with CUDA support:
 
 ```
 make clean
-WHISPER_CUBLAS=1 make -j
+WHISPER_CUDA=1 make -j
 ```
 
 ## OpenCL GPU support via CLBlast
