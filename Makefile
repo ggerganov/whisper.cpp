@@ -394,7 +394,7 @@ libwhisper.so: $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so $(WHISPER_OBJ) $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream command talk talk-llama bench quantize server lsp libwhisper.a libwhisper.so
+	rm -f *.o main stream stream-stdin command talk talk-llama bench quantize server lsp libwhisper.a libwhisper.so
 
 #
 # Examples
@@ -420,6 +420,9 @@ server: examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ)
 
 stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
+
+stream-stdin: examples/stream-stdin/stream-stdin.cpp $(SRC_COMMON) examples/audio-stdin.h examples/audio-stdin.cpp $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/stream-stdin/stream-stdin.cpp $(SRC_COMMON) examples/audio-stdin.cpp $(WHISPER_OBJ) -o stream-stdin $(LDFLAGS)
 
 command: examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)

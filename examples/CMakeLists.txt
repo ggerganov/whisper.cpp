@@ -36,6 +36,19 @@ target_link_libraries(${TARGET} PRIVATE whisper)
 
 set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# audio-stdin
+
+set(TARGET audio-stdin)
+
+add_library(${TARGET} STATIC
+    audio-stdin.h
+    audio-stdin.cpp
+    )
+
+include(DefaultTargetOptions)
+
+set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 if (WHISPER_SDL2)
     # common-sdl
 
@@ -72,6 +85,7 @@ elseif(CMAKE_JS_VERSION)
 else()
     add_subdirectory(main)
     add_subdirectory(stream)
+    add_subdirectory(stream-stdin)
     add_subdirectory(server)
     add_subdirectory(command)
     add_subdirectory(bench)
