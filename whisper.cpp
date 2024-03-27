@@ -1383,6 +1383,11 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                 word = "";
             }
 
+            // If requested, output all text as lowercase.
+            if (wctx.params.fold_lowercase)
+                std::transform(word.begin(), word.end(), word.begin(),
+                    [](unsigned char c) { return std::tolower(c); });
+
             vocab.token_to_id[word] = i;
             vocab.id_to_token[i] = word;
 
@@ -3374,7 +3379,7 @@ struct whisper_context_params whisper_context_default_params() {
     struct whisper_context_params result = {
         /*.use_gpu              =*/ true,
         /*.gpu_device           =*/ 0,
-
+        /*.fold_lowercase       =*/ false,
         /*.dtw_token_timestamps =*/ false,
         /*.dtw_aheads_preset    =*/ WHISPER_AHEADS_NONE,
         /*.dtw_n_top            =*/ -1,
