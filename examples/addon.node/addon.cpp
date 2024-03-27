@@ -309,6 +309,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   bool use_gpu = whisper_params.Get("use_gpu").As<Napi::Boolean>();
   bool no_prints = whisper_params.Get("no_prints").As<Napi::Boolean>();
   bool no_timestamps = whisper_params.Get("no_timestamps").As<Napi::Boolean>();
+  bool comma_in_time = whisper_params.Get("comma_in_time").As<Napi::Boolean>();
 
   params.language = language;
   params.model = model;
@@ -316,6 +317,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   params.use_gpu = use_gpu;
   params.no_prints = no_prints;
   params.no_timestamps = no_timestamps;
+  params.comma_in_time = comma_in_time;
 
   Napi::Function callback = info[1].As<Napi::Function>();
   Worker* worker = new Worker(callback, params);
