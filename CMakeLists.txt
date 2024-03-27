@@ -1,5 +1,8 @@
 cmake_minimum_required (VERSION 3.5)
 
+# Allow for the creation of solution folders.
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 project(whisper.cpp VERSION 1.5.4)
 set(SOVERSION 1)
 
@@ -500,6 +503,7 @@ if (WHISPER_COREML)
     set_target_properties(${TARGET} PROPERTIES
         COMPILE_FLAGS "-fobjc-arc"
         )
+    set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
 endif()
 
 if (WHISPER_OPENVINO)
@@ -518,6 +522,7 @@ if (WHISPER_OPENVINO)
     set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_USE_OPENVINO)
 
     target_link_libraries(${TARGET} PRIVATE openvino::runtime)
+    set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
 endif()
 
 #
@@ -616,6 +621,7 @@ target_compile_definitions(${TARGET} PUBLIC
     )
 
 set_target_properties(${TARGET} PROPERTIES PUBLIC_HEADER "ggml.h;whisper.h")
+set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
 
 include(GNUInstallDirs)
 
