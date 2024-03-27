@@ -211,6 +211,8 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
 
             wparams.initial_prompt   = params.prompt.c_str();
 
+            wparams.no_timestamps    = params.no_timestamps;
+
             whisper_print_user_data user_data = { &params, &pcmf32s };
 
             // this callback is called on each new segment
