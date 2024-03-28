@@ -39,9 +39,9 @@ struct whisper_params {
     int32_t beam_size     = whisper_full_default_params(WHISPER_SAMPLING_BEAM_SEARCH).beam_search.beam_size;
     int32_t audio_ctx     = 0;
 
-    float word_thold    =  0.01f;
-    float entropy_thold =  2.40f;
-    float logprob_thold = -1.00f;
+    float word_thold      =  0.01f;
+    float entropy_thold   =  2.40f;
+    float logprob_thold   = -1.00f;
     float grammar_penalty = 100.0f;
 
     bool speed_up        = false;
@@ -939,14 +939,13 @@ int main(int argc, char ** argv) {
     whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
 
     if (!params.grammar.empty()) {
-        auto& grammar = params.grammar_parsed;
+        auto & grammar = params.grammar_parsed;
         if (is_file_exist(params.grammar.c_str())) {
             // read grammar from file
             std::ifstream ifs(params.grammar.c_str());
             const std::string txt = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
             grammar = grammar_parser::parse(txt.c_str());
-        }
-        else {
+        } else {
             // read grammar from string
             grammar = grammar_parser::parse(params.grammar.c_str());
         }
@@ -955,8 +954,7 @@ int main(int argc, char ** argv) {
         if (grammar.rules.empty()) {
             fprintf(stderr, "error: failed to parse grammar \"%s\"\n", params.grammar.c_str());
             return 4;
-        }
-        else {
+        } else {
             fprintf(stderr, "%s: grammar:\n", __func__);
             grammar_parser::print_grammar(stderr, grammar);
             fprintf(stderr, "\n");
@@ -1009,8 +1007,8 @@ int main(int argc, char ** argv) {
         {
             whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
-            bool bUseGrammar = (!params.grammar_parsed.rules.empty() && !params.grammar_rule.empty());
-            wparams.strategy = (params.beam_size > 1 || bUseGrammar) ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY;
+            const bool use_grammar = (!params.grammar_parsed.rules.empty() && !params.grammar_rule.empty());
+            wparams.strategy = (params.beam_size > 1 || use_grammar) ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY;
 
             wparams.print_realtime   = false;
             wparams.print_progress   = params.print_progress;
@@ -1048,14 +1046,13 @@ int main(int argc, char ** argv) {
 
             whisper_print_user_data user_data = { &params, &pcmf32s, 0 };
 
-            const auto& grammar_parsed = params.grammar_parsed;
+            const auto & grammar_parsed = params.grammar_parsed;
             auto grammar_rules = grammar_parsed.c_rules();
 
-            if (bUseGrammar) {
+            if (use_grammar) {
                 if (grammar_parsed.symbol_ids.find(params.grammar_rule) == grammar_parsed.symbol_ids.end()) {
                     fprintf(stderr, "%s: warning: grammar rule '%s' not found - skipping grammar sampling\n", __func__, params.grammar_rule.c_str());
-                }
-                else {
+                } else {
                     wparams.grammar_rules = grammar_rules.data();
                     wparams.n_grammar_rules = grammar_rules.size();
                     wparams.i_start_rule = grammar_parsed.symbol_ids.at(params.grammar_rule);
