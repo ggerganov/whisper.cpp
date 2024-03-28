@@ -115,6 +115,9 @@ extern "C" {
         bool  use_gpu;
         int   gpu_device;  // CUDA device
 
+        // Fold language tokens to lowercase
+        bool fold_lowercase;
+
         // [EXPERIMENTAL] Token-level timestamps with DTW
         bool dtw_token_timestamps;
         enum whisper_alignment_heads_preset dtw_aheads_preset;
