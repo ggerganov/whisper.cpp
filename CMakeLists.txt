@@ -550,6 +550,7 @@ add_library(${TARGET}
     ${GGML_HEADERS_SYCL}
     whisper.h
     whisper.cpp
+    unicode.h
     )
 
 # Set the version numbers
