@@ -27,6 +27,7 @@ add_library(${TARGET} STATIC
     common.cpp
     common-ggml.h
     common-ggml.cpp
+    grammar-parser.h
     grammar-parser.cpp
     )
 
