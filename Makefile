@@ -210,9 +210,28 @@ ifndef WHISPER_NO_METAL
 	endif
 endif
 
-ifdef WHISPER_OPENBLAS
-	CFLAGS  += -DGGML_USE_OPENBLAS -I/usr/local/include/openblas -I/usr/include/openblas
-	LDFLAGS += -lopenblas
+ifneq ($(filter-out 0,$(WHISPER_OPENBLAS)),) # OpenBLAS
+	WHISPER_OPENBLAS_INTERFACE64 ?= 0 # use 32-bit interface by default
+	ifneq ($(filter-out 0,$(WHISPER_OPENBLAS_INTERFACE64)),)
+		WHISPER_BLAS_LIB := openblas64
+	else
+		WHISPER_BLAS_LIB := openblas
+	endif
+	ifneq ($(OPENBLAS_PATH),)
+		WHISPER_BLAS_CFLAGS  := -I$(OPENBLAS_PATH)/include
+		WHISPER_BLAS_LDFLAGS := -L$(OPENBLAS_PATH)/lib -l$(WHISPER_BLAS_LIB)
+	else
+		WHISPER_BLAS_LIB_PC_EXISTS := $(shell pkg-config --exists $(WHISPER_BLAS_LIB) && echo 1)
+		ifneq ($(filter-out 0,$(WHISPER_BLAS_LIB_PC_EXISTS)),)
+			WHISPER_BLAS_CFLAGS  := $(shell pkg-config --cflags $(WHISPER_BLAS_LIB))
+			WHISPER_BLAS_LDFLAGS := $(shell pkg-config --libs   $(WHISPER_BLAS_LIB))
+		else
+			WHISPER_BLAS_CFLAGS  := -I/usr/include/openblas
+			WHISPER_BLAS_LDFLAGS := -l$(WHISPER_BLAS_LIB)
+		endif
+	endif
+	CFLAGS  += $(WHISPER_BLAS_CFLAGS) -DGGML_USE_OPENBLAS
+	LDFLAGS += $(WHISPER_BLAS_LDFLAGS)
 endif
 
 ifdef WHISPER_CUBLAS
