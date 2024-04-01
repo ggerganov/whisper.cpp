@@ -14,7 +14,8 @@ const whisperParams = {
   use_gpu: true,
   no_timestamps: true,
   no_prints: true,
-  comma_in_time: true
+  comma_in_time: false,
+  translate: true
 };
 
 const arguments = process.argv.slice(2);
@@ -37,5 +38,5 @@ console.log("whisperParams =", whisperParams);
 
 whisperAsync(whisperParams).then((result) => {
   console.log();
-  console.log(`Result from whisper: ${result}`);
+  console.log(result);
 });
