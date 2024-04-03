@@ -70,6 +70,7 @@ bool ggml_common_quantize_0(
         case GGML_FTYPE_MOSTLY_IQ1_S:
         case GGML_FTYPE_MOSTLY_IQ4_NL:
         case GGML_FTYPE_MOSTLY_IQ4_XS:
+        case GGML_FTYPE_MOSTLY_IQ1_M:
                 {
                     fprintf(stderr, "%s: invalid model type %d\n", __func__, ftype);
                     return false;
@@ -193,6 +194,8 @@ bool ggml_common_quantize_0(
                 case GGML_TYPE_I8:
                 case GGML_TYPE_I16:
                 case GGML_TYPE_I32:
+                case GGML_TYPE_I64:
+                case GGML_TYPE_F64:
                 case GGML_TYPE_Q8_1:
                 case GGML_TYPE_Q8_K:
                 case GGML_TYPE_IQ2_XXS:
@@ -203,6 +206,7 @@ bool ggml_common_quantize_0(
                 case GGML_TYPE_IQ1_S:
                 case GGML_TYPE_IQ4_NL:
                 case GGML_TYPE_IQ4_XS:
+                case GGML_TYPE_IQ1_M:
                 case GGML_TYPE_COUNT:
                     {
                         fprintf(stderr, "%s: unsupported quantization type %d (%s)\n", __func__, ttype, ggml_type_name((ggml_type) ttype));

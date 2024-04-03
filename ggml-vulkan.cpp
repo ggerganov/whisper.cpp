@@ -710,6 +710,12 @@ static uint32_t ggml_vk_find_queue_family_index(std::vector<vk::QueueFamilyPrope
         }
     }
 
+    // All commands that are allowed on a queue that supports transfer operations are also allowed on a queue that supports either graphics or compute operations.
+    // Thus, if the capabilities of a queue family include VK_QUEUE_GRAPHICS_BIT or VK_QUEUE_COMPUTE_BIT, then reporting the VK_QUEUE_TRANSFER_BIT capability separately for that queue family is optional.
+    if (compute_index >= 0) {
+        return compute_index;
+    }
+
     std::cerr << "ggml_vulkan: No suitable queue family index found." << std::endl;
 
     for(auto &q_family : queue_family_props) {
@@ -5560,7 +5566,7 @@ GGML_CALL static ggml_status ggml_backend_vk_graph_compute(ggml_backend_t backen
     for (int i = 0; i < cgraph->n_nodes; i++) {
         ggml_tensor * node = cgraph->nodes[i];
 
-        if (node->op == GGML_OP_RESHAPE || node->op == GGML_OP_TRANSPOSE || node->op == GGML_OP_VIEW || node->op == GGML_OP_PERMUTE || node->op == GGML_OP_NONE) {
+        if (ggml_is_empty(node) || node->op == GGML_OP_RESHAPE || node->op == GGML_OP_TRANSPOSE || node->op == GGML_OP_VIEW || node->op == GGML_OP_PERMUTE || node->op == GGML_OP_NONE) {
             continue;
         }
 
@@ -5693,6 +5699,7 @@ static ggml_backend_i ggml_backend_vk_interface = {
     /* .graph_plan_compute      = */ NULL,
     /* .graph_compute           = */ ggml_backend_vk_graph_compute,
     /* .supports_op             = */ ggml_backend_vk_supports_op,
+    /* .offload_op              = */ NULL,
     /* .event_new               = */ NULL,
     /* .event_free              = */ NULL,
     /* .event_record            = */ NULL,

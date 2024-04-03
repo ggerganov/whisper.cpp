@@ -8,7 +8,7 @@
 #include "ggml-metal.h"
 #endif
 
-#ifdef GGML_USE_CUBLAS
+#ifdef GGML_USE_CUDA
 #include "ggml-cuda.h"
 #endif
 
@@ -1198,8 +1198,8 @@ static ggml_backend_t whisper_backend_init(const whisper_context_params & params
     ggml_backend_t backend_gpu = NULL;
 
     // initialize the backends
-#ifdef GGML_USE_CUBLAS
-    if (params.use_gpu && ggml_cublas_loaded()) {
+#ifdef GGML_USE_CUDA
+    if (params.use_gpu) {
         WHISPER_LOG_INFO("%s: using CUDA backend\n", __func__);
         backend_gpu = ggml_backend_cuda_init(params.gpu_device);
         if (!backend_gpu) {
@@ -4079,7 +4079,7 @@ const char * whisper_print_system_info(void) {
     s += "SSE3 = "      + std::to_string(ggml_cpu_has_sse3())      + " | ";
     s += "SSSE3 = "     + std::to_string(ggml_cpu_has_ssse3())     + " | ";
     s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
-    s += "CUDA = "      + std::to_string(ggml_cpu_has_cublas())    + " | ";
+    s += "CUDA = "      + std::to_string(ggml_cpu_has_cuda())      + " | ";
     s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
     s += "OPENVINO = "  + std::to_string(whisper_has_openvino())          ;
 
