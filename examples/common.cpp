@@ -19,6 +19,11 @@
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 // Function to check if the next argument exists
 std::string get_next_arg(int& i, int argc, char** argv, const std::string& flag, gpt_params& params) {
     if (i + 1 < argc && argv[i + 1][0] != '-') {
@@ -636,6 +641,10 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
 
     if (fname == "-") {
         {
+            #ifdef _WIN32
+            _setmode(_fileno(stdin), _O_BINARY);
+            #endif
+
             uint8_t buf[1024];
             while (true)
             {
