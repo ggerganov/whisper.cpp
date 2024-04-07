@@ -29,10 +29,12 @@ cp -rpv ../ggml/include/ggml/ggml.h         ./ggml.h
 cp -rpv ../ggml/include/ggml/ggml-alloc.h   ./ggml-alloc.h
 cp -rpv ../ggml/include/ggml/ggml-backend.h ./ggml-backend.h
 
-cp -rpv ../ggml/examples/common.h        ./examples/common.h
-cp -rpv ../ggml/examples/common.cpp      ./examples/common.cpp
-cp -rpv ../ggml/examples/common-ggml.h   ./examples/common-ggml.h
-cp -rpv ../ggml/examples/common-ggml.cpp ./examples/common-ggml.cpp
+cp -rpv ../ggml/examples/common.h                   ./examples/common.h
+cp -rpv ../ggml/examples/common.cpp                 ./examples/common.cpp
+cp -rpv ../ggml/examples/common-ggml.h              ./examples/common-ggml.h
+cp -rpv ../ggml/examples/common-ggml.cpp            ./examples/common-ggml.cpp
+cp -rpv ../ggml/examples/whisper/grammar-parser.h   ./examples/grammar-parser.h
+cp -rpv ../ggml/examples/whisper/grammar-parser.cpp ./examples/grammar-parser.cpp
 
 cp -rpv ../ggml/examples/whisper/whisper.h    ./whisper.h
 cp -rpv ../ggml/examples/whisper/whisper.cpp  ./whisper.cpp
