@@ -1148,26 +1148,31 @@ static bool aheads_masks_init(
     }
 
     // Set data on mask tensors
-    // Since this must be backend agnostic, we get tensor data with
-    // ggml_backend_tensor_get, copy our desired values and send it back
-    // to backend with ggml_backend_tensor_set
+    // Since this must be backend agnostic, we write our desired values on mask_data,
+    // and send it to backend with ggml_backend_tensor_set.
+    // Each mask in N_HEADS*N_ALIGNMENT_HEADS, one per text layer containing alignment
+    // heads. Each row of the mask "marks" one alignment head. E.g. if some text layer
+    // has a total of 10 heads and of those, heads 0,5,6 are alignment heads, the mask
+    // should read:
+    // 1 0 0 0 0 0 0 0 0 0
+    // 0 0 0 0 0 1 0 0 0 0
+    // 0 0 0 0 0 0 1 0 0 0
     std::vector<float> mask_data;
     for (int64_t il = 0; il < n_text_layer; ++il) {
         if (aheads_masks.m[il] != nullptr) {
             auto aheads = get_alignment_heads_by_layer(cparams, il, n_text_layer, n_head);
 
-            size_t data_size = aheads_masks.m[il]->ne[0] * aheads_masks.m[il]->ne[1] * sizeof(float);
+            size_t data_size = aheads_masks.m[il]->ne[0] * aheads_masks.m[il]->ne[1];
+            size_t data_size_bytes = data_size * sizeof(float);
             mask_data.resize(data_size);
-            ggml_backend_tensor_get(aheads_masks.m[il], mask_data.data(), 0, data_size);
-            memset(mask_data.data(), 0, data_size);
 
+            std::fill(mask_data.begin(), mask_data.end(), 0);
             for (size_t ih = 0; ih < aheads.size(); ++ih) {
-                size_t pos = (aheads[ih] + (ih * aheads_masks.m[il]->ne[0] * aheads[ih]));
-                float v = 1.0f;
-                memcpy(mask_data.data() + pos, &v, sizeof(float));
+                size_t pos = (aheads[ih] + (ih * aheads_masks.m[il]->ne[0]));
+                mask_data[pos] = 1.0f;
             }
 
-            ggml_backend_tensor_set(aheads_masks.m[il], mask_data.data(), 0, data_size);
+            ggml_backend_tensor_set(aheads_masks.m[il], mask_data.data(), 0, data_size_bytes);
         }
     }
 
