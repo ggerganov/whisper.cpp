@@ -867,6 +867,35 @@ void cb_log_disable(enum ggml_log_level , const char * , void * ) { }
 int main(int argc, char ** argv) {
     whisper_params params;
 
+    // If the only argument starts with "@", read arguments line-by-line
+    // from the given file.
+    std::vector<std::string> vec_args;
+    if (argc == 2 && argv != nullptr && argv[1] != nullptr && argv[1][0] == '@') {
+        // Save the name of the executable.
+        vec_args.push_back(argv[0]);
+
+        // Open the response file.
+        char const * rspfile = argv[1] + sizeof(char);
+        std::ifstream fin(rspfile);
+        if (fin.is_open() == false) {
+            fprintf(stderr, "error: response file '%s' not found\n", rspfile);
+            return 1;
+        }
+
+        // Read the entire response file.
+        std::string line;
+        while (std::getline(fin, line)) {
+            vec_args.push_back(line);
+        }
+
+        // Use the contents of the response file as the command-line arguments.
+        argc = static_cast<int>(vec_args.size());
+        argv = static_cast<char **>(alloca(argc * sizeof (char *)));
+        for (int i = 0; i < argc; ++i) {
+            argv[i] = const_cast<char *>(vec_args[i].c_str());
+        }
+    }
+
     if (whisper_params_parse(argc, argv, params) == false) {
         whisper_print_usage(argc, argv, params);
         return 1;
