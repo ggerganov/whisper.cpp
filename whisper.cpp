@@ -3380,7 +3380,7 @@ struct whisper_context_params whisper_context_default_params() {
     struct whisper_context_params result = {
         /*.use_gpu              =*/ true,
         /*.gpu_device           =*/ 0,
-        /*.fold_lowercase       =*/ false,
+        /*.vocab_lc             =*/ false,
         /*.dtw_token_timestamps =*/ false,
         /*.dtw_aheads_preset    =*/ WHISPER_AHEADS_NONE,
         /*.dtw_n_top            =*/ -1,
