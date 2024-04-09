@@ -5,7 +5,7 @@
 # Usage:
 #
 #   $ cd /path/to/whisper.cpp
-#   $ ./extra/sync-ggml-am.sh -skip hash0,hash1,hash2...
+#   $ ./scripts/sync-ggml-am.sh -skip hash0,hash1,hash2...
 #
 
 set -e
@@ -21,7 +21,7 @@ if [ ! -d $SRC_GGML ]; then
     exit 1
 fi
 
-lc=$(cat $SRC_WHISPER/extra/sync-ggml.last)
+lc=$(cat $SRC_WHISPER/scripts/sync-ggml.last)
 echo "Syncing ggml changes since commit $lc"
 
 to_skip=""
@@ -182,7 +182,7 @@ fi
 
 # update last commit
 cd $SRC_GGML
-git log -1 --format=%H > $SRC_WHISPER/extra/sync-ggml.last
+git log -1 --format=%H > $SRC_WHISPER/scripts/sync-ggml.last
 
 echo "Done"
 

@@ -744,10 +744,10 @@ https://user-images.githubusercontent.com/1991296/199337538-b7b0c7a3-2753-4a88-a
 
 ## Video comparison of different models
 
-Use the [extra/bench-wts.sh](https://github.com/ggerganov/whisper.cpp/blob/master/extra/bench-wts.sh) script to generate a video in the following format:
+Use the [scripts/bench-wts.sh](https://github.com/ggerganov/whisper.cpp/blob/master/scripts/bench-wts.sh) script to generate a video in the following format:
 
 ```bash
-./extra/bench-wts.sh samples/jfk.wav
+./scripts/bench-wts.sh samples/jfk.wav
 ffplay ./samples/jfk.wav.all.mp4
 ```
 
@@ -768,7 +768,7 @@ Additionally a script to run whisper.cpp with different models and audio files i
 You can run it with the following command, by default it will run against any standard model in the models folder.
 
 ```bash
-python3 extra/bench.py -f samples/jfk.wav -t 2,4,8 -p 1,2
+python3 scripts/bench.py -f samples/jfk.wav -t 2,4,8 -p 1,2
 ```
 
 It is written in python with the intention of being easy to modify and extend for your benchmarking use case.
