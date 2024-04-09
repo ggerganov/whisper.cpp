@@ -4553,6 +4553,8 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
         /*.tdrz_enable       =*/ false,
 
+        /* suppress_regex    =*/ nullptr,
+
         /*.initial_prompt    =*/ nullptr,
         /*.prompt_tokens     =*/ nullptr,
         /*.prompt_n_tokens   =*/ 0,
@@ -4794,6 +4796,17 @@ static void whisper_process_logits(
 
         if (params.logits_filter_callback) {
             params.logits_filter_callback(&ctx, &state, tokens_cur.data(), tokens_cur.size(), logits.data(), params.logits_filter_callback_user_data);
+        }
+
+        // suppress any tokens matching a regular expression
+        // ref: https://github.com/openai/whisper/discussions/1041
+        if (params.suppress_regex != nullptr) {
+            std::regex re(params.suppress_regex);
+            for (std::pair<whisper_vocab::token, whisper_vocab::id> token_id : vocab.token_to_id) {
+                if (std::regex_match(token_id.first, re)) {
+                    logits[token_id.second] = -INFINITY;
+                }
+            }
         }
 
         // suppress non-speech tokens
