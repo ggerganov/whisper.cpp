@@ -896,7 +896,7 @@ int main(int argc, char ** argv) {
 
     struct whisper_context_params cparams = whisper_context_default_params();
     cparams.use_gpu = params.use_gpu;
-    cparams.fold_lowercase = params.model_fold_lc;
+    cparams.vocab_lc = params.model_fold_lc;
 
     if (!params.dtw.empty()) {
         cparams.dtw_token_timestamps = true;

@@ -693,7 +693,7 @@ int main(int argc, char ** argv) {
 
     struct whisper_context_params cparams = whisper_context_default_params();
     cparams.use_gpu = params.use_gpu;
-    cparams.fold_lowercase = params.model_fold_lc;
+    cparams.vocab_lc = params.model_fold_lc;
 
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
