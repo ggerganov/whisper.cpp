@@ -1,9 +1,10 @@
-set(CMAKE_CXX_STANDARD 11)
-
 add_subdirectory(libwchess)
+set_target_properties(wchess-core PROPERTIES FOLDER "libs")
 
 if (EMSCRIPTEN)
     add_subdirectory(wchess.wasm)
+    set_target_properties(wchess.wasm PROPERTIES FOLDER "libs")
 else()
     add_subdirectory(wchess.cmd)
+    set_target_properties(wchess PROPERTIES FOLDER "libs")
 endif()

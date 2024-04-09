@@ -5,7 +5,7 @@
 # Usage:
 #
 #   $ cd /path/to/whisper.cpp
-#   $ ./extra/sync-ggml-am.sh -skip hash0,hash1,hash2...
+#   $ ./scripts/sync-ggml-am.sh -skip hash0,hash1,hash2...
 #
 
 set -e
@@ -21,7 +21,7 @@ if [ ! -d $SRC_GGML ]; then
     exit 1
 fi
 
-lc=$(cat $SRC_WHISPER/extra/sync-ggml.last)
+lc=$(cat $SRC_WHISPER/scripts/sync-ggml.last)
 echo "Syncing ggml changes since commit $lc"
 
 to_skip=""
@@ -60,14 +60,19 @@ while read c; do
         src/ggml*.m \
         src/ggml*.metal \
         src/ggml*.cu \
+        src/ggml-cuda/* \
         examples/common.h \
         examples/common.cpp \
         examples/common-ggml.h \
         examples/common-ggml.cpp \
+        examples/whisper/grammar-parser.h \
+        examples/whisper/grammar-parser.cpp \
         examples/whisper/whisper.h \
         examples/whisper/whisper.cpp \
         examples/whisper/main.cpp \
         examples/whisper/quantize.cpp \
+        LICENSE \
+        scripts/gen-authors.sh \
         >> $SRC_WHISPER/ggml-src.patch
 done < $SRC_WHISPER/ggml-commits
 
@@ -98,6 +103,7 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
     # src/ggml-backend-impl.h     -> ggml-backend-impl.h
     # src/ggml-backend.c          -> ggml-backend.c
     # src/ggml-common.h           -> ggml-common.h
+    # src/ggml-cuda/*             -> ggml-cuda/
     # src/ggml-cuda.cu            -> ggml-cuda.cu
     # src/ggml-cuda.h             -> ggml-cuda.h
     # src/ggml-impl.h             -> ggml-impl.h
@@ -119,15 +125,20 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
     # include/ggml/ggml-alloc.h   -> ggml-alloc.h
     # include/ggml/ggml-backend.h -> ggml-backend.h
     #
-    # examples/common.h           -> examples/common.h
-    # examples/common.cpp         -> examples/common.cpp
-    # examples/common-ggml.h      -> examples/common-ggml.h
-    # examples/common-ggml.cpp    -> examples/common-ggml.cpp
+    # examples/common.h                   -> examples/common.h
+    # examples/common.cpp                 -> examples/common.cpp
+    # examples/common-ggml.h              -> examples/common-ggml.h
+    # examples/common-ggml.cpp            -> examples/common-ggml.cpp
+    # examples/whisper/grammar-parser.h   -> examples/grammar-parser.h
+    # examples/whisper/grammar-parser.cpp -> examples/grammar-parser.cpp
     #
     # examples/whisper/whisper.h    -> whisper.h
     # examples/whisper/whisper.cpp  -> whisper.cpp
     # examples/whisper/main.cpp     -> examples/main/main.cpp
     # examples/whisper/quantize.cpp -> examples/quantize/quantize.cpp
+    #
+    # LICENSE                     -> LICENSE
+    # ggml/scripts/gen-authors.sh -> scripts/gen-authors.sh
 
     cat ggml-src.patch | sed \
         -e 's/src\/ggml\.c/ggml.c/g' \
@@ -135,6 +146,7 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
         -e 's/src\/ggml-backend-impl\.h/ggml-backend-impl.h/g' \
         -e 's/src\/ggml-backend\.c/ggml-backend.c/g' \
         -e 's/src\/ggml-common\.h/ggml-common.h/g' \
+        -e 's/src\/ggml-cuda\//ggml-cuda\//g' \
         -e 's/src\/ggml-cuda\.cu/ggml-cuda.cu/g' \
         -e 's/src\/ggml-cuda\.h/ggml-cuda.h/g' \
         -e 's/src\/ggml-impl\.h/ggml-impl.h/g' \
@@ -159,10 +171,14 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
         -e 's/examples\/common\.cpp/examples\/common.cpp/g' \
         -e 's/examples\/common-ggml\.h/examples\/common-ggml.h/g' \
         -e 's/examples\/common-ggml\.cpp/examples\/common-ggml.cpp/g' \
+        -e 's/examples\/whisper\/grammar-parser\.h/examples\/grammar-parser.h/g' \
+        -e 's/examples\/whisper\/grammar-parser\.cpp/examples\/grammar-parser.cpp/g' \
         -e 's/examples\/whisper\/whisper\.h/whisper.h/g' \
         -e 's/examples\/whisper\/whisper\.cpp/whisper.cpp/g' \
         -e 's/examples\/whisper\/main\.cpp/examples\/main\/main.cpp/g' \
         -e 's/examples\/whisper\/quantize\.cpp/examples\/quantize\/quantize.cpp/g' \
+        -e 's/LICENSE/LICENSE/g' \
+        -e 's/ggml\/scripts\/gen-authors\.sh/scripts\/gen-authors.sh/g' \
         > ggml-src.patch.tmp
     mv ggml-src.patch.tmp ggml-src.patch
 
@@ -173,7 +189,7 @@ fi
 
 # update last commit
 cd $SRC_GGML
-git log -1 --format=%H > $SRC_WHISPER/extra/sync-ggml.last
+git log -1 --format=%H > $SRC_WHISPER/scripts/sync-ggml.last
 
 echo "Done"
 

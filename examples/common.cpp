@@ -19,6 +19,11 @@
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 // Function to check if the next argument exists
 std::string get_next_arg(int& i, int argc, char** argv, const std::string& flag, gpt_params& params) {
     if (i + 1 < argc && argv[i + 1][0] != '-') {
@@ -636,6 +641,10 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
 
     if (fname == "-") {
         {
+            #ifdef _WIN32
+            _setmode(_fileno(stdin), _O_BINARY);
+            #endif
+
             uint8_t buf[1024];
             while (true)
             {
@@ -667,21 +676,25 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
 
     if (wav.channels != 1 && wav.channels != 2) {
         fprintf(stderr, "%s: WAV file '%s' must be mono or stereo\n", __func__, fname.c_str());
+        drwav_uninit(&wav);
         return false;
     }
 
     if (stereo && wav.channels != 2) {
         fprintf(stderr, "%s: WAV file '%s' must be stereo for diarization\n", __func__, fname.c_str());
+        drwav_uninit(&wav);
         return false;
     }
 
     if (wav.sampleRate != COMMON_SAMPLE_RATE) {
         fprintf(stderr, "%s: WAV file '%s' must be %i kHz\n", __func__, fname.c_str(), COMMON_SAMPLE_RATE/1000);
+        drwav_uninit(&wav);
         return false;
     }
 
     if (wav.bitsPerSample != 16) {
         fprintf(stderr, "%s: WAV file '%s' must be 16-bit\n", __func__, fname.c_str());
+        drwav_uninit(&wav);
         return false;
     }
 

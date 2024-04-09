@@ -1,5 +1,8 @@
 cmake_minimum_required (VERSION 3.5)
 
+# Allow for the creation of solution folders.
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 project(whisper.cpp VERSION 1.5.4)
 set(SOVERSION 1)
 
@@ -74,9 +77,12 @@ else()
     option(WHISPER_BLAS                  "whisper: use BLAS libraries"                        OFF)
     option(WHISPER_BLAS_VENDOR           "whisper: BLAS library vendor"                       Generic)
     option(WHISPER_OPENBLAS              "whisper: prefer OpenBLAS"                           OFF)
-    option(WHISPER_CUBLAS                "whisper: support for cuBLAS"                        OFF)
+    option(WHISPER_OPENBLAS_INTERFACE64  "whisper: use OpenBLAS w/ 64-bit interface"          OFF)
+    option(WHISPER_CUDA                  "whisper: support for CUDA"                          OFF)
+    option(WHISPER_CUBLAS                "whisper: support for CUDA (deprecated)"             OFF)
     option(WHISPER_HIPBLAS               "whisper: support for hipBLAS"                       OFF)
     option(WHISPER_CLBLAST               "whisper: use CLBlast"                               OFF)
+    option(WHISPER_MKL                   "whisper: use Intel Math Kernel Library (MKL)"       OFF)
     option(WHISPER_SYCL                  "whisper: use SYCL"                                  OFF)
     option(WHISPER_SYCL_F16              "whisper: use 16 bit floats for sycl calculations"   OFF)
 endif()
@@ -206,30 +212,82 @@ endif()
 if (WHISPER_OPENBLAS)
     set(WHISPER_BLAS_VENDOR "OpenBLAS")
     set(WHISPER_BLAS ON)
+    # BLA_PKGCONFIG_BLAS is supported since CMake 3.25.
+    # FindBLAS.cmake pkg-config logic seems incomplete, because when
+    # BLA_SIZEOF_INTEGER is 8, then it should search for blas64 instead of blas.
+    # blas.pc/blas64.pc are not always provided, so let's be more specific
+    # and go with openblas.pc/openblas64.pc if WHISPER_OPENBLAS is on.
+    if (WHISPER_OPENBLAS_INTERFACE64)
+        set(WHISPER_BLAS_LIB "openblas64")
+    else ()
+        set(WHISPER_BLAS_LIB "openblas")
+    endif ()
+    set(BLA_PKGCONFIG_BLAS ${WHISPER_BLAS_LIB})
+    # OpenBLAS prebuilt libraries for Windows do not have "64" suffix in filename.
+    # (But .pc file has "64" suffix in filename for USE_64BITINT=1 Windows build.)
+    if (MSVC)
+        set(WHISPER_BLAS_LIB "openblas")
+    endif ()
 endif()
 
 if (WHISPER_BLAS)
-    if (WIN32)
-        if(DEFINED ENV{OPENBLAS_PATH})
-            set(BLAS_LIBRARIES $ENV{OPENBLAS_PATH}/lib/libopenblas.dll.a)
-            message(STATUS "Libraries ${BLAS_LIBRARIES}")
-            set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_OPENBLAS)
-            include_directories($ENV{OPENBLAS_PATH}/include)
-            set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} ${BLAS_LIBRARIES})
+    if (NOT "$ENV{OPENBLAS_PATH}" STREQUAL "")
+        if (WHISPER_STATIC)
+            set(WHISPER_BLAS_LIB_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
+            set(WHISPER_BLAS_LIB_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
         else ()
-            message(FATAL_ERROR "BLAS library was not found. Environment variable OPENBLAS_PATH not defined.")
+            if (CMAKE_IMPORT_LIBRARY_SUFFIX)
+                set(WHISPER_BLAS_LIB_PREFIX ${CMAKE_IMPORT_LIBRARY_PREFIX})
+                set(WHISPER_BLAS_LIB_SUFFIX ${CMAKE_IMPORT_LIBRARY_SUFFIX})
+            else ()
+                set(WHISPER_BLAS_LIB_PREFIX ${CMAKE_SHARED_LIBRARY_PREFIX})
+                set(WHISPER_BLAS_LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
+            endif ()
         endif ()
+        # OpenBLAS prebuilt libraries hardcode "lib" prefix in filename even on Windows
+        if (WHISPER_OPENBLAS)
+            set(WHISPER_BLAS_LIB_PREFIX "lib")
+        endif ()
+        message(STATUS "BLAS compatible library path provided")
+        set(BLAS_LIBRARIES "$ENV{OPENBLAS_PATH}/lib/${WHISPER_BLAS_LIB_PREFIX}${WHISPER_BLAS_LIB}${WHISPER_BLAS_LIB_SUFFIX}")
+        message(STATUS "Libraries ${BLAS_LIBRARIES}")
+        set(BLAS_INCLUDE_DIRS "$ENV{OPENBLAS_PATH}/include")
+        message(STATUS "Include dirs ${BLAS_INCLUDE_DIRS}")
+        if (NOT EXISTS "${BLAS_LIBRARIES}")
+            message(FATAL_ERROR "BLAS library was not found. Environment variable OPENBLAS_PATH misdefined.")
+        endif ()
+        set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_OPENBLAS)
+        include_directories(${BLAS_INCLUDE_DIRS})
+        set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} ${BLAS_LIBRARIES})
     else ()
-        set(BLA_STATIC 1)
+        if (WHISPER_STATIC)
+            # FindBLAS.cmake pkg-config logic seems incomplete, because when
+            # BLA_STATIC is on, then it should use pkg_check_modules_static
+            # instead of pkg_check_modules.
+            # Some manual variable overriding may be necessary if you don't
+            # achieve desired results.
+            set(BLA_STATIC 1)
+        endif ()
         set(BLA_VENDOR ${WHISPER_BLAS_VENDOR})
-        set(BLA_SIZEOF_INTEGER 8)
+        if (WHISPER_OPENBLAS_INTERFACE64)
+            set(BLA_SIZEOF_INTEGER 8)
+        else ()
+            set(BLA_SIZEOF_INTEGER 4)
+        endif()
         set(BLA_PREFER_PKGCONFIG 1)
         find_package(BLAS)
 
         if(BLAS_FOUND)
             message(STATUS "BLAS compatible library found")
             message(STATUS "Libraries ${BLAS_LIBRARIES}")
-            find_path(BLAS_INCLUDE_DIRS cblas.h /usr/include/openblas /usr/local/include/openblas $ENV{BLAS_HOME}/include)
+            if (NOT DEFINED BLAS_INCLUDE_DIRS)
+                if (PKGC_BLAS_FOUND)
+                    set(BLAS_INCLUDE_DIRS "${PKGC_BLAS_INCLUDE_DIRS}")
+                else ()
+                    find_path(BLAS_INCLUDE_DIRS cblas.h /usr/include/openblas)
+                endif()
+            endif()
+            message(STATUS "Include dirs ${BLAS_INCLUDE_DIRS}")
             set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_OPENBLAS)
             include_directories(${BLAS_INCLUDE_DIRS})
             set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} ${BLAS_LIBRARIES})
@@ -239,7 +297,19 @@ if (WHISPER_BLAS)
     endif ()
 endif ()
 
+if (WHISPER_MKL)
+    find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
+    message(STATUS "Imported oneMKL targets: ${MKL_IMPORTED_TARGETS}")
+    set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_OPENBLAS)
+    set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_BLAS_USE_MKL)
+endif()
+
 if (WHISPER_CUBLAS)
+    message(WARNING "WHISPER_CUBLAS is deprecated and will be removed in the future.\nUse WHISPER_CUDA instead")
+    set(WHISPER_CUDA ON)
+endif()
+
+if (WHISPER_CUDA)
     cmake_minimum_required(VERSION 3.17)
 
     find_package(CUDAToolkit)
@@ -249,9 +319,11 @@ if (WHISPER_CUBLAS)
 
         enable_language(CUDA)
 
-        set(GGML_SOURCES_CUDA ggml-cuda.cu ggml-cuda.h)
+        file(GLOB   GGML_SOURCES_CUDA "ggml-cuda/*.cu")
+        list(APPEND GGML_SOURCES_CUDA  ggml-cuda.h)
+        list(APPEND GGML_SOURCES_CUDA  ggml-cuda.cu)
 
-        add_compile_definitions(GGML_USE_CUBLAS)
+        add_compile_definitions(GGML_USE_CUDA)
 
         if (WHISPER_STATIC)
             if (WIN32)
@@ -286,7 +358,7 @@ if (WHISPER_HIPBLAS)
 
     if (${hipblas_FOUND} AND ${hip_FOUND})
         message(STATUS "HIP and hipBLAS found")
-        add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUBLAS)
+        add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA)
         add_library(ggml-rocm OBJECT ggml-cuda.cu ggml-cuda.h)
         set_property(TARGET ggml-rocm PROPERTY POSITION_INDEPENDENT_CODE ON)
         set_source_files_properties(ggml-cuda.cu PROPERTIES LANGUAGE CXX)
@@ -500,6 +572,7 @@ if (WHISPER_COREML)
     set_target_properties(${TARGET} PROPERTIES
         COMPILE_FLAGS "-fobjc-arc"
         )
+    set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
 endif()
 
 if (WHISPER_OPENVINO)
@@ -518,6 +591,7 @@ if (WHISPER_OPENVINO)
     set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_USE_OPENVINO)
 
     target_link_libraries(${TARGET} PRIVATE openvino::runtime)
+    set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
 endif()
 
 #
@@ -562,6 +636,10 @@ endif()
 
 if (WHISPER_OPENVINO)
     target_link_libraries(${TARGET} PRIVATE whisper.openvino)
+endif()
+
+if (WHISPER_MKL)
+    target_link_libraries(${TARGET} PUBLIC MKL::MKL)
 endif()
 
 if (MSVC)
@@ -616,6 +694,7 @@ target_compile_definitions(${TARGET} PUBLIC
     )
 
 set_target_properties(${TARGET} PROPERTIES PUBLIC_HEADER "ggml.h;whisper.h")
+set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
 
 include(GNUInstallDirs)
 
