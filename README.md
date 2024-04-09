@@ -455,6 +455,21 @@ make clean
 WHISPER_OPENBLAS=1 make -j
 ```
 
+## BLAS CPU support via Intel MKL
+
+Encoder processing can be accelerated on the CPU via the BLAS compatible interface of Intel's Math Kernel Library.
+First, make sure you have installed Intel's MKL runtime and development packages: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl-download.html
+
+Now build `whisper.cpp` with Intel MKL BLAS support:
+
+```
+source /opt/intel/oneapi/setvars.sh
+mkdir build
+cd build
+cmake -DWHISPER_MKL=ON ..
+WHISPER_MKL=1 make -j
+```
+
 ## Docker
 
 ### Prerequisites
