@@ -41,3 +41,5 @@ cp -rpv ../ggml/examples/whisper/whisper.cpp  ./whisper.cpp
 cp -rpv ../ggml/examples/whisper/main.cpp     ./examples/main/main.cpp
 cp -rpv ../ggml/examples/whisper/quantize.cpp ./examples/quantize/quantize.cpp
 
+cp -rpv ../LICENSE                     ./LICENSE
+cp -rpv ../ggml/scripts/gen-authors.sh ./scripts/gen-authors.sh
