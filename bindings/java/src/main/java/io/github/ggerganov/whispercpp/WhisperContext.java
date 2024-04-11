@@ -3,7 +3,7 @@ package io.github.ggerganov.whispercpp;
 import com.sun.jna.Structure;
 import com.sun.jna.ptr.PointerByReference;
 import io.github.ggerganov.whispercpp.ggml.GgmlType;
-import io.github.ggerganov.whispercpp.WhisperModel;
+import io.github.ggerganov.whispercpp.model.WhisperModel;
 import io.github.ggerganov.whispercpp.params.WhisperContextParams;
 
 import java.util.List;
