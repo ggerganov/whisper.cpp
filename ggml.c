@@ -293,9 +293,17 @@ inline static void * ggml_calloc(size_t num, size_t size) {
 #else
 #include <cblas.h>
 #endif
+#elif defined(GGML_USE_CUBLAS)
+#include "ggml-cuda.h"
 #elif defined(GGML_USE_CLBLAST)
 #include "ggml-opencl.h"
+#elif defined(GGML_USE_VULKAN)
+#include "ggml-vulkan.h"
+#elif defined(GGML_USE_SYCL)
+#include "ggml-sycl.h"
 #endif
+
+#include "ggml-dynamic.h"
 
 // floating point type used to accumulate sums
 typedef double ggml_float;
@@ -363,6 +371,16 @@ void ggml_fp16_to_fp32_row(const ggml_fp16_t * x, float * y, int64_t n) {
 }
 
 void ggml_fp32_to_fp16_row(const float * x, ggml_fp16_t * y, int64_t n) {
+#ifdef DYNAMIC_ARCH
+    if (cpu_has_f16c) {
+        ggml_fp32_to_fp16_row_f16c(x, y, n);
+    } else {
+        int i = 0;
+        for (; i < n; i++) {
+            y[i] = GGML_FP32_TO_FP16(x[i]);
+        }
+    }
+#else
     int64_t i = 0;
 #if defined(__F16C__)
     for (; i + 7 < n; i += 8) {
@@ -379,9 +397,22 @@ void ggml_fp32_to_fp16_row(const float * x, ggml_fp16_t * y, int64_t n) {
     for (; i < n; i++) {
         y[i] = GGML_FP32_TO_FP16(x[i]);
     }
+#endif
 }
 
 void ggml_bf16_to_fp32_row(const ggml_bf16_t * x, float * y, int64_t n) {
+#ifdef DYNAMIC_ARCH
+    if (cpu_has_avx512f) {
+        ggml_bf16_to_fp32_row_avx512(x, y, n);
+    } else if (cpu_has_avx2) {
+        ggml_bf16_to_fp32_row_avx2(x, y, n);
+    } else {
+        int64_t i = 0;
+        for (; i < n; i++) {
+            y[i] = GGML_BF16_TO_FP32(x[i]);
+        }
+    }
+#else
     int64_t i = 0;
 #if defined(__AVX512F__)
     for (; i + 16 <= n; i += 16) {
@@ -407,9 +438,20 @@ void ggml_bf16_to_fp32_row(const ggml_bf16_t * x, float * y, int64_t n) {
     for (; i < n; i++) {
         y[i] = GGML_BF16_TO_FP32(x[i]);
     }
+#endif
 }
 
 void ggml_fp32_to_bf16_row(const float * x, ggml_bf16_t * y, int64_t n) {
+#ifdef DYNAMIC_ARCH
+    if (cpu_has_avx512bf16) {
+        ggml_fp32_to_bf16_row_avx512bf16(x, y, n);
+    } else {
+        int i = 0;
+        for (; i < n; i++) {
+            y[i] = GGML_FP32_TO_BF16(x[i]);
+        }
+    }
+#else
   int i = 0;
 #if defined(__AVX512BF16__)
   for (; i + 32 <= n; i += 32) {
@@ -422,6 +464,7 @@ void ggml_fp32_to_bf16_row(const float * x, ggml_bf16_t * y, int64_t n) {
     for (; i < n; i++) {
         y[i] = GGML_FP32_TO_BF16(x[i]);
     }
+#endif
 }
 
 bool ggml_guid_matches(ggml_guid_t guid_a, ggml_guid_t guid_b) {
@@ -938,6 +981,11 @@ ggml_type_traits_t ggml_internal_get_type_traits(enum ggml_type type) {
 //   number of elements to fit in a single register
 //
 
+
+#define DYNAMIC_ARCH_STAGE 1
+#include "ggml-dynamic.h"
+
+
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_FMA)
 
 #define GGML_SIMD
@@ -1053,204 +1101,75 @@ ggml_type_traits_t ggml_internal_get_type_traits(enum ggml_type type) {
     #define GGML_F16_VEC_REDUCE         GGML_F32Cx4_REDUCE
 #endif
 
-#elif defined(__AVX512F__)
+#elif defined(__AVX512F__) && !defined(DYNAMIC_ARCH)
 
 #define GGML_SIMD
 
 // F32 AVX512
 
-#define GGML_F32_STEP 64
-#define GGML_F32_EPR  16
+#define GGML_F32_STEP GGML_F32_AVX512_STEP
+#define GGML_F32_EPR  GGML_F32_AVX512_EPR
 
-#define GGML_F32x16         __m512
-#define GGML_F32x16_ZERO    _mm512_setzero_ps()
-#define GGML_F32x16_SET1(x) _mm512_set1_ps(x)
-#define GGML_F32x16_LOAD    _mm512_loadu_ps
-#define GGML_F32x16_STORE   _mm512_storeu_ps
-// _mm512_fmadd_ps is defined in AVX512F so no guard is required
-#define GGML_F32x16_FMA(a, b, c) _mm512_fmadd_ps(b, c, a)
-#define GGML_F32x16_ADD     _mm512_add_ps
-#define GGML_F32x16_MUL     _mm512_mul_ps
-#define GGML_F32x16_REDUCE(res, x)                                    \
-do {                                                                  \
-    int offset = GGML_F32_ARR >> 1;                                   \
-    for (int i = 0; i < offset; ++i) {                                \
-        x[i] = _mm512_add_ps(x[i], x[offset+i]);                      \
-    }                                                                 \
-    offset >>= 1;                                                     \
-    for (int i = 0; i < offset; ++i) {                                \
-        x[i] = _mm512_add_ps(x[i], x[offset+i]);                      \
-    }                                                                 \
-    offset >>= 1;                                                     \
-    for (int i = 0; i < offset; ++i) {                                \
-        x[i] = _mm512_add_ps(x[i], x[offset+i]);                      \
-    }                                                                 \
-    res = _mm512_reduce_add_ps(x[0]);                                 \
-} while (0)
-
-// TODO: is this optimal ?
-
-#define GGML_F32_VEC        GGML_F32x16
-#define GGML_F32_VEC_ZERO   GGML_F32x16_ZERO
-#define GGML_F32_VEC_SET1   GGML_F32x16_SET1
-#define GGML_F32_VEC_LOAD   GGML_F32x16_LOAD
-#define GGML_F32_VEC_STORE  GGML_F32x16_STORE
-#define GGML_F32_VEC_FMA    GGML_F32x16_FMA
-#define GGML_F32_VEC_ADD    GGML_F32x16_ADD
-#define GGML_F32_VEC_MUL    GGML_F32x16_MUL
-#define GGML_F32_VEC_REDUCE GGML_F32x16_REDUCE
+#define GGML_F32_VEC        GGML_F32_AVX512_VEC
+#define GGML_F32_VEC_ZERO   GGML_F32_AVX512_VEC_ZERO
+#define GGML_F32_VEC_SET1   GGML_F32_AVX512_VEC_SET1
+#define GGML_F32_VEC_LOAD   GGML_F32_AVX512_VEC_LOAD
+#define GGML_F32_VEC_STORE  GGML_F32_AVX512_VEC_STORE
+#define GGML_F32_VEC_FMA    GGML_F32_AVX512_VEC_FMA
+#define GGML_F32_VEC_ADD    GGML_F32_AVX512_VEC_ADD
+#define GGML_F32_VEC_MUL    GGML_F32_AVX512_VEC_MUL
+#define GGML_F32_VEC_REDUCE GGML_F32_AVX512_VEC_REDUCE
 
 // F16 AVX512
 
 // F16 AVX
 
-#define GGML_F16_STEP 64
-#define GGML_F16_EPR  16
+#define GGML_F16_STEP GGML_F16_AVX512_STEP
+#define GGML_F16_EPR  GGML_F16_AVX512_EPR
 
-// AVX512 has FP16 extension (AVX512_FP16) but I don't have it on my machine so I use FP32 instead
+#define GGML_F16_VEC                GGML_F16_AVX512_VEC
+#define GGML_F16_VEC_ZERO           GGML_F16_AVX512_VEC_ZERO
+#define GGML_F16_VEC_SET1           GGML_F16_AVX512_VEC_SET1
+#define GGML_F16_VEC_LOAD(p, i)     GGML_F16_AVX512_VEC_LOAD(p, i)
+#define GGML_F16_VEC_STORE(p, r, i) GGML_F16_AVX512_VEC_STORE(p, r, i)
+#define GGML_F16_VEC_FMA            GGML_F16_AVX512_VEC_FMA
+#define GGML_F16_VEC_ADD            GGML_F16_AVX512_VEC_ADD
+#define GGML_F16_VEC_MUL            GGML_F16_AVX512_VEC_MUL
+#define GGML_F16_VEC_REDUCE         GGML_F16_AVX512_VEC_REDUCE
 
-#define GGML_F32Cx16             __m512
-#define GGML_F32Cx16_ZERO        _mm512_setzero_ps()
-#define GGML_F32Cx16_SET1(x)     _mm512_set1_ps(x)
-
-// unlike  _mm256_cvt intrinsics that require F16C, _mm512_cvt is defined in AVX512F
-// so F16C guard isn't required
-#define GGML_F32Cx16_LOAD(x)     _mm512_cvtph_ps(_mm256_loadu_si256((const __m256i *)(x)))
-#define GGML_F32Cx16_STORE(x, y) _mm256_storeu_si256((__m256i *)(x), _mm512_cvtps_ph(y, 0))
-
-#define GGML_F32Cx16_FMA(a, b, c) _mm512_fmadd_ps(b, c, a)
-#define GGML_F32Cx16_ADD         _mm512_add_ps
-#define GGML_F32Cx16_MUL         _mm512_mul_ps
-#define GGML_F32Cx16_REDUCE(res, x)                               \
-do {                                                              \
-    int offset = GGML_F32_ARR >> 1;                               \
-    for (int i = 0; i < offset; ++i) {                            \
-        x[i] = _mm512_add_ps(x[i], x[offset+i]);                  \
-    }                                                             \
-    offset >>= 1;                                                 \
-    for (int i = 0; i < offset; ++i) {                            \
-        x[i] = _mm512_add_ps(x[i], x[offset+i]);                  \
-    }                                                             \
-    offset >>= 1;                                                 \
-    for (int i = 0; i < offset; ++i) {                            \
-        x[i] = _mm512_add_ps(x[i], x[offset+i]);                  \
-    }                                                             \
-    res = _mm512_reduce_add_ps(x[0]);                             \
-} while (0)
-
-#define GGML_F16_VEC                GGML_F32Cx16
-#define GGML_F16_VEC_ZERO           GGML_F32Cx16_ZERO
-#define GGML_F16_VEC_SET1           GGML_F32Cx16_SET1
-#define GGML_F16_VEC_LOAD(p, i)     GGML_F32Cx16_LOAD(p)
-#define GGML_F16_VEC_STORE(p, r, i) GGML_F32Cx16_STORE(p, r[i])
-#define GGML_F16_VEC_FMA            GGML_F32Cx16_FMA
-#define GGML_F16_VEC_ADD            GGML_F32Cx16_ADD
-#define GGML_F16_VEC_MUL            GGML_F32Cx16_MUL
-#define GGML_F16_VEC_REDUCE         GGML_F32Cx16_REDUCE
-
-#elif defined(__AVX__)
+#elif defined(__AVX__) && !defined(DYNAMIC_ARCH)
 
 #define GGML_SIMD
 
 // F32 AVX
 
-#define GGML_F32_STEP 32
-#define GGML_F32_EPR  8
+#define GGML_F32_STEP GGML_F32_AVX_STEP
+#define GGML_F32_EPR  GGML_F32_AVX_EPR
 
-#define GGML_F32x8         __m256
-#define GGML_F32x8_ZERO    _mm256_setzero_ps()
-#define GGML_F32x8_SET1(x) _mm256_set1_ps(x)
-#define GGML_F32x8_LOAD    _mm256_loadu_ps
-#define GGML_F32x8_STORE   _mm256_storeu_ps
-#if defined(__FMA__)
-    #define GGML_F32x8_FMA(a, b, c) _mm256_fmadd_ps(b, c, a)
-#else
-    #define GGML_F32x8_FMA(a, b, c) _mm256_add_ps(_mm256_mul_ps(b, c), a)
-#endif
-#define GGML_F32x8_ADD     _mm256_add_ps
-#define GGML_F32x8_MUL     _mm256_mul_ps
-#define GGML_F32x8_REDUCE(res, x)                                 \
-do {                                                              \
-    int offset = GGML_F32_ARR >> 1;                               \
-    for (int i = 0; i < offset; ++i) {                            \
-        x[i] = _mm256_add_ps(x[i], x[offset+i]);                  \
-    }                                                             \
-    offset >>= 1;                                                 \
-    for (int i = 0; i < offset; ++i) {                            \
-        x[i] = _mm256_add_ps(x[i], x[offset+i]);                  \
-    }                                                             \
-    offset >>= 1;                                                 \
-    for (int i = 0; i < offset; ++i) {                            \
-        x[i] = _mm256_add_ps(x[i], x[offset+i]);                  \
-    }                                                             \
-    const __m128 t0 = _mm_add_ps(_mm256_castps256_ps128(x[0]),    \
-                                 _mm256_extractf128_ps(x[0], 1)); \
-    const __m128 t1 = _mm_hadd_ps(t0, t0);                        \
-    res = (ggml_float) _mm_cvtss_f32(_mm_hadd_ps(t1, t1));        \
-} while (0)
-// TODO: is this optimal ?
-
-#define GGML_F32_VEC        GGML_F32x8
-#define GGML_F32_VEC_ZERO   GGML_F32x8_ZERO
-#define GGML_F32_VEC_SET1   GGML_F32x8_SET1
-#define GGML_F32_VEC_LOAD   GGML_F32x8_LOAD
-#define GGML_F32_VEC_STORE  GGML_F32x8_STORE
-#define GGML_F32_VEC_FMA    GGML_F32x8_FMA
-#define GGML_F32_VEC_ADD    GGML_F32x8_ADD
-#define GGML_F32_VEC_MUL    GGML_F32x8_MUL
-#define GGML_F32_VEC_REDUCE GGML_F32x8_REDUCE
+#define GGML_F32_VEC        GGML_F32_AVX_VEC
+#define GGML_F32_VEC_ZERO   GGML_F32_AVX_VEC_ZERO
+#define GGML_F32_VEC_SET1   GGML_F32_AVX_VEC_SET1
+#define GGML_F32_VEC_LOAD   GGML_F32_AVX_VEC_LOAD
+#define GGML_F32_VEC_STORE  GGML_F32_AVX_VEC_STORE
+#define GGML_F32_VEC_FMA    GGML_F32_AVX_VEC_FMA
+#define GGML_F32_VEC_ADD    GGML_F32_AVX_VEC_ADD
+#define GGML_F32_VEC_MUL    GGML_F32_AVX_VEC_MUL
+#define GGML_F32_VEC_REDUCE GGML_F32_AVX_VEC_REDUCE
 
 // F16 AVX
 
-#define GGML_F16_STEP 32
-#define GGML_F16_EPR  8
+#define GGML_F16_STEP GGML_F16_AVX_STEP
+#define GGML_F16_EPR  GGML_F16_AVX_EPR
 
-// F16 arithmetic is not supported by AVX, so we use F32 instead
-
-#define GGML_F32Cx8             __m256
-#define GGML_F32Cx8_ZERO        _mm256_setzero_ps()
-#define GGML_F32Cx8_SET1(x)     _mm256_set1_ps(x)
-
-#if defined(__F16C__)
-// the  _mm256_cvt intrinsics require F16C
-#define GGML_F32Cx8_LOAD(x)     _mm256_cvtph_ps(_mm_loadu_si128((const __m128i *)(x)))
-#define GGML_F32Cx8_STORE(x, y) _mm_storeu_si128((__m128i *)(x), _mm256_cvtps_ph(y, 0))
-#else
-static inline __m256 __avx_f32cx8_load(ggml_fp16_t *x) {
-    float tmp[8];
-
-    for (int i = 0; i < 8; i++) {
-        tmp[i] = GGML_FP16_TO_FP32(x[i]);
-    }
-
-    return _mm256_loadu_ps(tmp);
-}
-static inline void __avx_f32cx8_store(ggml_fp16_t *x, __m256 y) {
-    float arr[8];
-
-    _mm256_storeu_ps(arr, y);
-
-    for (int i = 0; i < 8; i++)
-        x[i] = GGML_FP32_TO_FP16(arr[i]);
-}
-#define GGML_F32Cx8_LOAD(x)     __avx_f32cx8_load(x)
-#define GGML_F32Cx8_STORE(x, y) __avx_f32cx8_store(x, y)
-#endif
-
-#define GGML_F32Cx8_FMA         GGML_F32x8_FMA
-#define GGML_F32Cx8_ADD         _mm256_add_ps
-#define GGML_F32Cx8_MUL         _mm256_mul_ps
-#define GGML_F32Cx8_REDUCE      GGML_F32x8_REDUCE
-
-#define GGML_F16_VEC                GGML_F32Cx8
-#define GGML_F16_VEC_ZERO           GGML_F32Cx8_ZERO
-#define GGML_F16_VEC_SET1           GGML_F32Cx8_SET1
-#define GGML_F16_VEC_LOAD(p, i)     GGML_F32Cx8_LOAD(p)
-#define GGML_F16_VEC_STORE(p, r, i) GGML_F32Cx8_STORE(p, r[i])
-#define GGML_F16_VEC_FMA            GGML_F32Cx8_FMA
-#define GGML_F16_VEC_ADD            GGML_F32Cx8_ADD
-#define GGML_F16_VEC_MUL            GGML_F32Cx8_MUL
-#define GGML_F16_VEC_REDUCE         GGML_F32Cx8_REDUCE
+#define GGML_F16_VEC                GGML_F16_AVX_VEC
+#define GGML_F16_VEC_ZERO           GGML_F16_AVX_VEC_ZERO
+#define GGML_F16_VEC_SET1           GGML_F16_AVX_VEC_SET1
+#define GGML_F16_VEC_LOAD(p, i)     GGML_F16_AVX_VEC_LOAD(p, i)
+#define GGML_F16_VEC_STORE(p, r, i) GGML_F16_AVX_VEC_STORE(p, r, i)
+#define GGML_F16_VEC_FMA            GGML_F16_AVX_VEC_FMA
+#define GGML_F16_VEC_ADD            GGML_F16_AVX_VEC_ADD
+#define GGML_F16_VEC_MUL            GGML_F16_AVX_VEC_MUL
+#define GGML_F16_VEC_REDUCE         GGML_F16_AVX_VEC_REDUCE
 
 #elif defined(__POWER9_VECTOR__)
 
@@ -1432,103 +1351,43 @@ inline static void __wasm_f16x4_store(ggml_fp16_t * p, v128_t x) {
 #define GGML_F16_VEC_MUL            GGML_F16x4_MUL
 #define GGML_F16_VEC_REDUCE         GGML_F16x4_REDUCE
 
-#elif defined(__SSE3__)
+#elif defined(__SSE3__) && !defined(DYNAMIC_ARCH)
 
 #define GGML_SIMD
 
 // F32 SSE
 
-#define GGML_F32_STEP 32
-#define GGML_F32_EPR  4
+#define GGML_F32_STEP GGML_F32_SSE_STEP
+#define GGML_F32_EPR  GGML_F32_SSE_EPR
 
-#define GGML_F32x4         __m128
-#define GGML_F32x4_ZERO    _mm_setzero_ps()
-#define GGML_F32x4_SET1(x) _mm_set1_ps(x)
-#define GGML_F32x4_LOAD    _mm_loadu_ps
-#define GGML_F32x4_STORE   _mm_storeu_ps
-#if defined(__FMA__)
-    // TODO: Does this work?
-    #define GGML_F32x4_FMA(a, b, c) _mm_fmadd_ps(b, c, a)
-#else
-    #define GGML_F32x4_FMA(a, b, c) _mm_add_ps(_mm_mul_ps(b, c), a)
-#endif
-#define GGML_F32x4_ADD     _mm_add_ps
-#define GGML_F32x4_MUL     _mm_mul_ps
-#define GGML_F32x4_REDUCE(res, x)                                 \
-{                                                                 \
-    int offset = GGML_F32_ARR >> 1;                               \
-    for (int i = 0; i < offset; ++i) {                            \
-        x[i] = _mm_add_ps(x[i], x[offset+i]);                     \
-    }                                                             \
-    offset >>= 1;                                                 \
-    for (int i = 0; i < offset; ++i) {                            \
-        x[i] = _mm_add_ps(x[i], x[offset+i]);                     \
-    }                                                             \
-    offset >>= 1;                                                 \
-    for (int i = 0; i < offset; ++i) {                            \
-        x[i] = _mm_add_ps(x[i], x[offset+i]);                     \
-    }                                                             \
-    const __m128 t0 = _mm_hadd_ps(x[0], x[0]);                    \
-    res = (ggml_float) _mm_cvtss_f32(_mm_hadd_ps(t0, t0));        \
-}
-// TODO: is this optimal ?
-
-#define GGML_F32_VEC        GGML_F32x4
-#define GGML_F32_VEC_ZERO   GGML_F32x4_ZERO
-#define GGML_F32_VEC_SET1   GGML_F32x4_SET1
-#define GGML_F32_VEC_LOAD   GGML_F32x4_LOAD
-#define GGML_F32_VEC_STORE  GGML_F32x4_STORE
-#define GGML_F32_VEC_FMA    GGML_F32x4_FMA
-#define GGML_F32_VEC_ADD    GGML_F32x4_ADD
-#define GGML_F32_VEC_MUL    GGML_F32x4_MUL
-#define GGML_F32_VEC_REDUCE GGML_F32x4_REDUCE
+#define GGML_F32_VEC        GGML_F32_SSE_VEC
+#define GGML_F32_VEC_ZERO   GGML_F32_SSE_VEC_ZERO
+#define GGML_F32_VEC_SET1   GGML_F32_SSE_VEC_SET1
+#define GGML_F32_VEC_LOAD   GGML_F32_SSE_VEC_LOAD
+#define GGML_F32_VEC_STORE  GGML_F32_SSE_VEC_STORE
+#define GGML_F32_VEC_FMA    GGML_F32_SSE_VEC_FMA
+#define GGML_F32_VEC_ADD    GGML_F32_SSE_VEC_ADD
+#define GGML_F32_VEC_MUL    GGML_F32_SSE_VEC_MUL
+#define GGML_F32_VEC_REDUCE GGML_F32_SSE_VEC_REDUCE
 
 // F16 SSE
 
-#define GGML_F16_STEP 32
-#define GGML_F16_EPR  4
+#define GGML_F16_STEP GGML_F16_SSE_STEP
+#define GGML_F16_EPR  GGML_F16_SSE_EPR
 
-static inline __m128 __sse_f16x4_load(ggml_fp16_t *x) {
-    float tmp[4];
+#define GGML_F16_VEC                 GGML_F16_SSE_VEC
+#define GGML_F16_VEC_ZERO            GGML_F16_SSE_VEC_ZERO
+#define GGML_F16_VEC_SET1            GGML_F16_SSE_VEC_SET1
+#define GGML_F16_VEC_LOAD(p, i)      GGML_F16_SSE_VEC_LOAD(p, i)
+#define GGML_F16_VEC_STORE(p, r, i)  GGML_F16_SSE_VEC_STORE(p, r, i)
+#define GGML_F16_VEC_FMA             GGML_F16_SSE_VEC_FMA
+#define GGML_F16_VEC_ADD             GGML_F16_SSE_VEC_ADD
+#define GGML_F16_VEC_MUL             GGML_F16_SSE_VEC_MUL
+#define GGML_F16_VEC_REDUCE          GGML_F16_SSE_VEC_REDUCE
 
-    tmp[0] = GGML_FP16_TO_FP32(x[0]);
-    tmp[1] = GGML_FP16_TO_FP32(x[1]);
-    tmp[2] = GGML_FP16_TO_FP32(x[2]);
-    tmp[3] = GGML_FP16_TO_FP32(x[3]);
+#elif defined(DYNAMIC_ARCH)
 
-    return _mm_loadu_ps(tmp);
-}
-
-static inline void __sse_f16x4_store(ggml_fp16_t *x, __m128 y) {
-    float arr[4];
-
-    _mm_storeu_ps(arr, y);
-
-    x[0] = GGML_FP32_TO_FP16(arr[0]);
-    x[1] = GGML_FP32_TO_FP16(arr[1]);
-    x[2] = GGML_FP32_TO_FP16(arr[2]);
-    x[3] = GGML_FP32_TO_FP16(arr[3]);
-}
-
-#define GGML_F32Cx4             __m128
-#define GGML_F32Cx4_ZERO        _mm_setzero_ps()
-#define GGML_F32Cx4_SET1(x)     _mm_set1_ps(x)
-#define GGML_F32Cx4_LOAD(x)     __sse_f16x4_load(x)
-#define GGML_F32Cx4_STORE(x, y) __sse_f16x4_store(x, y)
-#define GGML_F32Cx4_FMA         GGML_F32x4_FMA
-#define GGML_F32Cx4_ADD         _mm_add_ps
-#define GGML_F32Cx4_MUL         _mm_mul_ps
-#define GGML_F32Cx4_REDUCE      GGML_F32x4_REDUCE
-
-#define GGML_F16_VEC                 GGML_F32Cx4
-#define GGML_F16_VEC_ZERO            GGML_F32Cx4_ZERO
-#define GGML_F16_VEC_SET1            GGML_F32Cx4_SET1
-#define GGML_F16_VEC_LOAD(p, i)      GGML_F32Cx4_LOAD(p)
-#define GGML_F16_VEC_STORE(p, r, i)  GGML_F32Cx4_STORE(p, r[i])
-#define GGML_F16_VEC_FMA             GGML_F32Cx4_FMA
-#define GGML_F16_VEC_ADD             GGML_F32Cx4_ADD
-#define GGML_F16_VEC_MUL             GGML_F32Cx4_MUL
-#define GGML_F16_VEC_REDUCE          GGML_F32Cx4_REDUCE
+#define GGML_SIMD
 
 #endif
 
@@ -1538,6 +1397,19 @@ static inline void __sse_f16x4_store(ggml_fp16_t *x, __m128 y) {
 #define GGML_F32_ARR (GGML_F32_STEP/GGML_F32_EPR)
 #define GGML_F16_ARR (GGML_F16_STEP/GGML_F16_EPR)
 #endif
+#if defined(DYNAMIC_ARCH) || defined(GGML_SIMD)
+#define GGML_F32_AVX512_ARR (GGML_F32_AVX512_STEP/GGML_F32_AVX512_EPR)
+#define GGML_F16_AVX512_ARR (GGML_F16_AVX512_STEP/GGML_F16_AVX512_EPR)
+#define GGML_F32_AVX_ARR (GGML_F32_AVX_STEP/GGML_F32_AVX_EPR)
+#define GGML_F16_AVX_ARR (GGML_F16_AVX_STEP/GGML_F16_AVX_EPR)
+#define GGML_F32_SSE_ARR (GGML_F32_SSE_STEP/GGML_F32_SSE_EPR)
+#define GGML_F16_SSE_ARR (GGML_F16_SSE_STEP/GGML_F16_SSE_EPR)
+#endif
+
+
+#undef DYNAMIC_ARCH_STAGE
+#define DYNAMIC_ARCH_STAGE 2
+#include "ggml-dynamic.h"
 
 //
 // fundamental operations
@@ -1571,7 +1443,7 @@ static void ggml_vec_dot_f32(int n, float * restrict s, size_t bs, const float *
    UNUSED(by);
    UNUSED(bs);
 
-#if defined(GGML_SIMD)
+#if defined(GGML_SIMD) && !defined(DYNAMIC_ARCH)
     float sumf = 0.0f;
     const int np = (n & ~(GGML_F32_STEP - 1));
 
@@ -1596,15 +1468,37 @@ static void ggml_vec_dot_f32(int n, float * restrict s, size_t bs, const float *
     for (int i = np; i < n; ++i) {
         sumf += x[i]*y[i];
     }
+
+    *s = sumf;
 #else
+#ifdef DYNAMIC_ARCH
+    if (cpu_has_avx512f) {
+        ggml_vec_dot_f32_avx512(n, s, bs, x, bx, y, by, nrc);
+    } else if (cpu_has_avx) {
+        if (cpu_has_fma) {
+            ggml_vec_dot_f32_avx_fma(n, s, bs, x, bx, y, by, nrc);
+        } else {
+            ggml_vec_dot_f32_avx(n, s, bs, x, bx, y, by, nrc);
+        }
+    } else if (cpu_has_sse3) {
+        if (cpu_has_fma) {
+            ggml_vec_dot_f32_sse3_fma(n, s, bs, x, bx, y, by, nrc);
+        } else {
+            ggml_vec_dot_f32_sse3(n, s, bs, x, bx, y, by, nrc);
+        }
+    } else {
+#endif
     // scalar
     ggml_float sumf = 0.0;
     for (int i = 0; i < n; ++i) {
         sumf += (ggml_float)(x[i]*y[i]);
     }
-#endif
 
     *s = sumf;
+#ifdef DYNAMIC_ARCH
+    }
+#endif
+#endif
 }
 
 static void ggml_vec_dot_bf16(int n, float * restrict s, size_t bs, ggml_bf16_t * restrict x, size_t bx, ggml_bf16_t * restrict y, size_t by, int nrc) {
@@ -1678,9 +1572,9 @@ static void ggml_vec_dot_f16(int n, float * restrict s, size_t bs, ggml_fp16_t *
     UNUSED(by);
     UNUSED(bs);
 
+#if defined(GGML_SIMD) && !defined(DYNAMIC_ARCH)
     ggml_float sumf = 0.0;
 
-#if defined(GGML_SIMD)
     const int np = (n & ~(GGML_F16_STEP - 1));
 
     GGML_F16_VEC sum[GGML_F16_ARR] = { GGML_F16_VEC_ZERO };
@@ -1704,18 +1598,47 @@ static void ggml_vec_dot_f16(int n, float * restrict s, size_t bs, ggml_fp16_t *
     for (int i = np; i < n; ++i) {
         sumf += (ggml_float)(GGML_FP16_TO_FP32(x[i])*GGML_FP16_TO_FP32(y[i]));
     }
+
+    *s = sumf;
 #else
+#ifdef DYNAMIC_ARCH
+    if (cpu_has_avx512f) {
+        ggml_vec_dot_f16_avx512(n, s, bs, x, bx, y, by, nrc);
+    } else if (cpu_has_avx) {
+        if (cpu_has_fma && cpu_has_f16c) {
+            ggml_vec_dot_f16_avx_fma_f16c(n, s, bs, x, bx, y, by, nrc);
+        } else if (cpu_has_f16c) {
+            ggml_vec_dot_f16_avx_f16c(n, s, bs, x, bx, y, by, nrc);
+        } else if (cpu_has_fma) {
+            ggml_vec_dot_f16_avx_fma(n, s, bs, x, bx, y, by, nrc);
+        } else {
+            ggml_vec_dot_f16_avx(n, s, bs, x, bx, y, by, nrc);
+        }
+    } else if (cpu_has_sse3) {
+        if (cpu_has_fma) {
+            ggml_vec_dot_f16_sse3_fma(n, s, bs, x, bx, y, by, nrc);
+        } else {
+            ggml_vec_dot_f16_sse3(n, s, bs, x, bx, y, by, nrc);
+        }
+    } else {
+#endif
+    ggml_float sumf = 0.0;
+
     for (int i = 0; i < n; ++i) {
         sumf += (ggml_float)(GGML_FP16_TO_FP32(x[i])*GGML_FP16_TO_FP32(y[i]));
     }
-#endif
 
     *s = sumf;
+#ifdef DYNAMIC_ARCH
+    }
+#endif
+#endif
 }
 
 // compute GGML_VEC_DOT_UNROLL dot products at once
 // xs - x row stride in bytes
 inline static void ggml_vec_dot_f16_unroll(const int n, const int xs, float * restrict s, void * restrict xv, ggml_fp16_t * restrict y) {
+#if defined(GGML_SIMD) && !defined(DYNAMIC_ARCH)
     ggml_float sumf[GGML_VEC_DOT_UNROLL] = { 0.0 };
 
     ggml_fp16_t * restrict x[GGML_VEC_DOT_UNROLL];
@@ -1724,7 +1647,6 @@ inline static void ggml_vec_dot_f16_unroll(const int n, const int xs, float * re
         x[i] = (ggml_fp16_t *) ((char *) xv + i*xs);
     }
 
-#if defined(GGML_SIMD)
     const int np = (n & ~(GGML_F16_STEP - 1));
 
     GGML_F16_VEC sum[GGML_VEC_DOT_UNROLL][GGML_F16_ARR] = { { GGML_F16_VEC_ZERO } };
@@ -1755,21 +1677,57 @@ inline static void ggml_vec_dot_f16_unroll(const int n, const int xs, float * re
             sumf[j] += (ggml_float)(GGML_FP16_TO_FP32(x[j][i])*GGML_FP16_TO_FP32(y[i]));
         }
     }
+
+    for (int i = 0; i < GGML_VEC_DOT_UNROLL; ++i) {
+        s[i] = sumf[i];
+    }
 #else
+#ifdef DYNAMIC_ARCH
+    if (cpu_has_avx512f) {
+        ggml_vec_dot_f16_unroll_avx512(n, xs, s, xv, y);
+    } else if (cpu_has_avx) {
+        if (cpu_has_fma && cpu_has_f16c) {
+            ggml_vec_dot_f16_unroll_avx_fma_f16c(n, xs, s, xv, y);
+        } else if (cpu_has_f16c) {
+            ggml_vec_dot_f16_unroll_avx_f16c(n, xs, s, xv, y);
+        } else if (cpu_has_fma) {
+            ggml_vec_dot_f16_unroll_avx_fma(n, xs, s, xv, y);
+        } else {
+            ggml_vec_dot_f16_unroll_avx(n, xs, s, xv, y);
+        }
+    } else if (cpu_has_sse3) {
+        if (cpu_has_fma) {
+            ggml_vec_dot_f16_unroll_sse3_fma(n, xs, s, xv, y);
+        } else {
+            ggml_vec_dot_f16_unroll_sse3(n, xs, s, xv, y);
+        }
+    } else {
+#endif
+    ggml_float sumf[GGML_VEC_DOT_UNROLL] = { 0.0 };
+
+    ggml_fp16_t * restrict x[GGML_VEC_DOT_UNROLL];
+
+    for (int i = 0; i < GGML_VEC_DOT_UNROLL; ++i) {
+        x[i] = (ggml_fp16_t *) ((char *) xv + i*xs);
+    }
+
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < GGML_VEC_DOT_UNROLL; ++j) {
             sumf[j] += (ggml_float)(GGML_FP16_TO_FP32(x[j][i])*GGML_FP16_TO_FP32(y[i]));
         }
     }
-#endif
 
     for (int i = 0; i < GGML_VEC_DOT_UNROLL; ++i) {
         s[i] = sumf[i];
     }
+#ifdef DYNAMIC_ARCH
+    }
+#endif
+#endif
 }
 
 inline static void ggml_vec_mad_f32(const int n, float * restrict y, const float * restrict x, const float v) {
-#if defined(GGML_SIMD)
+#if defined(GGML_SIMD) && !defined(DYNAMIC_ARCH)
     const int np = (n & ~(GGML_F32_STEP - 1));
 
     GGML_F32_VEC vx = GGML_F32_VEC_SET1(v);
@@ -1792,15 +1750,35 @@ inline static void ggml_vec_mad_f32(const int n, float * restrict y, const float
         y[i] += x[i]*v;
     }
 #else
+#ifdef DYNAMIC_ARCH
+    if (cpu_has_avx512f) {
+        ggml_vec_mad_f32_avx512(n, y, x, v);
+    } else if (cpu_has_avx) {
+        if (cpu_has_fma) {
+            ggml_vec_mad_f32_avx_fma(n, y, x, v);
+        } else {
+            ggml_vec_mad_f32_avx(n, y, x, v);
+        }
+    } else if (cpu_has_sse3) {
+        if (cpu_has_fma) {
+            ggml_vec_mad_f32_sse3_fma(n, y, x, v);
+        } else {
+            ggml_vec_mad_f32_sse3(n, y, x, v);
+        }
+    } else {
+#endif
     // scalar
     for (int i = 0; i < n; ++i) {
         y[i] += x[i]*v;
     }
+#ifdef DYNAMIC_ARCH
+    }
+#endif
 #endif
 }
 
 inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, const ggml_fp16_t * restrict x, const float v) {
-#if defined(GGML_SIMD)
+#if defined(GGML_SIMD) && !defined(DYNAMIC_ARCH)
     const int np = (n & ~(GGML_F16_STEP - 1));
 
     GGML_F16_VEC vx = GGML_F16_VEC_SET1(v);
@@ -1823,16 +1801,37 @@ inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, const
         y[i] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(y[i]) + GGML_FP16_TO_FP32(x[i])*v);
     }
 #else
+#ifdef DYNAMIC_ARCH
+    if (cpu_has_avx512f) {
+        ggml_vec_mad_f16_avx512(n, y, x, v);
+    } else if (cpu_has_avx) {
+        if (cpu_has_fma) {
+            ggml_vec_mad_f16_avx_fma(n, y, x, v);
+        } else {
+            ggml_vec_mad_f16_avx(n, y, x, v);
+        }
+    } else if (cpu_has_sse3) {
+        if (cpu_has_fma) {
+            ggml_vec_mad_f16_sse3_fma(n, y, x, v);
+        } else {
+            ggml_vec_mad_f16_sse3(n, y, x, v);
+        }
+    } else {
+#endif
     // scalar
     for (int i = 0; i < n; ++i) {
         y[i] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(y[i]) + GGML_FP16_TO_FP32(x[i])*v);
     }
+#ifdef DYNAMIC_ARCH
+    }
+#endif
 #endif
 }
 
 // xs and vs are byte strides of x and v
 inline static void ggml_vec_mad_f32_unroll(const int n, const int xs, const int vs, float * restrict y, const float * restrict xv, const float * restrict vv) {
 
+#if defined(GGML_SIMD) && !defined(DYNAMIC_ARCH)
     const float * restrict x[GGML_VEC_MAD_UNROLL];
     const float * restrict v[GGML_VEC_MAD_UNROLL];
 
@@ -1841,7 +1840,7 @@ inline static void ggml_vec_mad_f32_unroll(const int n, const int xs, const int 
         v[i] = (const float *) ((const char *) vv + i*vs);
     }
 
-#if defined(GGML_SIMD)
+/* #if defined(GGML_SIMD) */
     const int np = (n & ~(GGML_F32_STEP - 1));
 
     GGML_F32_VEC vx[GGML_VEC_MAD_UNROLL];
@@ -1873,20 +1872,49 @@ inline static void ggml_vec_mad_f32_unroll(const int n, const int xs, const int 
         }
     }
 #else
+#ifdef DYNAMIC_ARCH
+    if (cpu_has_avx512f) {
+        ggml_vec_mad_f32_unroll_avx512(n, xs, vs, y, xv, vv);
+    } else if (cpu_has_avx) {
+        if (cpu_has_fma) {
+            ggml_vec_mad_f32_unroll_avx_fma(n, xs, vs, y, xv, vv);
+        } else {
+            ggml_vec_mad_f32_unroll_avx(n, xs, vs, y, xv, vv);
+        }
+    } else if (cpu_has_sse3) {
+        if (cpu_has_fma) {
+            ggml_vec_mad_f32_unroll_sse3_fma(n, xs, vs, y, xv, vv);
+        } else {
+            ggml_vec_mad_f32_unroll_sse3(n, xs, vs, y, xv, vv);
+        }
+    } else {
+#endif
+    const float * restrict x[GGML_VEC_MAD_UNROLL];
+    const float * restrict v[GGML_VEC_MAD_UNROLL];
+
+    for (int i = 0; i < GGML_VEC_MAD_UNROLL; ++i) {
+        x[i] = (const float *) ((const char *) xv + i*xs);
+        v[i] = (const float *) ((const char *) vv + i*vs);
+    }
+
     // scalar
     for (int k = 0; k < GGML_VEC_MAD_UNROLL; ++k) {
         for (int i = 0; i < n; ++i) {
             y[i] += x[k][i]*v[k][0];
         }
     }
+#ifdef DYNAMIC_ARCH
+    }
+#endif
 #endif
 }
+
 
 //inline static void ggml_vec_scale_f32(const int n, float * y, const float   v) { for (int i = 0; i < n; ++i) y[i] *= v;          }
 inline static void ggml_vec_scale_f32(const int n, float * y, const float   v) {
 #if defined(GGML_USE_ACCELERATE)
     vDSP_vsmul(y, 1, &v, y, 1, n);
-#elif defined(GGML_SIMD)
+#elif defined(GGML_SIMD) && !defined(DYNAMIC_ARCH)
     const int np = (n & ~(GGML_F32_STEP - 1));
 
     GGML_F32_VEC vx = GGML_F32_VEC_SET1(v);
@@ -1907,15 +1935,27 @@ inline static void ggml_vec_scale_f32(const int n, float * y, const float   v) {
         y[i] *= v;
     }
 #else
+#if defined(DYNAMIC_ARCH)
+    if (cpu_has_avx512f) {
+        ggml_vec_scale_f32_avx512(n, y, v);
+    } else if (cpu_has_avx) {
+        ggml_vec_scale_f32_avx(n, y, v);
+    } else if (cpu_has_sse3) {
+        ggml_vec_scale_f32_sse3(n, y, v);
+    } else {
+#endif
     // scalar
     for (int i = 0; i < n; ++i) {
         y[i] *= v;
     }
+#ifdef DYNAMIC_ARCH
+    }
+#endif
 #endif
 }
 
 inline static void ggml_vec_scale_f16(const int n, ggml_fp16_t * y, const float v) {
-#if defined(GGML_SIMD)
+#if defined(GGML_SIMD) && !defined(DYNAMIC_ARCH)
     const int np = (n & ~(GGML_F16_STEP - 1));
 
     GGML_F16_VEC vx = GGML_F16_VEC_SET1(v);
@@ -1936,10 +1976,22 @@ inline static void ggml_vec_scale_f16(const int n, ggml_fp16_t * y, const float 
         y[i] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(y[i])*v);
     }
 #else
+#ifdef DYNAMIC_ARCH
+    if (cpu_has_avx512f) {
+        ggml_vec_scale_f16_avx512(n, y, v);
+    } else if (cpu_has_avx) {
+        ggml_vec_scale_f16_avx(n, y, v);
+    } else if (cpu_has_sse3) {
+        ggml_vec_scale_f16_sse3(n, y, v);
+    } else {
+#endif
     // scalar
     for (int i = 0; i < n; ++i) {
         y[i] = GGML_FP32_TO_FP16(GGML_FP16_TO_FP32(y[i])*v);
     }
+#ifdef DYNAMIC_ARCH
+    }
+#endif
 #endif
 }
 
@@ -2872,6 +2924,9 @@ static inline int ggml_up(int n, int m) {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct ggml_context * ggml_init(struct ggml_init_params params) {
+#ifdef DYNAMIC_ARCH
+    check_cpu_features();
+#endif
     // make this function thread safe
     ggml_critical_section_start();
 
@@ -22838,7 +22893,9 @@ void gguf_get_meta_data(const struct gguf_context * ctx, void * data) {
 ////////////////////////////////////////////////////////////////////////////////
 
 int ggml_cpu_has_avx(void) {
-#if defined(__AVX__)
+#ifdef DYNAMIC_ARCH
+    return cpu_has_avx;
+#elif defined(__AVX__)
     return 1;
 #else
     return 0;
@@ -22854,7 +22911,9 @@ int ggml_cpu_has_avx_vnni(void) {
 }
 
 int ggml_cpu_has_avx2(void) {
-#if defined(__AVX2__)
+#ifdef DYNAMIC_ARCH
+    return cpu_has_avx2;
+#elif defined(__AVX2__)
     return 1;
 #else
     return 0;
@@ -22862,7 +22921,9 @@ int ggml_cpu_has_avx2(void) {
 }
 
 int ggml_cpu_has_avx512(void) {
-#if defined(__AVX512F__)
+#ifdef DYNAMIC_ARCH
+    return cpu_has_avx512f;
+#elif defined(__AVX512F__)
     return 1;
 #else
     return 0;
@@ -22870,7 +22931,9 @@ int ggml_cpu_has_avx512(void) {
 }
 
 int ggml_cpu_has_avx512_vbmi(void) {
-#if defined(__AVX512VBMI__)
+#ifdef DYNAMIC_ARCH
+    return cpu_has_avx512vbmi;
+#elif defined(__AVX512VBMI__)
     return 1;
 #else
     return 0;
@@ -22878,7 +22941,9 @@ int ggml_cpu_has_avx512_vbmi(void) {
 }
 
 int ggml_cpu_has_avx512_vnni(void) {
-#if defined(__AVX512VNNI__)
+#ifdef DYNAMIC_ARCH
+    return cpu_has_avx512vnni;
+#elif defined(__AVX512VNNI__)
     return 1;
 #else
     return 0;
@@ -22886,7 +22951,9 @@ int ggml_cpu_has_avx512_vnni(void) {
 }
 
 int ggml_cpu_has_fma(void) {
-#if defined(__FMA__)
+#ifdef DYNAMIC_ARCH
+    return cpu_has_fma;
+#elif defined(__FMA__)
     return 1;
 #else
     return 0;
@@ -22918,7 +22985,9 @@ int ggml_cpu_has_metal(void) {
 }
 
 int ggml_cpu_has_f16c(void) {
-#if defined(__F16C__)
+#ifdef DYNAMIC_ARCH
+    return cpu_has_f16c;
+#elif defined(__F16C__)
     return 1;
 #else
     return 0;
@@ -22995,7 +23064,9 @@ int ggml_cpu_has_gpublas(void) {
 }
 
 int ggml_cpu_has_sse3(void) {
-#if defined(__SSE3__)
+#ifdef DYNAMIC_ARCH
+    return cpu_has_sse3;
+#elif defined(__SSE3__)
     return 1;
 #else
     return 0;
@@ -23003,7 +23074,9 @@ int ggml_cpu_has_sse3(void) {
 }
 
 int ggml_cpu_has_ssse3(void) {
-#if defined(__SSSE3__)
+#ifdef DYNAMIC_ARCH
+    return cpu_has_ssse3;
+#elif defined(__SSSE3__)
     return 1;
 #else
     return 0;

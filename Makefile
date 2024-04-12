@@ -130,6 +130,9 @@ endif
 # TODO: probably these flags need to be tweaked on some architectures
 #       feel free to update the Makefile for your architecture and send a pull request or issue
 ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
+ifdef DYNAMIC_ARCH
+	CFLAGS += -DDYNAMIC_ARCH
+else
 	ifeq ($(UNAME_S),Darwin)
 		CPUINFO_CMD := sysctl machdep.cpu.features machdep.cpu.leaf7_features
 	else ifeq ($(UNAME_S),Linux)
@@ -206,6 +209,7 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 			CXXFLAGS += -mavx512vnni
 		endif
 	endif
+endif
 endif
 
 ifneq ($(filter ppc64%,$(UNAME_M)),)
@@ -409,6 +413,13 @@ WHISPER_OBJ += ggml.o ggml-alloc.o ggml-backend.o ggml-quants.o
 
 whisper.o: whisper.cpp whisper.h whisper-mel.hpp ggml.h ggml-cuda.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+cpu_features.o: cpu_features.c cpu_features.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
+
+ifdef DYNAMIC_ARCH
+WHISPER_OBJ += cpu_features.o
+endif
 
 ifndef WHISPER_COREML
 WHISPER_OBJ += whisper.o
