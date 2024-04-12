@@ -390,17 +390,19 @@ WHISPER_OBJ += ggml-metal.o
 ifdef WHISPER_METAL_EMBED_LIBRARY
 CFLAGS += -DGGML_METAL_EMBED_LIBRARY
 
-ggml-metal-embed.o: ggml-metal.metal
+ggml-metal-embed.o: ggml-metal.metal ggml-common.h
 	@echo "Embedding Metal library"
 	$(eval TEMP_ASSEMBLY=$(shell mktemp))
+	$(eval TEMP_METALLIB=$(shell mktemp))
+	@sed "/^#include \"ggml-common.h\"/{r ggml-common.h"$$'\n'"d;}" ggml-metal.metal > $(TEMP_METALLIB)
 	@echo ".section __DATA, __ggml_metallib" > $(TEMP_ASSEMBLY)
 	@echo ".globl _ggml_metallib_start" >> $(TEMP_ASSEMBLY)
 	@echo "_ggml_metallib_start:" >> $(TEMP_ASSEMBLY)
-	@echo ".incbin \"$<\"" >> $(TEMP_ASSEMBLY)
+	@echo ".incbin \"$(TEMP_METALLIB)\"" >> $(TEMP_ASSEMBLY)
 	@echo ".globl _ggml_metallib_end" >> $(TEMP_ASSEMBLY)
 	@echo "_ggml_metallib_end:" >> $(TEMP_ASSEMBLY)
 	@$(AS) $(TEMP_ASSEMBLY) -o $@
-	@rm -f ${TEMP_ASSEMBLY}
+	@rm -f $(TEMP_ASSEMBLY) $(TEMP_METALLIB)
 
 WHISPER_OBJ += ggml-metal-embed.o
 endif
