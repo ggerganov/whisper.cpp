@@ -286,11 +286,26 @@ ifdef WHISPER_CUDA
 
 	CFLAGS      += -DGGML_USE_CUDA -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
 	CXXFLAGS    += -DGGML_USE_CUDA -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
-	LDFLAGS     += -lcuda -lcublas -lculibos -lcudart -lcublasLt -lcufft -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L/usr/lib/wsl/lib
+	ifdef DYNAMIC_CUDA
+		LDFLAGS     += -lcudart_static -lcublas_static -Wl,--whole-archive -lcublasLt_static -Wl,--no-whole-archive -lcufft_static -lculibos -lpthread -ldl -lrt
+		WHISPER_OBJ += cuda-loader.o
+	else
+		LDFLAGS     += -lcuda -lcublas -lculibos -lcudart -lcublasLt -lcufft -lpthread -ldl -lrt
+	endif
+	LDFLAGS     += -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L/usr/lib/wsl/lib
 	WHISPER_OBJ += ggml-cuda.o whisper-mel-cuda.o
 	WHISPER_OBJ += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/*.cu))
 	NVCC        = nvcc
 	NVCCFLAGS   = --forward-unknown-to-host-compiler -arch=$(CUDA_ARCH_FLAG)
+
+ifdef DYNAMIC_CUDA
+	NVCCFLAGS   += -rdc=true
+	DLINK_OBJ   := $(WHISPER_OBJ)
+	WHISPER_OBJ += dlink.o
+
+dlink.o: $(DLINK_OBJ)
+	$(NVCC) $(NVCCFLAGS) -dlink -o $@ $^ $(LDFLAGS)
+endif
 
 ggml-cuda/%.o: ggml-cuda/%.cu ggml-cuda/%.cuh ggml.h ggml-common.h ggml-cuda/common.cuh
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -c $< -o $@
@@ -456,7 +471,7 @@ libwhisper.so: $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so $(WHISPER_OBJ) $(LDFLAGS)
 
 clean:
-	rm -f *.o main stream command talk talk-llama bench quantize server lsp libwhisper.a libwhisper.so
+	rm -f *.o ggml-cuda/*.o main stream command talk talk-llama bench quantize server lsp libwhisper.a libwhisper.so
 
 #
 # Examples
