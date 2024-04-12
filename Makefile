@@ -150,7 +150,7 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 			CXXFLAGS += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
 		endif
 
-		AVX512VNNI_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512_VNNI')
+		AVX512VNNI_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX512_VNNI|AVX512VNNI')
 		ifneq (,$(AVX512VNNI_M))
 			CFLAGS   += -mavx512vnni
 			CXXFLAGS += -mavx512vnni
