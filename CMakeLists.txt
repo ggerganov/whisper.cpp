@@ -471,7 +471,6 @@ else()
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX512")
             set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /arch:AVX512")
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:AVX512")
-            # from llama.cpp:
             # MSVC has no compile-time flags enabling specific
             # AVX512 extensions, neither it defines the
             # macros corresponding to the extensions.
