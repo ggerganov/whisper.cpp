@@ -152,13 +152,13 @@ jobs:
 
   ubuntu-22-cmake-sycl:
     runs-on: ubuntu-22.04
-    
+
     strategy:
       fail-fast: false
       matrix:
         dwhisper_sycl: [ON]
         dcmake_c_compiler: [icx]
-        dcmake_cxx_compiler: [icpx] 
+        dcmake_cxx_compiler: [icpx]
         arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
 
     continue-on-error: true
@@ -166,7 +166,7 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v3
-        
+
       - name: add oneAPI to apt
         shell: bash
         run: |
@@ -190,7 +190,7 @@ jobs:
       - name: Clone
         id: checkout
         uses: actions/checkout@v3
-            
+
       - name: Build
         id: cmake_build
         run: |
@@ -202,13 +202,13 @@ jobs:
 
   ubuntu-22-cmake-sycl-fp16:
     runs-on: ubuntu-22.04
-    
+
     strategy:
       fail-fast: false
       matrix:
         dwhisper_sycl: [ON]
         dcmake_c_compiler: [icx]
-        dcmake_cxx_compiler: [icpx] 
+        dcmake_cxx_compiler: [icpx]
         arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
 
     continue-on-error: true
@@ -216,7 +216,7 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v3
-        
+
       - name: add oneAPI to apt
         shell: bash
         run: |
@@ -240,7 +240,7 @@ jobs:
       - name: Clone
         id: checkout
         uses: actions/checkout@v3
-            
+
       - name: Build
         id: cmake_build
         run: |
@@ -249,7 +249,65 @@ jobs:
           cd build
           cmake -DWHISPER_SYCL_F16=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx ..
           cmake --build . --config Release -j $(nproc)
-  
+
+  windows-msys2:
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { sys: UCRT64,  env: ucrt-x86_64,  build: Release }
+          - { sys: CLANG64, env: clang-x86_64, build: Release }
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+
+      - name: Setup ${{ matrix.sys }}
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: ${{matrix.sys}}
+          install: >-
+            base-devel
+            mingw-w64-${{matrix.env}}-toolchain
+            mingw-w64-${{matrix.env}}-cmake
+            mingw-w64-${{matrix.env}}-SDL2
+            mingw-w64-${{matrix.env}}-openblas
+
+      - name: Build using make
+        shell: msys2 {0}
+        run: |
+            make -j $(nproc)
+
+      - name: Clean after building using make
+        shell: msys2 {0}
+        run: |
+            make clean
+
+      - name: Build using make w/ OpenBLAS
+        shell: msys2 {0}
+        run: |
+            make WHISPER_OPENBLAS=1 -j $(nproc)
+
+      - name: Build using CMake
+        shell: msys2 {0}
+        run: |
+            cmake -B build
+            cmake --build build --config ${{ matrix.build }} -j $(nproc)
+
+      - name: Clean after building using CMake
+        shell: msys2 {0}
+        run: |
+            rm -rf build
+
+      - name: Build using CMake w/ OpenBLAS
+        shell: msys2 {0}
+        run: |
+            cmake -B build -DWHISPER_OPENBLAS=ON
+            cmake --build build --config ${{ matrix.build }} -j $(nproc)
+
   windows:
     runs-on: windows-latest
 
