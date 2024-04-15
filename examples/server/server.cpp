@@ -503,36 +503,45 @@ int main(int argc, char ** argv) {
     // whisper init
     struct whisper_context_params cparams = whisper_context_default_params();
     cparams.use_gpu = params.use_gpu;
-    if (!params.dtw.empty())
-    {
+    if (!params.dtw.empty()) {
         cparams.dtw_token_timestamps = true;
         cparams.dtw_aheads_preset = WHISPER_AHEADS_NONE;
 
-        if (params.dtw == "tiny")
+        if (params.dtw == "tiny") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_TINY;
-        if (params.dtw == "tiny.en")
+        }
+        if (params.dtw == "tiny.en") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_TINY_EN;
-        if (params.dtw == "base")
+        }
+        if (params.dtw == "base") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_BASE;
-        if (params.dtw == "base.en")
+        }
+        if (params.dtw == "base.en") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_BASE_EN;
-        if (params.dtw == "small")
+        }
+        if (params.dtw == "small") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_SMALL;
-        if (params.dtw == "small.en")
+        }
+        if (params.dtw == "small.en") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_SMALL_EN;
-        if (params.dtw == "medium")
+        }
+        if (params.dtw == "medium") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_MEDIUM;
-        if (params.dtw == "medium.en")
+        }
+        if (params.dtw == "medium.en") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_MEDIUM_EN;
-        if (params.dtw == "large.v1")
+        }
+        if (params.dtw == "large.v1") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_LARGE_V1;
-        if (params.dtw == "large.v2")
+        }
+        if (params.dtw == "large.v2") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_LARGE_V2;
-        if (params.dtw == "large.v3")
+        }
+        if (params.dtw == "large.v3") {
             cparams.dtw_aheads_preset = WHISPER_AHEADS_LARGE_V3;
+        }
 
-        if (cparams.dtw_aheads_preset == WHISPER_AHEADS_NONE)
-        {
+        if (cparams.dtw_aheads_preset == WHISPER_AHEADS_NONE) {
             fprintf(stderr, "error: unknown DTW preset '%s'\n", params.dtw.c_str());
             return 3;
         }
