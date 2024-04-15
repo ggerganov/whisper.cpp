@@ -211,6 +211,8 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
 
             wparams.initial_prompt   = params.prompt.c_str();
 
+            wparams.no_timestamps    = params.no_timestamps;
+
             whisper_print_user_data user_data = { &params, &pcmf32s };
 
             // this callback is called on each new segment
@@ -298,11 +300,13 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   std::string model = whisper_params.Get("model").As<Napi::String>();
   std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
   bool use_gpu = whisper_params.Get("use_gpu").As<Napi::Boolean>();
+  bool no_timestamps = whisper_params.Get("no_timestamps").As<Napi::Boolean>();
 
   params.language = language;
   params.model = model;
   params.fname_inp.emplace_back(input);
   params.use_gpu = use_gpu;
+  params.no_timestamps = no_timestamps;
 
   Napi::Function callback = info[1].As<Napi::Function>();
   Worker* worker = new Worker(callback, params);
