@@ -45,6 +45,6 @@ if [ ! -f ./models/ggml-${model}.bin ] ; then
 fi
 
 # fine-tune the parameters according to your machine specs
-./stream -t 8 -m models/ggml-base.en.bin --step 350 --length 10000 -f /tmp/whisper.nvim 2> /dev/null
+./stream -t 8 -m models/ggml-${model}.bin --step 350 --length 10000 -f /tmp/whisper.nvim 2> /dev/null
 
 exit 0
