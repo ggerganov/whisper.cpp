@@ -4066,6 +4066,14 @@ static int whisper_has_openvino(void) {
 #endif
 }
 
+static int whisper_has_qnn(void) {
+#ifdef GGML_USE_QNN
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 const char * whisper_print_system_info(void) {
     static std::string s;
 
@@ -4086,7 +4094,9 @@ const char * whisper_print_system_info(void) {
     s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
     s += "CUDA = "      + std::to_string(ggml_cpu_has_cuda())      + " | ";
     s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
-    s += "OPENVINO = "  + std::to_string(whisper_has_openvino())          ;
+    s += "OPENVINO = "  + std::to_string(whisper_has_openvino())   + " | ";
+    s += "QNN = "       + std::to_string(whisper_has_qnn())               ;
+
 
     return s.c_str();
 }
@@ -6518,6 +6528,9 @@ WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads) {
                 /*.no_alloc   =*/ false,
             };
 
+#ifdef GGML_USE_QNN
+            gparams.use_hwaccel   = true;
+#endif
             struct ggml_context * ctx0 = ggml_init(gparams);
 
             struct ggml_tensor * a = ggml_new_tensor_2d(ctx0, wtype,         N, N);

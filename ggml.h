@@ -657,6 +657,7 @@ extern "C" {
         size_t mem_size;   // bytes
         void * mem_buffer; // if NULL, memory will be allocated internally
         bool   no_alloc;   // don't allocate memory for the tensor data
+        bool   use_hwaccel;
     };
 
 

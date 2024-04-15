@@ -2195,6 +2195,7 @@ struct ggml_context {
     bool   mem_buffer_owned;
     bool   no_alloc;
     bool   no_alloc_save; // this is used to save the no_alloc state when using scratch buffers
+    bool   use_hwaccel;
 
     int    n_objects;
 
@@ -2754,6 +2755,7 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
         /*.mem_buffer_owned   =*/ params.mem_buffer ? false : true,
         /*.no_alloc           =*/ params.no_alloc,
         /*.no_alloc_save      =*/ params.no_alloc,
+        /*.use_hwaccel        =*/ params.use_hwaccel,
         /*.n_objects          =*/ 0,
         /*.objects_begin      =*/ NULL,
         /*.objects_end        =*/ NULL,
