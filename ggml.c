@@ -2990,6 +2990,9 @@ static struct ggml_tensor * ggml_new_tensor_impl(
         /*.padding      =*/ { 0 },
     };
 
+    if (ctx->use_hwaccel)
+        result->backend = GGML_BACKEND_TYPE_GPU;
+
     // TODO: this should not be needed as long as we don't rely on aligned SIMD loads
     //ggml_assert_aligned(result->data);
 
