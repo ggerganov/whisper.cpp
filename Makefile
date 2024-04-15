@@ -144,6 +144,24 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 			CXXFLAGS += -mavx2
 		endif
 
+		AVX512F_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512F')
+		ifneq (,$(AVX512F_M))
+			CFLAGS   += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
+			CXXFLAGS += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
+		endif
+
+		AVX512VNNI_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX512_VNNI|AVX512VNNI')
+		ifneq (,$(AVX512VNNI_M))
+			CFLAGS   += -mavx512vnni
+			CXXFLAGS += -mavx512vnni
+		endif
+
+		AVX512VBMI_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512VBMI')
+		ifneq (,$(AVX512VBMI_M))
+			CFLAGS   += -mavx512vbmi
+			CXXFLAGS += -mavx512vbmi
+		endif
+
 		FMA_M := $(shell $(CPUINFO_CMD) | grep -iw 'FMA')
 		ifneq (,$(FMA_M))
 			CFLAGS   += -mfma
