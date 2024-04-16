@@ -808,6 +808,7 @@ For more details, see the conversion script [models/convert-pt-to-ggml.py](model
   - [NickDarvey/whisper](https://github.com/NickDarvey/whisper)
 - [x] Python: | [#9](https://github.com/ggerganov/whisper.cpp/issues/9)
   - [stlukey/whispercpp.py](https://github.com/stlukey/whispercpp.py) (Cython)
+  - [AIWintermuteAI/whispercpp](https://github.com/AIWintermuteAI/whispercpp) (Updated fork of aarnphm/whispercpp)
   - [aarnphm/whispercpp](https://github.com/aarnphm/whispercpp) (Pybind11)
 - [x] R: [bnosac/audio.whisper](https://github.com/bnosac/audio.whisper)
 - [x] Unity: [macoron/whisper.unity](https://github.com/Macoron/whisper.unity)
