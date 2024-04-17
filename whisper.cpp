@@ -130,7 +130,7 @@ extern "C" int __android_log_print(int prio, const char * tag, const char * fmt,
     __attribute__((__format__(printf, 3, 4)));
 #endif
 
-WHISPER_ATTRIBUTE_FORMAT(2, 3)
+WHISPER_ATTRIBUTE_FORMAT(5, 6)
 static void whisper_log_internal        (ggml_log_level level, const char * file, const char * func, int line, const char * format, ...);
 static void whisper_log_callback_default(ggml_log_level level, const char * text, void * user_data);
 
@@ -7204,7 +7204,7 @@ void whisper_log_set(ggml_log_callback log_callback, void * user_data) {
     g_state.log_callback_user_data = user_data;
 }
 
-GGML_ATTRIBUTE_FORMAT(2, 3)
+GGML_ATTRIBUTE_FORMAT(5, 6)
 static void whisper_log_internal(ggml_log_level level, const char * file, const char * func, int line, const char * format, ...) {
     va_list args;
     va_start(args, format);
