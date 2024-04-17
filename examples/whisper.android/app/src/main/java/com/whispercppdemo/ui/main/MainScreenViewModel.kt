@@ -145,7 +145,7 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
             val start = System.currentTimeMillis()
             val text = whisperContext?.transcribeData(data)
             val elapsed = System.currentTimeMillis() - start
-            printMessage("Done ($elapsed ms): $text\n")
+            printMessage("Done ($elapsed ms): \n$text\n")
         } catch (e: Exception) {
             Log.w(LOG_TAG, e)
             printMessage("${e.localizedMessage}\n")
