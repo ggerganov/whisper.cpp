@@ -1068,7 +1068,7 @@ int main(int argc, char ** argv) {
 
             wparams.tdrz_enable      = params.tinydiarize; // [TDRZ]
 
-            wparams.suppress_regex   = params.suppress_regex.c_str();
+            wparams.suppress_regex   = params.suppress_regex.empty() ? nullptr : params.suppress_regex.c_str();
 
             wparams.initial_prompt   = params.prompt.c_str();
 
