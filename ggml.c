@@ -2987,8 +2987,12 @@ static struct ggml_tensor * ggml_new_tensor_impl(
         /*.data         =*/ obj_alloc_size > 0 ? (void *)(result + 1) : data,
         /*.name         =*/ { 0 },
         /*.extra        =*/ NULL,
+        /*.rank         =*/ n_dims,
         /*.padding      =*/ { 0 },
     };
+
+    if (ctx->use_hwaccel)
+        result->backend = GGML_BACKEND_TYPE_GPU;
 
     // TODO: this should not be needed as long as we don't rely on aligned SIMD loads
     //ggml_assert_aligned(result->data);

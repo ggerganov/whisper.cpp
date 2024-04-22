@@ -4066,14 +4066,6 @@ static int whisper_has_openvino(void) {
 #endif
 }
 
-static int whisper_has_qnn(void) {
-#ifdef GGML_USE_QNN
-    return 1;
-#else
-    return 0;
-#endif
-}
-
 const char * whisper_print_system_info(void) {
     static std::string s;
 
@@ -4094,9 +4086,7 @@ const char * whisper_print_system_info(void) {
     s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
     s += "CUDA = "      + std::to_string(ggml_cpu_has_cuda())      + " | ";
     s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
-    s += "OPENVINO = "  + std::to_string(whisper_has_openvino())   + " | ";
-    s += "QNN = "       + std::to_string(whisper_has_qnn())               ;
-
+    s += "OPENVINO = "  + std::to_string(whisper_has_openvino())          ;
 
     return s.c_str();
 }
