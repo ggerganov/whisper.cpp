@@ -8,7 +8,7 @@
 #include "ggml-metal.h"
 #endif
 
-#ifdef GGML_USE_CUBLAS
+#ifdef GGML_USE_CUDA
 #include "ggml-cuda.h"
 #endif
 
@@ -1148,26 +1148,31 @@ static bool aheads_masks_init(
     }
 
     // Set data on mask tensors
-    // Since this must be backend agnostic, we get tensor data with
-    // ggml_backend_tensor_get, copy our desired values and send it back
-    // to backend with ggml_backend_tensor_set
+    // Since this must be backend agnostic, we write our desired values on mask_data,
+    // and send it to backend with ggml_backend_tensor_set.
+    // Each mask in N_HEADS*N_ALIGNMENT_HEADS, one per text layer containing alignment
+    // heads. Each row of the mask "marks" one alignment head. E.g. if some text layer
+    // has a total of 10 heads and of those, heads 0,5,6 are alignment heads, the mask
+    // should read:
+    // 1 0 0 0 0 0 0 0 0 0
+    // 0 0 0 0 0 1 0 0 0 0
+    // 0 0 0 0 0 0 1 0 0 0
     std::vector<float> mask_data;
     for (int64_t il = 0; il < n_text_layer; ++il) {
         if (aheads_masks.m[il] != nullptr) {
             auto aheads = get_alignment_heads_by_layer(cparams, il, n_text_layer, n_head);
 
-            size_t data_size = aheads_masks.m[il]->ne[0] * aheads_masks.m[il]->ne[1] * sizeof(float);
+            size_t data_size = aheads_masks.m[il]->ne[0] * aheads_masks.m[il]->ne[1];
+            size_t data_size_bytes = data_size * sizeof(float);
             mask_data.resize(data_size);
-            ggml_backend_tensor_get(aheads_masks.m[il], mask_data.data(), 0, data_size);
-            memset(mask_data.data(), 0, data_size);
 
+            std::fill(mask_data.begin(), mask_data.end(), 0);
             for (size_t ih = 0; ih < aheads.size(); ++ih) {
-                size_t pos = (aheads[ih] + (ih * aheads_masks.m[il]->ne[0] * aheads[ih]));
-                float v = 1.0f;
-                memcpy(mask_data.data() + pos, &v, sizeof(float));
+                size_t pos = (aheads[ih] + (ih * aheads_masks.m[il]->ne[0]));
+                mask_data[pos] = 1.0f;
             }
 
-            ggml_backend_tensor_set(aheads_masks.m[il], mask_data.data(), 0, data_size);
+            ggml_backend_tensor_set(aheads_masks.m[il], mask_data.data(), 0, data_size_bytes);
         }
     }
 
@@ -1198,8 +1203,8 @@ static ggml_backend_t whisper_backend_init(const whisper_context_params & params
     ggml_backend_t backend_gpu = NULL;
 
     // initialize the backends
-#ifdef GGML_USE_CUBLAS
-    if (params.use_gpu && ggml_cublas_loaded()) {
+#ifdef GGML_USE_CUDA
+    if (params.use_gpu) {
         WHISPER_LOG_INFO("%s: using CUDA backend\n", __func__);
         backend_gpu = ggml_backend_cuda_init(params.gpu_device);
         if (!backend_gpu) {
@@ -4079,7 +4084,7 @@ const char * whisper_print_system_info(void) {
     s += "SSE3 = "      + std::to_string(ggml_cpu_has_sse3())      + " | ";
     s += "SSSE3 = "     + std::to_string(ggml_cpu_has_ssse3())     + " | ";
     s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
-    s += "CUDA = "      + std::to_string(ggml_cpu_has_cublas())    + " | ";
+    s += "CUDA = "      + std::to_string(ggml_cpu_has_cuda())      + " | ";
     s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
     s += "OPENVINO = "  + std::to_string(whisper_has_openvino())          ;
 
@@ -4553,6 +4558,8 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
 
         /*.tdrz_enable       =*/ false,
 
+        /* suppress_regex    =*/ nullptr,
+
         /*.initial_prompt    =*/ nullptr,
         /*.prompt_tokens     =*/ nullptr,
         /*.prompt_n_tokens   =*/ 0,
@@ -4794,6 +4801,17 @@ static void whisper_process_logits(
 
         if (params.logits_filter_callback) {
             params.logits_filter_callback(&ctx, &state, tokens_cur.data(), tokens_cur.size(), logits.data(), params.logits_filter_callback_user_data);
+        }
+
+        // suppress any tokens matching a regular expression
+        // ref: https://github.com/openai/whisper/discussions/1041
+        if (params.suppress_regex != nullptr) {
+            std::regex re(params.suppress_regex);
+            for (std::pair<whisper_vocab::token, whisper_vocab::id> token_id : vocab.token_to_id) {
+                if (std::regex_match(token_id.first, re)) {
+                    logits[token_id.second] = -INFINITY;
+                }
+            }
         }
 
         // suppress non-speech tokens
@@ -5254,7 +5272,7 @@ int whisper_full_with_state(
     // basically don't process anything that is less than 1.0s
     // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
     if (seek_end < seek_start + (params.speed_up ? 50 : 100)) {
-        WHISPER_LOG_DEBUG("%s: input is too short - %d ms < 1000 ms\n", __func__, (seek_end - seek_start)*10);
+        WHISPER_LOG_WARN("%s: input is too short - %d ms < 1000 ms. consider padding the input audio with silence\n", __func__, (seek_end - seek_start)*10);
         return 0;
     }
 

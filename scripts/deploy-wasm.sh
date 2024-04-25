@@ -4,7 +4,7 @@
 # Run from the build directory:
 #
 # cd build-em
-# ../extra/deploy-wasm.sh
+# ../scripts/deploy-wasm.sh
 #
 
 # check if emcmake is available

@@ -505,6 +505,9 @@ extern "C" {
         // [EXPERIMENTAL] [TDRZ] tinydiarize
         bool tdrz_enable;       // enable tinydiarize speaker turn detection
 
+        // A regular expression that matches tokens to suppress
+        const char * suppress_regex;
+
         // tokens to provide to the whisper decoder as initial prompt
         // these are prepended to any existing text context from a previous call
         // use whisper_tokenize() to convert text to tokens

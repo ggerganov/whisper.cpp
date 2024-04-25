@@ -1,5 +1,8 @@
 #!/bin/sh
 
+printf "whisper.cpp: this script hasn't been maintained and is not functional atm\n"
+exit 1
+
 # This script downloads Whisper model files that have already been converted to Core ML format.
 # This way you don't have to convert them yourself.
 

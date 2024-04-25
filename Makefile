@@ -144,6 +144,24 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 			CXXFLAGS += -mavx2
 		endif
 
+		AVX512F_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512F')
+		ifneq (,$(AVX512F_M))
+			CFLAGS   += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
+			CXXFLAGS += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
+		endif
+
+		AVX512VNNI_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX512_VNNI|AVX512VNNI')
+		ifneq (,$(AVX512VNNI_M))
+			CFLAGS   += -mavx512vnni
+			CXXFLAGS += -mavx512vnni
+		endif
+
+		AVX512VBMI_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512VBMI')
+		ifneq (,$(AVX512VBMI_M))
+			CFLAGS   += -mavx512vbmi
+			CXXFLAGS += -mavx512vbmi
+		endif
+
 		FMA_M := $(shell $(CPUINFO_CMD) | grep -iw 'FMA')
 		ifneq (,$(FMA_M))
 			CFLAGS   += -mfma
@@ -210,26 +228,54 @@ ifndef WHISPER_NO_METAL
 	endif
 endif
 
-ifdef WHISPER_OPENBLAS
-	CFLAGS  += -DGGML_USE_OPENBLAS -I/usr/local/include/openblas -I/usr/include/openblas
-	LDFLAGS += -lopenblas
+ifneq ($(filter-out 0,$(WHISPER_OPENBLAS)),) # OpenBLAS
+	WHISPER_OPENBLAS_INTERFACE64 ?= 0 # use 32-bit interface by default
+	ifneq ($(filter-out 0,$(WHISPER_OPENBLAS_INTERFACE64)),)
+		WHISPER_BLAS_LIB := openblas64
+	else
+		WHISPER_BLAS_LIB := openblas
+	endif
+	ifneq ($(OPENBLAS_PATH),)
+		WHISPER_BLAS_CFLAGS  := -I$(OPENBLAS_PATH)/include
+		WHISPER_BLAS_LDFLAGS := -L$(OPENBLAS_PATH)/lib -l$(WHISPER_BLAS_LIB)
+	else
+		WHISPER_BLAS_LIB_PC_EXISTS := $(shell pkg-config --exists $(WHISPER_BLAS_LIB) && echo 1)
+		ifneq ($(filter-out 0,$(WHISPER_BLAS_LIB_PC_EXISTS)),)
+			WHISPER_BLAS_CFLAGS  := $(shell pkg-config --cflags $(WHISPER_BLAS_LIB))
+			WHISPER_BLAS_LDFLAGS := $(shell pkg-config --libs   $(WHISPER_BLAS_LIB))
+		else
+			WHISPER_BLAS_CFLAGS  := -I/usr/include/openblas
+			WHISPER_BLAS_LDFLAGS := -l$(WHISPER_BLAS_LIB)
+		endif
+	endif
+	CFLAGS  += $(WHISPER_BLAS_CFLAGS) -DGGML_USE_OPENBLAS
+	LDFLAGS += $(WHISPER_BLAS_LDFLAGS)
 endif
 
 ifdef WHISPER_CUBLAS
+# WHISPER_CUBLAS is deprecated and will be removed in the future
+	WHISPER_CUDA := 1
+endif
+
+ifdef WHISPER_CUDA
 	ifeq ($(shell expr $(NVCC_VERSION) \>= 11.6), 1)
 		CUDA_ARCH_FLAG ?= native
 	else
 		CUDA_ARCH_FLAG ?= all
 	endif
 
-	CFLAGS      += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
-	CXXFLAGS    += -DGGML_USE_CUBLAS -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
+	CFLAGS      += -DGGML_USE_CUDA -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
+	CXXFLAGS    += -DGGML_USE_CUDA -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
 	LDFLAGS     += -lcuda -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L/usr/lib/wsl/lib
 	WHISPER_OBJ += ggml-cuda.o
+	WHISPER_OBJ += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/*.cu))
 	NVCC        = nvcc
 	NVCCFLAGS   = --forward-unknown-to-host-compiler -arch=$(CUDA_ARCH_FLAG)
 
-ggml-cuda.o: ggml-cuda.cu ggml-cuda.h
+ggml-cuda/%.o: ggml-cuda/%.cu ggml-cuda/%.cuh ggml.h ggml-common.h ggml-cuda/common.cuh
+	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -c $< -o $@
+
+ggml-cuda.o: ggml-cuda.cu ggml-cuda.h ggml.h ggml-backend.h ggml-backend-impl.h ggml-common.h $(wildcard ggml-cuda/*.cuh)
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
 endif
 
@@ -237,14 +283,18 @@ ifdef WHISPER_HIPBLAS
 	ROCM_PATH   ?= /opt/rocm
 	HIPCC       ?= $(ROCM_PATH)/bin/hipcc
 	GPU_TARGETS ?= $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
-	CFLAGS      += -DGGML_USE_HIPBLAS -DGGML_USE_CUBLAS
-	CXXFLAGS    += -DGGML_USE_HIPBLAS -DGGML_USE_CUBLAS
+	CFLAGS      += -DGGML_USE_HIPBLAS -DGGML_USE_CUDA
+	CXXFLAGS    += -DGGML_USE_HIPBLAS -DGGML_USE_CUDA
 	LDFLAGS     += -L$(ROCM_PATH)/lib -Wl,-rpath=$(ROCM_PATH)/lib
 	LDFLAGS     += -lhipblas -lamdhip64 -lrocblas
 	HIPFLAGS    += $(addprefix --offload-arch=,$(GPU_TARGETS))
 	WHISPER_OBJ += ggml-cuda.o
+	WHISPER_OBJ += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/*.cu))
 
-ggml-cuda.o: ggml-cuda.cu ggml-cuda.h
+ggml-cuda/%.o: ggml-cuda/%.cu ggml-cuda/%.cuh ggml.h ggml-common.h ggml-cuda/common.cuh
+	$(HIPCC) $(CXXFLAGS) $(HIPFLAGS) -x hip -c -o $@ $<
+
+ggml-cuda.o: ggml-cuda.cu ggml-cuda.h ggml.h ggml-backend.h ggml-backend-impl.h ggml-common.h $(wildcard ggml-cuda/*.cuh)
 	$(HIPCC) $(CXXFLAGS) $(HIPFLAGS) -x hip -c -o $@ $<
 endif
 
@@ -309,6 +359,13 @@ $(info I CC:       $(CCV))
 $(info I CXX:      $(CXXV))
 $(info )
 
+ifdef WHISPER_CUBLAS
+$(info !!!!)
+$(info WHISPER_CUBLAS is deprecated and will be removed in the future. Use WHISPER_CUDA instead.)
+$(info !!!!)
+$(info )
+endif
+
 #
 # Build library
 #
@@ -351,17 +408,19 @@ WHISPER_OBJ += ggml-metal.o
 ifdef WHISPER_METAL_EMBED_LIBRARY
 CFLAGS += -DGGML_METAL_EMBED_LIBRARY
 
-ggml-metal-embed.o: ggml-metal.metal
+ggml-metal-embed.o: ggml-metal.metal ggml-common.h
 	@echo "Embedding Metal library"
 	$(eval TEMP_ASSEMBLY=$(shell mktemp))
+	$(eval TEMP_METALLIB=$(shell mktemp))
+	@sed "/^#include \"ggml-common.h\"/{r ggml-common.h"$$'\n'"d;}" ggml-metal.metal > $(TEMP_METALLIB)
 	@echo ".section __DATA, __ggml_metallib" > $(TEMP_ASSEMBLY)
 	@echo ".globl _ggml_metallib_start" >> $(TEMP_ASSEMBLY)
 	@echo "_ggml_metallib_start:" >> $(TEMP_ASSEMBLY)
-	@echo ".incbin \"$<\"" >> $(TEMP_ASSEMBLY)
+	@echo ".incbin \"$(TEMP_METALLIB)\"" >> $(TEMP_ASSEMBLY)
 	@echo ".globl _ggml_metallib_end" >> $(TEMP_ASSEMBLY)
 	@echo "_ggml_metallib_end:" >> $(TEMP_ASSEMBLY)
 	@$(AS) $(TEMP_ASSEMBLY) -o $@
-	@rm -f ${TEMP_ASSEMBLY}
+	@rm -f $(TEMP_ASSEMBLY) $(TEMP_METALLIB)
 
 WHISPER_OBJ += ggml-metal-embed.o
 endif
@@ -382,7 +441,7 @@ clean:
 
 CC_SDL=`sdl2-config --cflags --libs`
 
-SRC_COMMON     = examples/common.cpp examples/common-ggml.cpp
+SRC_COMMON     = examples/common.cpp examples/common-ggml.cpp examples/grammar-parser.cpp
 SRC_COMMON_SDL = examples/common-sdl.cpp
 
 main: examples/main/main.cpp $(SRC_COMMON) $(WHISPER_OBJ)
@@ -401,8 +460,8 @@ server: examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ)
 stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
 
-command: examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/command/command.cpp examples/grammar-parser.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
+command: examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
 
 lsp: examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o lsp $(CC_SDL) $(LDFLAGS)
@@ -410,8 +469,8 @@ lsp: examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
 	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o talk $(CC_SDL) $(LDFLAGS)
 
-talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp examples/talk-llama/unicode.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp examples/talk-llama/unicode.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o talk-llama $(CC_SDL) $(LDFLAGS)
+talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp examples/talk-llama/unicode.cpp examples/talk-llama/unicode-data.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
+	$(CXX) $(CXXFLAGS) examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp examples/talk-llama/unicode.cpp examples/talk-llama/unicode-data.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o talk-llama $(CC_SDL) $(LDFLAGS)
 
 #
 # Audio samples

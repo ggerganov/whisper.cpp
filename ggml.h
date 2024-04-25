@@ -214,9 +214,10 @@
 #    define GGML_ATTRIBUTE_FORMAT(...) __attribute__((format(printf, __VA_ARGS__)))
 #endif
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 
 #define GGML_FILE_MAGIC   0x67676d6c // "ggml"
 #define GGML_FILE_VERSION 1
@@ -331,8 +332,8 @@ extern "C" {
     GGML_API float       ggml_fp16_to_fp32(ggml_fp16_t x);
     GGML_API ggml_fp16_t ggml_fp32_to_fp16(float x);
 
-    GGML_API void ggml_fp16_to_fp32_row(const ggml_fp16_t * x, float * y, int n);
-    GGML_API void ggml_fp32_to_fp16_row(const float * x, ggml_fp16_t * y, int n);
+    GGML_API void ggml_fp16_to_fp32_row(const ggml_fp16_t * x, float * y, int64_t n);
+    GGML_API void ggml_fp32_to_fp16_row(const float * x, ggml_fp16_t * y, int64_t n);
 
     struct ggml_object;
     struct ggml_context;
@@ -366,6 +367,9 @@ extern "C" {
         GGML_TYPE_I8      = 24,
         GGML_TYPE_I16     = 25,
         GGML_TYPE_I32     = 26,
+        GGML_TYPE_I64     = 27,
+        GGML_TYPE_F64     = 28,
+        GGML_TYPE_IQ1_M   = 29,
         GGML_TYPE_COUNT,
     };
 
@@ -405,6 +409,7 @@ extern "C" {
         GGML_FTYPE_MOSTLY_IQ3_S   = 20, // except 1d tensors
         GGML_FTYPE_MOSTLY_IQ2_S   = 21, // except 1d tensors
         GGML_FTYPE_MOSTLY_IQ4_XS  = 22, // except 1d tensors
+        GGML_FTYPE_MOSTLY_IQ1_M   = 23, // except 1d tensors
     };
 
     // available tensor operations:
@@ -706,6 +711,9 @@ extern "C" {
 
     GGML_API void    ggml_print_backtrace(void);
 
+    // accepts a UTF-8 path, even on Windows
+    GGML_API FILE *  ggml_fopen(const char * fname, const char * mode);
+
     GGML_API void    ggml_numa_init(enum ggml_numa_strategy numa); // call once for better performance on NUMA systems
     GGML_API bool    ggml_is_numa(void); // true if init detected that system has >1 NUMA node
 
@@ -742,6 +750,7 @@ extern "C" {
     GGML_API GGML_CALL bool ggml_is_transposed(const struct ggml_tensor * tensor);
     GGML_API GGML_CALL bool ggml_is_contiguous(const struct ggml_tensor * tensor);
     GGML_API GGML_CALL bool ggml_is_permuted  (const struct ggml_tensor * tensor);
+    GGML_API GGML_CALL bool ggml_is_empty     (const struct ggml_tensor * tensor);
     GGML_API           bool ggml_is_scalar    (const struct ggml_tensor * tensor);
     GGML_API           bool ggml_is_vector    (const struct ggml_tensor * tensor);
     GGML_API           bool ggml_is_matrix    (const struct ggml_tensor * tensor);
@@ -1155,8 +1164,7 @@ extern "C" {
     //  ggml_mul_mat_id(ctx, as, ids, id, b) ~= ggml_mul_mat(as[ids[id]], b)
     GGML_API struct ggml_tensor * ggml_mul_mat_id(
             struct ggml_context * ctx,
-            struct ggml_tensor  * const as[],
-            int                   n_as,
+            struct ggml_tensor  * as,
             struct ggml_tensor  * ids,
             int                   id,
             struct ggml_tensor  * b);
@@ -2202,9 +2210,9 @@ extern "C" {
             enum ggml_type   type,
                const float * src,
                       void * dst,
-                       int   start,
-                       int   nrows,
-                       int   n_per_row,
+                   int64_t   start,
+                   int64_t   nrows,
+                   int64_t   n_per_row,
                const float * imatrix);
 
     //
@@ -2348,7 +2356,7 @@ extern "C" {
     GGML_API int ggml_cpu_has_fp16_va    (void);
     GGML_API int ggml_cpu_has_wasm_simd  (void);
     GGML_API int ggml_cpu_has_blas       (void);
-    GGML_API int ggml_cpu_has_cublas     (void);
+    GGML_API int ggml_cpu_has_cuda       (void);
     GGML_API int ggml_cpu_has_clblast    (void);
     GGML_API int ggml_cpu_has_vulkan     (void);
     GGML_API int ggml_cpu_has_kompute    (void);
@@ -2369,8 +2377,8 @@ extern "C" {
 #else
 #define GGML_RESTRICT restrict
 #endif
-    typedef void (*ggml_to_float_t)  (const void  * GGML_RESTRICT x, float * GGML_RESTRICT y, int k);
-    typedef void (*ggml_from_float_t)(const float * GGML_RESTRICT x, void  * GGML_RESTRICT y, int k);
+    typedef void (*ggml_to_float_t)  (const void  * GGML_RESTRICT x, float * GGML_RESTRICT y, int64_t k);
+    typedef void (*ggml_from_float_t)(const float * GGML_RESTRICT x, void  * GGML_RESTRICT y, int64_t k);
     typedef void (*ggml_vec_dot_t)   (int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT x, size_t bx,
                                       const void * GGML_RESTRICT y, size_t by, int nrc);
 
