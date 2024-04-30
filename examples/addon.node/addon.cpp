@@ -259,31 +259,56 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
     return 0;
 }
 
-class Worker : public Napi::AsyncWorker {
+class Worker : public Napi::AsyncProgressWorker<size_t> {
  public:
   Worker(Napi::Function& callback, whisper_params params)
-      : Napi::AsyncWorker(callback), params(params) {}
+      : Napi::AsyncProgressWorker<size_t>(callback), params(params) {}
 
-  void Execute() override {
-    run(params, result);
+  void Execute(const ExecutionProgress& progress) override {
+    for (size_t i = 0; i < (int) params.fname_inp.size(); ++i) {
+
+      std::vector<std::vector<std::string>> current_result;
+      whisper_params single_file_params = params;
+      single_file_params.fname_inp.clear();
+      single_file_params.fname_inp.push_back(params.fname_inp[i]);
+
+      run(single_file_params, current_result);
+
+      results.push_back(current_result);
+
+      progress.Send(&i, 1);
+    }
+  }
+
+  void OnProgress(const size_t* data, size_t count) override {
+    Napi::HandleScope scope(Env());
+    Napi::Object _res = Napi::Object::New(Env());
+    _res.Set("res", Env().Null());
+    _res.Set("index", Napi::Number::New(Env(), *data));
+    Callback().Call({Env().Null(), _res});
   }
 
   void OnOK() override {
     Napi::HandleScope scope(Env());
-    Napi::Object res = Napi::Array::New(Env(), result.size());
-    for (uint64_t i = 0; i < result.size(); ++i) {
+    Napi::Object res = Napi::Array::New(Env(), results.size());
+    for (uint64_t i = 0; i < results.size(); ++i) {
       Napi::Object tmp = Napi::Array::New(Env(), 3);
       for (uint64_t j = 0; j < 3; ++j) {
-        tmp[j] = Napi::String::New(Env(), result[i][j]);
+        for (uint64_t k = 0; k < 1; ++k) {
+          tmp[j] = Napi::String::New(Env(), results[i][k][j]);
+        }
       }
       res[i] = tmp;
     }
-    Callback().Call({Env().Null(), res});
+    Napi::Object _res = Napi::Object::New(Env());
+    _res.Set("res", res);
+    _res.Set("index", Env().Null());
+    Callback().Call({Env().Null(), _res});
   }
 
  private:
   whisper_params params;
-  std::vector<std::vector<std::string>> result;
+  std::vector<std::vector<std::vector<std::string>>> results;
 };
 
 
@@ -298,13 +323,17 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   Napi::Object whisper_params = info[0].As<Napi::Object>();
   std::string language = whisper_params.Get("language").As<Napi::String>();
   std::string model = whisper_params.Get("model").As<Napi::String>();
-  std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
+  Napi::Array inputArray = whisper_params.Get("fname_inp").As<Napi::Array>();
+  std::vector<std::string> input;
+  for (uint32_t i = 0; i < inputArray.Length(); i++) {
+      input.push_back(inputArray.Get(i).As<Napi::String>());
+  }
   bool use_gpu = whisper_params.Get("use_gpu").As<Napi::Boolean>();
   bool no_timestamps = whisper_params.Get("no_timestamps").As<Napi::Boolean>();
 
   params.language = language;
   params.model = model;
-  params.fname_inp.emplace_back(input);
+  params.fname_inp = input;
   params.use_gpu = use_gpu;
   params.no_timestamps = no_timestamps;
 
