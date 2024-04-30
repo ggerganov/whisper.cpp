@@ -1193,7 +1193,9 @@ int main(int argc, char ** argv) {
         }
     }
 
-    whisper_print_timings(ctx);
+    if (!params.no_prints) {
+        whisper_print_timings(ctx);
+    }
     whisper_free(ctx);
 
     return 0;
