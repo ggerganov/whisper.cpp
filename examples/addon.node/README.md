@@ -29,7 +29,7 @@ For Electron addon and cmake-js options, you can see [cmake-js](https://github.c
 ```shell
 cd examples/addon.node
 
-node index.js --language='language' --model='model-path' --fname_inp='file-path' --no_timestamps=false
+node index.js --language='language' --model='model-path' --fname_inp='file-path'
 ```
 
 Because this is a simple Demo, only the above parameters are set in the node environment.
