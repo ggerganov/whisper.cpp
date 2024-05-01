@@ -1,7 +1,7 @@
 const path = require("path");
 const { whisper } = require(path.join(
   __dirname,
-  "../../build/Release/whisper-addon"
+  "../../build/Release/addon.node"
 ));
 const { promisify } = require("util");
 
@@ -12,6 +12,7 @@ const whisperParams = {
   model: path.join(__dirname, "../../models/ggml-base.en.bin"),
   fname_inp: "../../samples/jfk.wav",
   use_gpu: true,
+  no_timestamps: false,
 };
 
 const arguments = process.argv.slice(2);
