@@ -18,6 +18,17 @@ ifndef NVCC_VERSION
 	endif
 endif
 
+# In GNU make default CXX is g++ instead of c++.  Let's fix that so that users
+# of non-gcc compilers don't have to provide g++ alias or wrapper.
+DEFCC  := cc
+DEFCXX := c++
+ifeq ($(origin CC),default)
+CC  := $(DEFCC)
+endif
+ifeq ($(origin CXX),default)
+CXX := $(DEFCXX)
+endif
+
 CCV  := $(shell $(CC) --version | head -n 1)
 CXXV := $(shell $(CXX) --version | head -n 1)
 
