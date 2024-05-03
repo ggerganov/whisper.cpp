@@ -14,14 +14,14 @@ npm install
 Make sure it is in the project root directory and compiled with make-js.
 
 ```shell
-npx cmake-js compile -T whisper-addon -B Release
+npx cmake-js compile -T addon.node -B Release
 ```
 
 For Electron addon and cmake-js options, you can see [cmake-js](https://github.com/cmake-js/cmake-js) and make very few configuration changes.
 
 > Such as appointing special cmake path:
 > ```shell
-> npx cmake-js compile -c 'xxx/cmake' -T whisper-addon -B Release
+> npx cmake-js compile -c 'xxx/cmake' -T addon.node -B Release
 > ```
 
 ## Run

@@ -1,5 +1,5 @@
 {
-  "name": "whisper-addon",
+  "name": "addon.node",
   "version": "0.0.0",
   "description": "",
   "main": "index.js",
