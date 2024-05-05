@@ -45,6 +45,8 @@ struct whisper_params {
 
     std::vector<std::string> fname_inp = {};
     std::vector<std::string> fname_out = {};
+
+    std::vector<float> pcmf32 = {}; // mono-channel F32 PCM
 };
 
 struct whisper_print_user_data {
@@ -122,8 +124,8 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
 }
 
 int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
-    if (params.fname_inp.empty()) {
-        fprintf(stderr, "error: no input files specified\n");
+    if (params.fname_inp.empty() && params.pcmf32.empty()) {
+        fprintf(stderr, "error: no input files or audio buffer specified\n");
         return 2;
     }
 
@@ -143,6 +145,14 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
         return 3;
     }
 
+    // if params.pcmf32 is provided, set params.fname_inp to "buffer"
+    // this is simpler than further modifications in the code
+    if (!params.pcmf32.empty()) {
+        fprintf(stderr, "info: using audio buffer as input\n");
+        params.fname_inp.clear();
+        params.fname_inp.emplace_back("buffer");
+    }
+
     for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
         const auto fname_inp = params.fname_inp[f];
         const auto fname_out = f < (int)params.fname_out.size() && !params.fname_out[f].empty() ? params.fname_out[f] : params.fname_inp[f];
@@ -150,9 +160,14 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
         std::vector<float> pcmf32; // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
-        if (!::read_wav(fname_inp, pcmf32, pcmf32s, params.diarize)) {
-            fprintf(stderr, "error: failed to read WAV file '%s'\n", fname_inp.c_str());
-            continue;
+        // read the input audio file if params.pcmf32 is not provided
+        if (params.pcmf32.empty()) {
+            if (!::read_wav(fname_inp, pcmf32, pcmf32s, params.diarize)) {
+                fprintf(stderr, "error: failed to read WAV file '%s'\n", fname_inp.c_str());
+                continue;
+            }
+        } else {
+            pcmf32 = params.pcmf32;
         }
 
         // print system information
@@ -306,12 +321,24 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   bool no_timestamps = whisper_params.Get("no_timestamps").As<Napi::Boolean>();
   int32_t audio_ctx = whisper_params.Get("audio_ctx").As<Napi::Number>();
 
+  Napi::Value pcmf32Value = whisper_params.Get("pcmf32");
+  std::vector<float> pcmf32_vec;
+  if (pcmf32Value.IsTypedArray()) {
+    Napi::Float32Array pcmf32 = pcmf32Value.As<Napi::Float32Array>();
+    size_t length = pcmf32.ElementLength();
+    pcmf32_vec.reserve(length);
+    for (size_t i = 0; i < length; i++) {
+      pcmf32_vec.push_back(pcmf32[i]);
+    }
+  }
+
   params.language = language;
   params.model = model;
   params.fname_inp.emplace_back(input);
   params.use_gpu = use_gpu;
   params.no_timestamps = no_timestamps;
   params.audio_ctx = audio_ctx;
+  params.pcmf32 = pcmf32_vec;
 
   Napi::Function callback = info[1].As<Napi::Function>();
   Worker* worker = new Worker(callback, params);
