@@ -20,7 +20,13 @@ const arguments = process.argv.slice(2);
 const params = Object.fromEntries(
   arguments.reduce((pre, item) => {
     if (item.startsWith("--")) {
-      return [...pre, item.slice(2).split("=")];
+      const [key, value] = item.slice(2).split("=");
+      if (key === "audio_ctx") {
+        whisperParams[key] = parseInt(value);
+      } else {
+        whisperParams[key] = value;
+      }
+      return pre;
     }
     return pre;
   }, [])
