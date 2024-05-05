@@ -19,6 +19,7 @@ struct whisper_params {
     int32_t max_len      = 0;
     int32_t best_of      = 5;
     int32_t beam_size    = -1;
+    int32_t audio_ctx    = 0;
 
     float word_thold    = 0.01f;
     float entropy_thold = 2.4f;
@@ -171,12 +172,13 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
                     fprintf(stderr, "%s: WARNING: model is not multilingual, ignoring language and translation options\n", __func__);
                 }
             }
-            fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, lang = %s, task = %s, timestamps = %d ...\n",
+            fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, lang = %s, task = %s, timestamps = %d, audio_ctx = %d ...\n",
                     __func__, fname_inp.c_str(), int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE,
                     params.n_threads, params.n_processors,
                     params.language.c_str(),
                     params.translate ? "translate" : "transcribe",
-                    params.no_timestamps ? 0 : 1);
+                    params.no_timestamps ? 0 : 1,
+                    params.audio_ctx);
 
             fprintf(stderr, "\n");
         }
@@ -203,6 +205,7 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
             wparams.entropy_thold    = params.entropy_thold;
             wparams.logprob_thold    = params.logprob_thold;
             wparams.max_len          = params.output_wts && params.max_len == 0 ? 60 : params.max_len;
+            wparams.audio_ctx        = params.audio_ctx;
 
             wparams.speed_up         = params.speed_up;
 
@@ -301,12 +304,14 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
   bool use_gpu = whisper_params.Get("use_gpu").As<Napi::Boolean>();
   bool no_timestamps = whisper_params.Get("no_timestamps").As<Napi::Boolean>();
+  int32_t audio_ctx = whisper_params.Get("audio_ctx").As<Napi::Number>();
 
   params.language = language;
   params.model = model;
   params.fname_inp.emplace_back(input);
   params.use_gpu = use_gpu;
   params.no_timestamps = no_timestamps;
+  params.audio_ctx = audio_ctx;
 
   Napi::Function callback = info[1].As<Napi::Function>();
   Worker* worker = new Worker(callback, params);

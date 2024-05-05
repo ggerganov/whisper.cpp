@@ -13,6 +13,7 @@ const whisperParams = {
   fname_inp: "../../samples/jfk.wav",
   use_gpu: true,
   no_timestamps: false,
+  audio_ctx: 0,
 };
 
 const arguments = process.argv.slice(2);

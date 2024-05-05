@@ -13,6 +13,7 @@ const whisperParamsMock = {
   fname_inp: path.join(__dirname, "../../../samples/jfk.wav"),
   use_gpu: true,
   no_timestamps: false,
+  audio_ctx: 0,
 };
 
 describe("Run whisper.node", () => {
