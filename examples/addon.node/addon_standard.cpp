@@ -1,8 +1,6 @@
 #include "napi.h"
 #include "common.h"
 
-#include <windows.h>
-
 #include "whisper.h"
 
 #include <string>
@@ -11,26 +9,9 @@
 #include <cmath>
 #include <cstdint>
 
-HINSTANCE hDLL;
-
-typedef WHISPER_API int (*Twhisper_full_n_segments)(struct whisper_context *ctx);
-typedef int64_t (*Twhisper_full_get_segment_t0)(whisper_context *ctx, int i_segment);
-typedef int64_t (*Twhisper_full_get_segment_t1)(whisper_context *ctx, int i_segment);
-typedef const char *(*Twhisper_full_get_segment_text)(whisper_context *ctx, int i_segment);
-
-typedef int (*Twhisper_lang_id)(const char *lang);
-typedef whisper_context_params (*Twhisper_context_default_params)();
-typedef whisper_context *(*Twhisper_init_from_file_with_params)(const char *path_model, whisper_context_params params);
-typedef const char *(*Twhisper_print_system_info)();
-typedef int (*Twhisper_is_multilingual)(whisper_context *ctx);
-typedef whisper_full_params (*Twhisper_full_default_params)(whisper_sampling_strategy strategy);
-typedef void (*Twhisper_print_timings)(whisper_context *ctx);
-typedef void (*Twhisper_free)(whisper_context *ctx);
-typedef int (*Twhisper_full_parallel)(whisper_context *ctx, whisper_full_params params, const float *samples, int n_samples, int n_processors);
-
 struct whisper_params
 {
-    int32_t n_threads = min(4, (int32_t)std::thread::hardware_concurrency());
+    int32_t n_threads = std::min(4, (int32_t)std::thread::hardware_concurrency());
     int32_t n_processors = 1;
     int32_t offset_t_ms = 0;
     int32_t offset_n = 0;
@@ -60,7 +41,6 @@ struct whisper_params
 
     std::string language = "en";
     std::string prompt;
-    std::string dll_location;
     std::string model = "../../ggml-large.bin";
 
     std::vector<std::string> fname_inp = {};
@@ -80,11 +60,6 @@ void whisper_print_segment_callback(struct whisper_context *ctx, struct whisper_
 {
     const auto &params = *((whisper_print_user_data *)user_data)->params;
     const auto &pcmf32s = *((whisper_print_user_data *)user_data)->pcmf32s;
-
-    Twhisper_full_n_segments whisper_full_n_segments = (Twhisper_full_n_segments)GetProcAddress(hDLL, "whisper_full_n_segments");
-    Twhisper_full_get_segment_t0 whisper_full_get_segment_t0 = (Twhisper_full_get_segment_t0)GetProcAddress(hDLL, "whisper_full_get_segment_t0");
-    Twhisper_full_get_segment_t1 whisper_full_get_segment_t1 = (Twhisper_full_get_segment_t1)GetProcAddress(hDLL, "whisper_full_get_segment_t1");
-    Twhisper_full_get_segment_text whisper_full_get_segment_text = (Twhisper_full_get_segment_text)GetProcAddress(hDLL, "whisper_full_get_segment_text");
 
     const int n_segments = whisper_full_n_segments(ctx);
 
@@ -163,58 +138,13 @@ void whisper_print_segment_callback(struct whisper_context *ctx, struct whisper_
 
 int run(whisper_params &params, std::vector<std::vector<std::string>> &result)
 {
-
-    // std::string dll_location_first = "whisper.dll";
-    // HINSTANCE hDLL_first = LoadLibraryA(dll_location_first.c_str());
-    fprintf(stderr, "dll_location: %s\n", params.dll_location.c_str());
-    // hDLL = LoadLibraryA(params.dll_location.c_str());
-    hDLL = LoadLibraryExA(params.dll_location.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-
-    if (hDLL == NULL)
-    {
-        // call GetLastError
-        DWORD dw = GetLastError();
-
-        // format message
-        LPVOID lpMsgBuf;
-
-        FormatMessage(
-            FORMAT_MESSAGE_ALLOCATE_BUFFER |
-                FORMAT_MESSAGE_FROM_SYSTEM |
-                FORMAT_MESSAGE_IGNORE_INSERTS,
-            NULL,
-            dw,
-            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-            (LPTSTR)&lpMsgBuf,
-            0, NULL);
-
-        // display message
-        fprintf(stderr, "error: failed to load library: %s\n", (char *)lpMsgBuf);
-
-        return 1;
-    }
-
-    Twhisper_lang_id whisper_lang_id = (Twhisper_lang_id)GetProcAddress(hDLL, "whisper_lang_id");
-    Twhisper_context_default_params whisper_context_default_params = (Twhisper_context_default_params)GetProcAddress(hDLL, "whisper_context_default_params");
-    Twhisper_init_from_file_with_params whisper_init_from_file_with_params = (Twhisper_init_from_file_with_params)GetProcAddress(hDLL, "whisper_init_from_file_with_params");
-    Twhisper_print_system_info whisper_print_system_info = (Twhisper_print_system_info)GetProcAddress(hDLL, "whisper_print_system_info");
-    Twhisper_is_multilingual whisper_is_multilingual = (Twhisper_is_multilingual)GetProcAddress(hDLL, "whisper_is_multilingual");
-    Twhisper_full_default_params whisper_full_default_params = (Twhisper_full_default_params)GetProcAddress(hDLL, "whisper_full_default_params");
-
-    Twhisper_full_n_segments whisper_full_n_segments = (Twhisper_full_n_segments)GetProcAddress(hDLL, "whisper_full_n_segments");
-    Twhisper_full_get_segment_t0 whisper_full_get_segment_t0 = (Twhisper_full_get_segment_t0)GetProcAddress(hDLL, "whisper_full_get_segment_t0");
-    Twhisper_full_get_segment_t1 whisper_full_get_segment_t1 = (Twhisper_full_get_segment_t1)GetProcAddress(hDLL, "whisper_full_get_segment_t1");
-    Twhisper_full_get_segment_text whisper_full_get_segment_text = (Twhisper_full_get_segment_text)GetProcAddress(hDLL, "whisper_full_get_segment_text");
-    Twhisper_print_timings whisper_print_timings = (Twhisper_print_timings)GetProcAddress(hDLL, "whisper_print_timings");
-    Twhisper_free whisper_free = (Twhisper_free)GetProcAddress(hDLL, "whisper_free");
-    Twhisper_full_parallel whisper_full_parallel = (Twhisper_full_parallel)GetProcAddress(hDLL, "whisper_full_parallel");
-
     if (params.fname_inp.empty())
     {
         fprintf(stderr, "error: no input files specified\n");
         return 2;
     }
 
+    fprintf(stdout, "run func");
     if (params.language != "auto" && whisper_lang_id(params.language.c_str()) == -1)
     {
         fprintf(stderr, "error: unknown language '%s'\n", params.language.c_str());
@@ -233,6 +163,8 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result)
         return 3;
     }
 
+    fprintf(stdout, "here 1\n");
+
     // for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
     // const auto fname_inp = params.fname_inp[f];
     // const auto fname_out = f < (int)params.fname_out.size() && !params.fname_out[f].empty() ? params.fname_out[f] : params.fname_inp[f];
@@ -249,7 +181,7 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result)
         // continue;
     }
 
-    // print system information
+        // print system information
     {
         fprintf(stderr, "\n");
         fprintf(stderr, "system_info: n_threads = %d / %d | %s\n",
@@ -356,8 +288,6 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result)
     whisper_print_timings(ctx);
     whisper_free(ctx);
 
-    FreeLibrary(hDLL);
-
     return 0;
 }
 
@@ -396,10 +326,6 @@ private:
 Napi::Value whisper(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
-
-    freopen("addonErr.log", "w", stderr); // Redirect stderr to a file
-    // freopen("addonOut.log", "w", stdout); // Redirect stdout to a file
-
     if (info.Length() <= 0 || !info[0].IsObject())
     {
         Napi::TypeError::New(env, "object expected").ThrowAsJavaScriptException();
@@ -412,7 +338,6 @@ Napi::Value whisper(const Napi::CallbackInfo &info)
     std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
     bool use_gpu = whisper_params.Get("use_gpu").As<Napi::Boolean>();
 
-    std::string dll_location = whisper_params.Get("dll_location").As<Napi::String>();
     Napi::ArrayBuffer arrayBuffer = whisper_params.Get("array_buffer").As<Napi::ArrayBuffer>();
 
     std::int32_t n_threads = whisper_params.Get("n_threads").As<Napi::Number>();
@@ -425,7 +350,6 @@ Napi::Value whisper(const Napi::CallbackInfo &info)
     params.use_gpu = use_gpu;
     params.n_threads = n_threads;
     params.buffer = buffer;
-    params.dll_location = dll_location;
 
     Napi::Function callback = info[1].As<Napi::Function>();
     Worker *worker = new Worker(callback, params);
