@@ -154,6 +154,13 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 		AVX512VBMI_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512VBMI')
 		AVX512VNNI_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX512_VNNI|AVX512VNNI')
 
+		# AVX-512 has many subsets, so let's make it easy to disable them all
+		ifneq ($(filter-out 0,$(WHISPER_NO_AVX512)),)
+			AVX512F_M :=
+			AVX512VBMI_M :=
+			AVX512VNNI_M :=
+		endif
+
 		ifneq (,$(SSE3_M))
 			CFLAGS   += -msse3
 			CXXFLAGS += -msse3
