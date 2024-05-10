@@ -39,7 +39,7 @@ struct server_params
     int32_t read_timeout  = 600;
     int32_t write_timeout = 600;
 
-    bool ffmpeg_converter = false;
+    bool ffmpeg_converter = true;
 };
 
 struct whisper_params {
@@ -201,16 +201,17 @@ struct whisper_print_user_data {
     int progress_prev;
 };
 
-void check_ffmpeg_availibility() {
+bool check_ffmpeg_availibility() {
     int result = system("ffmpeg -version");
 
     if (result == 0) {
         std::cout << "ffmpeg is available." << std::endl;
+        return true;
     } else {
         // ffmpeg is not available
         std::cout << "ffmpeg is not found. Please ensure that ffmpeg is installed ";
         std::cout << "and that its executable is included in your system's PATH. ";
-        exit(0);
+        return false;//exit(0);
     }
 }
 
@@ -498,7 +499,11 @@ int main(int argc, char ** argv) {
     }
 
     if (sparams.ffmpeg_converter) {
-        check_ffmpeg_availibility();
+        if(!check_ffmpeg_availibility()){
+            sparams.ffmpeg_converter=false;
+            std::cout << "ignoring --convert option." << std::endl;
+        }
+
     }
     // whisper init
     struct whisper_context_params cparams = whisper_context_default_params();
