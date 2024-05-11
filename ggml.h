@@ -1066,15 +1066,15 @@ extern "C" {
             struct ggml_context * ctx,
             struct ggml_tensor  * a);
 
-    GGML_API struct ggml_tensor * ggml_sigmoid(
-            struct ggml_context * ctx,
-            struct ggml_tensor  * a);
-
     GGML_API struct ggml_tensor * ggml_leaky_relu(
             struct ggml_context * ctx,
             struct ggml_tensor  * a, float negative_slope, bool inplace);
 
     GGML_API struct ggml_tensor * ggml_relu_inplace(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * a);
+
+    GGML_API struct ggml_tensor * ggml_sigmoid(
             struct ggml_context * ctx,
             struct ggml_tensor  * a);
 
