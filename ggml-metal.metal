@@ -296,7 +296,7 @@ kernel void kernel_silu(
     dst[tpig] = x / (1.0f + exp(-x));
 }
 
-+kernel void kernel_silu_4(
+kernel void kernel_silu_4(
         device const float4 * src0,
         device       float4 * dst,
         uint tpig[[thread_position_in_grid]]) {
@@ -2217,7 +2217,7 @@ kernel void kernel_flash_attn_ext_f16(
 
         // ALiBi
         if (max_bias > 0.0f) {
-            const short h = iq2;
+            const uint32_t h = iq2;
 
             const float base = h < n_head_log2 ? m0 : m1;
             const int   exph = h < n_head_log2 ? h + 1 : 2*(h - n_head_log2) + 1;
@@ -2473,7 +2473,7 @@ kernel void kernel_flash_attn_ext_vec_f16(
 
     // ALiBi
     if (max_bias > 0.0f) {
-        const short h = iq2;
+        const uint32_t h = iq2;
 
         const float base = h < n_head_log2 ? m0 : m1;
         const int   exp  = h < n_head_log2 ? h + 1 : 2*(h - n_head_log2) + 1;
