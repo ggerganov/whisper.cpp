@@ -2901,11 +2901,13 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
                                               int n_samples, int frame_size, int frame_step, int n_threads,
                                               const whisper_filters & filters, whisper_mel & mel) {
     std::vector<float> fft_in(frame_size, 0.0);
-    std::vector<float> fft_out(2 * frame_step);
-    // make sure n_fft == 1 + (WHISPER_N_FFT / 2), bin_0 to bin_nyquist
-    int n_fft = 1 + (frame_size / 2);
+    std::vector<float> fft_out(2 * frame_size);
+    int n_fft = filters.n_fft;
     int i = ith;
 
+    // make sure n_fft == 1 + (WHISPER_N_FFT / 2), bin_0 to bin_nyquist
+    assert( n_fft == 1 + (frame_size / 2) );
+    
     // calculate FFT only when fft_in are not all zero
     for (; i < std::min(n_samples / frame_step + 1, mel.n_len); i += n_threads) {
         const int offset = i * frame_step;
@@ -2924,7 +2926,7 @@ static void log_mel_spectrogram_worker_thread(int ith, const std::vector<float> 
 
         // Calculate modulus^2 of complex numbers
         // Use pow(fft_out[2 * j + 0], 2) + pow(fft_out[2 * j + 1], 2) causes inference quality problem? Interesting.
-        for (int j = 0; j < frame_size; j++) {
+        for (int j = 0; j < n_fft; j++) {
             fft_out[j] = (fft_out[2 * j + 0] * fft_out[2 * j + 0] + fft_out[2 * j + 1] * fft_out[2 * j + 1]);
         }
 
@@ -5279,7 +5281,7 @@ int whisper_full_with_state(
     // basically don't process anything that is less than 1.0s
     // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
     if (seek_end < seek_start + (params.speed_up ? 50 : 100)) {
-        WHISPER_LOG_DEBUG("%s: input is too short - %d ms < 1000 ms\n", __func__, (seek_end - seek_start)*10);
+        WHISPER_LOG_WARN("%s: input is too short - %d ms < 1000 ms. consider padding the input audio with silence\n", __func__, (seek_end - seek_start)*10);
         return 0;
     }
 

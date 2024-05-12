@@ -18,6 +18,17 @@ ifndef NVCC_VERSION
 	endif
 endif
 
+# In GNU make default CXX is g++ instead of c++.  Let's fix that so that users
+# of non-gcc compilers don't have to provide g++ alias or wrapper.
+DEFCC  := cc
+DEFCXX := c++
+ifeq ($(origin CC),default)
+CC  := $(DEFCC)
+endif
+ifeq ($(origin CXX),default)
+CXX := $(DEFCXX)
+endif
+
 CCV  := $(shell $(CC) --version | head -n 1)
 CXXV := $(shell $(CXX) --version | head -n 1)
 
@@ -131,59 +142,68 @@ ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
 		CPUINFO_CMD := sysinfo -cpu
 	endif
 
+	# x86 ISA extensions (chronological order)
 	ifdef CPUINFO_CMD
-		AVX_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX|AVX1.0')
-		ifneq (,$(AVX_M))
-			CFLAGS   += -mavx
-			CXXFLAGS += -mavx
-		endif
-
-		AVX2_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX2')
-		ifneq (,$(AVX2_M))
-			CFLAGS   += -mavx2
-			CXXFLAGS += -mavx2
-		endif
-
-		AVX512F_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512F')
-		ifneq (,$(AVX512F_M))
-			CFLAGS   += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
-			CXXFLAGS += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
-		endif
-
-		AVX512VNNI_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX512_VNNI|AVX512VNNI')
-		ifneq (,$(AVX512VNNI_M))
-			CFLAGS   += -mavx512vnni
-			CXXFLAGS += -mavx512vnni
-		endif
-
-		AVX512VBMI_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512VBMI')
-		ifneq (,$(AVX512VBMI_M))
-			CFLAGS   += -mavx512vbmi
-			CXXFLAGS += -mavx512vbmi
-		endif
-
-		FMA_M := $(shell $(CPUINFO_CMD) | grep -iw 'FMA')
-		ifneq (,$(FMA_M))
-			CFLAGS   += -mfma
-			CXXFLAGS += -mfma
-		endif
-
-		F16C_M := $(shell $(CPUINFO_CMD) | grep -iw 'F16C')
-		ifneq (,$(F16C_M))
-			CFLAGS   += -mf16c
-			CXXFLAGS += -mf16c
-		endif
-
 		SSE3_M := $(shell $(CPUINFO_CMD) | grep -iwE 'PNI|SSE3')
+		SSSE3_M := $(shell $(CPUINFO_CMD) | grep -iw 'SSSE3')
+		AVX_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX|AVX1.0')
+		F16C_M := $(shell $(CPUINFO_CMD) | grep -iw 'F16C')
+		FMA_M := $(shell $(CPUINFO_CMD) | grep -iw 'FMA')
+		AVX2_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX2')
+		AVX512F_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512F')
+		AVX512VBMI_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512VBMI')
+		AVX512VNNI_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX512_VNNI|AVX512VNNI')
+
+		# AVX-512 has many subsets, so let's make it easy to disable them all
+		ifneq ($(filter-out 0,$(WHISPER_NO_AVX512)),)
+			AVX512F_M :=
+			AVX512VBMI_M :=
+			AVX512VNNI_M :=
+		endif
+
 		ifneq (,$(SSE3_M))
 			CFLAGS   += -msse3
 			CXXFLAGS += -msse3
 		endif
 
-		SSSE3_M := $(shell $(CPUINFO_CMD) | grep -iw 'SSSE3')
 		ifneq (,$(SSSE3_M))
 			CFLAGS   += -mssse3
 			CXXFLAGS += -mssse3
+		endif
+
+		ifneq (,$(AVX_M))
+			CFLAGS   += -mavx
+			CXXFLAGS += -mavx
+		endif
+
+		ifneq (,$(F16C_M))
+			CFLAGS   += -mf16c
+			CXXFLAGS += -mf16c
+		endif
+
+		ifneq (,$(FMA_M))
+			CFLAGS   += -mfma
+			CXXFLAGS += -mfma
+		endif
+
+		ifneq (,$(AVX2_M))
+			CFLAGS   += -mavx2
+			CXXFLAGS += -mavx2
+		endif
+
+		ifneq (,$(AVX512F_M))
+			CFLAGS   += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
+			CXXFLAGS += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
+		endif
+
+		ifneq (,$(AVX512VBMI_M))
+			CFLAGS   += -mavx512vbmi
+			CXXFLAGS += -mavx512vbmi
+		endif
+
+		ifneq (,$(AVX512VNNI_M))
+			CFLAGS   += -mavx512vnni
+			CXXFLAGS += -mavx512vnni
 		endif
 	endif
 endif
