@@ -3397,8 +3397,8 @@ struct whisper_context_params whisper_context_default_params() {
 
 struct whisper_context * whisper_init_from_file_with_params_no_state(const char * path_model, struct whisper_context_params params) {
     WHISPER_LOG_INFO("%s: loading model from '%s'\n", __func__, path_model);
-#ifdef _WIN32
-    // Convert the input file path from UTF-8 to wide string for Windows
+#ifdef _MSC_VER
+    // Convert UTF-8 path to wide string (UTF-16) for Windows, resolving character encoding issues.
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
     std::wstring path_model_wide = converter.from_bytes(path_model);
     auto fin = std::ifstream(path_model_wide, std::ios::binary);
