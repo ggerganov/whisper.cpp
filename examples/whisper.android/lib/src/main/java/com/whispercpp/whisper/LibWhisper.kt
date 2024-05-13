@@ -16,7 +16,7 @@ class WhisperContext private constructor(private var ptr: Long) {
         Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     )
 
-    suspend fun transcribeData(data: FloatArray): String = withContext(scope.coroutineContext) {
+    suspend fun transcribeData(data: FloatArray, printTimestamp: Boolean = true): String = withContext(scope.coroutineContext) {
         require(ptr != 0L)
         val numThreads = WhisperCpuConfig.preferredThreadCount
         Log.d(LOG_TAG, "Selecting $numThreads threads")
@@ -24,7 +24,13 @@ class WhisperContext private constructor(private var ptr: Long) {
         val textCount = WhisperLib.getTextSegmentCount(ptr)
         return@withContext buildString {
             for (i in 0 until textCount) {
-                append(WhisperLib.getTextSegment(ptr, i))
+                if (printTimestamp) {
+                    val textTimestamp = "[${toTimestamp(WhisperLib.getTextSegmentT0(ptr, i))} --> ${toTimestamp(WhisperLib.getTextSegmentT1(ptr, i))}]"
+                    val textSegment = WhisperLib.getTextSegment(ptr, i)
+                    append("$textTimestamp: $textSegment\n")
+                } else {
+                    append(WhisperLib.getTextSegment(ptr, i))
+                }
             }
         }
     }
@@ -131,10 +137,27 @@ private class WhisperLib {
         external fun fullTranscribe(contextPtr: Long, numThreads: Int, audioData: FloatArray)
         external fun getTextSegmentCount(contextPtr: Long): Int
         external fun getTextSegment(contextPtr: Long, index: Int): String
+        external fun getTextSegmentT0(contextPtr: Long, index: Int): Long
+        external fun getTextSegmentT1(contextPtr: Long, index: Int): Long
         external fun getSystemInfo(): String
         external fun benchMemcpy(nthread: Int): String
         external fun benchGgmlMulMat(nthread: Int): String
     }
+}
+
+//  500 -> 00:05.000
+// 6000 -> 01:00.000
+private fun toTimestamp(t: Long, comma: Boolean = false): String {
+    var msec = t * 10
+    val hr = msec / (1000 * 60 * 60)
+    msec -= hr * (1000 * 60 * 60)
+    val min = msec / (1000 * 60)
+    msec -= min * (1000 * 60)
+    val sec = msec / 1000
+    msec -= sec * 1000
+
+    val delimiter = if (comma) "," else "."
+    return String.format("%02d:%02d:%02d%s%03d", hr, min, sec, delimiter, msec)
 }
 
 private fun isArmEabiV7a(): Boolean {
