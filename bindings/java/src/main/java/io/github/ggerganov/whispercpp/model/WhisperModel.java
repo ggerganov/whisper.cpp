@@ -1,4 +1,4 @@
-package io.github.ggerganov.whispercpp;
+package io.github.ggerganov.whispercpp.model;
 
 import io.github.ggerganov.whispercpp.ggml.GgmlTensor;
 import io.github.ggerganov.whispercpp.model.EModel;
