@@ -831,7 +831,7 @@ int main(int argc, char ** argv) {
         if (params.response_format == text_format)
         {
             std::string results = output_str(ctx, params, pcmf32s);
-            res.set_content(results.c_str(), "text/html");
+            res.set_content(results.c_str(), "text/html; charset=utf-8");
         }
         else if (params.response_format == srt_format)
         {
