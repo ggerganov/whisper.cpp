@@ -16,6 +16,7 @@ const whisperParamsMock = {
   comma_in_time: false,
   translate: true,
   no_timestamps: false,
+  audio_ctx: 0,
 };
 
 describe("Run whisper.node", () => {

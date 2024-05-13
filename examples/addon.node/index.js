@@ -16,13 +16,20 @@ const whisperParams = {
   comma_in_time: false,
   translate: true,
   no_timestamps: false,
+  audio_ctx: 0,
 };
 
 const arguments = process.argv.slice(2);
 const params = Object.fromEntries(
   arguments.reduce((pre, item) => {
     if (item.startsWith("--")) {
-      return [...pre, item.slice(2).split("=")];
+      const [key, value] = item.slice(2).split("=");
+      if (key === "audio_ctx") {
+        whisperParams[key] = parseInt(value);
+      } else {
+        whisperParams[key] = value;
+      }
+      return pre;
     }
     return pre;
   }, [])
