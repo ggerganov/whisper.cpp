@@ -10,8 +10,11 @@ const whisperAsync = promisify(whisper);
 const whisperParams = {
   language: "en",
   model: path.join(__dirname, "../../models/ggml-base.en.bin"),
-  fname_inp: "../../samples/jfk.wav",
+  fname_inp: path.join(__dirname, "../../samples/jfk.wav"),
   use_gpu: true,
+  no_prints: true,
+  comma_in_time: false,
+  translate: true,
   no_timestamps: false,
 };
 
@@ -34,5 +37,6 @@ for (const key in params) {
 console.log("whisperParams =", whisperParams);
 
 whisperAsync(whisperParams).then((result) => {
-  console.log(`Result from whisper: ${result}`);
+  console.log();
+  console.log(result);
 });

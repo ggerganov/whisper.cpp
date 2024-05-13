@@ -36,7 +36,9 @@ struct whisper_params {
     bool print_colors   = false;
     bool print_progress = false;
     bool no_timestamps  = false;
+    bool no_prints      = false;
     bool use_gpu        = true;
+    bool comma_in_time  = true;
 
     std::string language = "en";
     std::string prompt;
@@ -120,7 +122,14 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
     }
 }
 
+void cb_log_disable(enum ggml_log_level, const char *, void *) {}
+
 int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
+
+    if (params.no_prints) {
+        whisper_log_set(cb_log_disable, NULL);
+    }
+
     if (params.fname_inp.empty()) {
         fprintf(stderr, "error: no input files specified\n");
         return 2;
@@ -155,14 +164,14 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
         }
 
         // print system information
-        {
+        if (!params.no_prints) {
             fprintf(stderr, "\n");
             fprintf(stderr, "system_info: n_threads = %d / %d | %s\n",
                     params.n_threads*params.n_processors, std::thread::hardware_concurrency(), whisper_print_system_info());
         }
 
         // print some info about the processing
-        {
+        if (!params.no_prints) {
             fprintf(stderr, "\n");
             if (!whisper_is_multilingual(ctx)) {
                 if (params.language != "en" || params.translate) {
@@ -248,8 +257,8 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
         const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
 
-        result[i].emplace_back(to_timestamp(t0, true));
-        result[i].emplace_back(to_timestamp(t1, true));
+        result[i].emplace_back(to_timestamp(t0, params.comma_in_time));
+        result[i].emplace_back(to_timestamp(t1, params.comma_in_time));
         result[i].emplace_back(text);
     }
 
@@ -300,13 +309,17 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   std::string model = whisper_params.Get("model").As<Napi::String>();
   std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
   bool use_gpu = whisper_params.Get("use_gpu").As<Napi::Boolean>();
+  bool no_prints = whisper_params.Get("no_prints").As<Napi::Boolean>();
   bool no_timestamps = whisper_params.Get("no_timestamps").As<Napi::Boolean>();
+  bool comma_in_time = whisper_params.Get("comma_in_time").As<Napi::Boolean>();
 
   params.language = language;
   params.model = model;
   params.fname_inp.emplace_back(input);
   params.use_gpu = use_gpu;
+  params.no_prints = no_prints;
   params.no_timestamps = no_timestamps;
+  params.comma_in_time = comma_in_time;
 
   Napi::Function callback = info[1].As<Napi::Function>();
   Worker* worker = new Worker(callback, params);
