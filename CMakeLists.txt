@@ -370,16 +370,18 @@ if (WHISPER_HIPBLAS)
 
     if (${hipblas_FOUND} AND ${hip_FOUND})
         message(STATUS "HIP and hipBLAS found")
-        add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA)
-        add_library(ggml-rocm OBJECT ggml-cuda.cu ggml-cuda.h)
-        set_property(TARGET ggml-rocm PROPERTY POSITION_INDEPENDENT_CODE ON)
-        set_source_files_properties(ggml-cuda.cu PROPERTIES LANGUAGE CXX)
-        target_link_libraries(ggml-rocm PRIVATE hip::device PUBLIC hip::host roc::rocblas roc::hipblas)
+        set(GGML_HEADERS_ROCM "ggml-cuda.h")
 
+        file(GLOB GGML_SOURCES_ROCM "ggml-cuda/*.cu")
+        list(APPEND GGML_SOURCES_ROCM "ggml-cuda.cu")
+
+        add_compile_definitions(GGML_USE_HIPBLAS GGML_USE_CUDA)
+
+        set_source_files_properties(${GGML_SOURCES_ROCM} PROPERTIES LANGUAGE CXX)
         if (WHISPER_STATIC)
             message(FATAL_ERROR "Static linking not supported for HIP/ROCm")
         endif()
-        set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} ggml-rocm)
+        set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} hip::device PUBLIC hip::host roc::rocblas roc::hipblas)
     else()
         message(FATAL_ERROR "hipBLAS or HIP not found. Try setting CMAKE_PREFIX_PATH=/opt/rocm")
     endif()
@@ -647,12 +649,15 @@ add_library(${TARGET}
     ${GGML_SOURCES_METAL}
     ${GGML_SOURCES_CUDA}
     ${GGML_SOURCES_OPENCL}
-    ${GGML_SOURCES_SYCL}
-    ${GGML_HEADERS_SYCL}
+    ${GGML_SOURCES_SYCL}        ${GGML_HEADERS_SYCL}
+    ${GGML_SOURCES_ROCM}        ${GGML_HEADERS_ROCM}
     whisper.h
     whisper.cpp
     )
 
+include_directories (
+    .
+)
 # Set the version numbers
 set_target_properties(whisper PROPERTIES
     VERSION ${PROJECT_VERSION}
