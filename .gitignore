@@ -7,6 +7,7 @@
 .vscode/
 .DS_Store
 .vimspector.json
+/CMakeSettings.json
 
 build/
 build-coreml/

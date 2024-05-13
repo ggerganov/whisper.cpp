@@ -212,6 +212,22 @@ Java_com_whispercpp_whisper_WhisperLib_00024Companion_getTextSegment(
     return string;
 }
 
+JNIEXPORT jlong JNICALL
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_getTextSegmentT0(
+        JNIEnv *env, jobject thiz, jlong context_ptr, jint index) {
+    UNUSED(thiz);
+    struct whisper_context *context = (struct whisper_context *) context_ptr;
+    return whisper_full_get_segment_t0(context, index);
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_whispercpp_whisper_WhisperLib_00024Companion_getTextSegmentT1(
+        JNIEnv *env, jobject thiz, jlong context_ptr, jint index) {
+    UNUSED(thiz);
+    struct whisper_context *context = (struct whisper_context *) context_ptr;
+    return whisper_full_get_segment_t1(context, index);
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_whispercpp_whisper_WhisperLib_00024Companion_getSystemInfo(
         JNIEnv *env, jobject thiz
