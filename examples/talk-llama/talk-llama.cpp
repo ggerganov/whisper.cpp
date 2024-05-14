@@ -289,8 +289,8 @@ int main(int argc, char ** argv) {
 
     struct whisper_context * ctx_wsp = whisper_init_from_file_with_params(params.model_wsp.c_str(), cparams);
     if (!ctx_wsp) {
-      fprintf(stderr, "No whisper.cpp model specified. Please provide using -mw <modelfile>\n");
-      return 1;
+        fprintf(stderr, "No whisper.cpp model specified. Please provide using -mw <modelfile>\n");
+        return 1;
     }
 
     // llama init
