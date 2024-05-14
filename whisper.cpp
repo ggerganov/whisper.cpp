@@ -148,7 +148,6 @@ static void whisper_log_callback_default(ggml_log_level level, const char * text
         } \
     } while (0)
 
-#define WHISPER_USE_FLASH_ATTN
 //#define WHISPER_USE_FLASH_FF
 #define WHISPER_MAX_DECODERS 8
 #define WHISPER_MAX_NODES 4096
@@ -1070,6 +1069,26 @@ static void whisper_kv_cache_seq_cp(
     }
 }
 
+static uint32_t whisper_kv_cache_get_padding(const struct whisper_context & wctx) {
+    if (!wctx.params.flash_attn) {
+        return 1u;
+    }
+
+#ifdef GGML_USE_METAL
+    if (ggml_backend_is_metal(wctx.backend)) {
+        return 32u;
+    }
+#endif
+
+#ifdef GGML_USE_CUDA
+    if (ggml_backend_is_cuda(wctx.backend)) {
+        return 256u;
+    }
+#endif
+
+    return 1u;
+}
+
 // [EXPERIMENTAL] Token-level timestamps with DTW
 static bool aheads_masks_init(
         const whisper_context_params & cparams,
@@ -1203,6 +1222,11 @@ static size_t aheads_masks_nbytes(struct whisper_aheads_masks & aheads_masks) {
 
 static ggml_backend_t whisper_backend_init(const whisper_context_params & params) {
     ggml_backend_t backend_gpu = NULL;
+
+    WHISPER_LOG_INFO("%s: use gpu    = %d\n", __func__, params.use_gpu);
+    WHISPER_LOG_INFO("%s: flash attn = %d\n", __func__, params.flash_attn);
+    WHISPER_LOG_INFO("%s: gpu_device = %d\n", __func__, params.gpu_device);
+    WHISPER_LOG_INFO("%s: dtw        = %d\n", __func__, params.dtw_token_timestamps);
 
     // initialize the backends
 #ifdef GGML_USE_CUDA
@@ -1968,58 +1992,58 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                             ggml_new_tensor_3d(ctx0, GGML_TYPE_F32, n_state_head, n_head, n_ctx)),
                         0, 2, 1, 3);
 
-#ifdef WHISPER_USE_FLASH_ATTN
-            ggml_build_forward_expand(gf, ggml_cpy(ctx0, Kcur, ggml_view_1d(ctx0, kv_pad.k, n_ctx*n_state, 0)));
-            ggml_build_forward_expand(gf, ggml_cpy(ctx0, Vcur, ggml_view_1d(ctx0, kv_pad.v, n_ctx*n_state, 0)));
+            if (wctx.params.flash_attn) {
+                ggml_build_forward_expand(gf, ggml_cpy(ctx0, Kcur, ggml_view_1d(ctx0, kv_pad.k, n_ctx*n_state, 0)));
+                ggml_build_forward_expand(gf, ggml_cpy(ctx0, Vcur, ggml_view_1d(ctx0, kv_pad.v, n_ctx*n_state, 0)));
 
-            struct ggml_tensor * K =
-                ggml_view_3d(ctx0, kv_pad.k,
-                        n_state_head, n_ctx_pad, n_head,
-                        ggml_element_size(kv_pad.k)*n_state,
-                        ggml_element_size(kv_pad.k)*n_state_head,
-                        0);
+                struct ggml_tensor * K =
+                    ggml_view_3d(ctx0, kv_pad.k,
+                            n_state_head, n_ctx_pad, n_head,
+                            ggml_element_size(kv_pad.k)*n_state,
+                            ggml_element_size(kv_pad.k)*n_state_head,
+                            0);
 
-            struct ggml_tensor * V =
-                ggml_view_3d(ctx0, kv_pad.v,
-                        n_state_head, n_ctx_pad, n_head,
-                        ggml_element_size(kv_pad.v)*n_state,
-                        ggml_element_size(kv_pad.v)*n_state_head,
-                        0);
+                struct ggml_tensor * V =
+                    ggml_view_3d(ctx0, kv_pad.v,
+                            n_state_head, n_ctx_pad, n_head,
+                            ggml_element_size(kv_pad.v)*n_state,
+                            ggml_element_size(kv_pad.v)*n_state_head,
+                            0);
 
-            cur = ggml_flash_attn_ext(ctx0, Q, K, V, nullptr, KQscale, 0.0f);
+                cur = ggml_flash_attn_ext(ctx0, Q, K, V, nullptr, KQscale, 0.0f);
 
-            cur = ggml_reshape_2d(ctx0, cur, n_state, n_ctx);
-#else
-            struct ggml_tensor * K =
-                ggml_permute(ctx0,
-                        ggml_cpy(ctx0,
-                            Kcur,
-                            ggml_new_tensor_3d(ctx0, wctx.itype, n_state_head, n_head, n_ctx)),
-                        0, 2, 1, 3);
+                cur = ggml_reshape_2d(ctx0, cur, n_state, n_ctx);
+            } else {
+                struct ggml_tensor * K =
+                    ggml_permute(ctx0,
+                            ggml_cpy(ctx0,
+                                Kcur,
+                                ggml_new_tensor_3d(ctx0, wctx.itype, n_state_head, n_head, n_ctx)),
+                            0, 2, 1, 3);
 
-            // K * Q
-            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
+                // K * Q
+                struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
 
-            struct ggml_tensor * KQ_soft_max = ggml_soft_max_ext(ctx0, KQ, nullptr, KQscale, 0.0f);
+                struct ggml_tensor * KQ_soft_max = ggml_soft_max_ext(ctx0, KQ, nullptr, KQscale, 0.0f);
 
-            struct ggml_tensor * V =
-                ggml_cpy(ctx0,
-                        ggml_permute(ctx0,
-                            ggml_reshape_3d(ctx0,
-                                Vcur,
-                                n_state_head, n_head, n_ctx),
-                            1, 2, 0, 3),
-                        ggml_new_tensor_3d(ctx0, wctx.itype, n_ctx, n_state_head, n_head)
-                        );
+                struct ggml_tensor * V =
+                    ggml_cpy(ctx0,
+                            ggml_permute(ctx0,
+                                ggml_reshape_3d(ctx0,
+                                    Vcur,
+                                    n_state_head, n_head, n_ctx),
+                                1, 2, 0, 3),
+                            ggml_new_tensor_3d(ctx0, wctx.itype, n_ctx, n_state_head, n_head)
+                            );
 
-            struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V, KQ_soft_max);
+                struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V, KQ_soft_max);
 
-            struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
+                struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
 
-            cur = ggml_cpy(ctx0,
-                    KQV_merged,
-                    ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx));
-#endif
+                cur = ggml_cpy(ctx0,
+                        KQV_merged,
+                        ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx));
+            }
         }
 
         // projection
@@ -2153,22 +2177,25 @@ static struct ggml_cgraph * whisper_build_graph_cross(
                     Vcross,
                     layer.cross_attn_v_b);
 
-#ifdef WHISPER_USE_FLASH_ATTN
-        struct ggml_tensor * k = ggml_view_1d(ctx0, wstate.kv_cross.k, n_state*n_ctx,
-                (ggml_element_size(wstate.kv_cross.k)*n_state)*(il*n_ctx_pad));
+        struct ggml_tensor * k;
+        struct ggml_tensor * v;
 
-        struct ggml_tensor * v = ggml_view_1d(ctx0, wstate.kv_cross.v, n_state*n_ctx,
-                (ggml_element_size(wstate.kv_cross.v)*n_state)*(il*n_ctx_pad));
-#else
-        Vcross = ggml_transpose(ctx0, ggml_reshape_2d(ctx0, Vcross, n_state, n_ctx));
+        if (wctx.params.flash_attn) {
+            k = ggml_view_1d(ctx0, wstate.kv_cross.k, n_state*n_ctx,
+                    (ggml_element_size(wstate.kv_cross.k)*n_state)*(il*n_ctx_pad));
 
-        struct ggml_tensor * k = ggml_view_1d(ctx0, wstate.kv_cross.k, n_state*n_ctx,
-                (ggml_element_size(wstate.kv_cross.k)*n_state)*(il*n_ctx));
+            v = ggml_view_1d(ctx0, wstate.kv_cross.v, n_state*n_ctx,
+                    (ggml_element_size(wstate.kv_cross.v)*n_state)*(il*n_ctx_pad));
+        } else {
+            Vcross = ggml_transpose(ctx0, ggml_reshape_2d(ctx0, Vcross, n_state, n_ctx));
 
-        struct ggml_tensor * v = ggml_view_2d(ctx0, wstate.kv_cross.v, n_ctx, n_state,
-                (   n_ctx)*ggml_element_size(wstate.kv_cross.v),
-                (il*n_ctx)*ggml_element_size(wstate.kv_cross.v)*n_state);
-#endif
+            k = ggml_view_1d(ctx0, wstate.kv_cross.k, n_state*n_ctx,
+                    (ggml_element_size(wstate.kv_cross.k)*n_state)*(il*n_ctx));
+
+            v = ggml_view_2d(ctx0, wstate.kv_cross.v, n_ctx, n_state,
+                    (   n_ctx)*ggml_element_size(wstate.kv_cross.v),
+                    (il*n_ctx)*ggml_element_size(wstate.kv_cross.v)*n_state);
+        }
 
         ggml_build_forward_expand(gf, ggml_cpy(ctx0, Kcross, k));
         ggml_build_forward_expand(gf, ggml_cpy(ctx0, Vcross, v));
@@ -2400,22 +2427,25 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                             Vcur,
                             layer.attn_v_b);
 
-#ifdef WHISPER_USE_FLASH_ATTN
-                struct ggml_tensor * k = ggml_view_1d(ctx0, kv_self.k, n_tokens*n_state,
-                        (ggml_element_size(kv_self.k)*n_state)*(il*n_ctx + kv_head));
+                struct ggml_tensor * k;
+                struct ggml_tensor * v;
 
-                struct ggml_tensor * v = ggml_view_1d(ctx0, kv_self.v, n_tokens*n_state,
-                        (ggml_element_size(kv_self.v)*n_state)*(il*n_ctx + kv_head));
-#else
-                Vcur = ggml_transpose(ctx0, ggml_reshape_2d(ctx0, Vcur, n_state, n_tokens));
+                if (wctx.params.flash_attn) {
+                    k = ggml_view_1d(ctx0, kv_self.k, n_tokens*n_state,
+                            (ggml_element_size(kv_self.k)*n_state)*(il*n_ctx + kv_head));
 
-                struct ggml_tensor * k = ggml_view_1d(ctx0, kv_self.k, n_tokens*n_state,
-                        (ggml_element_size(kv_self.k)*n_state)*(il*n_ctx + kv_head));
+                    v = ggml_view_1d(ctx0, kv_self.v, n_tokens*n_state,
+                            (ggml_element_size(kv_self.v)*n_state)*(il*n_ctx + kv_head));
+                } else {
+                    Vcur = ggml_transpose(ctx0, ggml_reshape_2d(ctx0, Vcur, n_state, n_tokens));
 
-                struct ggml_tensor * v = ggml_view_2d(ctx0, kv_self.v, n_tokens, n_state,
-                        (   n_ctx)*ggml_element_size(kv_self.v),
-                        (il*n_ctx)*ggml_element_size(kv_self.v)*n_state + kv_head*ggml_element_size(kv_self.v));
-#endif
+                    k = ggml_view_1d(ctx0, kv_self.k, n_tokens*n_state,
+                            (ggml_element_size(kv_self.k)*n_state)*(il*n_ctx + kv_head));
+
+                    v = ggml_view_2d(ctx0, kv_self.v, n_tokens, n_state,
+                            (   n_ctx)*ggml_element_size(kv_self.v),
+                            (il*n_ctx)*ggml_element_size(kv_self.v)*n_state + kv_head*ggml_element_size(kv_self.v));
+                }
 
                 ggml_build_forward_expand(gf, ggml_cpy(ctx0, Kcur, k));
                 ggml_build_forward_expand(gf, ggml_cpy(ctx0, Vcur, v));
@@ -2435,38 +2465,38 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                         ggml_element_size(kv_self.k)*n_state_head,
                         ggml_element_size(kv_self.k)*n_state*n_ctx*il);
 
-#ifdef WHISPER_USE_FLASH_ATTN
-            struct ggml_tensor * V =
-                ggml_view_3d(ctx0, kv_self.v,
-                        n_state_head, n_kv, n_head,
-                        ggml_element_size(kv_self.v)*n_state,
-                        ggml_element_size(kv_self.v)*n_state_head,
-                        ggml_element_size(kv_self.v)*n_state*n_ctx*il);
+            if (wctx.params.flash_attn) {
+                struct ggml_tensor * V =
+                    ggml_view_3d(ctx0, kv_self.v,
+                            n_state_head, n_kv, n_head,
+                            ggml_element_size(kv_self.v)*n_state,
+                            ggml_element_size(kv_self.v)*n_state_head,
+                            ggml_element_size(kv_self.v)*n_state*n_ctx*il);
 
-            cur = ggml_flash_attn_ext(ctx0, Q, K, V, KQ_mask_f16, 1.0f, 0.0f);
+                cur = ggml_flash_attn_ext(ctx0, Q, K, V, KQ_mask_f16, 1.0f, 0.0f);
 
-            cur = ggml_reshape_2d(ctx0, cur, n_state, n_tokens);
-#else
-            // K * Q
-            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
+                cur = ggml_reshape_2d(ctx0, cur, n_state, n_tokens);
+            } else {
+                // K * Q
+                struct ggml_tensor * KQ = ggml_mul_mat(ctx0, K, Q);
 
-            struct ggml_tensor * KQ_soft_max = ggml_soft_max_ext(ctx0, KQ, KQ_mask, 1.0f, 0.0f);
+                struct ggml_tensor * KQ_soft_max = ggml_soft_max_ext(ctx0, KQ, KQ_mask, 1.0f, 0.0f);
 
-            struct ggml_tensor * V =
-                ggml_view_3d(ctx0, kv_self.v,
-                        n_kv, n_state_head, n_head,
-                        n_ctx*ggml_element_size(kv_self.v),
-                        n_ctx*ggml_element_size(kv_self.v)*n_state_head,
-                        n_ctx*ggml_element_size(kv_self.v)*n_state*il);
+                struct ggml_tensor * V =
+                    ggml_view_3d(ctx0, kv_self.v,
+                            n_kv, n_state_head, n_head,
+                            n_ctx*ggml_element_size(kv_self.v),
+                            n_ctx*ggml_element_size(kv_self.v)*n_state_head,
+                            n_ctx*ggml_element_size(kv_self.v)*n_state*il);
 
-            struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V, KQ_soft_max);
+                struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V, KQ_soft_max);
 
-            struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
+                struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
 
-            cur = ggml_cpy(ctx0,
-                    KQV_merged,
-                    ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_tokens));
-#endif
+                cur = ggml_cpy(ctx0,
+                        KQV_merged,
+                        ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_tokens));
+            }
         }
 
         // projection
@@ -2510,82 +2540,72 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                         ggml_reshape_3d(ctx0, Qcur, n_state_head, n_head, n_tokens),
                         0, 2, 1, 3);
 
-#ifdef WHISPER_USE_FLASH_ATTN
-            struct ggml_tensor * Kcross =
-                ggml_view_3d(ctx0, wstate.kv_cross.k,
-                        n_state_head, n_audio_ctx_pad, n_head,
-                        ggml_element_size(wstate.kv_cross.k)*n_state,
-                        ggml_element_size(wstate.kv_cross.k)*n_state_head,
-                        ggml_element_size(wstate.kv_cross.k)*n_state*n_audio_ctx_pad*il);
+            if (wctx.params.flash_attn) {
+                struct ggml_tensor * Kcross =
+                    ggml_view_3d(ctx0, wstate.kv_cross.k,
+                            n_state_head, n_audio_ctx_pad, n_head,
+                            ggml_element_size(wstate.kv_cross.k)*n_state,
+                            ggml_element_size(wstate.kv_cross.k)*n_state_head,
+                            ggml_element_size(wstate.kv_cross.k)*n_state*n_audio_ctx_pad*il);
 
-            struct ggml_tensor * Vcross =
-                ggml_view_3d(ctx0, wstate.kv_cross.v,
-                        n_state_head, n_audio_ctx_pad, n_head,
-                        ggml_element_size(wstate.kv_cross.v)*n_state,
-                        ggml_element_size(wstate.kv_cross.v)*n_state_head,
-                        ggml_element_size(wstate.kv_cross.v)*n_state*n_audio_ctx_pad*il);
+                struct ggml_tensor * Vcross =
+                    ggml_view_3d(ctx0, wstate.kv_cross.v,
+                            n_state_head, n_audio_ctx_pad, n_head,
+                            ggml_element_size(wstate.kv_cross.v)*n_state,
+                            ggml_element_size(wstate.kv_cross.v)*n_state_head,
+                            ggml_element_size(wstate.kv_cross.v)*n_state*n_audio_ctx_pad*il);
 
-            cur = ggml_flash_attn_ext(ctx0, Q, Kcross, Vcross, nullptr, KQscale, 0.0f);
+                cur = ggml_flash_attn_ext(ctx0, Q, Kcross, Vcross, nullptr, KQscale, 0.0f);
 
-            cur = ggml_reshape_2d(ctx0, cur, n_state, n_tokens);
-#else
-            struct ggml_tensor * Kcross =
-                ggml_view_3d(ctx0, wstate.kv_cross.k,
-                        n_state_head, n_audio_ctx, n_head,
-                        ggml_element_size(wstate.kv_cross.k)*n_state,
-                        ggml_element_size(wstate.kv_cross.k)*n_state_head,
-                        ggml_element_size(wstate.kv_cross.k)*n_state*n_audio_ctx*il);
+                cur = ggml_reshape_2d(ctx0, cur, n_state, n_tokens);
+            } else {
+                struct ggml_tensor * Kcross =
+                    ggml_view_3d(ctx0, wstate.kv_cross.k,
+                            n_state_head, n_audio_ctx, n_head,
+                            ggml_element_size(wstate.kv_cross.k)*n_state,
+                            ggml_element_size(wstate.kv_cross.k)*n_state_head,
+                            ggml_element_size(wstate.kv_cross.k)*n_state*n_audio_ctx*il);
 
-            struct ggml_tensor * Vcross =
-                ggml_view_3d(ctx0, wstate.kv_cross.v,
-                        n_audio_ctx, n_state_head, n_head,
-                        n_audio_ctx*ggml_element_size(wstate.kv_cross.v),
-                        n_audio_ctx*ggml_element_size(wstate.kv_cross.v)*n_state_head,
-                        n_audio_ctx*ggml_element_size(wstate.kv_cross.v)*n_state*il);
+                struct ggml_tensor * Vcross =
+                    ggml_view_3d(ctx0, wstate.kv_cross.v,
+                            n_audio_ctx, n_state_head, n_head,
+                            n_audio_ctx*ggml_element_size(wstate.kv_cross.v),
+                            n_audio_ctx*ggml_element_size(wstate.kv_cross.v)*n_state_head,
+                            n_audio_ctx*ggml_element_size(wstate.kv_cross.v)*n_state*il);
 
-            // ------
+                // ------
 
-            // K * Q
-            struct ggml_tensor * KQ = ggml_mul_mat(ctx0, Kcross, Q);
+                // K * Q
+                struct ggml_tensor * KQ = ggml_mul_mat(ctx0, Kcross, Q);
 
-            //struct ggml_tensor * KQ_scaled =
-            //    ggml_scale(ctx0,
-            //            KQ,
-            //            ggml_new_f32(ctx0, 1.0f/sqrt(float(n_state_head)))
-            //            );
+                struct ggml_tensor * KQ_soft_max = ggml_soft_max_ext(ctx0, KQ, nullptr, KQscale, 0.0f);
 
-            // no masking for cross-attention
-            //struct ggml_tensor * KQ_masked = ggml_diag_mask_inf(ctx0, KQ_scaled, n_past);
-
-            struct ggml_tensor * KQ_soft_max = ggml_soft_max_ext(ctx0, KQ, nullptr, KQscale, 0.0f);
-
-            // [EXPERIMENTAL] Token-level timestamps with DTW
-            if (wctx.params.dtw_token_timestamps) {
-                if (wstate.aheads_masks.m[il] != nullptr) {
-                    struct ggml_tensor * aheads_KQs = ggml_reshape_2d(ctx0, KQ_soft_max, KQ_soft_max->ne[0] * KQ_soft_max->ne[1], KQ_soft_max->ne[2]);
-                    aheads_KQs = ggml_transpose(ctx0, aheads_KQs);
-                    aheads_KQs = ggml_cont(ctx0, aheads_KQs);
-                    aheads_KQs = ggml_mul_mat(ctx0, wstate.aheads_masks.m[il], aheads_KQs);
-                    aheads_KQs = ggml_transpose(ctx0, aheads_KQs);
-                    aheads_KQs = ggml_cont(ctx0, aheads_KQs);
-                    aheads_KQs = ggml_reshape_3d(ctx0, aheads_KQs, KQ_soft_max->ne[0], KQ_soft_max->ne[1], wstate.aheads_masks.m[il]->ne[1]);
-                    if (aheads_cross_QKs == NULL) {
-                        aheads_cross_QKs = aheads_KQs;
-                    } else {
-                        aheads_cross_QKs = ggml_concat(ctx0, aheads_cross_QKs, aheads_KQs);
+                // [EXPERIMENTAL] Token-level timestamps with DTW
+                if (wctx.params.dtw_token_timestamps) {
+                    if (wstate.aheads_masks.m[il] != nullptr) {
+                        struct ggml_tensor * aheads_KQs = ggml_reshape_2d(ctx0, KQ_soft_max, KQ_soft_max->ne[0] * KQ_soft_max->ne[1], KQ_soft_max->ne[2]);
+                        aheads_KQs = ggml_transpose(ctx0, aheads_KQs);
+                        aheads_KQs = ggml_cont(ctx0, aheads_KQs);
+                        aheads_KQs = ggml_mul_mat(ctx0, wstate.aheads_masks.m[il], aheads_KQs);
+                        aheads_KQs = ggml_transpose(ctx0, aheads_KQs);
+                        aheads_KQs = ggml_cont(ctx0, aheads_KQs);
+                        aheads_KQs = ggml_reshape_3d(ctx0, aheads_KQs, KQ_soft_max->ne[0], KQ_soft_max->ne[1], wstate.aheads_masks.m[il]->ne[1]);
+                        if (aheads_cross_QKs == NULL) {
+                            aheads_cross_QKs = aheads_KQs;
+                        } else {
+                            aheads_cross_QKs = ggml_concat(ctx0, aheads_cross_QKs, aheads_KQs);
+                        }
                     }
                 }
+
+                struct ggml_tensor * KQV = ggml_mul_mat(ctx0, Vcross, KQ_soft_max);
+
+                struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
+
+                cur = ggml_cpy(ctx0,
+                        KQV_merged,
+                        ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_tokens));
             }
-
-            struct ggml_tensor * KQV = ggml_mul_mat(ctx0, Vcross, KQ_soft_max);
-
-            struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
-
-            // cur = KQV_merged.contiguous().view(n_state, n_tokens)
-            cur = ggml_cpy(ctx0,
-                    KQV_merged,
-                    ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_tokens));
-#endif
         }
 
         // projection
@@ -2718,12 +2738,9 @@ static bool whisper_decode_internal(
             return false;
         }
 
-#ifdef WHISPER_USE_FLASH_ATTN
-        const uint32_t pad = 256;
+        const uint32_t pad = whisper_kv_cache_get_padding(wctx);
         kv_self.n = std::min(kv_self.size, std::max(pad, GGML_PAD(whisper_kv_cache_cell_max(kv_self), pad)));
-#else
-        kv_self.n = whisper_kv_cache_cell_max(kv_self);
-#endif
+
         //kv_self.n = std::min((int32_t) hparams.n_text_ctx, std::max(32, whisper_kv_cache_cell_max(kv_self)));
         //printf("n_tokens = %5d, kv_self.head = %5d, kv_self.n = %5d, seq_id = %5d\n", batch.n_tokens, kv_self.head, kv_self.n, batch.seq_id[0][0]);
     }
@@ -3452,6 +3469,7 @@ int whisper_ctx_init_openvino_encoder(
 struct whisper_context_params whisper_context_default_params() {
     struct whisper_context_params result = {
         /*.use_gpu              =*/ true,
+        /*.flash_attn           =*/ false,
         /*.gpu_device           =*/ 0,
 
         /*.dtw_token_timestamps =*/ false,
@@ -3549,6 +3567,11 @@ struct whisper_context * whisper_init_from_buffer_with_params_no_state(void * bu
 
 struct whisper_context * whisper_init_with_params_no_state(struct whisper_model_loader * loader, struct whisper_context_params params) {
     ggml_time_init();
+
+    if (params.flash_attn && params.dtw_token_timestamps) {
+        WHISPER_LOG_WARN("%s: dtw_token_timestamps is not supported with flash_attn - disabling\n", __func__);
+        params.dtw_token_timestamps = false;
+    }
 
     whisper_context * ctx = new whisper_context;
     ctx->params = params;

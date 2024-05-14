@@ -2,7 +2,7 @@
 
 # Helper script to run the bench tool on all models and print the results in share-able format
 
-printf "Usage: ./bench.sh [n_threads] [encoder-only]\n"
+printf "Usage: ./bench.sh [n_threads] [encoder-only] [flash-attn]\n"
 
 if [ -z "$1" ]; then
     n_threads=4
@@ -11,10 +11,17 @@ else
 fi
 
 encoder_only=0
-if [ -z "$2" ]; then
+if [ -z "$2" ] || [ "$2" -eq 0 ]; then
     encoder_only=0
 else
     encoder_only=$2
+fi
+
+fattn=""
+if [ -z "$3" ] || [ "$3" -eq 0 ]; then
+    fattn=""
+else
+    fattn="-fa"
 fi
 
 models=(                                                                                                    \
@@ -44,13 +51,19 @@ if [ "$encoder_only" -eq 0 ]; then
     printf "\n"
 fi
 
-printf "| %6s | %6s | %16s | %13s | %3s | %7s | %7s | %7s | %7s | %7s |\n" "CPU" "OS" "Config" "Model" "Th" "Enc." "Dec." "Bch5" "PP" "Commit"
-printf "| %6s | %6s | %16s | %13s | %3s | %7s | %7s | %7s | %7s | %7s |\n" "---" "---" "---" "---" "---" "---" "---" "---" "---" "---"
+if [ "$fattn" == "-fa" ]; then
+    fattn_i=1
+else
+    fattn_i=0
+fi
+
+printf "| %6s | %6s | %16s | %13s | %3s | %3s | %7s | %7s | %7s | %7s | %7s |\n" "CPU" "OS" "Config" "Model" "Th" "FA" "Enc." "Dec." "Bch5" "PP" "Commit"
+printf "| %6s | %6s | %16s | %13s | %3s | %3s | %7s | %7s | %7s | %7s | %7s |\n" "---" "---" "---" "---" "---" "---" "---" "---" "---" "---" "---"
 
 for model in "${models[@]}"; do
     # actual run
     # store stderr output in a variable in order to parse it later
-    output=$(./bench -m ./models/ggml-$model.bin -t $n_threads 2>&1)
+    output=$(./bench -m ./models/ggml-$model.bin -t $n_threads $fattn 2>&1)
     ret=$?
 
     # parse the output:
@@ -95,6 +108,6 @@ for model in "${models[@]}"; do
     commit=$(git rev-parse --short HEAD)
 
     if [ $ret -eq 0 ]; then
-        printf "| <todo> | <todo> | %16s | %13s | %3s | %7s | %7s | %7s | %7s | %7s |\n" "$config" "$model" "$n_threads" "$encode_time" "$decode_time" "$batchd_time" "$prompt_time" "$commit"
+        printf "| <todo> | <todo> | %16s | %13s | %3s | %3s | %7s | %7s | %7s | %7s | %7s |\n" "$config" "$model" "$n_threads" "$fattn_i" "$encode_time" "$decode_time" "$batchd_time" "$prompt_time" "$commit"
     fi
 done
