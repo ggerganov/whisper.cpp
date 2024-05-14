@@ -306,8 +306,8 @@ int main(int argc, char ** argv) {
 
     struct llama_model * model_llama = llama_load_model_from_file(params.model_llama.c_str(), lmparams);
     if (!model_llama) {
-      fprintf(stderr, "No llama.cpp model specified. Please provide using -ml <modelfile>\n");
-      return 1;
+        fprintf(stderr, "No llama.cpp model specified. Please provide using -ml <modelfile>\n");
+        return 1;
     }
 
     llama_context_params lcparams = llama_context_default_params();
