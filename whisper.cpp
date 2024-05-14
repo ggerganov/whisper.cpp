@@ -1969,32 +1969,24 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                         0, 2, 1, 3);
 
 #ifdef WHISPER_USE_FLASH_ATTN
-            struct ggml_tensor * Kpad = ggml_reshape_3d(ctx0, kv_pad.k, n_state_head, n_ctx_pad, n_head);
+            ggml_build_forward_expand(gf, ggml_cpy(ctx0, Kcur, ggml_view_1d(ctx0, kv_pad.k, n_ctx*n_state, 0)));
+            ggml_build_forward_expand(gf, ggml_cpy(ctx0, Vcur, ggml_view_1d(ctx0, kv_pad.v, n_ctx*n_state, 0)));
 
             struct ggml_tensor * K =
-                ggml_cpy(ctx0,
-                        ggml_permute(ctx0,
-                            ggml_reshape_3d(ctx0, Kcur, n_state_head, n_head, n_ctx),
-                            0, 2, 1, 3),
-                        ggml_view_3d(ctx0,
-                            Kpad,
-                            n_state_head, n_ctx, n_head, Kpad->nb[1], Kpad->nb[2], 0));
-
-            struct ggml_tensor * Vpad = ggml_reshape_3d(ctx0, kv_pad.v, n_state_head, n_ctx_pad, n_head);
+                ggml_view_3d(ctx0, kv_pad.k,
+                        n_state_head, n_ctx_pad, n_head,
+                        ggml_element_size(kv_pad.k)*n_state,
+                        ggml_element_size(kv_pad.k)*n_state_head,
+                        0);
 
             struct ggml_tensor * V =
-                ggml_cpy(ctx0,
-                        ggml_permute(ctx0,
-                            ggml_reshape_3d(ctx0, Vcur, n_state_head, n_head, n_ctx),
-                            0, 2, 1, 3),
-                        ggml_view_3d(ctx0,
-                            Vpad,
-                            n_state_head, n_ctx, n_head, Vpad->nb[1], Vpad->nb[2], 0));
+                ggml_view_3d(ctx0, kv_pad.v,
+                        n_state_head, n_ctx_pad, n_head,
+                        ggml_element_size(kv_pad.v)*n_state,
+                        ggml_element_size(kv_pad.v)*n_state_head,
+                        0);
 
-            ggml_build_forward_expand(gf, K);
-            ggml_build_forward_expand(gf, V);
-
-            cur = ggml_flash_attn_ext(ctx0, Q, Kpad, Vpad, nullptr, KQscale, 0.0f);
+            cur = ggml_flash_attn_ext(ctx0, Q, K, V, nullptr, KQscale, 0.0f);
 
             cur = ggml_reshape_2d(ctx0, cur, n_state, n_ctx);
 #else
@@ -2519,7 +2511,6 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                         0, 2, 1, 3);
 
 #ifdef WHISPER_USE_FLASH_ATTN
-            // Kcross is already scaled
             struct ggml_tensor * Kcross =
                 ggml_view_3d(ctx0, wstate.kv_cross.k,
                         n_state_head, n_audio_ctx_pad, n_head,
