@@ -288,6 +288,10 @@ int main(int argc, char ** argv) {
     cparams.use_gpu = params.use_gpu;
 
     struct whisper_context * ctx_wsp = whisper_init_from_file_with_params(params.model_wsp.c_str(), cparams);
+    if (!ctx_wsp) {
+        fprintf(stderr, "No whisper.cpp model specified. Please provide using -mw <modelfile>\n");
+        return 1;
+    }
 
     // llama init
 
@@ -301,6 +305,10 @@ int main(int argc, char ** argv) {
     }
 
     struct llama_model * model_llama = llama_load_model_from_file(params.model_llama.c_str(), lmparams);
+    if (!model_llama) {
+        fprintf(stderr, "No llama.cpp model specified. Please provide using -ml <modelfile>\n");
+        return 1;
+    }
 
     llama_context_params lcparams = llama_context_default_params();
 
