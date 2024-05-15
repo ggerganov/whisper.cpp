@@ -1,3 +1,66 @@
+## M1 Pro
+
+make -j && ./scripts/bench-all.sh 8
+
+Running memcpy benchmark
+
+memcpy:   39.10 GB/s (heat-up)
+memcpy:   44.75 GB/s ( 1 thread)
+memcpy:   44.78 GB/s ( 1 thread)
+memcpy:   44.97 GB/s ( 2 thread)
+memcpy:   48.04 GB/s ( 3 thread)
+memcpy:   50.55 GB/s ( 4 thread)
+memcpy:   55.20 GB/s ( 5 thread)
+memcpy:   65.60 GB/s ( 6 thread)
+memcpy:   70.64 GB/s ( 7 thread)
+memcpy:   73.34 GB/s ( 8 thread)
+sum:    -5120002535.000000
+
+
+make -j && ./scripts/bench-all.sh 1 0 0
+
+Running ggml_mul_mat benchmark with 1 threads
+
+  64 x   64: Q4_0   237.1 GFLOPS (128 runs) | Q4_1   168.6 GFLOPS (128 runs)
+  64 x   64: Q5_0   136.4 GFLOPS (128 runs) | Q5_1   135.6 GFLOPS (128 runs) | Q8_0   243.1 GFLOPS (128 runs)
+  64 x   64: F16    140.4 GFLOPS (128 runs) | F32    316.6 GFLOPS (128 runs)
+ 128 x  128: Q4_0   496.6 GFLOPS (128 runs) | Q4_1   348.6 GFLOPS (128 runs)
+ 128 x  128: Q5_0   273.2 GFLOPS (128 runs) | Q5_1   274.1 GFLOPS (128 runs) | Q8_0   505.1 GFLOPS (128 runs)
+ 128 x  128: F16    300.4 GFLOPS (128 runs) | F32    653.9 GFLOPS (128 runs)
+ 256 x  256: Q4_0   791.7 GFLOPS (128 runs) | Q4_1   615.3 GFLOPS (128 runs)
+ 256 x  256: Q5_0   651.0 GFLOPS (128 runs) | Q5_1   674.7 GFLOPS (128 runs) | Q8_0   803.1 GFLOPS (128 runs)
+ 256 x  256: F16    869.6 GFLOPS (128 runs) | F32    957.2 GFLOPS (128 runs)
+ 512 x  512: Q4_0   973.3 GFLOPS (128 runs) | Q4_1   897.9 GFLOPS (128 runs)
+ 512 x  512: Q5_0  1078.8 GFLOPS (128 runs) | Q5_1   998.4 GFLOPS (128 runs) | Q8_0   752.4 GFLOPS (128 runs)
+ 512 x  512: F16    892.5 GFLOPS (128 runs) | F32   1399.6 GFLOPS (128 runs)
+1024 x 1024: Q4_0  1402.7 GFLOPS (128 runs) | Q4_1  1218.5 GFLOPS (128 runs)
+1024 x 1024: Q5_0  1444.8 GFLOPS (128 runs) | Q5_1  1444.7 GFLOPS (128 runs) | Q8_0  1395.7 GFLOPS (128 runs)
+1024 x 1024: F16   1524.1 GFLOPS (128 runs) | F32   1726.6 GFLOPS (128 runs)
+2048 x 2048: Q4_0  1479.4 GFLOPS ( 87 runs) | Q4_1  1378.5 GFLOPS ( 81 runs)
+2048 x 2048: Q5_0  1454.6 GFLOPS ( 85 runs) | Q5_1  1462.9 GFLOPS ( 86 runs) | Q8_0  1483.2 GFLOPS ( 87 runs)
+2048 x 2048: F16   1488.0 GFLOPS ( 87 runs) | F32   1538.2 GFLOPS ( 90 runs)
+4096 x 4096: Q4_0  1509.7 GFLOPS ( 11 runs) | Q4_1  1433.0 GFLOPS ( 11 runs)
+4096 x 4096: Q5_0  1422.4 GFLOPS ( 11 runs) | Q5_1  1437.0 GFLOPS ( 11 runs) | Q8_0  1523.0 GFLOPS ( 12 runs)
+4096 x 4096: F16   1551.3 GFLOPS ( 12 runs) | F32   1451.0 GFLOPS ( 11 runs)
+
+|    CPU | Config |         Model |  Th |  FA |    Enc. |    Dec. |    Bch5 |      PP |  Commit |
+|    --- |    --- |           --- | --- | --- |     --- |     --- |     --- |     --- |     --- |
+| M1 Pro |  METAL |          tiny |   1 |   0 |   39.21 |    1.74 |    0.61 |    0.04 | 22c96b4 |
+| M1 Pro |  METAL |          base |   1 |   0 |   70.76 |    2.60 |    0.93 |    0.06 | 22c96b4 |
+| M1 Pro |  METAL |         small |   1 |   0 |  217.28 |    6.42 |    2.14 |    0.17 | 22c96b4 |
+| M1 Pro |  METAL |        medium |   1 |   0 |  596.74 |   14.43 |    4.75 |    0.45 | 22c96b4 |
+
+
+make -j && ./scripts/bench-all.sh 1 1 1
+
+|    CPU | Config |         Model |  Th |  FA |    Enc. |    Dec. |    Bch5 |      PP |  Commit |
+|    --- |    --- |           --- | --- | --- |     --- |     --- |     --- |     --- |     --- |
+| M1 Pro |  METAL |          tiny |   1 |   1 |   30.77 |    1.59 |    0.54 |    0.03 | 22c96b4 |
+| M1 Pro |  METAL |          base |   1 |   1 |   60.42 |    2.29 |    0.81 |    0.05 | 22c96b4 |
+| M1 Pro |  METAL |         small |   1 |   1 |  183.82 |    5.12 |    1.81 |    0.14 | 22c96b4 |
+| M1 Pro |  METAL |        medium |   1 |   1 |  517.92 |   11.60 |    4.01 |    0.38 | 22c96b4 |
+
+
 ## M2 Ultra
 
 make -j && ./scripts/bench-all.sh 8

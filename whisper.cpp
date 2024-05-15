@@ -1223,11 +1223,6 @@ static size_t aheads_masks_nbytes(struct whisper_aheads_masks & aheads_masks) {
 static ggml_backend_t whisper_backend_init(const whisper_context_params & params) {
     ggml_backend_t backend_gpu = NULL;
 
-    WHISPER_LOG_INFO("%s: use gpu    = %d\n", __func__, params.use_gpu);
-    WHISPER_LOG_INFO("%s: flash attn = %d\n", __func__, params.flash_attn);
-    WHISPER_LOG_INFO("%s: gpu_device = %d\n", __func__, params.gpu_device);
-    WHISPER_LOG_INFO("%s: dtw        = %d\n", __func__, params.dtw_token_timestamps);
-
     // initialize the backends
 #ifdef GGML_USE_CUDA
     if (params.use_gpu) {
@@ -3572,6 +3567,11 @@ struct whisper_context * whisper_init_with_params_no_state(struct whisper_model_
         WHISPER_LOG_WARN("%s: dtw_token_timestamps is not supported with flash_attn - disabling\n", __func__);
         params.dtw_token_timestamps = false;
     }
+
+    WHISPER_LOG_INFO("%s: use gpu    = %d\n", __func__, params.use_gpu);
+    WHISPER_LOG_INFO("%s: flash attn = %d\n", __func__, params.flash_attn);
+    WHISPER_LOG_INFO("%s: gpu_device = %d\n", __func__, params.gpu_device);
+    WHISPER_LOG_INFO("%s: dtw        = %d\n", __func__, params.dtw_token_timestamps);
 
     whisper_context * ctx = new whisper_context;
     ctx->params = params;
