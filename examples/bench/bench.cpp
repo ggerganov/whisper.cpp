@@ -12,7 +12,8 @@ struct whisper_params {
 
     std::string model = "models/ggml-base.en.bin";
 
-    bool use_gpu = true;
+    bool use_gpu    = true;
+    bool flash_attn = false;
 };
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
@@ -25,10 +26,11 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
             whisper_print_usage(argc, argv, params);
             exit(0);
         }
-        else if (arg == "-t"  || arg == "--threads") { params.n_threads = std::stoi(argv[++i]); }
-        else if (arg == "-m"  || arg == "--model")   { params.model     = argv[++i]; }
-        else if (arg == "-w"  || arg == "--what")    { params.what      = atoi(argv[++i]); }
-        else if (arg == "-ng" || arg == "--no-gpu")  { params.use_gpu   = false; }
+        else if (arg == "-t"  || arg == "--threads")    { params.n_threads  = std::stoi(argv[++i]); }
+        else if (arg == "-m"  || arg == "--model")      { params.model      = argv[++i]; }
+        else if (arg == "-w"  || arg == "--what")       { params.what       = atoi(argv[++i]); }
+        else if (arg == "-ng" || arg == "--no-gpu")     { params.use_gpu    = false; }
+        else if (arg == "-fa" || arg == "--flash-attn") { params.flash_attn = true; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params);
@@ -49,6 +51,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -m FNAME, --model FNAME [%-7s] model path\n",                                  params.model.c_str());
     fprintf(stderr, "  -w N,     --what N      [%-7d] what to benchmark:\n",                          params.what);
     fprintf(stderr, "  -ng,      --no-gpu      [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
+    fprintf(stderr, "  -fa,      --flash-attn  [%-7s] enable flash attention\n",                      params.flash_attn ? "true" : "false");
     fprintf(stderr, "                           %-7s  0 - whisper\n",                                 "");
     fprintf(stderr, "                           %-7s  1 - memcpy\n",                                  "");
     fprintf(stderr, "                           %-7s  2 - ggml_mul_mat\n",                            "");
@@ -59,7 +62,9 @@ int whisper_bench_full(const whisper_params & params) {
     // whisper init
 
     struct whisper_context_params cparams = whisper_context_default_params();
-    cparams.use_gpu = params.use_gpu;
+
+    cparams.use_gpu    = params.use_gpu;
+    cparams.flash_attn = params.flash_attn;
 
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
