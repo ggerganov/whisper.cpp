@@ -638,7 +638,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: 21
+          java-version: 20
 
       - name: Download Windows lib
         uses: actions/download-artifact@v4
