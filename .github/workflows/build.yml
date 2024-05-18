@@ -356,14 +356,14 @@ jobs:
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
 
       - name: Upload dll
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.jnaPath }}_whisper.dll
           path: build/bin/${{ matrix.build }}/whisper.dll
 
       - name: Upload binaries
         if: matrix.sdl2 == 'ON'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: whisper-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
@@ -453,7 +453,7 @@ jobs:
 
       - name: Upload binaries
         if: matrix.blas == 'ON' && matrix.sdl2 == 'ON'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: whisper-blas${{ matrix.clblast == 'ON' && '-clblast' || ''}}-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
@@ -519,7 +519,7 @@ jobs:
 
       - name: Upload binaries
         if: matrix.sdl2 == 'ON'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: whisper-cublas-${{ matrix.cuda-toolkit }}-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
@@ -619,6 +619,8 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 9.0
 
       - name: Build
         run: |
@@ -652,7 +654,7 @@ jobs:
           ./gradlew build
 
       - name: Upload jar
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: whispercpp.jar
           path: bindings/java/build/libs/whispercpp-*.jar
