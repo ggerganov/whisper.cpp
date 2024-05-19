@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Build ${{ matrix.arch }}
         run: |
@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Dependencies
         run: |
@@ -53,10 +53,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build
-        uses: cross-platform-actions/action@v0.15.0
+        uses: cross-platform-actions/action@v0.24.0
         with:
           operating_system: freebsd
           version: '13.2'
@@ -77,10 +77,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Build ${{ matrix.arch }}
         run: |
@@ -105,10 +105,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Build ${{ matrix.arch }}
         run: |
@@ -133,10 +133,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Build ${{ matrix.arch }}
         run: |
@@ -165,7 +165,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: add oneAPI to apt
         shell: bash
@@ -189,7 +189,7 @@ jobs:
 
       - name: Clone
         id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build
         id: cmake_build
@@ -215,7 +215,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: add oneAPI to apt
         shell: bash
@@ -239,7 +239,7 @@ jobs:
 
       - name: Clone
         id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build
         id: cmake_build
@@ -262,7 +262,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup ${{ matrix.sys }}
         uses: msys2/setup-msys2@v2
@@ -328,10 +328,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v2
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
@@ -356,14 +356,14 @@ jobs:
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
 
       - name: Upload dll
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.jnaPath }}_whisper.dll
           path: build/bin/${{ matrix.build }}/whisper.dll
 
       - name: Upload binaries
         if: matrix.sdl2 == 'ON'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: whisper-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
@@ -392,10 +392,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v2
 
       - name: Fetch OpenBLAS
         if: matrix.blas == 'ON'
@@ -453,7 +453,7 @@ jobs:
 
       - name: Upload binaries
         if: matrix.blas == 'ON' && matrix.sdl2 == 'ON'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: whisper-blas${{ matrix.clblast == 'ON' && '-clblast' || ''}}-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
@@ -476,14 +476,14 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v2
 
       - name: Install CUDA Toolkit
         id: cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.11
+        uses: Jimver/cuda-toolkit@v0.2.15
         with:
           cuda: '${{ matrix.cuda-toolkit }}'
 
@@ -519,7 +519,7 @@ jobs:
 
       - name: Upload binaries
         if: matrix.sdl2 == 'ON'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: whisper-cublas-${{ matrix.cuda-toolkit }}-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
@@ -533,10 +533,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup emsdk
-        uses: mymindstorm/setup-emsdk@v12
+        uses: mymindstorm/setup-emsdk@v14
 
       - name: Verify
         run: emcc -v
@@ -555,7 +555,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure
         run: |
@@ -573,24 +573,24 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: whisper
 
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: ggerganov/ggml
           path: ggml
 
       - name: Install Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: 17
+          java-version: 21
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
 
       - name: Build
         run: |
@@ -608,20 +608,19 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: set up JDK 11
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '11'
           distribution: 'temurin'
           cache: gradle
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
         with:
-          api-level: 30
-          build-tools-version: 30.0.3
+          cmdline-tools-version: 9.0
 
       - name: Build
         run: |
@@ -633,15 +632,16 @@ jobs:
     needs: [ 'windows' ]
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
-          java-version: 17
+          distribution: zulu
+          java-version: 20
 
       - name: Download Windows lib
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: win32-x86-64_whisper.dll
           path: bindings/java/build/generated/resources/main/win32-x86-64
@@ -654,7 +654,7 @@ jobs:
           ./gradlew build
 
       - name: Upload jar
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: whispercpp.jar
           path: bindings/java/build/libs/whispercpp-*.jar
@@ -676,7 +676,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Test quantize
         run: |
