@@ -39,6 +39,7 @@ struct whisper_params {
     bool no_timestamps  = false;
     bool no_prints      = false;
     bool use_gpu        = true;
+    bool flash_attn     = false;
     bool comma_in_time  = true;
 
     std::string language = "en";
@@ -146,6 +147,7 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
 
     struct whisper_context_params cparams = whisper_context_default_params();
     cparams.use_gpu = params.use_gpu;
+    cparams.flash_attn = params.flash_attn;
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
     if (ctx == nullptr) {
@@ -326,6 +328,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   std::string model = whisper_params.Get("model").As<Napi::String>();
   std::string input = whisper_params.Get("fname_inp").As<Napi::String>();
   bool use_gpu = whisper_params.Get("use_gpu").As<Napi::Boolean>();
+  bool flash_attn = whisper_params.Get("flash_attn").As<Napi::Boolean>();
   bool no_prints = whisper_params.Get("no_prints").As<Napi::Boolean>();
   bool no_timestamps = whisper_params.Get("no_timestamps").As<Napi::Boolean>();
   int32_t audio_ctx = whisper_params.Get("audio_ctx").As<Napi::Number>();
@@ -346,6 +349,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   params.model = model;
   params.fname_inp.emplace_back(input);
   params.use_gpu = use_gpu;
+  params.flash_attn = flash_attn;
   params.no_prints = no_prints;
   params.no_timestamps = no_timestamps;
   params.audio_ctx = audio_ctx;
