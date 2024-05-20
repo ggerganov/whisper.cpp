@@ -26,4 +26,5 @@ namespace grammar_parser {
 
     parse_state parse(const char * src);
     void print_grammar(FILE * file, const parse_state & state);
+    std::vector<std::vector<whisper_grammar_element>> test_parse(const std::string& src);
 }

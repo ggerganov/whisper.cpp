@@ -29,6 +29,7 @@ add_library(${TARGET} STATIC
     common-ggml.cpp
     grammar-parser.h
     grammar-parser.cpp
+    test-grammar-parser.cpp
     )
 
 include(DefaultTargetOptions)
@@ -108,6 +109,7 @@ if (WHISPER_SDL2)
         set_target_properties(sycl PROPERTIES FOLDER "examples")
     endif()
 endif (WHISPER_SDL2)
+    add_subdirectory(test-grammar)
 endif()
 
 if (WHISPER_SDL2)
