@@ -24,6 +24,11 @@
 #include <io.h>
 #endif
 
+#ifdef WHISPER_FFMPEG
+// as implemented in ffmpeg_trancode.cpp only embedded in common lib if whisper built with ffmpeg support
+extern bool ffmpeg_decode_audio(const std::string & ifname, std::vector<uint8_t> & wav_data);
+#endif
+
 // Function to check if the next argument exists
 std::string get_next_arg(int& i, int argc, char** argv, const std::string& flag, gpt_params& params) {
     if (i + 1 < argc && argv[i + 1][0] != '-') {
@@ -637,7 +642,7 @@ bool is_wav_buffer(const std::string buf) {
 
 bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector<std::vector<float>>& pcmf32s, bool stereo) {
     drwav wav;
-    std::vector<uint8_t> wav_data; // used for pipe input from stdin
+    std::vector<uint8_t> wav_data; // used for pipe input from stdin or ffmpeg decoding output
 
     if (fname == "-") {
         {
@@ -670,8 +675,19 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
         }
     }
     else if (drwav_init_file(&wav, fname.c_str(), nullptr) == false) {
+#if defined(WHISPER_FFMPEG)
+        if (ffmpeg_decode_audio(fname, wav_data) != 0) {
+            fprintf(stderr, "error: failed to ffmpeg decode '%s' \n", fname.c_str());
+            return false;
+        }
+        if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), nullptr) == false) {
+            fprintf(stderr, "error: failed to read wav data as wav \n");
+            return false;
+        }
+#else
         fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname.c_str());
         return false;
+#endif
     }
 
     if (wav.channels != 1 && wav.channels != 2) {

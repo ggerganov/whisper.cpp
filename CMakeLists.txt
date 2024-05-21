@@ -59,6 +59,10 @@ option(WHISPER_BUILD_EXAMPLES         "whisper: build examples" ${WHISPER_STANDA
 
 option(WHISPER_SDL2                   "whisper: support for libSDL2" OFF)
 
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    option(WHISPER_FFMPEG                 "whisper: support building and linking with ffmpeg libs (avcodec, swresample, ...)" OFF)
+endif()
+
 option(WHISPER_NO_AVX                 "whisper: disable AVX"         OFF)
 option(WHISPER_NO_AVX2                "whisper: disable AVX2"        OFF)
 option(WHISPER_NO_AVX512              "whisper: disable AVX512"      ON)
@@ -123,6 +127,26 @@ if (WHISPER_SYCL)
     set(CMAKE_CXX_STANDARD 17)
 else()
     set(CMAKE_CXX_STANDARD 11)
+endif()
+
+if (WHISPER_FFMPEG)
+    # As of cmake 3.27, there is no official cmake support for FindFFmpeg.
+    # Consequnelty we added a FindFFmpeg.cmake script the cmake subfolder:
+    # whisper.cpp does not need the full ffmpeg libs, just AVFORMAT AVCODEC AVUTIL SWRESAMPLE
+    # libswresample  performs highly optimized audio resampling, rematrixing and sample format conversion operations
+    # libavcodec provides a generic encoding/decoding framework and contains multiple decoders and encoders for audio, video and subtitle streams, and several bitstream filters.
+    # libavformat provides a generic framework for multiplexing and demultiplexing (muxing and demuxing) audio, video and subtitle streams.
+    find_package(FFmpeg REQUIRED)
+    if (NOT ${FFMPEG_FOUND})
+        message(FATAL_ERROR "Cannot find ffmpeg libs/headers")
+    endif()
+    message(STATUS "Found ffmpeg libs: ${FFMPEG_LIBRARIES}")
+    message(STATUS "Found ffmpeg headers in: ${FFMPEG_INCLUDE_DIRS}")
+    message(STATUS "ffmpeg definitions: ${FFMPEG_DEFINITIONS}")
+    message(STATUS "Found avformat ${AVFORMAT_VERSION}")
+    include_directories(${FFMPEG_INCLUDE_DIRS})
+    add_compile_definitions(WHISPER_FFMPEG)
+    set(WHISPER_EXTRA_LIBS  ${WHISPER_EXTRA_LIBS} ${FFMPEG_LIBRARIES})
 endif()
 
 # on APPLE

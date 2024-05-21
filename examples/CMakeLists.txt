@@ -22,6 +22,10 @@ endif()
 
 set(TARGET common)
 
+if (WHISPER_FFMPEG)
+    set(COMMON_SOURCES_FFMPEG ffmpeg-transcode.cpp)
+endif()
+
 add_library(${TARGET} STATIC
     common.h
     common.cpp
@@ -29,6 +33,7 @@ add_library(${TARGET} STATIC
     common-ggml.cpp
     grammar-parser.h
     grammar-parser.cpp
+    ${COMMON_SOURCES_FFMPEG}
     )
 
 include(DefaultTargetOptions)
