@@ -1,0 +1,12 @@
+require 'rake/clean'
+  require 'rubygems/package'
+
+desc 'Build gem'
+task :package do
+  spec_source = File.read File.join(File.dirname(__FILE__),'whispercpp.gemspec')
+  spec = nil
+  # see: http://gist.github.com/16215
+  Thread.new { spec = eval("#{spec_source}") }.join
+  spec.validate
+  Gem::Package.build(spec)
+end
