@@ -947,7 +947,7 @@ int main(int argc, char ** argv) {
                             "application/json");
         }
 
-        // reset params to thier defaults
+        // reset params to their defaults
         params = default_params;
     });
     svr.Post(sparams.request_path + "/load", [&](const Request &req, Response &res){
