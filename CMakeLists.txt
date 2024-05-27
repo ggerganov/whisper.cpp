@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.5)
 # Allow for the creation of solution folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-project(whisper.cpp VERSION 1.6.1)
+project(whisper.cpp VERSION 1.6.2)
 set(SOVERSION 1)
 
 # Add path to modules
