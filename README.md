@@ -502,6 +502,16 @@ docker run -it --rm \
   whisper.cpp:main "./main -m /models/ggml-base.bin -f ./samples/jfk.wav"
 ```
 
+## Installing with Conan
+
+You can install pre-built binaries for whisper.cpp or build it from source using [Conan](https://conan.io/). Use the following command:
+
+```
+conan install --requires="whisper-cpp/[*]" --build=missing
+```
+
+For detailed instructions on how to use Conan, please refer to the [Conan documentation](https://docs.conan.io/2/).
+
 ## Limitations
 
 - Inference only
