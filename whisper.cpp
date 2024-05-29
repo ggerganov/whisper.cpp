@@ -2582,7 +2582,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                         if (aheads_cross_QKs == NULL) {
                             aheads_cross_QKs = aheads_KQs;
                         } else {
-                            aheads_cross_QKs = ggml_concat(ctx0, aheads_cross_QKs, aheads_KQs);
+                            aheads_cross_QKs = ggml_concat(ctx0, aheads_cross_QKs, aheads_KQs, 2);
                         }
                     }
                 }
