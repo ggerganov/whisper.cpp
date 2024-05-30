@@ -4,6 +4,7 @@
 
 [![Actions Status](https://github.com/ggerganov/whisper.cpp/workflows/CI/badge.svg)](https://github.com/ggerganov/whisper.cpp/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Conan Center](https://shields.io/conan/v/whisper-cpp)](https://conan.io/center/whisper-cpp)
 [![npm](https://img.shields.io/npm/v/whisper.cpp.svg)](https://www.npmjs.com/package/whisper.cpp/)
 
 Stable: [v1.6.2](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.6.0) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
@@ -720,7 +721,7 @@ The [main](examples/main) example provides support for output of karaoke-style m
 currently pronounced word is highlighted. Use the `-wts` argument and run the generated bash script.
 This requires to have `ffmpeg` installed.
 
-Here are a few *"typical"* examples:
+Here are a few _"typical"_ examples:
 
 ```bash
 ./main -m ./models/ggml-base.en.bin -f ./samples/jfk.wav -owts
