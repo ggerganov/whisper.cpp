@@ -68,10 +68,6 @@ func (flags *Flags) GetOut() string {
 	return strings.ToLower(flags.Lookup("out").Value.String())
 }
 
-func (flags *Flags) IsSpeedup() bool {
-	return flags.Lookup("speedup").Value.String() == "true"
-}
-
 func (flags *Flags) IsTokens() bool {
 	return flags.Lookup("tokens").Value.String() == "true"
 }
@@ -111,10 +107,6 @@ func (flags *Flags) SetParams(context whisper.Context) error {
 		fmt.Fprintf(flags.Output(), "Setting duration to %v\n", duration)
 		context.SetDuration(duration)
 	}
-	if flags.IsSpeedup() {
-		fmt.Fprintf(flags.Output(), "Setting speedup to true\n")
-		context.SetSpeedup(true)
-	}
 	if threads := flags.GetThreads(); threads != 0 {
 		fmt.Fprintf(flags.Output(), "Setting threads to %d\n", threads)
 		context.SetThreads(threads)
@@ -146,7 +138,6 @@ func registerFlags(flag *Flags) {
 	flag.Duration("offset", 0, "Time offset")
 	flag.Duration("duration", 0, "Duration of audio to process")
 	flag.Uint("threads", 0, "Number of threads to use")
-	flag.Bool("speedup", false, "Enable speedup")
 	flag.Uint("max-len", 0, "Maximum segment length in characters")
 	flag.Uint("max-tokens", 0, "Maximum tokens per segment")
 	flag.Float64("word-thold", 0, "Maximum segment score")

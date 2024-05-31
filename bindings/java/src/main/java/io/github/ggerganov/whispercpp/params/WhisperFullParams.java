@@ -129,14 +129,6 @@ public class WhisperFullParams extends Structure {
     /** Maximum tokens per segment (0, default = no limit) */
     public int max_tokens;
 
-    /** Flag to speed up the audio by 2x using Phase Vocoder. (default = false) */
-    public CBool speed_up;
-
-    /** Flag to speed up the audio by 2x using Phase Vocoder. (default = false) */
-    public void speedUp(boolean enable) {
-        speed_up = enable ? CBool.TRUE : CBool.FALSE;
-    }
-
     /** Overwrite the audio context size (0 = use default). */
     public int audio_ctx;
 
@@ -321,7 +313,7 @@ public class WhisperFullParams extends Structure {
         return Arrays.asList("strategy", "n_threads", "n_max_text_ctx", "offset_ms", "duration_ms", "translate",
                 "no_context", "single_segment", "no_timestamps",
                 "print_special", "print_progress", "print_realtime", "print_timestamps",  "token_timestamps",
-                "thold_pt", "thold_ptsum", "max_len", "split_on_word", "max_tokens", "speed_up", "audio_ctx",
+                "thold_pt", "thold_ptsum", "max_len", "split_on_word", "max_tokens", "audio_ctx",
                 "tdrz_enable", "suppress_regex", "initial_prompt", "prompt_tokens", "prompt_n_tokens", "language", "detect_language",
                 "suppress_blank", "suppress_non_speech_tokens", "temperature", "max_initial_ts", "length_penalty",
                 "temperature_inc", "entropy_thold", "logprob_thold", "no_speech_thold", "greedy", "beam_search",

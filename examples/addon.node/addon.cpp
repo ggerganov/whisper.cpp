@@ -25,7 +25,6 @@ struct whisper_params {
     float entropy_thold = 2.4f;
     float logprob_thold = -1.0f;
 
-    bool speed_up       = false;
     bool translate      = false;
     bool diarize        = false;
     bool output_txt     = false;
@@ -231,8 +230,6 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
             wparams.logprob_thold    = params.logprob_thold;
             wparams.max_len          = params.output_wts && params.max_len == 0 ? 60 : params.max_len;
             wparams.audio_ctx        = params.audio_ctx;
-
-            wparams.speed_up         = params.speed_up;
 
             wparams.greedy.best_of        = params.best_of;
             wparams.beam_search.beam_size = params.beam_size;

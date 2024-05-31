@@ -311,12 +311,6 @@ static VALUE ruby_whisper_params_get_split_on_word(VALUE self) {
 static VALUE ruby_whisper_params_set_split_on_word(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, split_on_word, value)
 }
-static VALUE ruby_whisper_params_get_speed_up(VALUE self) {
-  BOOL_PARAMS_GETTER(self, speed_up)
-}
-static VALUE ruby_whisper_params_set_speed_up(VALUE self, VALUE value) {
-  BOOL_PARAMS_SETTER(self, speed_up, value)
-}
 static VALUE ruby_whisper_params_get_diarize(VALUE self) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
@@ -408,8 +402,6 @@ void Init_whisper() {
   rb_define_method(cParams, "token_timestamps=", ruby_whisper_params_set_token_timestamps, 1);
   rb_define_method(cParams, "split_on_word", ruby_whisper_params_get_split_on_word, 0);
   rb_define_method(cParams, "split_on_word=", ruby_whisper_params_set_split_on_word, 1);
-  rb_define_method(cParams, "speed_up", ruby_whisper_params_get_speed_up, 0);
-  rb_define_method(cParams, "speed_up=", ruby_whisper_params_set_speed_up, 1);
   rb_define_method(cParams, "diarize", ruby_whisper_params_get_diarize, 0);
   rb_define_method(cParams, "diarize=", ruby_whisper_params_set_diarize, 1);
 
