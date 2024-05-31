@@ -20,7 +20,7 @@ public interface WhisperCppJnaLibrary extends Library {
      * @return Whisper context on success, null on failure
      */
     Pointer whisper_init_from_file(String path_model);
-    
+
     /**
      * Provides default params which can be used with `whisper_init_from_file_with_params()` etc.
      * Because this function allocates memory for the params, the caller must call either:
@@ -304,14 +304,6 @@ public interface WhisperCppJnaLibrary extends Library {
     /** Language id associated with the provided state */
     int whisper_full_lang_id_from_state(Pointer state);
 
-    /**
-     * Convert RAW PCM audio to log mel spectrogram but applies a Phase Vocoder to speed up the audio x2.
-     * The resulting spectrogram is stored inside the default state of the provided whisper context.
-     * @return 0 on success
-     */
-    int whisper_pcm_to_mel_phase_vocoder(Pointer ctx, final float[] samples, int n_samples, int n_threads);
-
-    int whisper_pcm_to_mel_phase_vocoder_with_state(Pointer ctx, Pointer state, final float[] samples, int n_samples, int n_threads);
 
     /** Get the start time of the specified segment. */
     long whisper_full_get_segment_t0(Pointer ctx, int i_segment);
