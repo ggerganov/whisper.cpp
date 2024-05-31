@@ -2868,13 +2868,10 @@ struct whisper_global_cache {
     // ref: https://pytorch.org/docs/stable/generated/torch.hann_window.html
     // ref: https://github.com/openai/whisper/blob/main/whisper/audio.py#L147
     float hann_window[WHISPER_N_FFT];
-    float hann_window2x[WHISPER_N_FFT * 2];
 
     whisper_global_cache() {
         fill_sin_cos_table();
-#define FILL_HANN_WINDOW(arr) fill_hann_window(sizeof(arr) / sizeof(arr[0]), true, arr)
-        FILL_HANN_WINDOW(hann_window);
-        FILL_HANN_WINDOW(hann_window2x);
+        fill_hann_window(sizeof(hann_window)/sizeof(hann_window[0]), true, hann_window);
     }
 
     void fill_sin_cos_table() {
@@ -2885,7 +2882,7 @@ struct whisper_global_cache {
         }
     }
 
-    void fill_hann_window(int length, bool periodic, float* output) {
+    void fill_hann_window(int length, bool periodic, float * output) {
         int offset = -1;
         if (periodic) {
             offset = 0;
@@ -3061,15 +3058,8 @@ static bool log_mel_spectrogram(
     const int64_t t_start_us = ggml_time_us();
 
     // Hann window
-    const float * hann = nullptr;
-    if (frame_size == WHISPER_N_FFT) {
-        hann = global_cache.hann_window;
-    } else if (frame_size == 2 * WHISPER_N_FFT) {
-        hann = global_cache.hann_window2x;
-    } else {
-        WHISPER_ASSERT(false && "Unsupported frame_size");
-        return false;
-    }
+    WHISPER_ASSERT(frame_size == WHISPER_N_FFT && "Unsupported frame_size");
+    const float * hann = global_cache.hann_window;
 
     // Calculate the length of padding
     int64_t stage_1_pad = WHISPER_SAMPLE_RATE * 30;
@@ -3751,30 +3741,6 @@ int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_s
 int whisper_pcm_to_mel(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads) {
     return whisper_pcm_to_mel_with_state(ctx, ctx->state, samples, n_samples, n_threads);
 }
-
-// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2 (PV without phase lock is not good)
-int whisper_pcm_to_mel_phase_vocoder_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
-    if (!log_mel_spectrogram(*state, samples, n_samples, WHISPER_SAMPLE_RATE, 2 * WHISPER_N_FFT, 2 * WHISPER_HOP_LENGTH, ctx->model.filters.n_mel, n_threads, ctx->model.filters, false, state->mel)) {
-        WHISPER_LOG_ERROR("%s: failed to compute mel spectrogram\n", __func__);
-        return -1;
-    }
-
-    return 0;
-}
-
-// same as whisper_pcm_to_mel, but applies a Phase Vocoder to speed up the audio x2 (PV without phase lock is not good)
-int whisper_pcm_to_mel_phase_vocoder(struct whisper_context * ctx, const float * samples, int n_samples, int n_threads) {
-    return whisper_pcm_to_mel_phase_vocoder_with_state(ctx, ctx->state, samples, n_samples, n_threads);
-}
-
-// same as whisper_pcm_to_mel, but applies WSOLA to speed up the audio x2
-// TODO
-
-// same as whisper_pcm_to_mel, but applies HPTSM to speed up the audio x2
-// TODO
-
-// same as whisper_pcm_to_mel, but applies PV (with phase lock) to speed up the audio x2
-// TODO
 
 int whisper_set_mel_with_state(
         struct whisper_context * ctx,
@@ -4676,7 +4642,6 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.split_on_word     =*/ false,
         /*.max_tokens        =*/ 0,
 
-        /*.speed_up          =*/ false,
         /*.debug_mode        =*/ false,
         /*.audio_ctx         =*/ 0,
 
@@ -5350,15 +5315,9 @@ int whisper_full_with_state(
 
     if (n_samples > 0) {
         // compute log mel spectrogram
-        if (params.speed_up) {
-            // TODO: Replace PV with more advanced algorithm
+        if (whisper_pcm_to_mel_with_state(ctx, state, samples, n_samples, params.n_threads) != 0) {
             WHISPER_LOG_ERROR("%s: failed to compute log mel spectrogram\n", __func__);
-            return -1;
-        } else {
-            if (whisper_pcm_to_mel_with_state(ctx, state, samples, n_samples, params.n_threads) != 0) {
-                WHISPER_LOG_ERROR("%s: failed to compute log mel spectrogram\n", __func__);
-                return -2;
-            }
+            return -2;
         }
     }
 
@@ -5395,7 +5354,7 @@ int whisper_full_with_state(
     // if length of spectrogram is less than 1.0s (100 frames), then return
     // basically don't process anything that is less than 1.0s
     // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
-    if (seek_end < seek_start + (params.speed_up ? 50 : 100)) {
+    if (seek_end < seek_start + 100) {
         WHISPER_LOG_WARN("%s: input is too short - %d ms < 1000 ms. consider padding the input audio with silence\n", __func__, (seek_end - seek_start)*10);
         return 0;
     }
@@ -6107,8 +6066,8 @@ int whisper_full_with_state(
                         const auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
 
                         if (!text.empty()) {
-                            const auto tt0 = params.speed_up ? 2*t0 : t0;
-                            const auto tt1 = params.speed_up ? 2*t1 : t1;
+                            const auto tt0 = t0;
+                            const auto tt1 = t1;
 
                             if (params.print_realtime) {
                                 if (params.print_timestamps) {
@@ -6154,8 +6113,8 @@ int whisper_full_with_state(
                 if (!text.empty()) {
                     const auto t1 = seek + seek_delta;
 
-                    const auto tt0 = params.speed_up ? 2*t0 : t0;
-                    const auto tt1 = params.speed_up ? 2*t1 : t1;
+                    const auto tt0 = t0;
+                    const auto tt1 = t1;
 
                     if (params.print_realtime) {
                         if (params.print_timestamps) {
