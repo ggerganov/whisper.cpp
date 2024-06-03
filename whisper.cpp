@@ -1,4 +1,5 @@
 #include "whisper.h"
+#include "unicode.h"
 
 #ifdef WHISPER_USE_COREML
 #include "coreml/whisper-encoder.h"
@@ -3136,6 +3137,167 @@ static bool log_mel_spectrogram(
     return true;
 }
 
+// Algorithm for byte pair encoding
+// BPE essentially first breaks down a string into bytes
+// and then merges adjacent bytes together according to rules
+// until they can no longer be merged
+// This algo is for educational purposes and not optimized for high performance
+static std::vector<whisper_vocab::id> bpe_encode(const whisper_vocab & vocab, const std::string & word) {
+    std::vector<whisper_vocab::id> tokens;
+    tokens.reserve(word.size());
+
+    // split each word into an array of single byte
+    for (int pos=0; pos < word.size(); pos++) {
+        tokens.push_back(vocab.token_to_id.at(word.substr(pos, 1)));
+    }
+
+    while (true) {
+        int min_idx = -1;
+        int min_rank = -1;
+
+        // iterate over all pairs and find the pair we want to merge the most
+        for (int pos=0; pos < tokens.size() - 1; pos++) {
+            auto query = vocab.id_to_token.at(tokens[pos]) + vocab.id_to_token.at(tokens[pos+1]);
+            auto it = vocab.token_to_id.find(query);
+            if (it != vocab.token_to_id.end()) {
+                auto rank = it->second;
+                // find the pair with the lowest rank
+                if (min_rank == -1 || rank < min_rank) {
+                    min_idx = pos;
+                    min_rank = rank;
+                }
+            }
+        }
+
+        // if there were no pairs we could merge, we're done!
+        if (min_rank == -1) {
+            break;
+        }
+
+        // update token vector
+        tokens[min_idx] = min_rank;
+        tokens.erase(tokens.begin() + min_idx + 1);
+    }
+
+    return tokens;
+}
+
+// 's|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+
+static std::vector<std::string> bpe_gpt2_preprocess(const std::string & text) {
+    std::vector<std::string> bpe_words;
+    std::vector<std::string> text_utf8;
+
+    auto cps = codepoints_from_utf8(text);
+    text_utf8.reserve(cps.size());
+
+    for (auto cp : cps) {
+        text_utf8.emplace_back(codepoint_to_utf8(cp));
+    }
+
+    size_t i = 0;
+    while (i < text_utf8.size()) {
+        const std::string & utf8_char = text_utf8[i];
+        size_t bytes_remain = text_utf8.size() - i;
+        // forward backward lookups
+        const std::string & utf8_char_next = (i + 1 < text_utf8.size()) ? text_utf8[i + 1] : "";
+        const std::string & utf8_char_next_next = (i + 2 < text_utf8.size()) ? text_utf8[i + 2] : "";
+
+        bool collect_letter = false;
+        bool collect_number = false;
+        bool collect_special = false;
+        bool collect_whitespace = false;
+
+        //'s|'t|'re|'ve|'m|'ll|'d
+        if (utf8_char == "'") {
+            if (utf8_char_next == "s" || utf8_char_next == "t" || utf8_char_next == "m" || utf8_char_next == "d") {
+                bpe_words.push_back(utf8_char+utf8_char_next);
+                i += 2;
+                continue;
+            } else if (((utf8_char_next == "r"  || utf8_char_next == "v") && utf8_char_next_next == "e") || (utf8_char_next == "l" && utf8_char_next_next == "l")) {
+                bpe_words.push_back(utf8_char+utf8_char_next+utf8_char_next_next);
+                i += 3;
+                continue;
+            }
+        }
+
+        auto codepoint_type_utf8_char = codepoint_type(utf8_char);
+        auto codepoint_type_utf8_char_next = codepoint_type(utf8_char_next);
+        auto utf8_char_is_whitespace = codepoint_is_whitespace(utf8_char);
+        auto utf8_char_next_is_whitespace = codepoint_is_whitespace(utf8_char_next);
+        std::string word;
+        std::string buffer;
+        std::string buffer_next;
+
+        if (codepoint_type_utf8_char == CODEPOINT_TYPE_LETTER || (utf8_char == " " && codepoint_type_utf8_char_next == CODEPOINT_TYPE_LETTER)) { // ?\p{L}+
+            collect_letter = true;
+        } else if (codepoint_type_utf8_char == CODEPOINT_TYPE_NUMBER || (utf8_char == " " && codepoint_type_utf8_char_next == CODEPOINT_TYPE_NUMBER)) { // ?\p{N}+
+            collect_number = true;
+        } else if ((!utf8_char_is_whitespace && codepoint_type_utf8_char != CODEPOINT_TYPE_LETTER  && codepoint_type_utf8_char != CODEPOINT_TYPE_NUMBER) || (utf8_char == " " && !utf8_char_next_is_whitespace && codepoint_type_utf8_char_next != CODEPOINT_TYPE_LETTER && codepoint_type_utf8_char_next != CODEPOINT_TYPE_NUMBER)) { // ?[^\s\p{L}\p{N}]+
+            collect_special = true;
+        } else if (utf8_char_is_whitespace) { //\s+(?!\S)|\s+
+            collect_whitespace = true;
+        }
+
+        if (collect_letter || collect_number || collect_special || collect_whitespace) {
+            word += utf8_char;
+            i++;
+        }
+
+        if (collect_letter) {
+            while (i < text_utf8.size()) {
+                if (codepoint_type(buffer) == CODEPOINT_TYPE_LETTER) {
+                    word += buffer;
+                    i++;
+                } else {
+                    break;
+                }
+            }
+        } else if (collect_number) {
+            while (i < text_utf8.size()) {
+                buffer = text_utf8[i];
+                if (codepoint_type(buffer) == CODEPOINT_TYPE_NUMBER) {
+                    word += buffer;
+                    i++;
+                } else {
+                    break;
+                }
+            }
+        } else if (collect_special) {
+            while (i < text_utf8.size()) {
+                buffer = text_utf8[i];
+                auto codepoint_type_buffer = codepoint_type(buffer);
+                auto buffer_is_whitespace = codepoint_is_whitespace(buffer);
+                if (!buffer_is_whitespace && codepoint_type_buffer != CODEPOINT_TYPE_LETTER && codepoint_type_buffer != CODEPOINT_TYPE_NUMBER) {
+                    word += buffer;
+                    i++;
+                } else {
+                    break;
+                }
+            }
+        } else if (collect_whitespace) {
+            while (i < text_utf8.size()) {
+                buffer = text_utf8[i];
+                buffer_next = (i + 1 < text_utf8.size()) ? text_utf8[i + 1] : "";
+                auto buffer_is_whitespace = codepoint_is_whitespace(buffer);
+                auto buffer_next_is_whitespace = codepoint_is_whitespace(buffer_next);
+                if ((!buffer_next.empty() && buffer_is_whitespace && buffer_next_is_whitespace) || (buffer_next.empty() && buffer_is_whitespace)) {
+                    word += buffer;
+                    i++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        if (!word.empty()) {
+            bpe_words.push_back(word);
+        }
+    }
+
+    return bpe_words;
+}
+
+
 // split text into tokens
 //
 // ref: https://github.com/openai/gpt-2/blob/a74da5d99abaaba920de8131d64da2862a8f213b/src/encoder.py#L53
@@ -3144,53 +3306,23 @@ static bool log_mel_spectrogram(
 // r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 //
 // Regex (C++):
-// R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[:alpha:][:digit:]]+|\s+(?!\S)|\s+)"
+// R"('s|'t|'re|'ve|'m|'ll|'d| ?[a-zA-Z]+| ?[0-9]+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)"
+// this remains ineffective in C++ as std::regex does not provide support for Unicode properties
+// ref: https://stackoverflow.com/a/38002322
+// so we chose to implement our own regex algorithm to solve this problem
+// bpe_gpt2_preprocess
 //
 static std::vector<whisper_vocab::id> tokenize(const whisper_vocab & vocab, const std::string & text) {
-    std::vector<std::string> words;
 
     // first split the text into words
-    {
-        std::string str = text;
-        std::string pat = R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[:alpha:][:digit:]]+|\s+(?!\S)|\s+)";
+    // this enables parallel processing
+    auto words = bpe_gpt2_preprocess(" " + text);
 
-        std::regex re(pat);
-        std::smatch m;
-
-        while (std::regex_search(str, m, re)) {
-            for (auto x : m) {
-                words.push_back(x);
-            }
-            str = m.suffix();
-        }
-    }
-
-    // find the longest tokens that form the words:
     std::vector<whisper_vocab::id> tokens;
-    for (const auto & word : words) {
-        if (word.empty()) continue;
 
-        int i = 0;
-        int n = word.size();
-        while (i < n) {
-            int j = n;
-            bool found = false;
-            while (j > i) {
-                auto sub = word.substr(i, j-i);
-                auto it = vocab.token_to_id.find(sub);
-                if (it != vocab.token_to_id.end()) {
-                    tokens.push_back(it->second);
-                    i = j;
-                    found = true;
-                    break;
-                }
-                --j;
-            }
-            if (!found) {
-                WHISPER_LOG_ERROR("unknown token\n");
-                ++i;
-            }
-        }
+    for (const auto & word : words) {
+        auto word_tokens = bpe_encode(vocab, word);
+        tokens.insert(tokens.end(), word_tokens.begin(), word_tokens.end());
     }
 
     return tokens;

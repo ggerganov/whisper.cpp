@@ -404,7 +404,7 @@ ggml-quants.o: ggml-quants.c ggml.h ggml-quants.h
 
 WHISPER_OBJ += ggml.o ggml-alloc.o ggml-backend.o ggml-quants.o
 
-whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h
+whisper.o: whisper.cpp whisper.h ggml.h ggml-cuda.h unicode.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 ifndef WHISPER_COREML

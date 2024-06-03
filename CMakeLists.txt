@@ -677,6 +677,7 @@ add_library(${TARGET}
     ${GGML_SOURCES_ROCM}        ${GGML_HEADERS_ROCM}
     whisper.h
     whisper.cpp
+    unicode.h
     )
 
 include_directories (
