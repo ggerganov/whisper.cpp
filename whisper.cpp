@@ -10,6 +10,7 @@
 
 #ifdef GGML_USE_CUDA
 #include "ggml-cuda.h"
+#include "whisper-mel-cuda.hpp"
 #endif
 
 #ifdef GGML_USE_SYCL
@@ -3118,6 +3119,18 @@ struct mel_calc_cpu : public whisper_mel_calc {
 };
 }
 
+whisper_mel_calc * whisper_mel_calc_create(ggml_backend_t backend, const whisper_filters & filters) {
+#if GGML_USE_CUDA
+    if (ggml_backend_is_cuda(backend)) {
+        auto ret = whisper_mel_calc_create_cuda(backend, filters);
+        const float warmup[256] = {0};
+        ret->calculate({warmup, 256}, 1);
+        return ret;
+    } else
+#endif
+        return new mel_calc_cpu(filters);
+}
+
 // split text into tokens
 //
 // ref: https://github.com/openai/gpt-2/blob/a74da5d99abaaba920de8131d64da2862a8f213b/src/encoder.py#L53
@@ -3575,14 +3588,7 @@ struct whisper_context * whisper_init_with_params_no_state(struct whisper_model_
         return nullptr;
     }
 
-//#if GGML_USE_CUDA
-//    if (ggml_backend_is_cuda(ctx->backend)) {
-//    }
-//    else
-//#endif
-    {
-        ctx->mel_calc = new mel_calc_cpu(ctx->model.filters);
-    }
+    ctx->mel_calc = whisper_mel_calc_create(ctx->backend, ctx->model.filters);
 
     loader->close(loader->context);
 

@@ -364,12 +364,12 @@ if (WHISPER_CUDA)
         if (WHISPER_STATIC)
             if (WIN32)
                 # As of 12.3.1 CUDA Tookit for Windows does not offer a static cublas library
-                set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas CUDA::cublasLt)
+                set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas CUDA::cublasLt CUDA::cufft)
             else ()
-                set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static)
+                set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static CUDA::cufft_static)
             endif()
         else()
-            set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart CUDA::cublas CUDA::cublasLt)
+            set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart CUDA::cublas CUDA::cublasLt CUDA::cufft)
         endif()
 
         set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cuda_driver)
@@ -678,6 +678,10 @@ add_library(${TARGET}
     whisper.h
     whisper.cpp
     )
+
+if (WHISPER_CUDA)
+    target_sources(${TARGET} PRIVATE whisper-mel-cuda.cu)
+endif()
 
 include_directories (
     .
