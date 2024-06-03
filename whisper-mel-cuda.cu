@@ -20,24 +20,9 @@
 #   define DO_CHECKS 0
 #endif
 
-#if DO_CHECKS
-#   define CUDA_CHECK_GEN(err, success, error_fn)                                            \
-         do {                                                                                \
-            auto err_ = (err);                                                               \
-            if (err_ != (success)) {                                                         \
-                fprintf(stderr, "%s %s:%d - %s\n", #err, __FILE__, __LINE__, error_fn(err_)); \
-            }                                                                                \
-        } while (0)
-#else
-#   define CUDA_CHECK_GEN(err, success, error_fn) err
-#endif
-
-#define CUDA_CHECK(err) CUDA_CHECK_GEN(err, cudaSuccess, cudaGetErrorString)
-#define CUBLAS_CHECK(err) CUDA_CHECK_GEN(err, CUBLAS_STATUS_SUCCESS, cublasGetStatusString)
-#define CUFFT_CHECK(err) CUDA_CHECK_GEN(err, CUFFT_SUCCESS, cufftGetErrorString)
-
 namespace {
 
+#if DO_CHECKS
 const char* cufftGetErrorString(cufftResult_t res) {
     switch (res) {
     case CUFFT_SUCCESS: return "The cuFFT operation was successful";
@@ -61,6 +46,20 @@ const char* cufftGetErrorString(cufftResult_t res) {
     }
 }
 
+#   define CUDA_CHECK_GEN(err, success, error_fn)                                            \
+         do {                                                                                \
+            auto err_ = (err);                                                               \
+            if (err_ != (success)) {                                                         \
+                fprintf(stderr, "%s %s:%d - %s\n", #err, __FILE__, __LINE__, error_fn(err_)); \
+            }                                                                                \
+        } while (0)
+#else
+#   define CUDA_CHECK_GEN(err, success, error_fn) err
+#endif
+
+#define CUDA_CHECK(err) CUDA_CHECK_GEN(err, cudaSuccess, cudaGetErrorString)
+#define CUBLAS_CHECK(err) CUDA_CHECK_GEN(err, CUBLAS_STATUS_SUCCESS, cublasGetStatusString)
+#define CUFFT_CHECK(err) CUDA_CHECK_GEN(err, CUFFT_SUCCESS, cufftGetErrorString)
 
 __global__ void k_fill_stft_input(
     const float * padded_samples,

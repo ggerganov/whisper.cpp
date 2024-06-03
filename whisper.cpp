@@ -3123,6 +3123,7 @@ whisper_mel_calc * whisper_mel_calc_create(ggml_backend_t backend, const whisper
 #if GGML_USE_CUDA
     if (ggml_backend_is_cuda(backend)) {
         auto ret = whisper_mel_calc_create_cuda(backend, filters);
+        // run a warmup to avoid the first kernel launch overhead (thus we get the best perf even on the first run)
         const float warmup[256] = {0};
         ret->calculate({warmup, 256}, 1);
         return ret;
