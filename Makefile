@@ -299,7 +299,7 @@ ggml-cuda.o: ggml-cuda.cu ggml-cuda.h ggml.h ggml-backend.h ggml-backend-impl.h 
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
 endif
 
-whisper-mel-cuda.o: whisper-mel-cuda.cpp whisper.h ggml.h ggml-backend.h whisper-mel.hpp whisper-mel-cuda.hpp
+whisper-mel-cuda.o: whisper-mel-cuda.cu whisper.h ggml.h ggml-backend.h whisper-mel.hpp whisper-mel-cuda.hpp
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
 
 ifdef WHISPER_HIPBLAS
