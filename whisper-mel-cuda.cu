@@ -8,6 +8,7 @@
 #include <cublas_v2.h>
 #include <cuComplex.h>
 #include <cub/device/device_reduce.cuh>
+#include <device_launch_parameters.h>
 
 #include <algorithm>
 
@@ -301,27 +302,23 @@ public:
             &fzero,
             mel_data, int(n_mag_frames)));
 
-        float * log_mels = nullptr;
-        CUDA_CHECK(cudaMallocAsync(&log_mels, m_n_mel * n_mag_frames * sizeof(float), m_stream));
+        whisper_mel ret;
+        // Calculate semi-padded sample length to ensure compatibility
+        int n_len_org = 1 + int(samples.len + mirror_pad - WHISPER_N_FFT) / WHISPER_HOP_LENGTH;
+        ret.init(m_backend, int(n_mag_frames), n_len_org, m_n_mel);
+        assert(ggml_nbytes(ret.tensor) == m_n_mel * n_mag_frames * sizeof(float));
+
+        float* log_mels = reinterpret_cast<float*>(ret.tensor->data);
 
         calc_log_mel(
             mel_data, int(m_n_mel * n_mag_frames),
-            m_log_mel_temp_storage, int(m_log_mel_temp_storage_size),
+            m_log_mel_temp_storage , int(m_log_mel_temp_storage_size),
             log_mels, m_stream);
-
-        whisper_mel ret;
-        ret.n_mel = m_n_mel;
-        ret.n_len = int(n_mag_frames);
-        // Calculate semi-padded sample length to ensure compatibility
-        ret.n_len_org = 1 + int(samples.len + mirror_pad - WHISPER_N_FFT) / WHISPER_HOP_LENGTH;
-        ret.data.resize(m_n_mel * n_mag_frames);
-        CUDA_CHECK(cudaMemcpyAsync(ret.data.data(), log_mels, ret.data.size() * sizeof(float), cudaMemcpyDeviceToHost, m_stream));
 
         CUDA_CHECK(cudaStreamSynchronize(m_stream));
 
         // cleanup
         CUFFT_CHECK(cufftDestroy(plan));
-        CUDA_CHECK(cudaFreeAsync(log_mels, m_stream));
         CUDA_CHECK(cudaFreeAsync(mel_data, m_stream));
         CUDA_CHECK(cudaFreeAsync(magnitudes, m_stream));
         CUDA_CHECK(cudaFreeAsync(stft_out, m_stream));
