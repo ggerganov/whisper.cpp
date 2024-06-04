@@ -1815,8 +1815,7 @@ static bool whisper_encode_external(const whisper_state & wstate) {
 static struct ggml_cgraph * whisper_build_graph_conv(
         whisper_context & wctx,
           whisper_state & wstate,
-              const int   mel_offset,
-              bool        mel_only) {
+              const int   mel_offset) {
     const auto & model   = wctx.model;
     const auto & hparams = model.hparams;
 
@@ -1860,13 +1859,7 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         // just create some tensor so that the graph/buffer size estimation is correct
         mel = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, 2 * n_ctx, n_mels);
     }
-
-    if (mel_only) {
-        ggml_set_output(mel);
-        ggml_build_forward_expand(gf, mel);
-        ggml_free(ctx0);
-        return gf;
-    }
+    ggml_set_name(mel, "mel"); // used with external encoding
 
     struct ggml_tensor * cur = nullptr;
 
@@ -2248,9 +2241,7 @@ static bool whisper_encode_internal(
     {
         auto & alloc = wstate.alloc_conv.alloc;
 
-        bool encode_external = whisper_encode_external(wstate);
-
-        ggml_cgraph * gf = whisper_build_graph_conv(wctx, wstate, mel_offset, encode_external);
+        ggml_cgraph * gf = whisper_build_graph_conv(wctx, wstate, mel_offset);
 
         if (!ggml_gallocr_alloc_graph(alloc, gf)) {
             // should never happen as we pre-allocate the memory
@@ -2261,8 +2252,8 @@ static bool whisper_encode_internal(
             return false;
         }
 
-        if (encode_external) {
-            ggml_tensor * mel = gf->nodes[gf->n_nodes - 1];
+        if (whisper_encode_external(wstate)) {
+            ggml_tensor * mel = ggml_graph_get_tensor(gf, "mel");
             assert(mel->ne[1] == wctx.model.hparams.n_mels);
             GGML_UNUSED(mel);
 #if defined(WHISPER_USE_COREML)
@@ -3427,7 +3418,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     {
         bool ok = whisper_allocr_graph_init(state->alloc_conv, ctx->backend,
                 [&]() {
-                    return whisper_build_graph_conv(*ctx, *state, 0, false);
+                    return whisper_build_graph_conv(*ctx, *state, 0);
                 });
 
         if (!ok) {
