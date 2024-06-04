@@ -1,3 +1,4 @@
+#define CUB_IGNORE_DEPRECATED_CPP_DIALECT
 #include "whisper-mel-cuda.hpp"
 #include "whisper.h"
 
