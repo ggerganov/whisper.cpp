@@ -3,11 +3,23 @@
 #include <vector>
 
 struct whisper_mel {
-    int n_len;
-    int n_len_org;
-    int n_mel;
+    int n_len_org = 0;
 
-    std::vector<float> data;
+    ggml_tensor * tensor = nullptr;
+    ggml_context * ctx = nullptr;
+    ggml_backend_buffer_t buffer = nullptr;
+
+    whisper_mel() = default;
+    ~whisper_mel();
+
+    whisper_mel(const whisper_mel &) = delete;
+    whisper_mel & operator=(const whisper_mel &) = delete;
+    whisper_mel(whisper_mel &&) noexcept;
+    whisper_mel & operator=(whisper_mel &&) noexcept;
+
+    void init(ggml_backend_t backend, int n_len, int n_len_org, int n_mel);
+    void reset();
+    void take(whisper_mel & other) noexcept;
 };
 
 struct whisper_filters {
