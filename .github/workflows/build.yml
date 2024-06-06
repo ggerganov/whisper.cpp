@@ -498,7 +498,7 @@ jobs:
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_CUBLAS=${{ matrix.cublas }}
+          -DWHISPER_CUDA=${{ matrix.cublas }}
           -DWHISPER_SDL2=${{ matrix.sdl2 }}
 
       - name: Build ${{ matrix.cuda-toolkit }}
