@@ -194,7 +194,7 @@ class mel_calc_cuda : public whisper_mel_calc {
     size_t m_log_mel_temp_storage_size = 0;
     void * m_log_mel_temp_storage = nullptr;
 public:
-    mel_calc_cuda(ggml_backend_t backend, const whisper_filters& filters)
+    mel_calc_cuda(ggml_backend_t backend, const whisper_filters & filters)
         : m_n_mel(filters.n_mel)
         , m_backend(backend)
     {
@@ -305,7 +305,7 @@ public:
         whisper_mel ret;
         // Calculate semi-padded sample length to ensure compatibility
         int n_len_org = 1 + int(samples.len + mirror_pad - WHISPER_N_FFT) / WHISPER_HOP_LENGTH;
-        ret.init(m_backend, int(n_mag_frames), n_len_org, m_n_mel);
+        whisper_mel_init(ret, m_backend, int(n_mag_frames), n_len_org, m_n_mel);
         assert(ggml_nbytes(ret.tensor) == m_n_mel * n_mag_frames * sizeof(float));
 
         float* log_mels = reinterpret_cast<float*>(ret.tensor->data);
