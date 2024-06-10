@@ -145,17 +145,6 @@ void calc_magnitudes(
 
 constexpr auto LOG_MEL_PREFIX_SIZE = 256;
 
-size_t get_log_mel_temp_storage_size() {
-    constexpr auto maxPaddedSamples = 2 * WHISPER_N_SAMPLES + WHISPER_N_FFT;
-    constexpr auto maxFrames = 1 + (maxPaddedSamples - WHISPER_N_FFT) / WHISPER_HOP_LENGTH;
-    constexpr auto maxMels = 160;
-
-    size_t nbytes = 0;
-    float * temp = nullptr;
-    cub::DeviceReduce::Max(nullptr, nbytes, temp, temp, maxFrames * maxMels);
-    return nbytes + LOG_MEL_PREFIX_SIZE;
-}
-
 void calc_log_mel(
     const float * mel_data,
     int n_mel,
@@ -186,10 +175,13 @@ class mel_calc_cuda : public whisper_mel_calc {
 
     float * m_hann_window = nullptr;
 
+    float * m_filters = nullptr;
+
+    // max samples for which we have allocated memory for the temp working areas below (cufft, log_mel)
+    int m_n_max_samples = 0;
+
     size_t m_cufft_workspace_size = 0;
     void * m_cufft_workspace = nullptr;
-
-    float * m_filters = nullptr;
 
     size_t m_log_mel_temp_storage_size = 0;
     void * m_log_mel_temp_storage = nullptr;
@@ -215,14 +207,6 @@ public:
             CUDA_CHECK(cudaMemcpyAsync(m_hann_window, hw.data, hw.len * sizeof(float), cudaMemcpyHostToDevice, m_stream));
         }
 
-        // create working area
-        {
-            constexpr auto maxPaddedSamples = 2 * WHISPER_N_SAMPLES + WHISPER_N_FFT;
-            constexpr auto maxFrames = 1 + (maxPaddedSamples - WHISPER_N_FFT) / WHISPER_HOP_LENGTH;
-            CUFFT_CHECK(cufftEstimate1d(WHISPER_N_FFT, CUFFT_R2C, maxFrames, &m_cufft_workspace_size));
-            CUDA_CHECK(cudaMallocAsync(&m_cufft_workspace, m_cufft_workspace_size, m_stream));
-        }
-
         // fill filters
         {
             auto& f = filters.data;
@@ -230,10 +214,8 @@ public:
             CUDA_CHECK(cudaMemcpyAsync(m_filters, f.data(), f.size() * sizeof(float), cudaMemcpyHostToDevice, m_stream));
         }
 
-        {
-            m_log_mel_temp_storage_size = get_log_mel_temp_storage_size();
-            CUDA_CHECK(cudaMallocAsync(&m_log_mel_temp_storage, m_log_mel_temp_storage_size, m_stream));
-        }
+        // preallocate working areas enough for the most common cases (<= 30s)
+        ensure_working_areas(WHISPER_N_SAMPLES);
     }
 
     ~mel_calc_cuda() {
@@ -245,7 +227,49 @@ public:
         CUDA_CHECK(cudaFree(m_log_mel_temp_storage));
     }
 
-    virtual whisper_mel calculate(whisper_span<const float> samples, int /*n_threads*/) const override {
+    void ensure_working_areas(int n_samples) {
+        if (n_samples <= m_n_max_samples) {
+            return;
+        }
+
+        const auto max_padded_samples = n_samples + WHISPER_N_SAMPLES + WHISPER_N_FFT;
+        const auto max_frames = 1 + (max_padded_samples - WHISPER_N_FFT) / WHISPER_HOP_LENGTH;
+
+        // cufft workspace
+        {
+            if (m_cufft_workspace) {
+                CUDA_CHECK(cudaFree(m_cufft_workspace));
+                m_cufft_workspace_size = 0;
+                m_cufft_workspace = nullptr;
+            }
+            CUFFT_CHECK(cufftEstimate1d(WHISPER_N_FFT, CUFFT_R2C, max_frames, &m_cufft_workspace_size));
+            CUDA_CHECK(cudaMallocAsync(&m_cufft_workspace, m_cufft_workspace_size, m_stream));
+        }
+
+        // device reduce working area
+        {
+            if (m_log_mel_temp_storage) {
+                CUDA_CHECK(cudaFree(m_log_mel_temp_storage));
+                m_log_mel_temp_storage_size = 0;
+                m_log_mel_temp_storage = nullptr;
+            }
+
+            const auto max_mels = 160;
+
+            size_t nbytes = 0;
+            float* temp = nullptr;
+            cub::DeviceReduce::Max(nullptr, nbytes, temp, temp, max_frames * max_mels);
+            m_log_mel_temp_storage_size = nbytes + LOG_MEL_PREFIX_SIZE;
+
+            CUDA_CHECK(cudaMallocAsync(&m_log_mel_temp_storage, m_log_mel_temp_storage_size, m_stream));
+        }
+
+        m_n_max_samples = n_samples;
+    }
+
+    virtual whisper_mel calculate(whisper_span<const float> samples, int /*n_threads*/) override {
+        ensure_working_areas(samples.len);
+
         const size_t mirror_pad = WHISPER_N_FFT / 2;
         const size_t padded_size = samples.len + WHISPER_N_SAMPLES + WHISPER_N_FFT;
 

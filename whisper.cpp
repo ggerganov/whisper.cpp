@@ -3079,7 +3079,7 @@ struct mel_calc_cpu : public whisper_mel_calc {
     mel_calc_cpu(ggml_backend_t backend, const whisper_filters & filters) : m_backend(backend), m_filters(filters) {}
 
     // ref: https://github.com/openai/whisper/blob/main/whisper/audio.py#L110-L157
-    whisper_mel calculate(whisper_span<const float> ssamples, int n_threads) const override {
+    whisper_mel calculate(whisper_span<const float> ssamples, int n_threads) override {
         // Hann window
         const float * hann = global_cache.hann_window;
 
