@@ -3781,6 +3781,7 @@ void whisper_free_params(struct whisper_full_params * params) {
 int whisper_pcm_to_mel_with_state(struct whisper_context * /*ctx*/, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
     const int64_t t_start_us = ggml_time_us();
 
+    whisper_mel_free(state->mel);
     state->mel = state->mel_calc->calculate({samples, n_samples}, n_threads);
 
     state->t_mel_us += ggml_time_us() - t_start_us;
