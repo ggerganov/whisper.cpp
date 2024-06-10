@@ -29,6 +29,6 @@ struct whisper_span {
 
 struct whisper_mel_calc {
     virtual ~whisper_mel_calc();
-    virtual whisper_mel calculate(whisper_span<const float> samples, int n_threads) const = 0;
+    virtual whisper_mel calculate(whisper_span<const float> samples, int n_threads) = 0;
     static whisper_span<const float> hann_window();
 };

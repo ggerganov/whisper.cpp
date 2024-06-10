@@ -802,6 +802,7 @@ struct whisper_state {
 
     whisper_mel mel;
     whisper_mel_calc * mel_calc = nullptr;
+    whisper_mel_calc * mel_calc_fallback = nullptr;
 
     whisper_batch batch;
 
@@ -3079,7 +3080,7 @@ struct mel_calc_cpu : public whisper_mel_calc {
     mel_calc_cpu(ggml_backend_t backend, const whisper_filters & filters) : m_backend(backend), m_filters(filters) {}
 
     // ref: https://github.com/openai/whisper/blob/main/whisper/audio.py#L110-L157
-    whisper_mel calculate(whisper_span<const float> ssamples, int n_threads) const override {
+    whisper_mel calculate(whisper_span<const float> ssamples, int n_threads) override {
         // Hann window
         const float * hann = global_cache.hann_window;
 
@@ -3721,6 +3722,8 @@ void whisper_free_state(struct whisper_state * state) {
 
         delete state->mel_calc;
         state->mel_calc = nullptr;
+        delete state->mel_calc_fallback;
+        state->mel_calc_fallback = nullptr;
 
 #ifdef WHISPER_USE_COREML
         if (state->ctx_coreml != nullptr) {
@@ -3778,11 +3781,24 @@ void whisper_free_params(struct whisper_full_params * params) {
     }
 }
 
-int whisper_pcm_to_mel_with_state(struct whisper_context * /*ctx*/, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
+int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_state * state, const float * samples, int n_samples, int n_threads) {
     const int64_t t_start_us = ggml_time_us();
 
     whisper_mel_free(state->mel);
-    state->mel = state->mel_calc->calculate({samples, n_samples}, n_threads);
+    if (n_samples <= 5 * 60 * WHISPER_SAMPLE_RATE) {
+        // calculate mel spectrogram for lengths up to 5 minutes on the most optimal mel calculator
+        state->mel = state->mel_calc->calculate({samples, n_samples}, n_threads);
+    } else {
+        // calcuate mel spectrogram for longer audios on the CPU
+        // 1. gpu calculations may use hundreds of megabytes of memory for longer audios so we're being conservative
+        //    with our gpu demands
+        // 2. the time to transcribe audios this long will be dominated by the decoding time, so the mel calculation
+        //    taking longer is not a major concern
+        if (!state->mel_calc_fallback) {
+            state->mel_calc_fallback = new mel_calc_cpu(state->backend, ctx->model.filters);
+        }
+        state->mel = state->mel_calc_fallback->calculate({samples, n_samples}, n_threads);
+    }
 
     state->t_mel_us += ggml_time_us() - t_start_us;
 
