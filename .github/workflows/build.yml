@@ -459,7 +459,7 @@ jobs:
           path: build/bin/${{ matrix.build }}
 
   windows-cublas:
-    runs-on: windows-latest
+    runs-on: windows-2019
 
     strategy:
       matrix:
