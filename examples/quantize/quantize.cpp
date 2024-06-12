@@ -162,6 +162,7 @@ bool whisper_model_quantize(const std::string & fname_inp, const std::string & f
         "encoder.conv2.bias",
         "encoder.positional_embedding",
         "decoder.positional_embedding",
+        "decoder.*",
     };
 
     if (!ggml_common_quantize_0(finp, fout, ftype, { ".*" }, to_skip)) {
