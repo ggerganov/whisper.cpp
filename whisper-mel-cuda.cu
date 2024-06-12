@@ -176,6 +176,14 @@ public:
     {
         ggml_backend_cuda_context* cuda_ctx = (ggml_backend_cuda_context*)m_backend->context;
         m_device = cuda_ctx->device;
+
+        if (ggml_cuda_info().devices[m_device].cc < 600) {
+            // we've only tesed on 6.0 and higher and we've had reports of crashes on 5.0:
+            // https://github.com/ggerganov/whisper.cpp/issues/2230
+            // to be safe forbid anything below 6.0
+            throw std::runtime_error("CUDA compute capability 6.0 or higher is required");
+        }
+
         ggml_cuda_set_device(m_device);
 
         if (filters.n_fft != WHISPER_N_FFT_HALF) {
