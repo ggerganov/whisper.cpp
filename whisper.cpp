@@ -3170,13 +3170,18 @@ whisper_mel_calc * whisper_mel_calc_create(ggml_backend_t backend, const whisper
 #if defined(GGML_USE_CUDA) && !defined(GGML_USE_HIPBLAS)
     if (ggml_backend_is_cuda(backend)) {
         auto ret = whisper_mel_calc_create_cuda(backend, filters);
-        // run a warmup to avoid the first kernel launch overhead (thus we get the best perf even on the first run)
-        const float warmup[256] = {0};
-        ret->calculate({warmup, 256}, 1);
-        return ret;
-    } else
+        if (ret) {
+            // run a warmup to avoid the first kernel launch overhead (thus we get the best perf even on the first run)
+            const float warmup[256] = { 0 };
+            ret->calculate({ warmup, 256 }, 1);
+            return ret;
+        }
+    }
 #endif
-        return new mel_calc_cpu(backend, filters);
+
+    // a specialized mel_calc could not be created
+    // fall back to CPU
+    return new mel_calc_cpu(backend, filters);
 }
 
 // split text into tokens
