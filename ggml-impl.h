@@ -112,6 +112,18 @@ extern "C" {
 #endif
 #endif
 
+#ifdef DYNAMIC_ARCH
+#if defined(_MSC_VER) || defined(_WIN32)
+#warning "DYNAMIC_ARCH is not supported on WIN32 or MSC, DYNAMIC_ARCH will be disabled"
+#undef DYNAMIC_ARCH
+#elif !defined(__x86_64__)  // TODO: any other names for x86_64, e.g., amd64 ?
+#warning "DYNAMIC_ARCH is supported on x86_64 only, DYNAMIC_ARCH will be disabled"
+#undef DYNAMIC_ARCH
+#else
+#include "cpu_features.h"
+#endif
+#endif
+
 // __FMA__ and __F16C__ are not defined in MSVC, however they are implied with AVX2/AVX512
 #if defined(_MSC_VER) && (defined(__AVX2__) || defined(__AVX512F__))
 #ifndef __FMA__
@@ -430,7 +442,7 @@ static inline ggml_fp16_t ggml_compute_fp32_to_fp16(float f) {
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <intrin.h>
 #else
-#if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__SSSE3__) || defined(__SSE3__) || defined(__SSE__)
+#if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__) || defined(__SSSE3__) || defined(__SSE3__) || defined(__SSE__) || defined(DYNAMIC_ARCH)
 #if !defined(__riscv)
 #include <immintrin.h>
 #endif
@@ -558,8 +570,21 @@ static inline ggml_fp16_t ggml_compute_fp32_to_fp16(float f) {
     return (sign >> 16) | (shl1_w > UINT32_C(0xFF000000) ? UINT16_C(0x7E00) : nonsign);
 }
 
+#ifdef DYNAMIC_ARCH
+__attribute__((target("f16c")))
+static inline float __f16c_compute_fp16_to_fp32(ggml_fp16_t x) {
+    return _cvtsh_ss(x);
+}
+__attribute__((target("f16c")))
+static inline ggml_fp16_t __f16c_compute_fp32_to_fp16(float x) {
+    return _cvtss_sh(x, 0);
+}
+#define GGML_COMPUTE_FP16_TO_FP32(x) (cpu_has_f16c ? __f16c_compute_fp16_to_fp32(x) : ggml_compute_fp16_to_fp32(x))
+#define GGML_COMPUTE_FP32_TO_FP16(x) (cpu_has_f16c ? __f16c_compute_fp32_to_fp16(x) : ggml_compute_fp32_to_fp16(x))
+#else
 #define GGML_COMPUTE_FP16_TO_FP32(x) ggml_compute_fp16_to_fp32(x)
 #define GGML_COMPUTE_FP32_TO_FP16(x) ggml_compute_fp32_to_fp16(x)
+#endif
 
 #endif // __F16C__
 
