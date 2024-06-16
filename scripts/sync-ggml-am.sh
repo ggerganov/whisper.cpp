@@ -96,6 +96,8 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
     # src/ggml-alloc.c            -> ggml-alloc.c
     # src/ggml-backend-impl.h     -> ggml-backend-impl.h
     # src/ggml-backend.c          -> ggml-backend.c
+    # src/ggml-blas.cpp           -> ggml-blas.cpp
+    # src/ggml-blas.h             -> ggml-blas.h
     # src/ggml-common.h           -> ggml-common.h
     # src/ggml-cuda/*             -> ggml-cuda/
     # src/ggml-cuda.cu            -> ggml-cuda.cu
@@ -131,6 +133,8 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
         -e 's/src\/ggml-alloc\.c/ggml-alloc.c/g' \
         -e 's/src\/ggml-backend-impl\.h/ggml-backend-impl.h/g' \
         -e 's/src\/ggml-backend\.c/ggml-backend.c/g' \
+        -e 's/src\/ggml-blas\.cpp/ggml-blas.cpp/g' \
+        -e 's/src\/ggml-blas\.h/ggml-blas.h/g' \
         -e 's/src\/ggml-common\.h/ggml-common.h/g' \
         -e 's/src\/ggml-cuda\//ggml-cuda\//g' \
         -e 's/src\/ggml-cuda\.cu/ggml-cuda.cu/g' \
