@@ -277,6 +277,16 @@ ifdef WHISPER_CUBLAS
 	WHISPER_CUDA := 1
 endif
 
+OBJS_CUDA_TEMP_INST      = $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-wmma*.cu))
+OBJS_CUDA_TEMP_INST     += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/mmq*.cu))
+ifdef WHISPER_CUDA_FA_ALL_QUANTS
+	OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*.cu))
+else
+	OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu))
+	OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu))
+	OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*f16-f16.cu))
+endif # WHISPER_CUDA_FA_ALL_QUANTS
+
 ifdef WHISPER_CUDA
 	ifeq ($(shell expr $(NVCC_VERSION) \>= 11.6), 1)
 		CUDA_ARCH_FLAG ?= native
@@ -289,10 +299,11 @@ ifdef WHISPER_CUDA
 	LDFLAGS     += -lcuda -lcublas -lculibos -lcudart -lcublasLt -lcufft -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L/usr/lib/wsl/lib
 	WHISPER_OBJ += ggml-cuda.o whisper-mel-cuda.o
 	WHISPER_OBJ += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/*.cu))
+	WHISPER_OBJ += $(OBJS_CUDA_TEMP_INST)
 	NVCC        = nvcc
 	NVCCFLAGS   = --forward-unknown-to-host-compiler -arch=$(CUDA_ARCH_FLAG)
 
-ggml-cuda/%.o: ggml-cuda/%.cu ggml-cuda/%.cuh ggml.h ggml-common.h ggml-cuda/common.cuh
+ggml-cuda/%.o: ggml-cuda/%.cu ggml.h ggml-common.h ggml-cuda/common.cuh
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -c $< -o $@
 
 ggml-cuda.o: ggml-cuda.cu ggml-cuda.h ggml.h ggml-backend.h ggml-backend-impl.h ggml-common.h $(wildcard ggml-cuda/*.cuh)
@@ -313,6 +324,7 @@ ifdef WHISPER_HIPBLAS
 	HIPFLAGS    += $(addprefix --offload-arch=,$(GPU_TARGETS))
 	WHISPER_OBJ += ggml-cuda.o
 	WHISPER_OBJ += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/*.cu))
+	WHISPER_OBJ += $(OBJS_CUDA_TEMP_INST)
 
 ggml-cuda/%.o: ggml-cuda/%.cu ggml-cuda/%.cuh ggml.h ggml-common.h ggml-cuda/common.cuh
 	$(HIPCC) $(CXXFLAGS) $(HIPFLAGS) -x hip -c -o $@ $<
@@ -457,6 +469,8 @@ libwhisper.so: $(WHISPER_OBJ)
 
 clean:
 	rm -f *.o main stream command talk talk-llama bench quantize server lsp libwhisper.a libwhisper.so
+	rm -vrf ggml-cuda/*.o
+	rm -vrf ggml-cuda/template-instances/*.o
 
 #
 # Examples
