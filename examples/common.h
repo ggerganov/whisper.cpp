@@ -21,7 +21,7 @@ struct gpt_params {
     int32_t n_threads    = std::min(4, (int32_t) std::thread::hardware_concurrency());
     int32_t n_predict    = 200;  // new tokens to predict
     int32_t n_parallel   = 1;    // number of parallel streams
-    int32_t n_batch      = 8;    // batch size for prompt processing
+    int32_t n_batch      = 32;   // batch size for prompt processing
     int32_t n_ctx        = 2048; // context size (this is the KV cache max size)
     int32_t n_gpu_layers = 0;    // number of layers to offlload to the GPU
 
