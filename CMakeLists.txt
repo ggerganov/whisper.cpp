@@ -80,11 +80,10 @@ if (APPLE)
     option(WHISPER_COREML                "whisper: enable Core ML framework"     OFF)
     option(WHISPER_COREML_ALLOW_FALLBACK "whisper: allow non-CoreML fallback"    OFF)
     option(WHISPER_METAL_EMBED_LIBRARY   "whisper: embed Metal library"          OFF)
+    option(WHISPER_BLAS                  "whisper: use BLAS"                     ON)
+    set   (WHISPER_BLAS_VENDOR "Apple" CACHE STRING
+                                         "whisper: BLAS library vendor")
 else()
-    option(WHISPER_BLAS                  "whisper: use BLAS libraries"                        OFF)
-    option(WHISPER_BLAS_VENDOR           "whisper: BLAS library vendor"                       Generic)
-    option(WHISPER_OPENBLAS              "whisper: prefer OpenBLAS"                           OFF)
-    option(WHISPER_OPENBLAS_INTERFACE64  "whisper: use OpenBLAS w/ 64-bit interface"          OFF)
     option(WHISPER_CUDA                  "whisper: support for CUDA"                          OFF)
     option(WHISPER_CUDA_FA_ALL_QUANTS    "whisper: compile all quants for FlashAttention"     OFF)
     option(WHISPER_CUBLAS                "whisper: support for CUDA (deprecated)"             OFF)
@@ -93,6 +92,9 @@ else()
     option(WHISPER_MKL                   "whisper: use Intel Math Kernel Library (MKL)"       OFF)
     option(WHISPER_SYCL                  "whisper: use SYCL"                                  OFF)
     option(WHISPER_SYCL_F16              "whisper: use 16 bit floats for sycl calculations"   OFF)
+    option(WHISPER_BLAS                  "whisper: use BLAS"                                  OFF)
+    set   (WHISPER_BLAS_VENDOR "Generic" CACHE STRING
+                                         "whisper: BLAS library vendor")
 endif()
 
 option(WHISPER_PERF "whisper: enable perf timings" OFF)
@@ -246,93 +248,90 @@ if (APPLE)
     endif()
 endif()
 
-if (WHISPER_OPENBLAS)
-    set(WHISPER_BLAS_VENDOR "OpenBLAS")
-    set(WHISPER_BLAS ON)
-    # BLA_PKGCONFIG_BLAS is supported since CMake 3.25.
-    # FindBLAS.cmake pkg-config logic seems incomplete, because when
-    # BLA_SIZEOF_INTEGER is 8, then it should search for blas64 instead of blas.
-    # blas.pc/blas64.pc are not always provided, so let's be more specific
-    # and go with openblas.pc/openblas64.pc if WHISPER_OPENBLAS is on.
-    if (WHISPER_OPENBLAS_INTERFACE64)
-        set(WHISPER_BLAS_LIB "openblas64")
-    else ()
-        set(WHISPER_BLAS_LIB "openblas")
-    endif ()
-    set(BLA_PKGCONFIG_BLAS ${WHISPER_BLAS_LIB})
-    # OpenBLAS prebuilt libraries for Windows do not have "64" suffix in filename.
-    # (But .pc file has "64" suffix in filename for USE_64BITINT=1 Windows build.)
-    if (MSVC)
-        set(WHISPER_BLAS_LIB "openblas")
-    endif ()
-endif()
-
 if (WHISPER_BLAS)
-    if (NOT "$ENV{OPENBLAS_PATH}" STREQUAL "")
-        if (WHISPER_STATIC)
-            set(WHISPER_BLAS_LIB_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
-            set(WHISPER_BLAS_LIB_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
-        else ()
-            if (CMAKE_IMPORT_LIBRARY_SUFFIX)
-                set(WHISPER_BLAS_LIB_PREFIX ${CMAKE_IMPORT_LIBRARY_PREFIX})
-                set(WHISPER_BLAS_LIB_SUFFIX ${CMAKE_IMPORT_LIBRARY_SUFFIX})
-            else ()
-                set(WHISPER_BLAS_LIB_PREFIX ${CMAKE_SHARED_LIBRARY_PREFIX})
-                set(WHISPER_BLAS_LIB_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
-            endif ()
-        endif ()
-        # OpenBLAS prebuilt libraries hardcode "lib" prefix in filename even on Windows
-        if (WHISPER_OPENBLAS)
-            set(WHISPER_BLAS_LIB_PREFIX "lib")
-        endif ()
-        message(STATUS "BLAS compatible library path provided")
-        set(BLAS_LIBRARIES "$ENV{OPENBLAS_PATH}/lib/${WHISPER_BLAS_LIB_PREFIX}${WHISPER_BLAS_LIB}${WHISPER_BLAS_LIB_SUFFIX}")
-        message(STATUS "Libraries ${BLAS_LIBRARIES}")
-        set(BLAS_INCLUDE_DIRS "$ENV{OPENBLAS_PATH}/include")
-        message(STATUS "Include dirs ${BLAS_INCLUDE_DIRS}")
-        if (NOT EXISTS "${BLAS_LIBRARIES}")
-            message(FATAL_ERROR "BLAS library was not found. Environment variable OPENBLAS_PATH misdefined.")
-        endif ()
-        set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_OPENBLAS)
-        include_directories(${BLAS_INCLUDE_DIRS})
-        set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} ${BLAS_LIBRARIES})
-    else ()
-        if (WHISPER_STATIC)
-            # FindBLAS.cmake pkg-config logic seems incomplete, because when
-            # BLA_STATIC is on, then it should use pkg_check_modules_static
-            # instead of pkg_check_modules.
-            # Some manual variable overriding may be necessary if you don't
-            # achieve desired results.
-            set(BLA_STATIC 1)
-        endif ()
-        set(BLA_VENDOR ${WHISPER_BLAS_VENDOR})
-        if (WHISPER_OPENBLAS_INTERFACE64)
-            set(BLA_SIZEOF_INTEGER 8)
-        else ()
-            set(BLA_SIZEOF_INTEGER 4)
-        endif()
-        set(BLA_PREFER_PKGCONFIG 1)
-        find_package(BLAS)
+    if (WHISPER_STATIC)
+        set(BLA_STATIC ON)
+    endif()
+    #if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.22)
+    #    set(BLA_SIZEOF_INTEGER 8)
+    #endif()
 
-        if(BLAS_FOUND)
-            message(STATUS "BLAS compatible library found")
-            message(STATUS "Libraries ${BLAS_LIBRARIES}")
-            if (NOT DEFINED BLAS_INCLUDE_DIRS)
-                if (PKGC_BLAS_FOUND)
-                    set(BLAS_INCLUDE_DIRS "${PKGC_BLAS_INCLUDE_DIRS}")
-                else ()
-                    find_path(BLAS_INCLUDE_DIRS cblas.h /usr/include/openblas)
+    set(BLA_VENDOR ${WHISPER_BLAS_VENDOR})
+    find_package(BLAS)
+
+    if (BLAS_FOUND)
+        message(STATUS "BLAS found, Libraries: ${BLAS_LIBRARIES}")
+
+        if (("${BLAS_INCLUDE_DIRS}" STREQUAL "") AND NOT (${WHISPER_BLAS_VENDOR} MATCHES "Apple"))
+            # BLAS_INCLUDE_DIRS is missing in FindBLAS.cmake.
+            # see https://gitlab.kitware.com/cmake/cmake/-/issues/20268
+            find_package(PkgConfig REQUIRED)
+            if (${WHISPER_BLAS_VENDOR} MATCHES "Generic")
+                pkg_check_modules(DepBLAS REQUIRED blas)
+            elseif (${WHISPER_BLAS_VENDOR} MATCHES "OpenBLAS")
+                # As of openblas v0.3.22, the 64-bit is named openblas64.pc
+                pkg_check_modules(DepBLAS openblas64)
+                if (NOT DepBLAS_FOUND)
+                    pkg_check_modules(DepBLAS REQUIRED openblas)
+                endif()
+            elseif (${WHISPER_BLAS_VENDOR} MATCHES "FLAME")
+                pkg_check_modules(DepBLAS REQUIRED blis)
+            elseif (${WHISPER_BLAS_VENDOR} MATCHES "ATLAS")
+                pkg_check_modules(DepBLAS REQUIRED blas-atlas)
+            elseif (${WHISPER_BLAS_VENDOR} MATCHES "FlexiBLAS")
+                pkg_check_modules(DepBLAS REQUIRED flexiblas_api)
+            elseif (${WHISPER_BLAS_VENDOR} MATCHES "Intel")
+                # all Intel* libraries share the same include path
+                pkg_check_modules(DepBLAS REQUIRED mkl-sdl)
+            elseif (${WHISPER_BLAS_VENDOR} MATCHES "NVHPC")
+                # this doesn't provide pkg-config
+                # suggest to assign BLAS_INCLUDE_DIRS on your own
+                if ("${NVHPC_VERSION}" STREQUAL "")
+                    message(WARNING "Better to set NVHPC_VERSION")
+                else()
+                    set(DepBLAS_FOUND ON)
+                    set(DepBLAS_INCLUDE_DIRS "/opt/nvidia/hpc_sdk/${CMAKE_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}/${NVHPC_VERSION}/math_libs/include")
                 endif()
             endif()
-            message(STATUS "Include dirs ${BLAS_INCLUDE_DIRS}")
-            set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DGGML_USE_OPENBLAS)
-            include_directories(${BLAS_INCLUDE_DIRS})
-            set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} ${BLAS_LIBRARIES})
-        else()
-            message(FATAL_ERROR "BLAS library was not found")
+            if (DepBLAS_FOUND)
+                set(BLAS_INCLUDE_DIRS ${DepBLAS_INCLUDE_DIRS})
+            else()
+                message(WARNING "BLAS_INCLUDE_DIRS neither been provided nor been automatically"
+                " detected by pkgconfig, trying to find cblas.h from possible paths...")
+                find_path(BLAS_INCLUDE_DIRS
+                    NAMES cblas.h
+                    HINTS
+                        /usr/include
+                        /usr/local/include
+                        /usr/include/openblas
+                        /opt/homebrew/opt/openblas/include
+                        /usr/local/opt/openblas/include
+                        /usr/include/x86_64-linux-gnu/openblas/include
+                )
+            endif()
         endif()
-    endif ()
-endif ()
+
+        message(STATUS "BLAS found, Includes: ${BLAS_INCLUDE_DIRS}")
+
+        add_compile_options(${BLAS_LINKER_FLAGS})
+
+        add_compile_definitions(GGML_USE_BLAS)
+
+        if (${BLAS_INCLUDE_DIRS} MATCHES "mkl" AND (${WHISPER_BLAS_VENDOR} MATCHES "Generic" OR ${WHISPER_BLAS_VENDOR} MATCHES "Intel"))
+            add_compile_definitions(GGML_BLAS_USE_MKL)
+        endif()
+
+        set(GGML_HEADERS_BLAS ggml-blas.h)
+        set(GGML_SOURCES_BLAS ggml-blas.cpp)
+
+        set(WHISPER_EXTRA_LIBS     ${WHISPER_EXTRA_LIBS}     ${BLAS_LIBRARIES})
+        set(WHISPER_EXTRA_INCLUDES ${WHISPER_EXTRA_INCLUDES} ${BLAS_INCLUDE_DIRS})
+    else()
+        message(WARNING "BLAS not found, please refer to "
+        "https://cmake.org/cmake/help/latest/module/FindBLAS.html#blas-lapack-vendors"
+        " to set correct WHISPER_BLAS_VENDOR")
+    endif()
+endif()
 
 if (WHISPER_MKL)
     find_package(MKL CONFIG REQUIRED PATHS $ENV{MKLROOT})
@@ -712,6 +711,7 @@ add_library(${TARGET}
     ${GGML_SOURCES_CUDA}
     ${GGML_SOURCES_SYCL}  ${GGML_HEADERS_SYCL}
     ${GGML_SOURCES_ROCM}  ${GGML_HEADERS_ROCM}
+    ${GGML_SOURCES_BLAS}  ${GGML_HEADERS_BLAS}
     whisper.h
     whisper.cpp
     )

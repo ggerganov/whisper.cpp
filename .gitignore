@@ -10,6 +10,7 @@
 /CMakeSettings.json
 
 build/
+build-blas/
 build-coreml/
 build-em/
 build-debug/
