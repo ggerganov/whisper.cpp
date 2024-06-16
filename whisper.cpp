@@ -17,6 +17,10 @@
 #include "ggml-sycl.h"
 #endif
 
+#ifdef GGML_USE_BLAS
+#include "ggml-blas.h"
+#endif
+
 #ifdef WHISPER_USE_OPENVINO
 #include "openvino/whisper-openvino-encoder.h"
 #endif
@@ -808,7 +812,7 @@ struct whisper_state {
 
     whisper_decoder decoders[WHISPER_MAX_DECODERS];
 
-    ggml_backend_t backend = nullptr;
+    std::vector<ggml_backend_t> backends;
 
     // ggml-alloc:
     // - stores meta info about the intermediate tensors into the `meta` buffers
@@ -817,6 +821,8 @@ struct whisper_state {
     whisper_allocr alloc_encode;
     whisper_allocr alloc_cross;
     whisper_allocr alloc_decode;
+
+    ggml_backend_sched_t sched_encode;
 
     // result of the encoder
     struct ggml_tensor * embd_conv = nullptr;
@@ -874,7 +880,7 @@ struct whisper_context {
 
     whisper_state * state = nullptr;
 
-    ggml_backend_t backend = nullptr;
+    std::vector<ggml_backend_t> backends;
 
     std::string path_model; // populated by whisper_init_from_file_with_params()
 };
@@ -1066,13 +1072,13 @@ static uint32_t whisper_kv_cache_get_padding(const struct whisper_context & wctx
     }
 
 #ifdef GGML_USE_METAL
-    if (ggml_backend_is_metal(wctx.backend)) {
+    if (ggml_backend_is_metal(wctx.backends[0])) {
         return 32u;
     }
 #endif
 
 #ifdef GGML_USE_CUDA
-    if (ggml_backend_is_cuda(wctx.backend)) {
+    if (ggml_backend_is_cuda(wctx.backends[0])) {
         return 256u;
     }
 #endif
@@ -1211,7 +1217,9 @@ static size_t aheads_masks_nbytes(struct whisper_aheads_masks & aheads_masks) {
     return size;
 }
 
-static ggml_backend_t whisper_backend_init(const whisper_context_params & params) {
+static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_params & params) {
+    std::vector<ggml_backend_t> result;
+
     ggml_backend_t backend_gpu = NULL;
 
     // initialize the backends
@@ -1250,13 +1258,27 @@ static ggml_backend_t whisper_backend_init(const whisper_context_params & params
     }
 #endif
 
-    GGML_UNUSED(params);
-
     if (backend_gpu) {
-        return backend_gpu;
+        result.push_back(backend_gpu);
     }
 
-    return ggml_backend_cpu_init();
+#ifdef GGML_USE_BLAS
+    {
+        WHISPER_LOG_INFO("%s: using BLAS backend\n", __func__);
+        ggml_backend_t backend_blas = ggml_backend_blas_init();
+        if (!backend_blas) {
+            WHISPER_LOG_ERROR("%s: ggml_backend_blas_init() failed\n", __func__);
+        } else {
+            result.push_back(backend_blas);
+        }
+    }
+#endif
+
+    GGML_UNUSED(params);
+
+    result.push_back(ggml_backend_cpu_init());
+
+    return result;
 }
 
 // load the model from a ggml file
@@ -1683,21 +1705,21 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         }
     }
 
-    wctx.backend = whisper_backend_init(wctx.params);
-    if (!wctx.backend) {
+    wctx.backends = whisper_backend_init(wctx.params);
+    if (wctx.backends.empty()) {
         WHISPER_LOG_ERROR("%s: failed to initialize the backend\n", __func__);
         return false;
     }
 
     // allocate tensors in the backend buffers
-    model.buffer = ggml_backend_alloc_ctx_tensors(model.ctx, wctx.backend);
+    model.buffer = ggml_backend_alloc_ctx_tensors(model.ctx, wctx.backends[0]);
     if (!model.buffer) {
         WHISPER_LOG_ERROR("%s: failed to allocate memory for the model\n", __func__);
         return false;
     }
 
     size_t size_main = ggml_backend_buffer_get_size(model.buffer);
-    WHISPER_LOG_INFO("%s: %8s total size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backend), size_main / 1e6);
+    WHISPER_LOG_INFO("%s: %8s total size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backends[0]), size_main / 1e6);
 
     // load weights
     {
@@ -2251,7 +2273,7 @@ static bool whisper_encode_internal(
             return false;
         }
 
-        if (!ggml_graph_compute_helper(wstate.backend, gf, n_threads)) {
+        if (!ggml_graph_compute_helper(wstate.backends[0], gf, n_threads)) {
             return false;
         }
 
@@ -2269,18 +2291,12 @@ static bool whisper_encode_internal(
 
     // encoder
     if (!whisper_encode_external(wstate)) {
-        auto & alloc = wstate.alloc_encode.alloc;
-
         ggml_cgraph * gf = whisper_build_graph_encoder(wctx, wstate);
 
-        if (!ggml_gallocr_alloc_graph(alloc, gf)) {
-            // should never happen as we pre-allocate the memory
-            return false;
-        }
+        // TODO: set n_threads to BLAS backend
 
-        if (!ggml_graph_compute_helper(wstate.backend, gf, n_threads)) {
-            return false;
-        }
+        ggml_backend_sched_reset(wstate.sched_encode);
+        ggml_backend_sched_graph_compute(wstate.sched_encode, gf);
     }
 
     // cross
@@ -2294,7 +2310,7 @@ static bool whisper_encode_internal(
             return false;
         }
 
-        if (!ggml_graph_compute_helper(wstate.backend, gf, n_threads)) {
+        if (!ggml_graph_compute_helper(wstate.backends[0], gf, n_threads)) {
             return false;
         }
     }
@@ -2795,7 +2811,7 @@ static bool whisper_decode_internal(
 
         logits = gf->nodes[gf->n_nodes - 1];
 
-        if (!ggml_graph_compute_helper(wstate.backend, gf, n_threads)) {
+        if (!ggml_graph_compute_helper(wstate.backends[0], gf, n_threads)) {
             return false;
         }
     }
@@ -3299,20 +3315,20 @@ static std::string whisper_openvino_get_path_cache(std::string path_bin) {
 struct whisper_state * whisper_init_state(whisper_context * ctx) {
     whisper_state * state = new whisper_state;
 
-    state->backend = whisper_backend_init(ctx->params);
-    if (!state->backend) {
+    state->backends = whisper_backend_init(ctx->params);
+    if (state->backends.empty()) {
         WHISPER_LOG_ERROR("%s: whisper_backend_init() failed\n", __func__);
         whisper_free_state(state);
         return nullptr;
     }
 
-    state->mel_calc = whisper_mel_calc_create(state->backend, ctx->model.filters);
+    state->mel_calc = whisper_mel_calc_create(state->backends[0], ctx->model.filters);
 
     // at this point, we don't know yet how many decoders will be used, so we overallocate 3x ctx
     // in theory, there can be a case where this is not enough, but in practice it should always be enough
     const int factor = 3;
 
-    if (!whisper_kv_cache_init(state->kv_self, state->backend, ctx->itype,
+    if (!whisper_kv_cache_init(state->kv_self, state->backends[0], ctx->itype,
                 ctx->model.hparams.n_text_state,
                 ctx->model.hparams.n_text_layer,
                 GGML_PAD(ctx->model.hparams.n_text_ctx, 256)*factor)) {
@@ -3326,7 +3342,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         WHISPER_LOG_INFO("%s: kv self size  = %7.2f MB\n", __func__, memory_size / 1e6);
     }
 
-    if (!whisper_kv_cache_init(state->kv_cross, state->backend, ctx->itype,
+    if (!whisper_kv_cache_init(state->kv_cross, state->backends[0], ctx->itype,
                 ctx->model.hparams.n_text_state,
                 ctx->model.hparams.n_text_layer,
                 GGML_PAD(ctx->model.hparams.n_audio_ctx, 256))) {
@@ -3340,7 +3356,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         WHISPER_LOG_INFO("%s: kv cross size = %7.2f MB\n", __func__, memory_size / 1e6);
     }
 
-    if (!whisper_kv_cache_init(state->kv_pad, state->backend, ctx->itype,
+    if (!whisper_kv_cache_init(state->kv_pad, state->backends[0], ctx->itype,
                 ctx->model.hparams.n_audio_state,
                 1,
                 GGML_PAD(ctx->model.hparams.n_audio_ctx, 256))) {
@@ -3356,7 +3372,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // [EXPERIMENTAL] Token-level timestamps with DTW
     if (ctx->params.dtw_token_timestamps) {
-        if (!aheads_masks_init(ctx->params, ctx->model.hparams, state->aheads_masks, state->backend)) {
+        if (!aheads_masks_init(ctx->params, ctx->model.hparams, state->aheads_masks, state->backends[0])) {
             WHISPER_LOG_ERROR("%s: aheads_masks_init() failed for alignment heads masks\n", __func__);
             whisper_free_state(state);
             return nullptr;
@@ -3399,7 +3415,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // conv allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_conv, state->backend,
+        bool ok = whisper_allocr_graph_init(state->alloc_conv, state->backends[0],
                 [&]() {
                     return whisper_build_graph_conv(*ctx, *state, 0);
                 });
@@ -3415,7 +3431,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // encoder allocator
     if (!whisper_encode_external(*state)) {
-        bool ok = whisper_allocr_graph_init(state->alloc_encode, state->backend,
+        bool ok = whisper_allocr_graph_init(state->alloc_encode, state->backends[0],
                 [&]() {
                     return whisper_build_graph_encoder(*ctx, *state);
                 });
@@ -3426,12 +3442,15 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
             return nullptr;
         }
 
+        state->sched_encode = ggml_backend_sched_new(state->backends.data(), NULL, state->backends.size(), WHISPER_MAX_NODES, false);
+        ggml_backend_sched_reserve(state->sched_encode, whisper_build_graph_encoder(*ctx, *state));
+
         WHISPER_LOG_INFO("%s: compute buffer (encode) = %7.2f MB\n", __func__, whisper_allocr_size(state->alloc_encode) / 1e6);
     }
 
     // cross allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_cross, state->backend,
+        bool ok = whisper_allocr_graph_init(state->alloc_cross, state->backends[0],
                 [&]() {
                     return whisper_build_graph_cross(*ctx, *state);
                 });
@@ -3447,7 +3466,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // decoder allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_decode, state->backend,
+        bool ok = whisper_allocr_graph_init(state->alloc_decode, state->backends[0],
                 [&]() {
                     const auto & hparams = ctx->model.hparams;
 
@@ -3751,7 +3770,11 @@ void whisper_free_state(struct whisper_state * state) {
         ggml_gallocr_free(state->alloc_cross.alloc);
         ggml_gallocr_free(state->alloc_decode.alloc);
 
-        ggml_backend_free(state->backend);
+        ggml_backend_sched_free(state->sched_encode);
+
+        for (auto & backend : state->backends) {
+            ggml_backend_free(backend);
+        }
 
         // [EXPERIMENTAL] Token-level timestamps with DTW
         aheads_masks_free(state->aheads_masks);
@@ -3768,7 +3791,9 @@ void whisper_free(struct whisper_context * ctx) {
 
         whisper_free_state(ctx->state);
 
-        ggml_backend_free(ctx->backend);
+        for (auto & backend : ctx->backends) {
+            ggml_backend_free(backend);
+        }
 
         delete ctx;
     }
@@ -3800,7 +3825,7 @@ int whisper_pcm_to_mel_with_state(struct whisper_context * ctx, struct whisper_s
         // 2. the time to transcribe audios this long will be dominated by the decoding time, so the mel calculation
         //    taking longer is not a major concern
         if (!state->mel_calc_fallback) {
-            state->mel_calc_fallback = new mel_calc_cpu(state->backend, ctx->model.filters);
+            state->mel_calc_fallback = new mel_calc_cpu(state->backends[0], ctx->model.filters);
         }
         state->mel = state->mel_calc_fallback->calculate({samples, n_samples}, n_threads);
     }
@@ -3837,7 +3862,7 @@ int whisper_set_mel_with_state(
     }
 
     whisper_mel_free(state->mel);
-    whisper_mel_init(state->mel, ctx->backend, n_len, n_len, n_mel);
+    whisper_mel_init(state->mel, ctx->backends[0], n_len, n_len, n_mel);
 
     ggml_backend_tensor_set(state->mel.tensor, data, 0, ggml_nbytes(state->mel.tensor));
 
