@@ -65,12 +65,6 @@ while read c; do
         examples/common.cpp \
         examples/common-ggml.h \
         examples/common-ggml.cpp \
-        examples/whisper/grammar-parser.h \
-        examples/whisper/grammar-parser.cpp \
-        examples/whisper/whisper.h \
-        examples/whisper/whisper.cpp \
-        examples/whisper/main.cpp \
-        examples/whisper/quantize.cpp \
         LICENSE \
         scripts/gen-authors.sh \
         >> $SRC_WHISPER/ggml-src.patch
@@ -128,13 +122,6 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
     # examples/common.cpp                 -> examples/common.cpp
     # examples/common-ggml.h              -> examples/common-ggml.h
     # examples/common-ggml.cpp            -> examples/common-ggml.cpp
-    # examples/whisper/grammar-parser.h   -> examples/grammar-parser.h
-    # examples/whisper/grammar-parser.cpp -> examples/grammar-parser.cpp
-    #
-    # examples/whisper/whisper.h    -> whisper.h
-    # examples/whisper/whisper.cpp  -> whisper.cpp
-    # examples/whisper/main.cpp     -> examples/main/main.cpp
-    # examples/whisper/quantize.cpp -> examples/quantize/quantize.cpp
     #
     # LICENSE                     -> LICENSE
     # ggml/scripts/gen-authors.sh -> scripts/gen-authors.sh
@@ -169,12 +156,6 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
         -e 's/examples\/common\.cpp/examples\/common.cpp/g' \
         -e 's/examples\/common-ggml\.h/examples\/common-ggml.h/g' \
         -e 's/examples\/common-ggml\.cpp/examples\/common-ggml.cpp/g' \
-        -e 's/examples\/whisper\/grammar-parser\.h/examples\/grammar-parser.h/g' \
-        -e 's/examples\/whisper\/grammar-parser\.cpp/examples\/grammar-parser.cpp/g' \
-        -e 's/examples\/whisper\/whisper\.h/whisper.h/g' \
-        -e 's/examples\/whisper\/whisper\.cpp/whisper.cpp/g' \
-        -e 's/examples\/whisper\/main\.cpp/examples\/main\/main.cpp/g' \
-        -e 's/examples\/whisper\/quantize\.cpp/examples\/quantize\/quantize.cpp/g' \
         -e 's/LICENSE/LICENSE/g' \
         -e 's/ggml\/scripts\/gen-authors\.sh/scripts\/gen-authors.sh/g' \
         > ggml-src.patch.tmp
