@@ -183,18 +183,30 @@ static bool ggml_graph_compute_helper(
 }
 
 static bool ggml_graph_compute_helper(
-       struct ggml_backend * backend,
+      ggml_backend_sched_t   sched,
         struct ggml_cgraph * graph,
                        int   n_threads) {
-    if (ggml_backend_is_cpu(backend)) {
-        ggml_backend_cpu_set_n_threads(backend, n_threads);
-    }
-#ifdef GGML_USE_METAL
-    if (ggml_backend_is_metal(backend)) {
-        ggml_backend_metal_set_n_cb(backend, n_threads);
-    }
+
+    for (int i = 0; i < ggml_backend_sched_get_n_backends(sched); ++i) {
+        ggml_backend_t backend = ggml_backend_sched_get_backend(sched, i);
+        if (ggml_backend_is_cpu(backend)) {
+            ggml_backend_cpu_set_n_threads(backend, n_threads);
+        }
+#ifdef GGML_USE_BLAS
+        if (ggml_backend_is_blas(backend)) {
+            ggml_backend_blas_set_n_threads(backend, n_threads);
+        }
 #endif
-    return ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS;
+#ifdef GGML_USE_METAL
+        if (ggml_backend_is_metal(backend)) {
+            ggml_backend_metal_set_n_cb(backend, n_threads);
+        }
+#endif
+    }
+
+    bool t = ggml_backend_sched_graph_compute(sched, graph) == GGML_STATUS_SUCCESS;
+    ggml_backend_sched_reset(sched);
+    return t;
 }
 
 // faster matrix multiplications for tensors that do not have dimension 0 divisible by "pad"
@@ -496,27 +508,33 @@ struct whisper_pair {
 
 // ggml_allocr wrapper for whisper usage
 struct whisper_allocr {
-    ggml_gallocr_t alloc = nullptr;
+    ggml_backend_sched_t sched = nullptr;
 
     std::vector<uint8_t> meta;
 };
 
 static size_t whisper_allocr_size(struct whisper_allocr & allocr) {
-    return allocr.meta.size() + ggml_gallocr_get_buffer_size(allocr.alloc, 0);
+    size_t size = allocr.meta.size();
+    for (int i = 0; i < ggml_backend_sched_get_n_backends(allocr.sched); ++i) {
+        ggml_backend_t backend = ggml_backend_sched_get_backend(allocr.sched, i);
+        size += ggml_backend_sched_get_buffer_size(allocr.sched, backend);
+    }
+    return size;
 }
 
 // measure the memory usage of a graph and prepare the allocr's internal data buffer
-static bool whisper_allocr_graph_init(struct whisper_allocr & allocr, ggml_backend_t backend, std::function<struct ggml_cgraph *()> && get_graph) {
-    auto & alloc = allocr.alloc;
+static bool whisper_allocr_graph_init(struct whisper_allocr & allocr, std::vector<ggml_backend_t> backends, std::function<struct ggml_cgraph *()> && get_graph) {
+    //auto & alloc = allocr.alloc;
+    auto & sched = allocr.sched;
     auto & meta  = allocr.meta;
 
-    alloc = ggml_gallocr_new(ggml_backend_get_default_buffer_type(backend));
+    sched = ggml_backend_sched_new(backends.data(), nullptr, backends.size(), WHISPER_MAX_NODES, false);
 
     meta.resize(ggml_tensor_overhead()*WHISPER_MAX_NODES + ggml_graph_overhead());
 
     // since there are dependencies between the different graphs,
     // we need to allocate them instead of only reserving to get the correct compute buffer size
-    if (!ggml_gallocr_alloc_graph(alloc, get_graph())) {
+    if (!ggml_backend_sched_alloc_graph(sched, get_graph())) {
         // failed to allocate the compute buffer
         WHISPER_LOG_ERROR("%s: failed to allocate the compute buffer\n", __func__);
         return false;
@@ -822,7 +840,7 @@ struct whisper_state {
     whisper_allocr alloc_cross;
     whisper_allocr alloc_decode;
 
-    ggml_backend_sched_t sched_encode;
+    //ggml_backend_sched_t sched_encode;
 
     // result of the encoder
     struct ggml_tensor * embd_conv = nullptr;
@@ -2264,16 +2282,16 @@ static bool whisper_encode_internal(
 
     // conv
     {
-        auto & alloc = wstate.alloc_conv.alloc;
+        auto & sched = wstate.alloc_conv.sched;
 
         ggml_cgraph * gf = whisper_build_graph_conv(wctx, wstate, mel_offset);
 
-        if (!ggml_gallocr_alloc_graph(alloc, gf)) {
+        if (!ggml_backend_sched_alloc_graph(sched, gf)) {
             // should never happen as we pre-allocate the memory
             return false;
         }
 
-        if (!ggml_graph_compute_helper(wstate.backends[0], gf, n_threads)) {
+        if (!ggml_graph_compute_helper(sched, gf, n_threads)) {
             return false;
         }
 
@@ -2291,26 +2309,32 @@ static bool whisper_encode_internal(
 
     // encoder
     if (!whisper_encode_external(wstate)) {
+        auto & sched = wstate.alloc_encode.sched;
+
         ggml_cgraph * gf = whisper_build_graph_encoder(wctx, wstate);
 
-        // TODO: set n_threads to BLAS backend
-
-        ggml_backend_sched_reset(wstate.sched_encode);
-        ggml_backend_sched_graph_compute(wstate.sched_encode, gf);
-    }
-
-    // cross
-    {
-        auto & alloc = wstate.alloc_cross.alloc;
-
-        ggml_cgraph * gf = whisper_build_graph_cross(wctx, wstate);
-
-        if (!ggml_gallocr_alloc_graph(alloc, gf)) {
+        if (!ggml_backend_sched_alloc_graph(sched, gf)) {
             // should never happen as we pre-allocate the memory
             return false;
         }
 
-        if (!ggml_graph_compute_helper(wstate.backends[0], gf, n_threads)) {
+        if (!ggml_graph_compute_helper(sched, gf, n_threads)) {
+            return false;
+        }
+    }
+
+    // cross
+    {
+        auto & sched = wstate.alloc_cross.sched;
+
+        ggml_cgraph * gf = whisper_build_graph_cross(wctx, wstate);
+
+        if (!ggml_backend_sched_alloc_graph(sched, gf)) {
+            // should never happen as we pre-allocate the memory
+            return false;
+        }
+
+        if (!ggml_graph_compute_helper(sched, gf, n_threads)) {
             return false;
         }
     }
@@ -2752,11 +2776,11 @@ static bool whisper_decode_internal(
 
     // decoder
     {
-        auto & alloc = wstate.alloc_decode.alloc;
+        auto & sched = wstate.alloc_decode.sched;
 
         ggml_cgraph * gf = whisper_build_graph_decoder(wctx, wstate, batch, save_alignment_heads_QKs, false);
 
-        if (!ggml_gallocr_alloc_graph(alloc, gf)) {
+        if (!ggml_backend_sched_alloc_graph(sched, gf)) {
             // should never happen as we pre-allocate the memory
             return false;
         }
@@ -2811,7 +2835,7 @@ static bool whisper_decode_internal(
 
         logits = gf->nodes[gf->n_nodes - 1];
 
-        if (!ggml_graph_compute_helper(wstate.backends[0], gf, n_threads)) {
+        if (!ggml_graph_compute_helper(sched, gf, n_threads)) {
             return false;
         }
     }
@@ -3415,7 +3439,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // conv allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_conv, state->backends[0],
+        bool ok = whisper_allocr_graph_init(state->alloc_conv, state->backends,
                 [&]() {
                     return whisper_build_graph_conv(*ctx, *state, 0);
                 });
@@ -3431,7 +3455,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // encoder allocator
     if (!whisper_encode_external(*state)) {
-        bool ok = whisper_allocr_graph_init(state->alloc_encode, state->backends[0],
+        bool ok = whisper_allocr_graph_init(state->alloc_encode, state->backends,
                 [&]() {
                     return whisper_build_graph_encoder(*ctx, *state);
                 });
@@ -3442,15 +3466,12 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
             return nullptr;
         }
 
-        state->sched_encode = ggml_backend_sched_new(state->backends.data(), NULL, state->backends.size(), WHISPER_MAX_NODES, false);
-        ggml_backend_sched_reserve(state->sched_encode, whisper_build_graph_encoder(*ctx, *state));
-
         WHISPER_LOG_INFO("%s: compute buffer (encode) = %7.2f MB\n", __func__, whisper_allocr_size(state->alloc_encode) / 1e6);
     }
 
     // cross allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_cross, state->backends[0],
+        bool ok = whisper_allocr_graph_init(state->alloc_cross, state->backends,
                 [&]() {
                     return whisper_build_graph_cross(*ctx, *state);
                 });
@@ -3466,7 +3487,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // decoder allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_decode, state->backends[0],
+        bool ok = whisper_allocr_graph_init(state->alloc_decode, state->backends,
                 [&]() {
                     const auto & hparams = ctx->model.hparams;
 
@@ -3765,12 +3786,10 @@ void whisper_free_state(struct whisper_state * state) {
 
         whisper_batch_free(state->batch);
 
-        ggml_gallocr_free(state->alloc_conv.alloc);
-        ggml_gallocr_free(state->alloc_encode.alloc);
-        ggml_gallocr_free(state->alloc_cross.alloc);
-        ggml_gallocr_free(state->alloc_decode.alloc);
-
-        ggml_backend_sched_free(state->sched_encode);
+        ggml_backend_sched_free(state->alloc_conv.sched);
+        ggml_backend_sched_free(state->alloc_encode.sched);
+        ggml_backend_sched_free(state->alloc_cross.sched);
+        ggml_backend_sched_free(state->alloc_decode.sched);
 
         for (auto & backend : state->backends) {
             ggml_backend_free(backend);
