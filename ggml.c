@@ -296,6 +296,9 @@ inline static void * ggml_calloc(size_t num, size_t size) {
 #elif defined(GGML_USE_CLBLAST)
 #include "ggml-opencl.h"
 #endif
+#if defined(GGML_USE_CUDA)
+#include "ggml-cuda.h"
+#endif
 
 // floating point type used to accumulate sums
 typedef double ggml_float;
@@ -22942,7 +22945,11 @@ int ggml_cpu_has_wasm_simd(void) {
 }
 
 int ggml_cpu_has_blas(void) {
-#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS) || defined(GGML_USE_CUDA) || defined(GGML_USE_VULKAN) || defined(GGML_USE_CLBLAST) || defined(GGML_USE_SYCL)
+#if defined(GGML_USE_ACCELERATE) || defined(GGML_USE_OPENBLAS)
+    return 1;
+#elif defined(GGML_USE_CUDA)
+    return ggml_backend_cuda_get_device_count() > 0;
+#elif defined(GGML_USE_VULKAN) || defined(GGML_USE_CLBLAST) || defined(GGML_USE_SYCL)
     return 1;
 #else
     return 0;
@@ -22951,7 +22958,7 @@ int ggml_cpu_has_blas(void) {
 
 int ggml_cpu_has_cuda(void) {
 #if defined(GGML_USE_CUDA)
-    return 1;
+    return ggml_backend_cuda_get_device_count() > 0;
 #else
     return 0;
 #endif

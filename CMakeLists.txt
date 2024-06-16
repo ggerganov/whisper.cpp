@@ -92,6 +92,8 @@ else()
     option(WHISPER_MKL                   "whisper: use Intel Math Kernel Library (MKL)"       OFF)
     option(WHISPER_SYCL                  "whisper: use SYCL"                                  OFF)
     option(WHISPER_SYCL_F16              "whisper: use 16 bit floats for sycl calculations"   OFF)
+
+    option(DYNAMIC_CUDA                  "load CUDA dynamically"                              OFF)
 endif()
 
 option(WHISPER_PERF "whisper: enable perf timings" OFF)
@@ -361,18 +363,24 @@ if (WHISPER_CUDA)
 
         add_compile_definitions(GGML_USE_CUDA)
 
-        if (WHISPER_STATIC)
+        if (WHISPER_STATIC OR DYNAMIC_CUDA)
+            set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
             if (WIN32)
                 # As of 12.3.1 CUDA Tookit for Windows does not offer a static cublas library
                 set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas CUDA::cublasLt CUDA::cufft)
             else ()
-                set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas_static CUDA::cublasLt_static CUDA::cufft_static)
+                set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart_static CUDA::cublas_static -Wl,--whole-archive CUDA::cublasLt_static -Wl,--no-whole-archive CUDA::cufft_static)
             endif()
         else()
             set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cudart CUDA::cublas CUDA::cublasLt CUDA::cufft)
         endif()
 
-        set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cuda_driver)
+        if (DYNAMIC_CUDA)
+            set(GGML_SOURCES_CUDA ${GGML_SOURCES_CUDA} cuda-loader.c)
+        else()
+            set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} CUDA::cuda_driver)
+        endif()
+
     else()
         message(FATAL_ERROR "cuBLAS not found")
     endif()
