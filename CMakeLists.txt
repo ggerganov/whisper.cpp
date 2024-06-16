@@ -393,6 +393,7 @@ if (WHISPER_CUDA)
         endif()
 
         add_compile_definitions(GGML_USE_CUDA)
+        add_compile_definitions(GGML_CUDA_USE_GRAPHS)
 
         if (WHISPER_STATIC)
             if (WIN32)
