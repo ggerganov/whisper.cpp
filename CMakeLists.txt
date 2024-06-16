@@ -463,21 +463,6 @@ if (WHISPER_HIPBLAS)
     endif()
 endif()
 
-if (WHISPER_CLBLAST)
-    find_package(CLBlast)
-    if (CLBlast_FOUND)
-        message(STATUS "CLBlast found")
-
-        set(GGML_SOURCES_OPENCL ggml-opencl.cpp ggml-opencl.h)
-
-        add_compile_definitions(GGML_USE_CLBLAST)
-
-        set(WHISPER_EXTRA_LIBS ${WHISPER_EXTRA_LIBS} clblast)
-    else()
-        message(FATAL_ERROR "CLBlast not found")
-    endif()
-endif()
-
 if( WHISPER_OPENVINO )
     find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 endif()
@@ -724,9 +709,8 @@ add_library(${TARGET}
     ggml-quants.c
     ${GGML_SOURCES_METAL}
     ${GGML_SOURCES_CUDA}
-    ${GGML_SOURCES_OPENCL}
-    ${GGML_SOURCES_SYCL}        ${GGML_HEADERS_SYCL}
-    ${GGML_SOURCES_ROCM}        ${GGML_HEADERS_ROCM}
+    ${GGML_SOURCES_SYCL}  ${GGML_HEADERS_SYCL}
+    ${GGML_SOURCES_ROCM}  ${GGML_HEADERS_ROCM}
     whisper.h
     whisper.cpp
     )
