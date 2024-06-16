@@ -20,7 +20,6 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Zero memory allocations at runtime
 - Support for CPU-only inference
 - [Efficient GPU support for NVIDIA](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
-- [Partial OpenCL GPU support via CLBlast](https://github.com/ggerganov/whisper.cpp#opencl-gpu-support-via-clblast)
 - [OpenVINO Support](https://github.com/ggerganov/whisper.cpp#openvino-support)
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
 
@@ -421,28 +420,6 @@ Now build `whisper.cpp` with CUDA support:
 make clean
 WHISPER_CUDA=1 make -j
 ```
-
-## OpenCL GPU support via CLBlast
-
-For cards and integrated GPUs that support OpenCL, the Encoder processing can be largely offloaded to the GPU through CLBlast. This is especially useful for users with AMD APUs or low end devices for up to ~2x speedup.
-
-First, make sure you have installed `CLBlast` for your OS or Distribution: https://github.com/CNugteren/CLBlast
-
-Now build `whisper.cpp` with CLBlast support:
-
-```
-Makefile:
-cd whisper.cpp
-make clean
-WHISPER_CLBLAST=1 make -j
-
-CMake:
-cd whisper.cpp
-cmake -B build -DWHISPER_CLBLAST=ON
-cmake --build build -j --config Release
-```
-
-Run all the examples as usual.
 
 ## BLAS CPU support via OpenBLAS
 

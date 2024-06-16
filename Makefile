@@ -333,21 +333,6 @@ ggml-cuda.o: ggml-cuda.cu ggml-cuda.h ggml.h ggml-backend.h ggml-backend-impl.h 
 	$(HIPCC) $(CXXFLAGS) $(HIPFLAGS) -x hip -c -o $@ $<
 endif
 
-ifdef WHISPER_CLBLAST
-	CFLAGS 		+= -DGGML_USE_CLBLAST
-	CXXFLAGS 	+= -DGGML_USE_CLBLAST
-	LDFLAGS	 	+= -lclblast
-	ifeq ($(UNAME_S),Darwin)
-		LDFLAGS	 	+= -framework OpenCL
-	else
-		LDFLAGS	    += -lOpenCL
-	endif
-	WHISPER_OBJ	+= ggml-opencl.o
-
-ggml-opencl.o: ggml-opencl.cpp ggml-opencl.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-endif
-
 ifdef WHISPER_GPROF
 	CFLAGS   += -pg
 	CXXFLAGS += -pg
