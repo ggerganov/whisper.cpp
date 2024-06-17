@@ -898,8 +898,6 @@ struct whisper_context {
 
     whisper_state * state = nullptr;
 
-    ggml_backend_t backend;
-
     std::string path_model; // populated by whisper_init_from_file_with_params()
 };
 
@@ -1085,20 +1083,16 @@ static void whisper_kv_cache_seq_cp(
 }
 
 static uint32_t whisper_kv_cache_get_padding(const struct whisper_context & wctx) {
-    if (!wctx.params.flash_attn) {
+    if (!wctx.params.flash_attn || !wctx.params.use_gpu) {
         return 1u;
     }
 
 #ifdef GGML_USE_METAL
-    if (ggml_backend_is_metal(wctx.backend)) {
-        return 32u;
-    }
+    return 32u;
 #endif
 
 #ifdef GGML_USE_CUDA
-    if (ggml_backend_is_cuda(wctx.backend)) {
-        return 256u;
-    }
+    return 256u;
 #endif
 
     return 1u;
@@ -1276,16 +1270,6 @@ static ggml_backend_t whisper_backend_init_gpu(const whisper_context_params & pa
     return result;
 }
 
-static ggml_backend_t whisper_backend_init_main(const whisper_context_params & params) {
-    ggml_backend_t result = whisper_backend_init_gpu(params);
-
-    if (!result) {
-        result = ggml_backend_cpu_init();
-    }
-
-    return result;
-}
-
 static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_params & params) {
     std::vector<ggml_backend_t> result;
 
@@ -1312,6 +1296,26 @@ static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_pa
     result.push_back(ggml_backend_cpu_init());
 
     return result;
+}
+
+static ggml_backend_buffer_type_t whisper_default_buffer_type(const whisper_context_params & params) {
+    if (!params.use_gpu) {
+        return ggml_backend_cpu_buffer_type();
+    }
+
+#ifdef GGML_USE_CUDA
+    return ggml_backend_cuda_buffer_type(params.gpu_device);
+#endif
+
+#ifdef GGML_USE_METAL
+    return ggml_backend_metal_buffer_type();
+#endif
+
+#ifdef GGML_USE_SYCL
+    return ggml_backend_sycl_buffer_type();
+#endif
+
+    return ggml_backend_cpu_buffer_type();
 }
 
 // load the model from a ggml file
@@ -1738,21 +1742,15 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         }
     }
 
-    wctx.backend = whisper_backend_init_main(wctx.params);
-    if (!wctx.backend) {
-        WHISPER_LOG_ERROR("%s: failed to initialize the backend\n", __func__);
-        return false;
-    }
-
     // allocate tensors in the backend buffers
-    model.buffer = ggml_backend_alloc_ctx_tensors(model.ctx, wctx.backend);
+    model.buffer = ggml_backend_alloc_ctx_tensors_from_buft(model.ctx, whisper_default_buffer_type(wctx.params));
     if (!model.buffer) {
         WHISPER_LOG_ERROR("%s: failed to allocate memory for the model\n", __func__);
         return false;
     }
 
     size_t size_main = ggml_backend_buffer_get_size(model.buffer);
-    WHISPER_LOG_INFO("%s: %8s total size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backend), size_main / 1e6);
+    WHISPER_LOG_INFO("%s: %8s total size = %8.2f MB\n", __func__, ggml_backend_buffer_name(model.buffer), size_main / 1e6);
 
     // load weights
     {
@@ -3827,8 +3825,6 @@ void whisper_free(struct whisper_context * ctx) {
 
         whisper_free_state(ctx->state);
 
-        ggml_backend_free(ctx->backend);
-
         delete ctx;
     }
 }
@@ -3896,7 +3892,7 @@ int whisper_set_mel_with_state(
     }
 
     whisper_mel_free(state->mel);
-    whisper_mel_init(state->mel, ctx->backend, n_len, n_len, n_mel);
+    whisper_mel_init(state->mel, state->backends[0], n_len, n_len, n_mel);
 
     ggml_backend_tensor_set(state->mel.tensor, data, 0, ggml_nbytes(state->mel.tensor));
 
