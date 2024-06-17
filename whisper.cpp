@@ -831,6 +831,7 @@ struct whisper_state {
     whisper_decoder decoders[WHISPER_MAX_DECODERS];
 
     std::vector<ggml_backend_t> backends;
+    std::vector<ggml_backend_t> backends_used;
 
     // ggml-alloc:
     // - stores meta info about the intermediate tensors into the `meta` buffers
@@ -898,7 +899,7 @@ struct whisper_context {
 
     whisper_state * state = nullptr;
 
-    std::vector<ggml_backend_t> backends;
+    ggml_backend_t backend;
 
     std::string path_model; // populated by whisper_init_from_file_with_params()
 };
@@ -1090,13 +1091,13 @@ static uint32_t whisper_kv_cache_get_padding(const struct whisper_context & wctx
     }
 
 #ifdef GGML_USE_METAL
-    if (ggml_backend_is_metal(wctx.backends[0])) {
+    if (ggml_backend_is_metal(wctx.backend)) {
         return 32u;
     }
 #endif
 
 #ifdef GGML_USE_CUDA
-    if (ggml_backend_is_cuda(wctx.backends[0])) {
+    if (ggml_backend_is_cuda(wctx.backend)) {
         return 256u;
     }
 #endif
@@ -1235,17 +1236,14 @@ static size_t aheads_masks_nbytes(struct whisper_aheads_masks & aheads_masks) {
     return size;
 }
 
-static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_params & params) {
-    std::vector<ggml_backend_t> result;
+static ggml_backend_t whisper_backend_init_gpu(const whisper_context_params & params) {
+    ggml_backend_t result = NULL;
 
-    ggml_backend_t backend_gpu = NULL;
-
-    // initialize the backends
 #ifdef GGML_USE_CUDA
     if (params.use_gpu) {
         WHISPER_LOG_INFO("%s: using CUDA backend\n", __func__);
-        backend_gpu = ggml_backend_cuda_init(params.gpu_device);
-        if (!backend_gpu) {
+        result = ggml_backend_cuda_init(params.gpu_device);
+        if (!result) {
             WHISPER_LOG_ERROR("%s: ggml_backend_cuda_init() failed\n", __func__);
         }
     }
@@ -1255,13 +1253,13 @@ static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_pa
     if (params.use_gpu) {
         WHISPER_LOG_INFO("%s: using Metal backend\n", __func__);
         ggml_backend_metal_log_set_callback(g_state.log_callback, g_state.log_callback_user_data);
-        backend_gpu = ggml_backend_metal_init();
-        if (!backend_gpu) {
+        result = ggml_backend_metal_init();
+        if (!result) {
             WHISPER_LOG_ERROR("%s: ggml_backend_metal_init() failed\n", __func__);
-        } else if (!ggml_backend_metal_supports_family(backend_gpu, 7)) {
+        } else if (!ggml_backend_metal_supports_family(result, 7)) {
             WHISPER_LOG_ERROR("%s: Metal GPU does not support family 7 - falling back to CPU\n", __func__);
-            ggml_backend_free(backend_gpu);
-            backend_gpu = NULL;
+            ggml_backend_free(result);
+            result = NULL;
         }
     }
 #endif
@@ -1269,12 +1267,30 @@ static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_pa
 #ifdef GGML_USE_SYCL
     if (params.use_gpu) {
         WHISPER_LOG_INFO("%s: using SYCL backend\n", __func__);
-        backend_gpu = ggml_backend_sycl_init(params.gpu_device);
-        if (!backend_gpu) {
+        result = ggml_backend_sycl_init(params.gpu_device);
+        if (!result) {
             WHISPER_LOG_ERROR("%s: ggml_backend_sycl_init() failed\n", __func__);
         }
     }
 #endif
+
+    return result;
+}
+
+static ggml_backend_t whisper_backend_init_main(const whisper_context_params & params) {
+    ggml_backend_t result = whisper_backend_init_gpu(params);
+
+    if (!result) {
+        result = ggml_backend_cpu_init();
+    }
+
+    return result;
+}
+
+static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_params & params) {
+    std::vector<ggml_backend_t> result;
+
+    ggml_backend_t backend_gpu = whisper_backend_init_gpu(params);
 
     if (backend_gpu) {
         result.push_back(backend_gpu);
@@ -1723,21 +1739,21 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
         }
     }
 
-    wctx.backends = whisper_backend_init(wctx.params);
-    if (wctx.backends.empty()) {
+    wctx.backend = whisper_backend_init_main(wctx.params);
+    if (!wctx.backend) {
         WHISPER_LOG_ERROR("%s: failed to initialize the backend\n", __func__);
         return false;
     }
 
     // allocate tensors in the backend buffers
-    model.buffer = ggml_backend_alloc_ctx_tensors(model.ctx, wctx.backends[0]);
+    model.buffer = ggml_backend_alloc_ctx_tensors(model.ctx, wctx.backend);
     if (!model.buffer) {
         WHISPER_LOG_ERROR("%s: failed to allocate memory for the model\n", __func__);
         return false;
     }
 
     size_t size_main = ggml_backend_buffer_get_size(model.buffer);
-    WHISPER_LOG_INFO("%s: %8s total size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backends[0]), size_main / 1e6);
+    WHISPER_LOG_INFO("%s: %8s total size = %8.2f MB\n", __func__, ggml_backend_name(wctx.backend), size_main / 1e6);
 
     // load weights
     {
@@ -1831,6 +1847,8 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
             return false;
         }
     }
+
+    ggml_backend_buffer_set_usage(model.buffer, GGML_BACKEND_BUFFER_USAGE_WEIGHTS);
 
     wctx.t_load_us = ggml_time_us() - t_start_us;
 
@@ -2387,17 +2405,17 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
     struct ggml_tensor * embd = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, n_tokens);
     ggml_set_name(embd, "embd");
-    ggml_set_input(embd);
+    //ggml_set_input(embd);
 
     struct ggml_tensor * position = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, n_tokens);
     ggml_set_name(position, "position");
-    ggml_set_input(position);
+    //ggml_set_input(position);
 
     const float KQscale = pow(float(n_state_head), -0.25);
 
     struct ggml_tensor * KQ_mask = ggml_new_tensor_3d(ctx0, GGML_TYPE_F32, n_kv, GGML_PAD(n_tokens, GGML_KQ_MASK_PAD), 1);
     ggml_set_name(KQ_mask, "KQ_mask");
-    ggml_set_input(KQ_mask);
+    //ggml_set_input(KQ_mask);
 
     struct ggml_tensor * KQ_mask_f16 = ggml_cast(ctx0, KQ_mask, GGML_TYPE_F16);
 
@@ -3346,6 +3364,12 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         return nullptr;
     }
 
+    state->backends_used.push_back(ctx->backend);
+    state->backends_used.insert(state->backends_used.end(), state->backends.begin(), state->backends.end());
+    for (int i = 0; i < (int) state->backends_used.size(); ++i) {
+        printf("state->backends_used[%d] = %p, name = %s\n", i, state->backends_used[i], ggml_backend_name(state->backends_used[i]));
+    }
+
     state->mel_calc = whisper_mel_calc_create(state->backends[0], ctx->model.filters);
 
     // at this point, we don't know yet how many decoders will be used, so we overallocate 3x ctx
@@ -3439,7 +3463,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // conv allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_conv, state->backends,
+        bool ok = whisper_allocr_graph_init(state->alloc_conv, state->backends_used,
                 [&]() {
                     return whisper_build_graph_conv(*ctx, *state, 0);
                 });
@@ -3455,7 +3479,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // encoder allocator
     if (!whisper_encode_external(*state)) {
-        bool ok = whisper_allocr_graph_init(state->alloc_encode, state->backends,
+        bool ok = whisper_allocr_graph_init(state->alloc_encode, state->backends_used,
                 [&]() {
                     return whisper_build_graph_encoder(*ctx, *state);
                 });
@@ -3471,7 +3495,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // cross allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_cross, state->backends,
+        bool ok = whisper_allocr_graph_init(state->alloc_cross, state->backends_used,
                 [&]() {
                     return whisper_build_graph_cross(*ctx, *state);
                 });
@@ -3487,7 +3511,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // decoder allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_decode, state->backends,
+        bool ok = whisper_allocr_graph_init(state->alloc_decode, state->backends_used,
                 [&]() {
                     const auto & hparams = ctx->model.hparams;
 
@@ -3810,9 +3834,7 @@ void whisper_free(struct whisper_context * ctx) {
 
         whisper_free_state(ctx->state);
 
-        for (auto & backend : ctx->backends) {
-            ggml_backend_free(backend);
-        }
+        ggml_backend_free(ctx->backend);
 
         delete ctx;
     }
@@ -3881,7 +3903,7 @@ int whisper_set_mel_with_state(
     }
 
     whisper_mel_free(state->mel);
-    whisper_mel_init(state->mel, ctx->backends[0], n_len, n_len, n_mel);
+    whisper_mel_init(state->mel, ctx->backend, n_len, n_len, n_mel);
 
     ggml_backend_tensor_set(state->mel.tensor, data, 0, ggml_nbytes(state->mel.tensor));
 
