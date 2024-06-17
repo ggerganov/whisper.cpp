@@ -539,6 +539,9 @@ static bool whisper_allocr_graph_init(struct whisper_allocr & allocr, std::vecto
         WHISPER_LOG_ERROR("%s: failed to allocate the compute buffer\n", __func__);
         return false;
     }
+
+    ggml_backend_sched_reset(sched);
+
     return true;
 }
 
@@ -2402,17 +2405,17 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
     struct ggml_tensor * embd = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, n_tokens);
     ggml_set_name(embd, "embd");
-    //ggml_set_input(embd);
+    ggml_set_input(embd);
 
     struct ggml_tensor * position = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, n_tokens);
     ggml_set_name(position, "position");
-    //ggml_set_input(position);
+    ggml_set_input(position);
 
     const float KQscale = pow(float(n_state_head), -0.25);
 
     struct ggml_tensor * KQ_mask = ggml_new_tensor_3d(ctx0, GGML_TYPE_F32, n_kv, GGML_PAD(n_tokens, GGML_KQ_MASK_PAD), 1);
     ggml_set_name(KQ_mask, "KQ_mask");
-    //ggml_set_input(KQ_mask);
+    ggml_set_input(KQ_mask);
 
     struct ggml_tensor * KQ_mask_f16 = ggml_cast(ctx0, KQ_mask, GGML_TYPE_F16);
 
