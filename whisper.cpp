@@ -831,7 +831,6 @@ struct whisper_state {
     whisper_decoder decoders[WHISPER_MAX_DECODERS];
 
     std::vector<ggml_backend_t> backends;
-    std::vector<ggml_backend_t> backends_used;
 
     // ggml-alloc:
     // - stores meta info about the intermediate tensors into the `meta` buffers
@@ -3364,12 +3363,6 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         return nullptr;
     }
 
-    state->backends_used.push_back(ctx->backend);
-    state->backends_used.insert(state->backends_used.end(), state->backends.begin(), state->backends.end());
-    for (int i = 0; i < (int) state->backends_used.size(); ++i) {
-        printf("state->backends_used[%d] = %p, name = %s\n", i, state->backends_used[i], ggml_backend_name(state->backends_used[i]));
-    }
-
     state->mel_calc = whisper_mel_calc_create(state->backends[0], ctx->model.filters);
 
     // at this point, we don't know yet how many decoders will be used, so we overallocate 3x ctx
@@ -3463,7 +3456,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // conv allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_conv, state->backends_used,
+        bool ok = whisper_allocr_graph_init(state->alloc_conv, state->backends,
                 [&]() {
                     return whisper_build_graph_conv(*ctx, *state, 0);
                 });
@@ -3479,7 +3472,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // encoder allocator
     if (!whisper_encode_external(*state)) {
-        bool ok = whisper_allocr_graph_init(state->alloc_encode, state->backends_used,
+        bool ok = whisper_allocr_graph_init(state->alloc_encode, state->backends,
                 [&]() {
                     return whisper_build_graph_encoder(*ctx, *state);
                 });
@@ -3495,7 +3488,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // cross allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_cross, state->backends_used,
+        bool ok = whisper_allocr_graph_init(state->alloc_cross, state->backends,
                 [&]() {
                     return whisper_build_graph_cross(*ctx, *state);
                 });
@@ -3511,7 +3504,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
     // decoder allocator
     {
-        bool ok = whisper_allocr_graph_init(state->alloc_decode, state->backends_used,
+        bool ok = whisper_allocr_graph_init(state->alloc_decode, state->backends,
                 [&]() {
                     const auto & hparams = ctx->model.hparams;
 
