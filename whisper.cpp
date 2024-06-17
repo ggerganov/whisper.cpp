@@ -1895,9 +1895,13 @@ static struct ggml_cgraph * whisper_build_graph_conv(
 
     ggml_cgraph * gf = ggml_new_graph(ctx0);
 
+    GGML_ASSERT(wstate.mel.tensor);
+
     ggml_tensor * mel_inp = wstate.mel.tensor;
+    ggml_set_input(mel_inp);
+
     ggml_tensor * mel;
-    if (mel_inp) {
+    {
         const int n_len = int(mel_inp->ne[0]);
         const int out_s = 2 * n_ctx;
         const int i0 = std::min(mel_offset, n_len);
@@ -1911,16 +1915,12 @@ static struct ggml_cgraph * whisper_build_graph_conv(
 
         if (mel_s < out_s) {
             mel = ggml_pad(ctx0, cur, out_s - mel_s, 0, 0, 0);
-        }
-        else {
+        } else {
             mel = ggml_cont(ctx0, cur);
         }
     }
-    else {
-        // just create some tensor so that the graph/buffer size estimation is correct
-        mel = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, 2 * n_ctx, n_mels);
-    }
-    ggml_set_name(mel, "mel"); // used with external encoding
+
+    ggml_set_name(mel, "mel");
 
     struct ggml_tensor * cur = nullptr;
 
@@ -1944,6 +1944,7 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         ggml_build_forward_expand(gf, mel);
 
         cur = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx);
+        ggml_set_input(cur); // the external encoder will write into this tensor
 
         ggml_set_name(cur, "embd_enc");
         wstate.embd_enc = cur;
@@ -3365,6 +3366,15 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
     }
 
     state->mel_calc = whisper_mel_calc_create(state->backends[0], ctx->model.filters);
+
+    // init 60s of random mel data
+    {
+        const int n_len = 2*100*WHISPER_CHUNK_SIZE;
+        const int n_mel = ctx->model.filters.n_mel;
+
+        whisper_mel_free(state->mel);
+        whisper_mel_init(state->mel, state->backends[0], n_len, n_len, n_mel);
+    }
 
     // at this point, we don't know yet how many decoders will be used, so we overallocate 3x ctx
     // in theory, there can be a case where this is not enough, but in practice it should always be enough
