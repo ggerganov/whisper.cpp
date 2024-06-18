@@ -286,6 +286,7 @@ enum llm_kv {
     LLM_KV_LEADING_DENSE_BLOCK_COUNT,
     LLM_KV_FEED_FORWARD_LENGTH,
     LLM_KV_EXPERT_FEED_FORWARD_LENGTH,
+    LLM_KV_EXPERT_SHARED_FEED_FORWARD_LENGTH,
     LLM_KV_USE_PARALLEL_RESIDUAL,
     LLM_KV_TENSOR_DATA_LAYOUT,
     LLM_KV_EXPERT_COUNT,
@@ -364,21 +365,22 @@ static const std::map<llm_kv, const char *> LLM_KV_NAMES = {
     { LLM_KV_GENERAL_SOURCE_URL,            "general.source.url"                    },
     { LLM_KV_GENERAL_SOURCE_HF_REPO,        "general.source.huggingface.repository" },
 
-    { LLM_KV_VOCAB_SIZE,                    "%s.vocab_size"                 },
-    { LLM_KV_CONTEXT_LENGTH,                "%s.context_length"             },
-    { LLM_KV_EMBEDDING_LENGTH,              "%s.embedding_length"           },
-    { LLM_KV_BLOCK_COUNT,                   "%s.block_count"                },
-    { LLM_KV_LEADING_DENSE_BLOCK_COUNT,     "%s.leading_dense_block_count"  },
-    { LLM_KV_FEED_FORWARD_LENGTH,           "%s.feed_forward_length"        },
-    { LLM_KV_EXPERT_FEED_FORWARD_LENGTH,    "%s.expert_feed_forward_length" },
-    { LLM_KV_USE_PARALLEL_RESIDUAL,         "%s.use_parallel_residual"      },
-    { LLM_KV_TENSOR_DATA_LAYOUT,            "%s.tensor_data_layout"         },
-    { LLM_KV_EXPERT_COUNT,                  "%s.expert_count"               },
-    { LLM_KV_EXPERT_USED_COUNT,             "%s.expert_used_count"          },
-    { LLM_KV_EXPERT_SHARED_COUNT,           "%s.expert_shared_count"        },
-    { LLM_KV_EXPERT_WEIGHTS_SCALE,          "%s.expert_weights_scale"       },
-    { LLM_KV_POOLING_TYPE ,                 "%s.pooling_type"               },
-    { LLM_KV_LOGIT_SCALE,                   "%s.logit_scale"                },
+    { LLM_KV_VOCAB_SIZE,                        "%s.vocab_size"                        },
+    { LLM_KV_CONTEXT_LENGTH,                    "%s.context_length"                    },
+    { LLM_KV_EMBEDDING_LENGTH,                  "%s.embedding_length"                  },
+    { LLM_KV_BLOCK_COUNT,                       "%s.block_count"                       },
+    { LLM_KV_LEADING_DENSE_BLOCK_COUNT,         "%s.leading_dense_block_count"         },
+    { LLM_KV_FEED_FORWARD_LENGTH,               "%s.feed_forward_length"               },
+    { LLM_KV_EXPERT_FEED_FORWARD_LENGTH,        "%s.expert_feed_forward_length"        },
+    { LLM_KV_EXPERT_SHARED_FEED_FORWARD_LENGTH, "%s.expert_shared_feed_forward_length" },
+    { LLM_KV_USE_PARALLEL_RESIDUAL,             "%s.use_parallel_residual"             },
+    { LLM_KV_TENSOR_DATA_LAYOUT,                "%s.tensor_data_layout"                },
+    { LLM_KV_EXPERT_COUNT,                      "%s.expert_count"                      },
+    { LLM_KV_EXPERT_USED_COUNT,                 "%s.expert_used_count"                 },
+    { LLM_KV_EXPERT_SHARED_COUNT,               "%s.expert_shared_count"               },
+    { LLM_KV_EXPERT_WEIGHTS_SCALE,              "%s.expert_weights_scale"              },
+    { LLM_KV_POOLING_TYPE ,                     "%s.pooling_type"                      },
+    { LLM_KV_LOGIT_SCALE,                       "%s.logit_scale"                       },
 
     { LLM_KV_ATTENTION_HEAD_COUNT,          "%s.attention.head_count"             },
     { LLM_KV_ATTENTION_HEAD_COUNT_KV,       "%s.attention.head_count_kv"          },
@@ -1278,6 +1280,126 @@ struct no_init {
 };
 
 struct llama_file {
+
+#if defined(_WIN32)
+    // use FILE * so we don't have to re-open the file to mmap
+    FILE * fp;
+    HANDLE fp_win32;
+    size_t size;
+
+private:
+    std::string GetErrorMessageWin32(DWORD error_code) const {
+        std::string ret;
+        LPSTR lpMsgBuf = NULL;
+        DWORD bufLen = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                    NULL, error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&lpMsgBuf, 0, NULL);
+        if (!bufLen) {
+            ret = format("Win32 error code: %s", error_code);
+        } else {
+            ret = lpMsgBuf;
+            LocalFree(lpMsgBuf);
+        }
+
+        return ret;
+    }
+
+public:
+
+    llama_file(const char * fname, const char * mode) {
+        fp = ggml_fopen(fname, mode);
+        if (fp == NULL) {
+            throw std::runtime_error(format("failed to open %s: %s", fname, strerror(errno)));
+        }
+        fp_win32 = (HANDLE) _get_osfhandle(_fileno(fp));
+        seek(0, SEEK_END);
+        size = tell();
+        seek(0, SEEK_SET);
+    }
+
+    size_t tell() const {
+        // SetFilePointerEx returns the current position when seeking relative 0 bytes
+        LARGE_INTEGER li;
+        li.QuadPart = 0;
+        BOOL ret = SetFilePointerEx(fp_win32, li, &li, FILE_CURRENT);
+        if (!ret) {
+            throw std::runtime_error(format("read error: %s", GetErrorMessageWin32(GetLastError()).c_str()));
+        }
+
+        return li.QuadPart;
+    }
+
+    void seek(size_t offset, int whence) const {
+        // no need to convert SEEK_* to FILE_*. The enums are the same.
+        // Still, keep static asserts to avoid failures in the future.
+        static_assert(SEEK_SET == FILE_BEGIN, "SEEK_SET != FILE_BEGIN");
+        static_assert(SEEK_CUR == FILE_CURRENT, "SEEK_CUR != FILE_CURRENT");
+        static_assert(SEEK_END == FILE_END, "SEEK_END != FILE_END");
+
+        LARGE_INTEGER li;
+        li.QuadPart = offset;
+        BOOL ret = SetFilePointerEx(fp_win32, li, NULL, whence);
+        if (!ret) {
+            throw std::runtime_error(format("read error: %s", GetErrorMessageWin32(GetLastError()).c_str()));
+        }
+    }
+
+    void read_raw(void * ptr, size_t len) const {
+        // On Win32 ReadFile is significant faster than fread which is again significant faster than std::fstream. Thus
+        // use the Win32 API to do file io instead of the C/C++ library functions.
+
+        // There are conditions under which ReadFile cannot read chunks >64MB.
+        // Thus split the operation into smaller chunks if len exceeds this limit.
+        size_t bytes_read = 0;
+        while (bytes_read < len) {
+            size_t chunk_size = std::min<size_t>(len - bytes_read, 64*1024*1024);
+            DWORD chunk_read = 0;
+            BOOL result = ReadFile(fp_win32, reinterpret_cast<char*>(ptr) + bytes_read, chunk_size, &chunk_read, NULL);
+            if (!result) {
+                throw std::runtime_error(format("read error: %s", GetErrorMessageWin32(GetLastError()).c_str()));
+            }
+            if (chunk_read < chunk_size || chunk_read == 0) {
+                throw std::runtime_error("unexpectedly reached end of file");
+            }
+
+            bytes_read += chunk_read;
+        } ;
+    }
+
+    uint32_t read_u32() const {
+        uint32_t val;
+        read_raw(&val, sizeof(val));
+        return val;
+    }
+
+    void write_raw(const void * ptr, size_t len) const {
+        // There are conditions under which WriteFile cannot write chunks >64MB.
+        // Thus split the operation into smaller chunks if len exceeds this limit.
+        size_t bytes_written = 0;
+        while (bytes_written < len) {
+            size_t chunk_size = std::min<size_t>(len - bytes_written, 64*1024*1024);
+            DWORD chunk_written = 0;
+            BOOL result = WriteFile(fp_win32, reinterpret_cast<char const*>(ptr) + bytes_written, chunk_size, &chunk_written, NULL);
+            if (!result) {
+                throw std::runtime_error(format("write error: %s", GetErrorMessageWin32(GetLastError()).c_str()));
+            }
+            if (chunk_written < chunk_size || chunk_written == 0) {
+                throw std::runtime_error("unexpectedly failed to write bytes");
+            }
+
+            bytes_written += chunk_written;
+        }
+    }
+
+    void write_u32(std::uint32_t val) const {
+        write_raw(&val, sizeof(val));
+    }
+
+    ~llama_file() {
+        if (fp) {
+            std::fclose(fp);
+        }
+    }
+#else
     // use FILE * so we don't have to re-open the file to mmap
     FILE * fp;
     size_t size;
@@ -1298,7 +1420,10 @@ struct llama_file {
 #else
         long ret = std::ftell(fp);
 #endif
-        GGML_ASSERT(ret != -1); // this really shouldn't fail
+        if (ret == -1) {
+            throw std::runtime_error(format("ftell error: %s", strerror(errno)));
+        }
+
         return (size_t) ret;
     }
 
@@ -1308,7 +1433,9 @@ struct llama_file {
 #else
         int ret = std::fseek(fp, (long) offset, whence);
 #endif
-        GGML_ASSERT(ret == 0); // same
+        if (ret != 0) {
+            throw std::runtime_error(format("seek error: %s", strerror(errno)));
+        }
     }
 
     void read_raw(void * ptr, size_t len) const {
@@ -1351,6 +1478,7 @@ struct llama_file {
             std::fclose(fp);
         }
     }
+#endif
 };
 using llama_files = std::vector<std::unique_ptr<llama_file>>;
 
@@ -1844,6 +1972,7 @@ struct llama_hparams {
     uint32_t n_lora_q = 0;
     uint32_t n_lora_kv = 0;
     uint32_t n_ff_exp = 0;
+    uint32_t n_ff_shexp = 0;
     uint32_t n_expert_shared = 0;
     float    expert_weights_scale = 0.0;
 
@@ -1892,6 +2021,7 @@ struct llama_hparams {
         if (this->n_lora_q           != other.n_lora_q)           return true;
         if (this->n_lora_kv          != other.n_lora_kv)          return true;
         if (this->n_ff_exp           != other.n_ff_exp)           return true;
+        if (this->n_ff_shexp         != other.n_ff_shexp)         return true;
         if (this->n_expert_shared    != other.n_expert_shared)    return true;
 
         if (this->rope_finetuned  != other.rope_finetuned)  return true;
@@ -3721,6 +3851,44 @@ struct llama_model_loader {
         std::vector<no_init<uint8_t>> read_buf;
         std::vector<std::future<std::pair<ggml_tensor *, bool>>> validation_result;
 
+#if defined(GGML_USE_CUDA)
+        // 4 staging buffers for async uploads, each sized 1MB seems to be a good default for single NVMe drives.
+        // NVMe raid configurations might require more / larger buffers.
+        constexpr size_t num_buffers = 4;
+        constexpr size_t buffer_size = 1 * 1024 * 1024; // 1MB
+
+        std::vector<ggml_backend_buffer_t> host_buffers;
+        std::vector<void*> host_ptrs;
+        std::vector<ggml_backend_event_t> events;
+        size_t buffer_idx = 0; // buffer to use for async loads
+
+        ggml_backend_t cuda_backend = nullptr;
+        if (!use_mmap && !check_tensors) {
+            // When not using mmaped io use async uploads from pinned memory to GPU memory.
+            // First determine if the CUDA backend is active, and if so, determine the device ID.
+            ggml_backend_buffer_t buf = bufs_mmap.count(0) ? bufs_mmap.at(0) : nullptr;
+            if (buf) {
+                ggml_backend_buffer_type_t buffer_type = ggml_backend_buffer_get_type(buf);
+                for (int i = 0; i < ggml_backend_cuda_get_device_count(); ++i) {
+                    auto * cuda_buffer_type = ggml_backend_cuda_buffer_type(i);
+                    if (buffer_type == cuda_buffer_type) {
+                        cuda_backend = ggml_backend_cuda_init(i);
+                        break;
+                    }
+                }
+            }
+
+            // If the cuda backend is active create pinned memory buffers and events for synchronisation.
+            if (cuda_backend) {
+                for (size_t idx = 0; idx < num_buffers; ++idx) {
+                    host_buffers.emplace_back(ggml_backend_buft_alloc_buffer(llama_default_buffer_type_cpu(true), buffer_size));
+                    host_ptrs.emplace_back(ggml_backend_buffer_get_base(host_buffers[idx]));
+                    events.emplace_back(ggml_backend_event_new(cuda_backend));
+                }
+            }
+        }
+#endif
+
         for (struct ggml_tensor * cur = ggml_get_first_tensor(ctx); cur != NULL; cur = ggml_get_next_tensor(ctx, cur)) {
             const auto * weight = get_weight(ggml_get_name(cur));
             if (weight == nullptr) {
@@ -3776,18 +3944,54 @@ struct llama_model_loader {
                         }));
                     }
                 } else {
-                    read_buf.resize(n_size);
-                    file->seek(weight->offs, SEEK_SET);
-                    file->read_raw(read_buf.data(), n_size);
-                    ggml_backend_tensor_set(cur, read_buf.data(), 0, n_size);
-                    if (check_tensors && !ggml_validate_row_data(cur->type, read_buf.data(), n_size)) {
-                        throw std::runtime_error(format("tensor '%s' has invalid data", ggml_get_name(cur)));
+#if defined(GGML_USE_CUDA)
+                    // If cuda_backend is valid load the tensor in chunks to pinned memory and upload the buffers asynchronously to the GPU.
+                    if (cuda_backend) {
+                        file->seek(weight->offs, SEEK_SET);
+
+                        size_t bytes_read = 0;
+
+                        while (bytes_read < n_size) {
+                            size_t read_iteration = std::min<size_t>(buffer_size, n_size - bytes_read);
+
+                            ggml_backend_event_synchronize(events[buffer_idx]);
+                            file->read_raw(host_ptrs[buffer_idx], read_iteration);
+                            ggml_backend_tensor_set_async(cuda_backend, cur, host_ptrs[buffer_idx], bytes_read, read_iteration);
+                            ggml_backend_event_record(events[buffer_idx]);
+
+                            bytes_read += read_iteration;
+                            ++buffer_idx;
+                            buffer_idx %= num_buffers;
+                        }
+                    }
+                    else
+#endif
+                    {
+                        read_buf.resize(n_size);
+                        file->seek(weight->offs, SEEK_SET);
+                        file->read_raw(read_buf.data(), n_size);
+                        ggml_backend_tensor_set(cur, read_buf.data(), 0, n_size);
+                        if (check_tensors && !ggml_validate_row_data(cur->type, read_buf.data(), n_size)) {
+                            throw std::runtime_error(format("tensor '%s' has invalid data", ggml_get_name(cur)));
+                        }
                     }
                 }
             }
 
             size_done += n_size;
         }
+
+#if defined(GGML_USE_CUDA)
+        // free temporary resources used for async cuda uploads
+        if (cuda_backend) {
+            for (size_t idx = 0; idx < num_buffers;++idx) {
+                ggml_backend_event_synchronize(events[idx]);
+                ggml_backend_event_free(events[idx]);
+                ggml_backend_buffer_free(host_buffers[idx]);
+            }
+            ggml_backend_free(cuda_backend);
+        }
+#endif
 
         // check validation results
         bool validation_failed = false;
@@ -4255,6 +4459,9 @@ static void llm_load_hparams(
             } break;
         case LLM_ARCH_QWEN2MOE:
             {
+                ml.get_key(LLM_KV_EXPERT_FEED_FORWARD_LENGTH, hparams.n_ff_exp, false);
+                ml.get_key(LLM_KV_EXPERT_SHARED_FEED_FORWARD_LENGTH, hparams.n_ff_shexp, false);
+
                 ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS, hparams.f_norm_rms_eps);
                 switch (hparams.n_layer) {
                     case 24: model.type = e_model::MODEL_A2_7B; break;
@@ -5040,6 +5247,11 @@ static void llm_load_print_meta(llama_model_loader & ml, llama_model & model) {
         LLAMA_LOG_INFO("%s: expert_weights_scale = %.1f\n",   __func__, hparams.expert_weights_scale);
         LLAMA_LOG_INFO("%s: rope_yarn_log_mul    = %.4f\n",   __func__, hparams.rope_yarn_log_mul);
     }
+
+    if (model.arch == LLM_ARCH_QWEN2MOE) {
+        LLAMA_LOG_INFO("%s: n_ff_exp         = %d\n",     __func__, hparams.n_ff_exp);
+        LLAMA_LOG_INFO("%s: n_ff_shexp       = %d\n",     __func__, hparams.n_ff_shexp);
+    }
 }
 
 // Returns false if cancelled by progress_callback
@@ -5183,7 +5395,7 @@ static bool llm_load_tensors(
     // create tensors for the weights
     {
         const int64_t n_embd       = hparams.n_embd;
-        const int64_t n_embd_head  = n_embd / hparams.n_head;
+        const int64_t n_embd_head  = (hparams.n_head == 0) ? 0 : n_embd / hparams.n_head;
         const int64_t n_embd_k_gqa = hparams.n_embd_k_gqa();
         const int64_t n_embd_v_gqa = hparams.n_embd_v_gqa();
         const int64_t n_embd_gqa   = n_embd_v_gqa;
@@ -5826,16 +6038,17 @@ static bool llm_load_tensors(
                         GGML_ASSERT(hparams.n_expert_used > 0);
 
                         // MoE branch
-                        auto n_ff_exp = n_ff / hparams.n_expert_used;
+                        auto n_ff_exp = hparams.n_ff_exp ? hparams.n_ff_exp : n_ff / hparams.n_expert_used;
                         layer.ffn_gate_exps = ml.create_tensor(ctx_split, tn(LLM_TENSOR_FFN_GATE_EXPS, "weight", i), {  n_embd, n_ff_exp, n_expert});
                         layer.ffn_down_exps = ml.create_tensor(ctx_split, tn(LLM_TENSOR_FFN_DOWN_EXPS, "weight", i), {n_ff_exp,   n_embd, n_expert});
                         layer.ffn_up_exps   = ml.create_tensor(ctx_split, tn(LLM_TENSOR_FFN_UP_EXPS,   "weight", i), {  n_embd, n_ff_exp, n_expert});
 
                         // Shared expert branch
+                        auto n_ff_shexp = hparams.n_ff_shexp ? hparams.n_ff_shexp : n_ff;
                         layer.ffn_gate_inp_shexp = ml.create_tensor(ctx_layer, tn(LLM_TENSOR_FFN_GATE_INP_SHEXP, "weight", i), {n_embd});
-                        layer.ffn_gate_shexp = ml.create_tensor(ctx_split, tn(LLM_TENSOR_FFN_GATE_SHEXP, "weight", i), {n_embd,   n_ff});
-                        layer.ffn_down_shexp = ml.create_tensor(ctx_split, tn(LLM_TENSOR_FFN_DOWN_SHEXP, "weight", i), {  n_ff, n_embd});
-                        layer.ffn_up_shexp   = ml.create_tensor(ctx_split, tn(LLM_TENSOR_FFN_UP_SHEXP,   "weight", i), {n_embd,   n_ff});
+                        layer.ffn_gate_shexp = ml.create_tensor(ctx_split, tn(LLM_TENSOR_FFN_GATE_SHEXP, "weight", i), {n_embd, n_ff_shexp});
+                        layer.ffn_down_shexp = ml.create_tensor(ctx_split, tn(LLM_TENSOR_FFN_DOWN_SHEXP, "weight", i), {n_ff_shexp, n_embd});
+                        layer.ffn_up_shexp   = ml.create_tensor(ctx_split, tn(LLM_TENSOR_FFN_UP_SHEXP,   "weight", i), {n_embd, n_ff_shexp});
                     }
                 } break;
             case LLM_ARCH_PHI2:
@@ -13246,7 +13459,7 @@ struct llm_tokenizer_wpm {
         const std::vector<uint32_t> cpts_nfd = unicode_cpts_normalize_nfd(unicode_cpts_from_utf8(text));
         std::vector<std::string> words(1, "");
 
-        for (const char32_t cpt : cpts_nfd) {
+        for (const uint32_t cpt : cpts_nfd) {
             const auto flags = unicode_cpt_flags(cpt);
 
             if (flags.is_whitespace) {
@@ -16057,6 +16270,11 @@ struct llama_context * llama_new_context_with_model(
 
     if (params.flash_attn && model->arch == LLM_ARCH_GROK) {
         LLAMA_LOG_WARN("%s: flash_attn is not compatible with Grok - forcing off\n", __func__);
+        params.flash_attn = false;
+    }
+
+    if (params.flash_attn && model->hparams.n_embd_head_k != model->hparams.n_embd_head_v) {
+        LLAMA_LOG_WARN("%s: flash_attn requires n_embd_head_k == n_embd_head_v - forcing off\n", __func__);
         params.flash_attn = false;
     }
 
