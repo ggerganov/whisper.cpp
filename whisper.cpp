@@ -1297,23 +1297,25 @@ static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_pa
 }
 
 static ggml_backend_buffer_type_t whisper_default_buffer_type(const whisper_context_params & params) {
-    if (!params.use_gpu) {
-        return ggml_backend_cpu_buffer_type();
-    }
+    ggml_backend_buffer_type_t result = nullptr;
+
+    params.use_gpu || (result = ggml_backend_cpu_buffer_type());
 
 #ifdef GGML_USE_CUDA
-    return ggml_backend_cuda_buffer_type(params.gpu_device);
+    result || (result = ggml_backend_cuda_buffer_type(params.gpu_device));
 #endif
 
 #ifdef GGML_USE_METAL
-    return ggml_backend_metal_buffer_type();
+    result || (result = ggml_backend_metal_buffer_type());
 #endif
 
 #ifdef GGML_USE_SYCL
-    return ggml_backend_sycl_buffer_type();
+    result || (result = ggml_backend_sycl_buffer_type(params.gpu_device));
 #endif
 
-    return ggml_backend_cpu_buffer_type();
+    result || (result = ggml_backend_cpu_buffer_type());
+
+    return result;
 }
 
 // load the model from a ggml file
