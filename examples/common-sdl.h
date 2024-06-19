@@ -29,7 +29,7 @@ public:
     void callback(uint8_t * stream, int len);
 
     // get audio data from the circular buffer
-    void get(int ms, std::vector<float> & audio);
+    void get(int ms, int step, std::vector<float> & audio);
 
 private:
     SDL_AudioDeviceID m_dev_id_in = 0;

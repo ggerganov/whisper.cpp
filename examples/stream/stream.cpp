@@ -18,7 +18,9 @@
 struct whisper_params {
     int32_t n_threads  = std::min(4, (int32_t) std::thread::hardware_concurrency());
     int32_t step_ms    = 3000;
-    int32_t length_ms  = 10000;
+    int32_t pressure_t = 1000;
+    int32_t silence_t  = 1000;
+    int32_t length_ms  = 30000;
     int32_t keep_ms    = 200;
     int32_t capture_id = -1;
     int32_t max_tokens = 32;
@@ -54,6 +56,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
         }
         else if (arg == "-t"    || arg == "--threads")       { params.n_threads     = std::stoi(argv[++i]); }
         else if (                  arg == "--step")          { params.step_ms       = std::stoi(argv[++i]); }
+        else if (                  arg == "--pressure-t")    { params.pressure_t    = std::stoi(argv[++i]); }
+        else if (                  arg == "--silence-t")     { params.silence_t     = std::stoi(argv[++i]); }
         else if (                  arg == "--length")        { params.length_ms     = std::stoi(argv[++i]); }
         else if (                  arg == "--keep")          { params.keep_ms       = std::stoi(argv[++i]); }
         else if (arg == "-c"    || arg == "--capture")       { params.capture_id    = std::stoi(argv[++i]); }
@@ -91,6 +95,8 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -h,       --help          [default] show this help message and exit\n");
     fprintf(stderr, "  -t N,     --threads N     [%-7d] number of threads to use during computation\n",    params.n_threads);
     fprintf(stderr, "            --step N        [%-7d] audio step size in milliseconds\n",                params.step_ms);
+    fprintf(stderr, "            --pressure_t N  [%-7d] pressure threshold\n",                             params.pressure_t);
+    fprintf(stderr, "            --silence_t N   [%-7d] silence time, ms\n",                               params.silence_t);
     fprintf(stderr, "            --length N      [%-7d] audio length in milliseconds\n",                   params.length_ms);
     fprintf(stderr, "            --keep N        [%-7d] audio to keep from previous step in ms\n",         params.keep_ms);
     fprintf(stderr, "  -c ID,    --capture ID    [%-7d] capture device ID\n",                              params.capture_id);
@@ -238,41 +244,55 @@ int main(int argc, char ** argv) {
         }
 
         // process new audio
-
         if (!use_vad) {
-            while (true) {
-                audio.get(params.step_ms, pcmf32_new);
+            const int STEP = 2000;
+            audio.get(params.length_ms, STEP, pcmf32_new);
 
-                if ((int) pcmf32_new.size() > 2*n_samples_step) {
-                    fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, dropping audio ...\n\n", __func__);
-                    audio.clear();
-                    continue;
+            float average = 0.f;
+            int start = -1;
+            int end = 0;
+            std::vector<float> averages(pcmf32_new.size() / STEP, 0);
+            for (int i = 0; i < int(averages.size() * STEP); i++)
+            {
+                averages[i / STEP] += fabs(pcmf32_new[pcmf32_new.size() - 1 - i]) * params.pressure_t;
+            }
+
+            const int SOUND_FREQUENCY = 16000;
+            int silenceDuration = SOUND_FREQUENCY * params.silence_t / 1000;
+            for (int i = 0; i < averages.size(); i++)
+            {
+                int level = std::min(9, int(averages[i] / STEP));
+                printf(level >= 2 ? "%d" : "-", level);
+                if (level >= 2)
+                {
+                    if (start < 0)
+                    {
+                        start = i * STEP;
+                    }
+                    end = i * STEP;
                 }
-
-                if ((int) pcmf32_new.size() >= n_samples_step) {
-                    audio.clear();
+                else if (i * STEP >= end + silenceDuration)
+                {
                     break;
                 }
-
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
 
-            const int n_samples_new = pcmf32_new.size();
-
-            // take up to params.length_ms audio from previous iteration
-            const int n_samples_take = std::min((int) pcmf32_old.size(), std::max(0, n_samples_keep + n_samples_len - n_samples_new));
-
-            //printf("processing: take = %d, new = %d, old = %d\n", n_samples_take, n_samples_new, (int) pcmf32_old.size());
-
-            pcmf32.resize(n_samples_new + n_samples_take);
-
-            for (int i = 0; i < n_samples_take; i++) {
-                pcmf32[i] = pcmf32_old[pcmf32_old.size() - n_samples_take + i];
+            printf("\n");
+            if (start >= silenceDuration)
+            {
+                start = std::max(start - SOUND_FREQUENCY / 2, 0);
+                end = std::min(end + SOUND_FREQUENCY / 2, (int)pcmf32_new.size() - 1);
+                pcmf32.resize(end - start);
+                for (int i = start; i < end; i++) {
+                    pcmf32[pcmf32.size() - 1 - (i - start)] = pcmf32_new[pcmf32_new.size() - 1 - i];
+                }
+                for (int i = 0; i < std::max(3 * SOUND_FREQUENCY - (int)pcmf32.size(), 0); i++)
+                {
+                    pcmf32.push_back(0.f);
+                }
             }
-
-            memcpy(pcmf32.data() + n_samples_take, pcmf32_new.data(), n_samples_new*sizeof(float));
-
-            pcmf32_old = pcmf32;
+            else
+                pcmf32.clear();
         } else {
             const auto t_now  = std::chrono::high_resolution_clock::now();
             const auto t_diff = std::chrono::duration_cast<std::chrono::milliseconds>(t_now - t_last).count();
@@ -283,10 +303,10 @@ int main(int argc, char ** argv) {
                 continue;
             }
 
-            audio.get(2000, pcmf32_new);
+            audio.get(2000, 1, pcmf32_new);
 
             if (::vad_simple(pcmf32_new, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, false)) {
-                audio.get(params.length_ms, pcmf32);
+                audio.get(params.length_ms, 1, pcmf32);
             } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -297,6 +317,7 @@ int main(int argc, char ** argv) {
         }
 
         // run the inference
+        if (pcmf32.size())
         {
             whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
@@ -320,6 +341,8 @@ int main(int argc, char ** argv) {
 
             wparams.prompt_tokens    = params.no_context ? nullptr : prompt_tokens.data();
             wparams.prompt_n_tokens  = params.no_context ? 0       : prompt_tokens.size();
+
+            auto start = std::chrono::system_clock::now();
 
             if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
                 fprintf(stderr, "%s: failed to process audio\n", argv[0]);
@@ -346,10 +369,20 @@ int main(int argc, char ** argv) {
 
                 const int n_segments = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n_segments; ++i) {
-                    const char * text = whisper_full_get_segment_text(ctx, i);
+                    std::string text = whisper_full_get_segment_text(ctx, i);
 
                     if (params.no_timestamps) {
-                        printf("%s", text);
+                        if (text[0] == ' ') { // Remove initial space
+                            text = text.substr(1);
+                        }
+                        std::toupper(text[0]); // Make the first character uppercase
+                        if (text[text.size() - 1] == '.') { // Remove trailing dot
+                            text.resize(text.size() - 1);
+                        }
+                        printf("[%3.1fs] <%s>\n", (std::chrono::system_clock::now() - start).count() / 1000000000.f, text.data());
+                        std::string cmd = std::string("echo -n \"") + text + std::string("\" | xclip -selection clipboard");
+                        int r = system(cmd.data());
+
                         fflush(stdout);
 
                         if (params.fname_out.length() > 0) {
@@ -407,8 +440,11 @@ int main(int argc, char ** argv) {
                     }
                 }
             }
+
             fflush(stdout);
         }
+        else
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     audio.pause();
