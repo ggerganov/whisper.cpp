@@ -206,12 +206,16 @@
 #    define GGML_DEPRECATED(func, hint) func
 #endif
 
+#if (defined __ANDROID__) || (defined ANDROID)
+#    define GGML_ATTRIBUTE_FORMAT(...)
+#else
 #ifndef __GNUC__
 #    define GGML_ATTRIBUTE_FORMAT(...)
 #elif defined(__MINGW32__)
 #    define GGML_ATTRIBUTE_FORMAT(...) __attribute__((format(gnu_printf, __VA_ARGS__)))
 #else
 #    define GGML_ATTRIBUTE_FORMAT(...) __attribute__((format(printf, __VA_ARGS__)))
+#endif
 #endif
 
 #include <stdbool.h>

@@ -116,6 +116,9 @@ static void byteswap_tensor(ggml_tensor * tensor) {
 #define BYTESWAP_TENSOR(t) do {} while (0)
 #endif
 
+#if (defined __ANDROID__) || (defined ANDROID)
+#define WHISPER_ATTRIBUTE_FORMAT(...)
+#else
 #ifdef __GNUC__
 #ifdef __MINGW32__
 #define WHISPER_ATTRIBUTE_FORMAT(...) __attribute__((format(gnu_printf, __VA_ARGS__)))
@@ -125,24 +128,29 @@ static void byteswap_tensor(ggml_tensor * tensor) {
 #else
 #define WHISPER_ATTRIBUTE_FORMAT(...)
 #endif
+#endif
 
 //
 // logging
 //
+#if (defined __ANDROID__) || (defined ANDROID)
+extern "C" int __android_log_print(int prio, const char * tag, const char * fmt, ...)
+    __attribute__((__format__(printf, 3, 4)));
+#endif
 
-WHISPER_ATTRIBUTE_FORMAT(2, 3)
-static void whisper_log_internal        (ggml_log_level level, const char * format, ...);
+WHISPER_ATTRIBUTE_FORMAT(5, 6)
+static void whisper_log_internal        (ggml_log_level level, const char * file, const char * func, int line, const char * format, ...);
 static void whisper_log_callback_default(ggml_log_level level, const char * text, void * user_data);
 
-#define WHISPER_LOG_ERROR(...) whisper_log_internal(GGML_LOG_LEVEL_ERROR, __VA_ARGS__)
-#define WHISPER_LOG_WARN(...)  whisper_log_internal(GGML_LOG_LEVEL_WARN , __VA_ARGS__)
-#define WHISPER_LOG_INFO(...)  whisper_log_internal(GGML_LOG_LEVEL_INFO , __VA_ARGS__)
+#define WHISPER_LOG_ERROR(...) whisper_log_internal(GGML_LOG_LEVEL_ERROR, __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define WHISPER_LOG_WARN(...)  whisper_log_internal(GGML_LOG_LEVEL_WARN , __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define WHISPER_LOG_INFO(...)  whisper_log_internal(GGML_LOG_LEVEL_INFO , __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 
 // define this to enable verbose trace logging - useful for debugging purposes
 //#define WHISPER_DEBUG
 
 #if defined(WHISPER_DEBUG)
-#define WHISPER_LOG_DEBUG(...) whisper_log_internal(GGML_LOG_LEVEL_DEBUG, __VA_ARGS__)
+#define WHISPER_LOG_DEBUG(...) whisper_log_internal(GGML_LOG_LEVEL_DEBUG, __FILE__, __FUNCTION__, __LINE__, __VA_ARGS__)
 #else
 #define WHISPER_LOG_DEBUG(...)
 #endif
@@ -7413,14 +7421,19 @@ void whisper_log_set(ggml_log_callback log_callback, void * user_data) {
     g_state.log_callback_user_data = user_data;
 }
 
-GGML_ATTRIBUTE_FORMAT(2, 3)
-static void whisper_log_internal(ggml_log_level level, const char * format, ...) {
+GGML_ATTRIBUTE_FORMAT(5, 6)
+static void whisper_log_internal(ggml_log_level level, const char * file, const char * func, int line, const char * format, ...) {
     va_list args;
     va_start(args, format);
     char buffer[1024];
-    int len = vsnprintf(buffer, 1024, format, args);
-    if (len < 1024) {
+    int len_prefix = snprintf(buffer, 1024, "[%s, %d]: ", func, line); // param file not used in this file
+    int len = vsnprintf(buffer + len_prefix, 1024 - len_prefix, format, args);
+    if (len < (1024 - len_prefix)) {
+#if (defined __ANDROID__) || (defined ANDROID)
+        __android_log_print(level, "whisper.cpp", "%s", buffer);
+#else
         g_state.log_callback(level, buffer, g_state.log_callback_user_data);
+#endif
     } else {
         char* buffer2 = new char[len+1];
         vsnprintf(buffer2, len+1, format, args);
