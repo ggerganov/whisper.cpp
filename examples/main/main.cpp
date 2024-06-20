@@ -368,6 +368,7 @@ bool output_txt(struct whisper_context * ctx, const char * fname, const whisper_
     fprintf(stderr, "%s: saving output to '%s'\n", __func__, fname);
 
     const int n_segments = whisper_full_n_segments(ctx);
+    bool speaker_turned = false;
     for (int i = 0; i < n_segments; ++i) {
         const char * text = whisper_full_get_segment_text(ctx, i);
         std::string speaker = "";
@@ -377,6 +378,13 @@ bool output_txt(struct whisper_context * ctx, const char * fname, const whisper_
             const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
             const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
             speaker = estimate_diarization_speaker(pcmf32s, t0, t1);
+        }
+
+        if (params.tinydiarize) {
+            if (speaker_turned) {
+                speaker.insert(0, "Speaker Change: ");
+            }
+            speaker_turned = whisper_full_get_segment_speaker_turn_next(ctx, i);
         }
 
         fout << speaker << text << "\n";
@@ -397,6 +405,7 @@ bool output_vtt(struct whisper_context * ctx, const char * fname, const whisper_
     fout << "WEBVTT\n\n";
 
     const int n_segments = whisper_full_n_segments(ctx);
+    bool speaker_turned = false;
     for (int i = 0; i < n_segments; ++i) {
         const char * text = whisper_full_get_segment_text(ctx, i);
         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
@@ -408,6 +417,13 @@ bool output_vtt(struct whisper_context * ctx, const char * fname, const whisper_
             speaker = estimate_diarization_speaker(pcmf32s, t0, t1, true);
             speaker.insert(0, "<v Speaker");
             speaker.append(">");
+        }
+
+        if (params.tinydiarize) {
+            if (speaker_turned) {
+                speaker.insert(0, "Speaker Change: ");
+            }
+            speaker_turned = whisper_full_get_segment_speaker_turn_next(ctx, i);
         }
 
         fout << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
