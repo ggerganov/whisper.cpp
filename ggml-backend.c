@@ -1838,6 +1838,9 @@ ggml_backend_sched_t ggml_backend_sched_new(
 
     sched->debug = getenv("GGML_SCHED_DEBUG") != NULL;
 
+
+    fprintf(stderr, "ggml_backend_sched size: %zu KB\n", sizeof(struct ggml_backend_sched)/1024);
+
     // initialize hash table
     sched->hash_set          = ggml_hash_set_new(graph_size);
     sched->tensor_backend_id = calloc(sched->hash_set.size, sizeof(sched->tensor_backend_id[0]));
@@ -1848,6 +1851,7 @@ ggml_backend_sched_t ggml_backend_sched_new(
     sched->leaf_backend_ids  = calloc(nodes_size, sizeof(sched->leaf_backend_ids[0]));
     sched->prev_node_backend_ids = calloc(nodes_size, sizeof(sched->prev_node_backend_ids[0]));
     sched->prev_leaf_backend_ids = calloc(nodes_size, sizeof(sched->prev_leaf_backend_ids[0]));
+
 
     sched->n_backends = n_backends;
 
