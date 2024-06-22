@@ -36,6 +36,7 @@ build-sanitize-thread/
 /quantize
 /server
 /lsp
+/kommand
 
 arm_neon.h
 sync.sh
@@ -62,3 +63,6 @@ cmake-build-debug/
 .cxx/
 .gradle/
 local.properties
+
+*.log
+*.txt
