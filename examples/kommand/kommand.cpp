@@ -762,8 +762,8 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
             audio.get(2000, pcmf32_cur);
 
             if (vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
-                fprintf(fp, "%s %s: Speech detected! Processing ...\n", current_timestamp().c_str(), __func__);
-                fflush(fp);
+                //fprintf(fp, "%s %s: Speech detected! Processing ...\n", current_timestamp().c_str(), __func__);
+                //fflush(fp);
 
                 int64_t t_ms = 0;
 
@@ -781,16 +781,17 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
                     const float sim = similarity(txt, k_prompt);
 
                     if (txt.length() < 0.8*k_prompt.length() || txt.length() > 1.2*k_prompt.length() || sim < 0.8f) {
-                        fprintf(fp, "%s %s: WARNING: prompt not recognized, try again\n", current_timestamp().c_str(), __func__);
-                        fflush(fp);
+                        //fprintf(fp, "%s %s: WARNING: prompt not recognized, try again\n", current_timestamp().c_str(), __func__);
+                        //fflush(fp);
                         ask_prompt = true;
                     } else {
+                        /*
                         fprintf(fp, "\n");
                         fprintf(fp, "%s %s: The prompt has been recognized!\n", current_timestamp().c_str(), __func__);
                         fprintf(fp, "%s %s: Waiting for voice commands ...\n", current_timestamp().c_str(), __func__);
                         fprintf(fp, "\n");
                         fflush(fp);
-
+                        */    
                         // Save the audio for the prompt
                         pcmf32_prompt = pcmf32_cur;
                         have_prompt = true;
@@ -826,21 +827,21 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
                         }
                     }
 
-                    fprintf(fp, "%s %s:   DEBUG: txt = '%s', prob = %.2f%%\n", current_timestamp().c_str(), __func__, txt.c_str(), p);
-                    fflush(fp);
+                    //fprintf(fp, "%s %s:   DEBUG: txt = '%s', prob = %.2f%%\n", current_timestamp().c_str(), __func__, txt.c_str(), p);
+                    //fflush(fp);
                     if (best_len == 0) {
-                        fprintf(fp, "%s %s: WARNING: command not recognized, try again\n", current_timestamp().c_str(), __func__);
-                        fflush(fp);
+                        //fprintf(fp, "%s %s: WARNING: command not recognized, try again\n", current_timestamp().c_str(), __func__);
+                        //fflush(fp);
                     } else {
                         // Cut the prompt from the decoded text
                         const std::string command = trim(txt.substr(best_len));
 
-                        fprintf(fp, "%s %s: Command '%s%s%s', (t = %d ms)\n", current_timestamp().c_str(), __func__, "\033[1m", command.c_str(), "\033[0m", (int)t_ms);
-                        fflush(fp);
+                        //fprintf(fp, "%s %s: Command '%s%s%s', (t = %d ms)\n", current_timestamp().c_str(), __func__, "\033[1m", command.c_str(), "\033[0m", (int)t_ms);
+                        //fflush(fp);
                     }
 
-                    fprintf(fp, "\n");
-                    fflush(fp);
+                    //fprintf(fp, "\n");
+                    //fflush(fp);
                 }
 
                 audio.clear();
