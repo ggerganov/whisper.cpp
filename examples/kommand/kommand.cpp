@@ -697,10 +697,17 @@ int process_general_transcription(struct whisper_context * ctx, audio_async & au
 // Defineerime logifaili nime
 const char* logfile = "output.log";
 
+// Helper function to get the current timestamp
+std::string current_timestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %X");
+    return ss.str();
+}
 
-
-
-
+//  fprintf(fp, "%s %s: general-purpose mode\n", current_timestamp().c_str(), __func__);
+   
 int process_into_file_transcription(struct whisper_context *ctx, audio_async &audio, const whisper_params &params) {
     bool is_running  = true;
     bool have_prompt = false;
@@ -724,14 +731,14 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
     }
 
     // Open log file for writing
-    FILE* fp = fopen("logfile.txt", "a");
+    FILE* fp = fopen(logfile, "a");
     if (!fp) {
-        fprintf(stderr, "Failed to open log file\n");
+        fprintf(stderr, "%s: Failed to open log file\n", current_timestamp().c_str());
         return 1;
     }
 
     fprintf(fp, "\n");
-    fprintf(fp, "%s: general-purpose mode\n", __func__);
+    fprintf(fp, "%s %s: general-purpose mode\n", current_timestamp().c_str(), __func__);
     fflush(fp);
 
     // Main loop
@@ -744,7 +751,7 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
 
         if (ask_prompt) {
             fprintf(fp, "\n");
-            fprintf(fp, "%s: Say the following phrase: '%s%s%s'\n", __func__, "\033[1m", k_prompt.c_str(), "\033[0m");
+            fprintf(fp, "%s %s: Say the following phrase: '%s%s%s'\n", current_timestamp().c_str(), __func__, "\033[1m", k_prompt.c_str(), "\033[0m");
             fprintf(fp, "\n");
             fflush(fp);
 
@@ -755,7 +762,7 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
             audio.get(2000, pcmf32_cur);
 
             if (vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
-                fprintf(fp, "%s: Speech detected! Processing ...\n", __func__);
+                fprintf(fp, "%s %s: Speech detected! Processing ...\n", current_timestamp().c_str(), __func__);
                 fflush(fp);
 
                 int64_t t_ms = 0;
@@ -768,19 +775,19 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
 
                     const float p = 100.0f * std::exp(logprob_min0);
 
-                    fprintf(fp, "%s: Heard '%s%s%s', (t = %d ms, p = %.2f%%)\n", __func__, "\033[1m", txt.c_str(), "\033[0m", (int)t_ms, p);
+                    fprintf(fp, "%s %s: Heard '%s%s%s', (t = %d ms, p = %.2f%%)\n", current_timestamp().c_str(), __func__, "\033[1m", txt.c_str(), "\033[0m", (int)t_ms, p);
                     fflush(fp);
 
                     const float sim = similarity(txt, k_prompt);
 
                     if (txt.length() < 0.8*k_prompt.length() || txt.length() > 1.2*k_prompt.length() || sim < 0.8f) {
-                        fprintf(fp, "%s: WARNING: prompt not recognized, try again\n", __func__);
+                        fprintf(fp, "%s %s: WARNING: prompt not recognized, try again\n", current_timestamp().c_str(), __func__);
                         fflush(fp);
                         ask_prompt = true;
                     } else {
                         fprintf(fp, "\n");
-                        fprintf(fp, "%s: The prompt has been recognized!\n", __func__);
-                        fprintf(fp, "%s: Waiting for voice commands ...\n", __func__);
+                        fprintf(fp, "%s %s: The prompt has been recognized!\n", current_timestamp().c_str(), __func__);
+                        fprintf(fp, "%s %s: Waiting for voice commands ...\n", current_timestamp().c_str(), __func__);
                         fprintf(fp, "\n");
                         fflush(fp);
 
@@ -819,16 +826,16 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
                         }
                     }
 
-                    fprintf(fp, "%s:   DEBUG: txt = '%s', prob = %.2f%%\n", __func__, txt.c_str(), p);
+                    fprintf(fp, "%s %s:   DEBUG: txt = '%s', prob = %.2f%%\n", current_timestamp().c_str(), __func__, txt.c_str(), p);
                     fflush(fp);
                     if (best_len == 0) {
-                        fprintf(fp, "%s: WARNING: command not recognized, try again\n", __func__);
+                        fprintf(fp, "%s %s: WARNING: command not recognized, try again\n", current_timestamp().c_str(), __func__);
                         fflush(fp);
                     } else {
                         // Cut the prompt from the decoded text
                         const std::string command = trim(txt.substr(best_len));
 
-                        fprintf(fp, "%s: Command '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", command.c_str(), "\033[0m", (int)t_ms);
+                        fprintf(fp, "%s %s: Command '%s%s%s', (t = %d ms)\n", current_timestamp().c_str(), __func__, "\033[1m", command.c_str(), "\033[0m", (int)t_ms);
                         fflush(fp);
                     }
 
@@ -846,8 +853,6 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
 
     return 0;
 }
-
-
 int main(int argc, char ** argv) {
     whisper_params params;
 
