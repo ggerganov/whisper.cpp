@@ -695,7 +695,7 @@ int process_general_transcription(struct whisper_context * ctx, audio_async & au
 
 
 // Defineerime logifaili nime
-const char* logfile = "output.log";
+const char* logfile = "output2.log";
 
 // Helper function to get the current timestamp
 std::string current_timestamp() {
@@ -706,8 +706,6 @@ std::string current_timestamp() {
     return ss.str();
 }
 
-//  fprintf(fp, "%s %s: general-purpose mode\n", current_timestamp().c_str(), __func__);
-   
 int process_into_file_transcription(struct whisper_context *ctx, audio_async &audio, const whisper_params &params) {
     bool is_running  = true;
     bool have_prompt = false;
@@ -737,9 +735,11 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
         return 1;
     }
 
+    
     fprintf(fp, "\n");
     fprintf(fp, "%s %s: general-purpose mode\n", current_timestamp().c_str(), __func__);
     fflush(fp);
+    
 
     // Main loop
     while (is_running) {
@@ -750,10 +750,12 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         if (ask_prompt) {
+            /*
             fprintf(fp, "\n");
             fprintf(fp, "%s %s: Say the following phrase: '%s%s%s'\n", current_timestamp().c_str(), __func__, "\033[1m", k_prompt.c_str(), "\033[0m");
             fprintf(fp, "\n");
             fflush(fp);
+            */
 
             ask_prompt = false;
         }
@@ -785,13 +787,13 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
                         //fflush(fp);
                         ask_prompt = true;
                     } else {
-                        /*
+                        
                         fprintf(fp, "\n");
                         fprintf(fp, "%s %s: The prompt has been recognized!\n", current_timestamp().c_str(), __func__);
                         fprintf(fp, "%s %s: Waiting for voice commands ...\n", current_timestamp().c_str(), __func__);
                         fprintf(fp, "\n");
                         fflush(fp);
-                        */    
+                            
                         // Save the audio for the prompt
                         pcmf32_prompt = pcmf32_cur;
                         have_prompt = true;
@@ -827,21 +829,21 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
                         }
                     }
 
-                    //fprintf(fp, "%s %s:   DEBUG: txt = '%s', prob = %.2f%%\n", current_timestamp().c_str(), __func__, txt.c_str(), p);
-                    //fflush(fp);
+                    fprintf(fp, "%s %s:   DEBUG: txt = '%s', prob = %.2f%%\n", current_timestamp().c_str(), __func__, txt.c_str(), p);
+                    fflush(fp);
                     if (best_len == 0) {
-                        //fprintf(fp, "%s %s: WARNING: command not recognized, try again\n", current_timestamp().c_str(), __func__);
-                        //fflush(fp);
+                        fprintf(fp, "%s %s: WARNING: command not recognized, try again\n", current_timestamp().c_str(), __func__);
+                        fflush(fp);
                     } else {
                         // Cut the prompt from the decoded text
                         const std::string command = trim(txt.substr(best_len));
 
-                        //fprintf(fp, "%s %s: Command '%s%s%s', (t = %d ms)\n", current_timestamp().c_str(), __func__, "\033[1m", command.c_str(), "\033[0m", (int)t_ms);
-                        //fflush(fp);
+                        fprintf(fp, "%s %s: Command '%s%s%s', (t = %d ms)\n", current_timestamp().c_str(), __func__, "\033[1m", command.c_str(), "\033[0m", (int)t_ms);
+                        fflush(fp);
                     }
 
-                    //fprintf(fp, "\n");
-                    //fflush(fp);
+                    fprintf(fp, "\n");
+                    fflush(fp);
                 }
 
                 audio.clear();
@@ -854,6 +856,8 @@ int process_into_file_transcription(struct whisper_context *ctx, audio_async &au
 
     return 0;
 }
+
+
 int main(int argc, char ** argv) {
     whisper_params params;
 
