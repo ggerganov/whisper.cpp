@@ -62,3 +62,6 @@ cmake-build-debug/
 .cxx/
 .gradle/
 local.properties
+
+*.log
+*.txt
