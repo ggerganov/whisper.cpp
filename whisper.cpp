@@ -6504,7 +6504,6 @@ int whisper_full_with_state(
                 std::string text;
                 bool speaker_turn_next = false;
                 auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
-                t0 = params.speed_up ? 2*t0 : t0; // adjust t0 if speed_up mode is on
 
                 // a lambda function used to extract common procedures
                 auto process_token = [&](int i) {
@@ -6562,7 +6561,6 @@ int whisper_full_with_state(
                         // text for this time chunk is fully assembled and ready for the callback function to be invoked
                         if (tokens_cur[i].id > timestamp_start && !params.single_segment) {
                             auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
-                            t1 = params.speed_up ? 2*t1 : t1; // adjust t1 if speed_up mode is on
                             timestamp_start = tokens_cur[i].id;
 
                             if (!text.empty()) {
@@ -6584,7 +6582,6 @@ int whisper_full_with_state(
                     }
                     if (!text.empty()) {
                         auto t1 = seek + seek_delta;
-                        t1 = params.speed_up ? 2*t1 : t1; // adjust t1 if speed_up mode is on
 
                         text_callback(t1, 0, static_cast<int>(tokens_cur.size()));
                         if (params.print_realtime) {
