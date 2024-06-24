@@ -6,8 +6,11 @@
 .vs/
 .vscode/
 .DS_Store
+.vimspector.json
+/CMakeSettings.json
 
 build/
+build-blas/
 build-coreml/
 build-em/
 build-debug/

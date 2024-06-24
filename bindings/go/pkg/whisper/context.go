@@ -76,9 +76,8 @@ func (context *context) SetTranslate(v bool) {
 	context.params.SetTranslate(v)
 }
 
-// Set speedup flag
-func (context *context) SetSpeedup(v bool) {
-	context.params.SetSpeedup(v)
+func (context *context) SetSplitOnWord(v bool) {
+	context.params.SetSplitOnWord(v)
 }
 
 // Set number of threads to use

@@ -1,7 +1,7 @@
 // An interface allowing to compute ggml_cgraph with Metal
 //
 // This is a fully functional interface that extends ggml with GPU support for Apple devices.
-// A similar interface can be created for other GPU backends (e.g. Vulkan, CUDA, OpenCL, etc.)
+// A similar interface can be created for other GPU backends (e.g. Vulkan, CUDA, etc.)
 //
 // How it works?
 //
@@ -27,7 +27,6 @@
 
 // max memory buffers that can be mapped to the device
 #define GGML_METAL_MAX_BUFFERS 64
-#define GGML_METAL_MAX_COMMAND_BUFFERS 32
 
 struct ggml_tensor;
 struct ggml_cgraph;

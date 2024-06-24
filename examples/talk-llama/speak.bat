@@ -1,1 +1,1 @@
-@powershell -ExecutionPolicy Bypass -F examples\talk\speak.ps1 %1 %2
+@powershell -ExecutionPolicy Bypass -F examples\talk-llama\speak.ps1 %1 %2

@@ -34,9 +34,6 @@ async function fetchRemote(url, cbProgress, cbPrint) {
         url,
         {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/octet-stream',
-            },
         }
     );
 

@@ -29,18 +29,6 @@ std::string g_status_forced = "";
 
 std::vector<float> g_pcmf32;
 
-std::string to_timestamp(int64_t t) {
-    int64_t sec = t/100;
-    int64_t msec = t - sec*100;
-    int64_t min = sec/60;
-    sec = sec - min*60;
-
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%02d:%02d.%03d", (int) min, (int) sec, (int) msec);
-
-    return std::string(buf);
-}
-
 void talk_set_status(const std::string & status) {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_status = status;

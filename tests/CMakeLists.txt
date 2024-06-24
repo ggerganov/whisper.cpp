@@ -74,3 +74,14 @@ add_test(NAME ${TEST_TARGET}
     -m ${PROJECT_SOURCE_DIR}/models/for-tests-ggml-large.bin
     -f ${PROJECT_SOURCE_DIR}/samples/jfk.wav)
 set_tests_properties(${TEST_TARGET} PROPERTIES LABELS "large")
+
+if (WHISPER_FFMPEG)
+    set(TEST_TARGET test-main-tiny-mp3)
+    # Check with reviewers: any way to check the output transcription via ctest (diff, ...)?
+    add_test(NAME ${TEST_TARGET}
+      COMMAND $<TARGET_FILE:main>
+      -m ${PROJECT_SOURCE_DIR}/models/for-tests-ggml-tiny.en.bin
+      -f ${PROJECT_SOURCE_DIR}/samples/jfk.mp3)
+    set_tests_properties(${TEST_TARGET} PROPERTIES LABELS "tiny;mp3")
+endif()
+
