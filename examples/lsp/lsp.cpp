@@ -53,7 +53,7 @@ struct commandset {
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
 
-bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
+static bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
@@ -109,7 +109,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -m FNAME,   --model FNAME    [%-7s] model path\n",                                  params.model.c_str());
     fprintf(stderr, "\n");
 }
-uint64_t wait_for_vad(audio_async & audio, json jparams, const whisper_params & params, uint64_t maxlength_ms, std::vector<float> & pcmf32) {
+static uint64_t wait_for_vad(audio_async & audio, json jparams, const whisper_params & params, uint64_t maxlength_ms, std::vector<float> & pcmf32) {
     using namespace std::chrono;
     uint64_t time_now = time_point_cast<milliseconds>(system_clock::now()).time_since_epoch().count();
     uint64_t start_time = time_now;
@@ -153,7 +153,7 @@ uint64_t wait_for_vad(audio_async & audio, json jparams, const whisper_params & 
     return time_now;
 }
 
-json unguided_transcription(struct whisper_context * ctx, audio_async &audio, json jparams, const whisper_params &params) {
+static json unguided_transcription(struct whisper_context * ctx, audio_async &audio, json jparams, const whisper_params &params) {
     std::vector<whisper_token> prompt_tokens;
     std::vector<float> pcmf32;
     uint64_t unprocessed_audio_timestamp = wait_for_vad(audio, jparams, params, 10000U, pcmf32);
@@ -199,7 +199,7 @@ json unguided_transcription(struct whisper_context * ctx, audio_async &audio, js
 
 // command-list mode
 // guide the transcription to match the most likely command from a provided list
-json guided_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params, json jparams, std::vector<struct commandset> commandset_list) {
+static json guided_transcription(struct whisper_context * ctx, audio_async &audio, const whisper_params &params, json jparams, std::vector<struct commandset> commandset_list) {
     struct commandset cs = commandset_list[jparams.value("commandset_index", commandset_list.size()-1)];
     std::vector<float> pcmf32;
     uint64_t unprocessed_audio_timestamp = wait_for_vad(audio, jparams, params, 2000U, pcmf32);
@@ -285,7 +285,7 @@ json guided_transcription(struct whisper_context * ctx, audio_async &audio, cons
     }
 }
 
-json register_commandset(struct whisper_context * ctx, json jparams, std::vector<struct commandset> &commandset_list) {
+static json register_commandset(struct whisper_context * ctx, json jparams, std::vector<struct commandset> &commandset_list) {
     // TODO: check for token collision
     struct commandset cs;
 
@@ -325,7 +325,8 @@ json register_commandset(struct whisper_context * ctx, json jparams, std::vector
     commandset_list.push_back(cs);
     return json{{"index",index}};
 }
-json seek(struct whisper_context * /*ctx*/, audio_async & /*audio*/, json /*params*/) {
+
+static json seek(struct whisper_context * /*ctx*/, audio_async & /*audio*/, json /*params*/) {
     // whisper_state has the pertinent offsets, but there also seem to be a large
     // number of scratch buffers that would prevent rewinding context in a manner similar to llama
     // I'll give this a another pass once everything else is implemented,
@@ -335,7 +336,8 @@ json seek(struct whisper_context * /*ctx*/, audio_async & /*audio*/, json /*para
             {"message", "Seeking is not yet supported."}
     };
 }
-json parse_job(const json &body, struct whisper_context * ctx, audio_async &audio, const whisper_params &params, std::vector<struct commandset> &commandset_list) {
+
+static json parse_job(const json &body, struct whisper_context * ctx, audio_async &audio, const whisper_params &params, std::vector<struct commandset> &commandset_list) {
     // See: https://www.jsonrpc.org/specification
     json id = body.at("id");
     try {
@@ -375,7 +377,7 @@ json parse_job(const json &body, struct whisper_context * ctx, audio_async &audi
     }
 }
 
-void process_loop(struct whisper_context * ctx, audio_async &audio, const whisper_params &params) {
+static void process_loop(struct whisper_context * ctx, audio_async &audio, const whisper_params &params) {
     std::deque<json> jobqueue;
     std::vector<struct commandset> commandset_list;
     while (true) {

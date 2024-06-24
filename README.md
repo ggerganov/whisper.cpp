@@ -418,7 +418,7 @@ Now build `whisper.cpp` with CUDA support:
 
 ```
 make clean
-WHISPER_CUDA=1 make -j
+GGML_CUDA=1 make -j
 ```
 
 ## BLAS CPU support via OpenBLAS
@@ -430,7 +430,7 @@ Now build `whisper.cpp` with OpenBLAS support:
 
 ```
 make clean
-WHISPER_OPENBLAS=1 make -j
+GGML_OPENBLAS=1 make -j
 ```
 
 ## BLAS CPU support via Intel MKL

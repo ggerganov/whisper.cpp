@@ -5,15 +5,14 @@ project(whisper.cpp)
 set(CMAKE_CXX_STANDARD 11)
 set(WHISPER_LIB_DIR ${CMAKE_SOURCE_DIR}/../../../../../../../)
 
-set(
-        SOURCE_FILES
-        ${WHISPER_LIB_DIR}/ggml.c
-        ${WHISPER_LIB_DIR}/ggml-alloc.c
-        ${WHISPER_LIB_DIR}/ggml-backend.c
-        ${WHISPER_LIB_DIR}/ggml-quants.c
-        ${WHISPER_LIB_DIR}/whisper.cpp
-        ${CMAKE_SOURCE_DIR}/jni.c
-)
+set(SOURCE_FILES
+    ${WHISPER_LIB_DIR}/ggml/src/ggml.c
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-alloc.c
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-backend.c
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-quants.c
+    ${WHISPER_LIB_DIR}/src/whisper.cpp
+    ${CMAKE_SOURCE_DIR}/jni.c
+    )
 
 find_library(LOG_LIB log)
 
@@ -41,7 +40,6 @@ function(build_library target_name)
         #target_link_options(${target_name} PRIVATE -Wl,--gc-sections)
         #target_link_options(${target_name} PRIVATE -Wl,--exclude-libs,ALL)
         #target_link_options(${target_name} PRIVATE -flto)
-
     endif ()
 endfunction()
 
@@ -54,3 +52,7 @@ elseif (${ANDROID_ABI} STREQUAL "armeabi-v7a")
 endif ()
 
 include_directories(${WHISPER_LIB_DIR})
+include_directories(${WHISPER_LIB_DIR}/src)
+include_directories(${WHISPER_LIB_DIR}/include)
+include_directories(${WHISPER_LIB_DIR}/ggml/include)
+include_directories(${WHISPER_LIB_DIR}/ggml/src)

@@ -27,17 +27,15 @@ let package = Package(
                "samples",
                "tests",
                "CMakeLists.txt",
-               "ggml-cuda.cu",
-               "ggml-cuda.h",
                "Makefile"
             ],
             sources: [
-                "ggml.c",
-                "whisper.cpp",
-                "ggml-alloc.c",
-                "ggml-backend.c",
-                "ggml-quants.c",
-                "ggml-metal.m"
+                "ggml/src/ggml.c",
+                "src/whisper.cpp",
+                "ggml/src/ggml-alloc.c",
+                "ggml/src/ggml-backend.c",
+                "ggml/src/ggml-quants.c",
+                "ggml/src/ggml-metal.m"
             ],
             resources: [.process("ggml-metal.metal")],
             publicHeadersPath: "spm-headers",

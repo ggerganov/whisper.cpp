@@ -10,17 +10,7 @@
 /CMakeSettings.json
 
 build/
-build-blas/
-build-coreml/
-build-em/
-build-debug/
-build-release/
-build-rwdi/
-build-static/
-build-cublas/
-build-no-accel/
-build-sanitize-addr/
-build-sanitize-thread/
+build-*/
 
 # SPM
 .build/
