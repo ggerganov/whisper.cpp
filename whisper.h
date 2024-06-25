@@ -479,13 +479,13 @@ extern "C" {
         bool  token_timestamps; // enable token-level timestamps
         float thold_pt;         // timestamp token probability threshold (~0.01)
         float thold_ptsum;      // timestamp token sum probability threshold (~0.01)
-        int   max_len;          // max segment length in characters
-        bool  split_on_word;    // split on word rather than on token (when used with max_len)
+        int   max_len;          // max segment length in characters (0 = no limit)
         int   max_tokens;       // max tokens per segment (0 = no limit)
 
         // [EXPERIMENTAL] speed-up techniques
         // note: these can significantly reduce the quality of the output
         bool debug_mode;        // enable debug_mode provides extra info (eg. Dump log_mel)
+
         int  audio_ctx;         // overwrite the audio context size (0 = use default)
 
         // [EXPERIMENTAL] [TDRZ] tinydiarize
@@ -509,6 +509,7 @@ extern "C" {
         // common decoding parameters:
         bool suppress_blank;    // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/decoding.py#L89
         bool suppress_non_speech_tokens; // ref: https://github.com/openai/whisper/blob/7858aa9c08d98f75575035ecd6481f462d66ca27/whisper/tokenizer.py#L224-L253
+        bool heuristic;
 
         float temperature;      // initial decoding temperature, ref: https://ai.stackexchange.com/a/32478
         float max_initial_ts;   // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/decoding.py#L97
@@ -519,7 +520,7 @@ extern "C" {
         float temperature_inc;
         float entropy_thold;    // similar to OpenAI's "compression_ratio_threshold"
         float logprob_thold;
-        float no_speech_thold;  // TODO: not implemented
+        float no_speech_thold;
 
         struct {
             int best_of;    // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/transcribe.py#L264
@@ -602,6 +603,10 @@ extern "C" {
     // Language id associated with the provided state
     WHISPER_API int whisper_full_lang_id_from_state(struct whisper_state * state);
 
+    // Get the no speech probability of the specified segment
+    WHISPER_API double whisper_full_get_segment_no_speech_probs           (struct whisper_context * ctx, int i_segment);
+    WHISPER_API double whisper_full_get_segment_no_speech_probs_from_state(struct whisper_state * state, int i_segment);
+
     // Get the start and end time of the specified segment
     WHISPER_API int64_t whisper_full_get_segment_t0           (struct whisper_context * ctx, int i_segment);
     WHISPER_API int64_t whisper_full_get_segment_t0_from_state(struct whisper_state * state, int i_segment);
@@ -636,6 +641,10 @@ extern "C" {
     // Get the probability of the specified token in the specified segment
     WHISPER_API float whisper_full_get_token_p           (struct whisper_context * ctx, int i_segment, int i_token);
     WHISPER_API float whisper_full_get_token_p_from_state(struct whisper_state * state, int i_segment, int i_token);
+
+    // Check if the string is valid UTF-8
+    WHISPER_API bool whisper_utf8_is_valid(const char * str);
+
 
     ////////////////////////////////////////////////////////////////////////////
 

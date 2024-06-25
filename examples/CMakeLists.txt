@@ -27,6 +27,8 @@ if (WHISPER_FFMPEG)
 endif()
 
 add_library(${TARGET} STATIC
+    console.h
+    console.cpp
     common.h
     common.cpp
     common-ggml.h

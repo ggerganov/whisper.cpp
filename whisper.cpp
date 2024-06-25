@@ -1,4 +1,5 @@
 #include "whisper.h"
+#include "unicode.h"
 
 #ifdef WHISPER_USE_COREML
 #include "coreml/whisper-encoder.h"
@@ -409,17 +410,17 @@ struct whisper_vocab {
     std::map<id, token> id_to_token;
 
     // reference: https://github.com/openai/whisper/blob/248b6cb124225dd263bb9bd32d060b6517e067f8/whisper/tokenizer.py#L334-L349
-    id token_eot        = 50256;
-    id token_sot        = 50257;
+    id token_eot        = 50256; // end of text, anything before that are normal tokens
+    id token_sot        = 50257; // start of transcript
     // task tokens (used only for multilingual models)
     id token_translate  = 50357;
     id token_transcribe = 50358;
     // other special tokens
     id token_solm       = 50359; // [TDRZ] used by tinydiarize models to indicate speaker turn
-    id token_prev       = 50360;
-    id token_nosp       = 50361;
+    id token_prev       = 50360; // TODO: I don't understand the meaning of this token
+    id token_nosp       = 50361; // no speech
     id token_not        = 50362; // no timestamps
-    id token_beg        = 50363; // begin timestamps
+    id token_beg        = 50363; // the first timestamp token <|0.00|>
 
     bool is_multilingual() const {
         return n_vocab >= 51865;
@@ -437,6 +438,8 @@ struct whisper_segment {
     std::string text;
 
     std::vector<whisper_token_data> tokens;
+
+    double no_speech_probs;
 
     bool speaker_turn_next;
 };
@@ -489,9 +492,8 @@ static void whisper_batch_prep_legacy(whisper_batch & batch, const whisper_token
         batch.pos     [i]    = n_past + i;
         batch.n_seq_id[i]    = 1;
         batch.seq_id  [i][0] = seq_id;
-        batch.logits  [i]    = 0;
+        batch.logits  [i]    = 1;
     }
-    batch.logits[n_tokens - 1] = 1;
 }
 
 // replace std::pair by using customized pair struct (reason: std::pair is very slow)
@@ -758,6 +760,7 @@ struct whisper_sequence {
     // the accumulated transcription in the current iteration (used to truncate the tokens array)
     int result_len;
 
+    double no_speech_probs;  // the probabilities of silence
     double sum_logprobs_all; // the sum of the log probabilities of the tokens
     double sum_logprobs;     // the sum of the log probabilities of the tokens (first result_len tokens)
     double avg_logprobs;     // the average log probability of the tokens
@@ -1491,23 +1494,23 @@ static bool whisper_model_load(struct whisper_model_loader * loader, whisper_con
                 if (i > vocab.token_beg) {
                     word = "[_TT_" + std::to_string(i - vocab.token_beg) + "]";
                 } else if (i == vocab.token_eot) {
-                    word = "[_EOT_]";
+                    word = "[_EOT_]"; // <|endoftext|>
                 } else if (i == vocab.token_sot) {
-                    word = "[_SOT_]";
+                    word = "[_SOT_]"; // <|startoftranscript|>
                 } else if (i == vocab.token_translate) {
                     word = "[_TRANSLATE_]";
                 } else if (i == vocab.token_transcribe) {
                     word = "[_TRANSCRIBE_]";
                 } else if (i == vocab.token_solm) {
-                    word = "[_SOLM_]";
+                    word = "[_SOLM_]"; // <|startoflm|>
                 } else if (i == vocab.token_prev) {
-                    word = "[_PREV_]";
+                    word = "[_PREV_]"; // <|startofprev|>
                 } else if (i == vocab.token_nosp) {
-                    word = "[_NOSP_]";
+                    word = "[_NOSP_]"; // <|nospeech|>
                 } else if (i == vocab.token_not) {
-                    word = "[_NOT_]";
+                    word = "[_NOT_]"; // <|notimestamps|>
                 } else if (i == vocab.token_beg) {
-                    word = "[_BEG_]";
+                    word = "[_BEG_]"; // the first timestamp token <|0.00|>
                 } else if (i > vocab.token_sot && i <= vocab.token_sot + vocab.num_languages()) {
                     word = "[_LANG_" + std::string(whisper_lang_str(i - vocab.token_sot - 1)) + "]";
                 } else {
@@ -3228,6 +3231,186 @@ whisper_mel_calc * whisper_mel_calc_create(ggml_backend_t backend, const whisper
     return new mel_calc_cpu(backend, filters);
 }
 
+// Algorithm for byte pair encoding
+// BPE essentially first breaks down a string into bytes
+// and then merges adjacent bytes together according to rules
+// until they can no longer be merged
+// This algo is for educational purposes and not optimized for high performance
+static std::vector<whisper_vocab::id> bpe_encode(const whisper_vocab & vocab, const std::string & word) {
+    std::vector<whisper_vocab::id> tokens;
+    tokens.reserve(word.size());
+
+    // split each word into an array of single byte
+    for (int pos=0; pos < word.size(); pos++) {
+        tokens.push_back(vocab.token_to_id.at(word.substr(pos, 1)));
+    }
+
+    while (true) {
+        int min_idx = -1;
+        int min_rank = -1;
+
+
+        // iterate over all pairs and find the pair we want to merge the most
+        for (int pos=0; pos < tokens.size() - 1; pos++) {
+            auto query = vocab.id_to_token.at(tokens[pos]) + vocab.id_to_token.at(tokens[pos+1]);
+            auto it = vocab.token_to_id.find(query);
+            if (it != vocab.token_to_id.end()) {
+                auto rank = it->second;
+                // find the pair with the lowest rank
+                if (min_rank == -1 || rank < min_rank) {
+                    min_idx = pos;
+                    min_rank = rank;
+                }
+            }
+        }
+
+        // if there were no pairs we could merge, we're done!
+        if (min_rank == -1) {
+            break;
+        }
+
+        // update token vector
+        tokens[min_idx] = min_rank;
+        tokens.erase(tokens.begin() + min_idx + 1);
+    }
+    
+    return tokens;
+}
+
+// This is not perfect
+// Occasionally, it produces different results compared to OpenAI's tiktoken
+static std::vector<std::string> bpe_gpt2_preprocess(const std::string & text) {
+    std::vector<std::string> bpe_words;
+    std::vector<std::string> bpe_encoded_words;
+
+    std::string token = "";
+    // GPT2 system regex:  's|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+
+    bool collecting_numeric = false;
+    bool collecting_letter = false;
+    bool collecting_special = false;
+    bool collecting_whitespace_lookahead = false;
+    bool collecting = false;
+
+    std::vector<std::string> text_utf;
+    text_utf.reserve(text.size());
+    bpe_words.reserve(text.size());
+    bpe_encoded_words.reserve(text.size());
+
+    auto cps = codepoints_from_utf8(text);
+    for (size_t i = 0; i < cps.size(); ++i)
+        text_utf.emplace_back(codepoint_to_utf8(cps[i]));
+
+    for (int i = 0; i < (int)text_utf.size(); i++) {
+        const std::string & utf_char = text_utf[i];
+        bool split_condition = false;
+        int bytes_remain = text_utf.size() - i;
+        // forward backward lookups
+        const std::string & utf_char_next = (i + 1 < (int)text_utf.size()) ? text_utf[i + 1] : "";
+        const std::string & utf_char_next_next = (i + 2 < (int)text_utf.size()) ? text_utf[i + 2] : "";
+
+        // handling contractions
+        if (!split_condition && bytes_remain >= 2) {
+            // 's|'t|'m|'d
+            if (utf_char == "\'" && (utf_char_next == "s" || utf_char_next == "t" || utf_char_next == "m" || utf_char_next == "d")) {
+                split_condition = true;
+            }
+            if (split_condition) {
+                if (token.size()) {
+                    bpe_words.emplace_back(token); // push previous content as token
+                }
+                token = utf_char + utf_char_next;
+                bpe_words.emplace_back(token);
+                token = "";
+                i++;
+                continue;
+            }
+        }
+        if (!split_condition && bytes_remain >= 3) {
+            // 're|'ve|'ll
+            if (utf_char == "\'" && (
+                    (utf_char_next == "r" && utf_char_next_next == "e") ||
+                    (utf_char_next == "v" && utf_char_next_next == "e") ||
+                    (utf_char_next == "l" && utf_char_next_next == "l"))
+                    ) {
+                split_condition = true;
+            }
+            if (split_condition) {
+                // current token + next token can be defined
+                if (token.size()) {
+                    bpe_words.emplace_back(token); // push previous content as token
+                }
+                token = utf_char + utf_char_next + utf_char_next_next;
+                bpe_words.emplace_back(token); // the contraction
+                token = "";
+                i += 2;
+                continue;
+            }
+        }
+
+        if (!split_condition && !collecting) {
+            if (codepoint_type(utf_char) == CODEPOINT_TYPE_LETTER || (!token.size() && utf_char == " " && codepoint_type(utf_char_next) == CODEPOINT_TYPE_LETTER)) {
+                collecting_letter = true;
+                collecting = true;
+            }
+            else if (codepoint_type(utf_char) == CODEPOINT_TYPE_DIGIT || (!token.size() && utf_char == " " && codepoint_type(utf_char_next) == CODEPOINT_TYPE_DIGIT)) {
+                collecting_numeric = true;
+                collecting = true;
+            }
+            else if (
+                    ((codepoint_type(utf_char) != CODEPOINT_TYPE_LETTER && codepoint_type(utf_char) != CODEPOINT_TYPE_DIGIT) && (codepoint_type(utf_char) != CODEPOINT_TYPE_WHITESPACE)) ||
+                    (!token.size() && utf_char == " " && codepoint_type(utf_char_next) != CODEPOINT_TYPE_LETTER && codepoint_type(utf_char_next) != CODEPOINT_TYPE_DIGIT && codepoint_type(utf_char_next) != CODEPOINT_TYPE_WHITESPACE)
+                    ) {
+                collecting_special = true;
+                collecting = true;
+            }
+            else if (codepoint_type(utf_char) == CODEPOINT_TYPE_WHITESPACE && codepoint_type(utf_char_next) == CODEPOINT_TYPE_WHITESPACE) {
+                collecting_whitespace_lookahead = true;
+                collecting = true;
+            }
+            else if (codepoint_type(utf_char) == CODEPOINT_TYPE_WHITESPACE) {
+                split_condition = true;
+            }
+        }
+        else if (!split_condition && collecting) {
+            if (collecting_letter && codepoint_type(utf_char) != CODEPOINT_TYPE_LETTER) {
+                split_condition = true;
+            }
+            else if (collecting_numeric && codepoint_type(utf_char) != CODEPOINT_TYPE_DIGIT) {
+                split_condition = true;
+            }
+            else if (collecting_special && (codepoint_type(utf_char) == CODEPOINT_TYPE_LETTER || codepoint_type(utf_char) == CODEPOINT_TYPE_DIGIT || codepoint_type(utf_char) == CODEPOINT_TYPE_WHITESPACE)) {
+                split_condition = true;
+            }
+            else if (collecting_whitespace_lookahead && (codepoint_type(utf_char_next) == CODEPOINT_TYPE_LETTER || codepoint_type(utf_char_next) == CODEPOINT_TYPE_DIGIT)) {
+                split_condition = true;
+            }
+        }
+
+        if (utf_char_next == "") {
+            split_condition = true; // final
+            token += utf_char;
+        }
+
+        if (split_condition) {
+            if (token.size()) {
+                bpe_words.emplace_back(token);
+            }
+            token = utf_char;
+            collecting = false;
+            collecting_letter = false;
+            collecting_numeric = false;
+            collecting_special = false;
+            collecting_whitespace_lookahead = false;
+        }
+        else {
+            token += utf_char;
+        }
+    }
+
+    return bpe_words;
+}
+
+
 // split text into tokens
 //
 // ref: https://github.com/openai/gpt-2/blob/a74da5d99abaaba920de8131d64da2862a8f213b/src/encoder.py#L53
@@ -3236,53 +3419,23 @@ whisper_mel_calc * whisper_mel_calc_create(ggml_backend_t backend, const whisper
 // r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 //
 // Regex (C++):
-// R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[:alpha:][:digit:]]+|\s+(?!\S)|\s+)"
+// R"('s|'t|'re|'ve|'m|'ll|'d| ?[a-zA-Z]+| ?[0-9]+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)"
+// this remains ineffective in C++ as std::regex does not provide support for Unicode properties
+// ref: https://stackoverflow.com/a/38002322
+// so we chose to implement our own regex algorithm to solve this problem
+// bpe_gpt2_preprocess
 //
 static std::vector<whisper_vocab::id> tokenize(const whisper_vocab & vocab, const std::string & text) {
-    std::vector<std::string> words;
 
     // first split the text into words
-    {
-        std::string str = text;
-        std::string pat = R"('s|'t|'re|'ve|'m|'ll|'d| ?[[:alpha:]]+| ?[[:digit:]]+| ?[^\s[:alpha:][:digit:]]+|\s+(?!\S)|\s+)";
+    // this enables parallel processing
+    auto words = bpe_gpt2_preprocess(" " + text);
 
-        std::regex re(pat);
-        std::smatch m;
-
-        while (std::regex_search(str, m, re)) {
-            for (auto x : m) {
-                words.push_back(x);
-            }
-            str = m.suffix();
-        }
-    }
-
-    // find the longest tokens that form the words:
     std::vector<whisper_vocab::id> tokens;
-    for (const auto & word : words) {
-        if (word.empty()) continue;
 
-        int i = 0;
-        int n = word.size();
-        while (i < n) {
-            int j = n;
-            bool found = false;
-            while (j > i) {
-                auto sub = word.substr(i, j-i);
-                auto it = vocab.token_to_id.find(sub);
-                if (it != vocab.token_to_id.end()) {
-                    tokens.push_back(it->second);
-                    i = j;
-                    found = true;
-                    break;
-                }
-                --j;
-            }
-            if (!found) {
-                WHISPER_LOG_ERROR("unknown token\n");
-                ++i;
-            }
-        }
+    for (const auto& word : words) {
+        auto word_tokens = bpe_encode(vocab, word);
+        tokens.insert(tokens.end(), word_tokens.begin(), word_tokens.end());
     }
 
     return tokens;
@@ -4773,10 +4926,10 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.thold_pt          =*/ 0.01f,
         /*.thold_ptsum       =*/ 0.01f,
         /*.max_len           =*/ 0,
-        /*.split_on_word     =*/ false,
         /*.max_tokens        =*/ 0,
 
         /*.debug_mode        =*/ false,
+      
         /*.audio_ctx         =*/ 0,
 
         /*.tdrz_enable       =*/ false,
@@ -4791,7 +4944,8 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.detect_language   =*/ false,
 
         /*.suppress_blank    =*/ true,
-        /*.suppress_non_speech_tokens =*/ false,
+        /*.suppress_non_speech_tokens =*/ true,
+        /*.heuristic         =*/ true,
 
         /*.temperature       =*/  0.0f,
         /*.max_initial_ts    =*/  1.0f,
@@ -4862,10 +5016,51 @@ static void whisper_exp_compute_token_level_timestamps(
                          float   thold_pt,
                          float   thold_ptsum);
 
-static inline bool should_split_on_word(const char * txt, bool split_on_word) {
-    if (!split_on_word) return true;
+static bool whisper_utf8_is_valid(const std::string &str) {
+    uint64_t count = 0; // Count of bytes in the current UTF-8 character
 
-    return txt[0] == ' ';
+    for (unsigned char c : str) {
+        if (count == 0) {
+            if ((c >> 5) == 0b110) count = 1; // 2-byte character
+            else if ((c >> 4) == 0b1110) count = 2; // 3-byte character
+            else if ((c >> 3) == 0b11110) count = 3; // 4-byte character
+            else if ((c >> 7) == 0b0) count = 0; // 1-byte character
+            else return false; // Invalid UTF-8
+        } else {
+            if ((c >> 6) != 0b10) return false; // Subsequent bytes should start with 10
+            count--;
+        }
+    }
+
+    return count == 0; // Ensure all UTF-8 characters are complete
+}
+
+static std::vector<whisper_pair<std::string, bool>> whisper_utf8_merge_and_split(const std::string &str) {
+    std::vector<whisper_pair<std::string, bool>> result;
+    std::string buffer;
+    uint64_t count = 0; // Count of bytes in the current UTF-8 character
+
+    for (unsigned char c : str) {
+        if (count == 0) {
+            header:
+            if ((c >> 5) == 0b110) count = 1; // 2-byte character
+            else if ((c >> 4) == 0b1110) count = 2; // 3-byte character
+            else if ((c >> 3) == 0b11110) count = 3; // 4-byte character
+            else count = 0; // Invalid UTF-8 || 1-byte character
+            if (!buffer.empty()) result.emplace_back(buffer, true);
+            buffer.clear();
+            buffer += static_cast<char>(c);
+        } else {
+            if ((c >> 6) != 0b10) {
+                goto header;
+            } // Subsequent bytes should start with 10
+            buffer += static_cast<char>(c);
+            count--;
+        }
+    }
+
+    if (!buffer.empty()) result.emplace_back(buffer, false);
+    return result;
 }
 
 static void whisper_exp_compute_token_level_timestamps_dtw(
@@ -4879,63 +5074,133 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
                                int   medfilt_width,
                                int   n_threads);
 
-// wrap the last segment to max_len characters
+// wrap the last segment into segments with max_len number of words
 // returns the number of new segments
-static int whisper_wrap_segment(struct whisper_context & ctx, struct whisper_state & state, int max_len, bool split_on_word) {
-    auto segment = state.result_all.back();
-
-    int res = 1;
-    int acc = 0;
+static std::vector<whisper_segment> whisper_split_tokens_on_utf8(struct whisper_context & ctx, whisper_segment & segment, bool special) {
+    std::vector<whisper_segment> words;
 
     std::string text;
+    std::vector<whisper_token_data> raw;
+    int64_t t0 = -1;
+    int64_t t1 = -1;
 
-    for (int i = 0; i < (int) segment.tokens.size(); i++) {
-        const auto & token = segment.tokens[i];
-        if (token.id >= whisper_token_eot(&ctx)) {
+    for (const auto & token : segment.tokens) {
+        if (special == false && token.id >= whisper_token_beg(&ctx)) {
             continue;
         }
+        if (t0 < 0) {t0 = token.t0;}
+        t1 = token.t1;
+        text += whisper_token_to_str(&ctx, token.id);
+        raw.push_back(token);
 
-        const auto txt = whisper_token_to_str(&ctx, token.id);
-        const int cur = strlen(txt);
-
-        if (acc + cur > max_len && i > 0 && should_split_on_word(txt, split_on_word)) {
-            state.result_all.back().text = std::move(text);
-            state.result_all.back().t1 = token.t0;
-            state.result_all.back().tokens.resize(i);
-            state.result_all.back().speaker_turn_next = false;
-
-            state.result_all.push_back({});
-            state.result_all.back().t0 = token.t0;
-            state.result_all.back().t1 = segment.t1;
-
-            // add tokens [i, end] to the new segment
-            state.result_all.back().tokens.insert(
-                state.result_all.back().tokens.end(),
-                    segment.tokens.begin() + i,
-                    segment.tokens.end());
-
-            state.result_all.back().speaker_turn_next = segment.speaker_turn_next;
-
-            acc = 0;
+        if (whisper_utf8_is_valid(text)) {
+            words.push_back({t0, t1, text, raw, segment.no_speech_probs, segment.speaker_turn_next});
+            t0 = -1;
+            t1 = -1;
+            raw.clear();
             text = "";
-
-            segment = state.result_all.back();
-            i = -1;
-
-            res++;
-        } else {
-            acc += cur;
-            text += txt;
         }
     }
 
-    state.result_all.back().text = std::move(text);
+    return words;
+}
 
-    return res;
+// wrap the last segment into segments with max_len number of words
+// returns the number of new segments
+static int whisper_wrap_segment(struct whisper_context & ctx, struct whisper_state & state, int max_len, bool special) {
+    const static std::set<std::string> unicode_language = {"zh", "ja", "th", "lo", "my", "yue"};
+    const static std::string punctuation = R"(!"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~)";
+
+    auto segment = state.result_all.back();
+
+    std::vector<whisper_segment> words;
+
+    if (unicode_language.find(whisper_lang_str(ctx.state->lang_id)) != unicode_language.end()) {
+        // split on utf-8
+        words = whisper_split_tokens_on_utf8(ctx, segment, special);
+    } else {
+        // split on spaces and punctuation
+        auto subwords = whisper_split_tokens_on_utf8(ctx, segment, special);
+
+        for (auto & subword : subwords) {
+            if (subword.tokens[0].id >= whisper_token_beg(&ctx) || subword.text[0] == ' ' || punctuation.find(subword.text) != std::string::npos) {
+                words.push_back(subword);
+            } else {
+                words.back().t1 = subword.t1;
+                words.back().text += subword.text;
+                words.back().tokens.insert(words.back().tokens.end(), subword.tokens.begin(), subword.tokens.end());
+            }
+        }
+    }
+
+    state.result_all.pop_back();
+
+    if (max_len == 1) {
+        state.result_all.insert(state.result_all.end(), words.begin(), words.end());
+        return static_cast<int>(words.size());
+    } else {
+        int acc = 0;
+        int n_new = 0;
+        whisper_segment temp = {};
+
+        for (auto & word : words) {
+            if (acc == 0) {temp.t0 = word.t0;}
+            temp.t1 = word.t1;
+            temp.text += word.text;
+            temp.tokens.insert(temp.tokens.end(), word.tokens.begin(), word.tokens.end());
+            temp.speaker_turn_next = word.speaker_turn_next;
+            temp.no_speech_probs = word.no_speech_probs;
+
+            if (acc + 1 >= max_len) {
+                state.result_all.push_back(temp);
+                temp = {};
+                acc = 0;
+                n_new ++;
+            } else {
+                acc++;
+            }
+        }
+        return n_new;
+    }
+}
+
+// ref: https://github.com/openai/whisper/blob/ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab/whisper/decoding.py#L689-L693
+static void whisper_no_speech_probs(
+              struct whisper_context & ctx,
+               struct whisper_state  & state,
+              struct whisper_decoder & decoder,
+          std::vector<whisper_token> & prompt_init) {
+
+    const auto & vocab= ctx.vocab;
+    const int  n_logits = vocab.id_to_token.size();
+    const int  logits_offset = decoder.i_batch - (prompt_init.size() - 1);
+    double no_speech_probs = 0.0;
+
+    WHISPER_ASSERT(n_logits == ctx.vocab.n_vocab);
+
+    // extract the logits for the SOT token
+    // we will be mutating, and therefore we don't want to use the ctx.logits buffer directly
+    auto & logits   = decoder.logits;
+    {
+        logits.resize(n_logits);
+        memcpy(logits.data(), state.logits.data() + logits_offset*n_logits, n_logits*sizeof(float));
+    }
+
+    // softmax
+    // ref: https://pytorch.org/docs/stable/generated/torch.nn.Softmax.html
+    {
+        double sum = 0.0f;
+        for (auto & i : logits) {
+            sum += expf(i);
+        }
+        no_speech_probs = static_cast<double>(expf(logits[vocab.token_nosp]) / sum);
+    }
+
+    decoder.sequence.no_speech_probs = no_speech_probs;
 }
 
 static const std::vector<std::string> non_speech_tokens = {
-    "\"", "#", "(", ")", "*", "+", "/", ":", ";", "<", "=", ">", "@", "[", "\\", "]", "^",
+    "\"", "#", "*", "+", "/", ":", ";", "<", "=", ">", "@", "\\", "^",
     "_", "`", "{", "|", "}", "~", "「", "」", "『", "』", "<<", ">>", "<<<", ">>>", "--",
     "---", "-(", "-[", "('", "(\"", "((", "))", "(((", ")))", "[[", "]]", "{{", "}}", "♪♪",
     "♪♪♪","♩", "♪", "♫", "♬", "♭", "♮", "♯"
@@ -5124,6 +5389,7 @@ static void whisper_process_logits(
         // ref: https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L431-L437
         {
             // logsumexp over timestamps
+            // ref: https://pytorch.org/docs/stable/generated/torch.logsumexp.html
             float timestamp_logprob = -INFINITY;
             {
                 float logsumexp = 0.0f;
@@ -5607,6 +5873,7 @@ int whisper_full_with_state(
     }
 
     int seek = seek_start;
+    bool fast_forward = false;
 
     std::vector<whisper_token> prompt;
     prompt.reserve(whisper_n_text_ctx(ctx));
@@ -5747,6 +6014,8 @@ int whisper_full_with_state(
 
                     state->decoders[0].i_batch = prompt.size() - 1;
 
+                    whisper_no_speech_probs(*ctx, *state, state->decoders[0], prompt_init);
+
                     whisper_process_logits(*ctx, *state, state->decoders[0], params, t_cur);
 
                     for (int j = 1; j < n_decoders_cur; ++j) {
@@ -5757,6 +6026,7 @@ int whisper_full_with_state(
                         memcpy(decoder.probs.data(),    state->decoders[0].probs.data(),    decoder.probs.size()*sizeof(decoder.probs[0]));
                         memcpy(decoder.logits.data(),   state->decoders[0].logits.data(),   decoder.logits.size()*sizeof(decoder.logits[0]));
                         memcpy(decoder.logprobs.data(), state->decoders[0].logprobs.data(), decoder.logprobs.size()*sizeof(decoder.logprobs[0]));
+                        decoder.sequence.no_speech_probs = state->decoders[0].sequence.no_speech_probs;
                     }
 
                     state->t_sample_us += ggml_time_us() - t_start_sample_us;
@@ -5794,9 +6064,10 @@ int whisper_full_with_state(
                             switch (params.strategy) {
                                 case whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY:
                                     {
+                                        // if t_cur is almost 0, we use argmax
                                         if (t_cur < 1e-6f) {
                                             decoder.sequence.tokens.push_back(whisper_sample_token(*ctx, decoder, true));
-                                        } else {
+                                        } else { // otherwise, we use categorical distribution
                                             decoder.sequence.tokens.push_back(whisper_sample_token(*ctx, decoder, false));
                                         }
 
@@ -6135,8 +6406,11 @@ int whisper_full_with_state(
 
                 if (decoder.failed || decoder.sequence.avg_logprobs < params.logprob_thold) {
                     WHISPER_LOG_DEBUG("%s: failed due to avg_logprobs %8.5f < %8.5f\n", __func__, decoder.sequence.avg_logprobs, params.logprob_thold);
-                    success = false;
-                    state->n_fail_p++;
+                    // ref: https://github.com/openai/whisper/blob/ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab/whisper/transcribe.py#L208-L212
+                    if (decoder.sequence.no_speech_probs < params.no_speech_thold) {
+                        success = false;
+                        state->n_fail_p++;
+                    }
                 }
             }
 
@@ -6151,12 +6425,63 @@ int whisper_full_with_state(
             WHISPER_LOG_DEBUG("\n%s: failed to decode with temperature = %.2f\n", __func__, t_cur);
         }
 
+        // no voice activity check
+        // ref: https://github.com/openai/whisper/blob/ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab/whisper/transcribe.py#L282-L294
+        {
+            const auto & best_decoder = state->decoders[best_decoder_id];
+
+            if (best_decoder.sequence.no_speech_probs > params.no_speech_thold) {
+                if (best_decoder.sequence.avg_logprobs < params.logprob_thold) {
+                    // fast-forward to the next segment boundary
+                    prompt_past.clear();
+                    fast_forward = true;
+                    seek += std::min(3000, state->mel.n_len_org - seek);
+                    continue;
+                }
+            }
+        }
+
+        // repetition check
+        {
+            if (!params.no_timestamps && params.heuristic) {
+                const auto & best_decoder = state->decoders[best_decoder_id];
+                const auto & tokens_cur = best_decoder.sequence.tokens;
+
+                std::set<std::string> table;
+                std::string text;
+                int timestamp_token_counter = 0;
+                int max_length = 0;
+
+                for (auto & token : tokens_cur) {
+                    if (token.id < whisper_token_beg(ctx)) {
+                        text += ctx->vocab.id_to_token[token.id];
+                    } else {
+                        timestamp_token_counter++;
+                    }
+                    if (timestamp_token_counter % 2 == 0) {
+                        if (text.length() > max_length) {max_length = text.length();}
+                        table.insert(text);
+                        text.clear();
+                    }
+                }
+
+                if ((static_cast<float>(table.size()) / static_cast<float>(timestamp_token_counter)) < 0.25 || max_length <= 4) {
+                    // fast-forward to the next segment boundary
+                    prompt_past.clear();
+                    fast_forward = true;
+                    seek += std::min(3000, state->mel.n_len_org - seek);
+                    continue;
+                }
+            }
+        }
+
         // output results through a user-provided callback
         {
             const auto & best_decoder = state->decoders[best_decoder_id];
 
             const auto seek_delta = best_decoder.seek_delta;
             const auto result_len = best_decoder.sequence.result_len;
+            const auto non_speech_probs = best_decoder.sequence.no_speech_probs;
 
             const auto & tokens_cur = best_decoder.sequence.tokens;
 
@@ -6176,17 +6501,13 @@ int whisper_full_with_state(
             }
 
             if (!tokens_cur.empty() && ctx->model.n_loaded > 0) {
-                int  i0 = 0;
-                auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
-
                 std::string text;
                 bool speaker_turn_next = false;
+                auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
 
-                for (int i = 0; i < (int) tokens_cur.size(); i++) {
-                    //printf("%s: %18s %6.3f %18s %6.3f\n", __func__,
-                    //        ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].p,
-                    //        ctx->vocab.id_to_token[tokens_cur[i].tid].c_str(), tokens_cur[i].pt);
-
+                // a lambda function used to extract common procedures
+                auto process_token = [&](int i) {
+                    // only extract the normal tokens, unless we specifically ask for the special tokens
                     if (params.print_special || tokens_cur[i].id < whisper_token_eot(ctx)) {
                         text += whisper_token_to_str(ctx, tokens_cur[i].id);
                     }
@@ -6195,91 +6516,83 @@ int whisper_full_with_state(
                     if (params.tdrz_enable && tokens_cur[i].id == whisper_token_solm(ctx)) {
                         speaker_turn_next = true;
                     }
+                };
 
-                    if (tokens_cur[i].id > whisper_token_beg(ctx) && !params.single_segment) {
-                        const auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
+                // a lambda function used to extract common procedures
+                auto text_callback = [&](int t1, int token_offset, int end) {
+                    int n_new = 1;
 
-                        if (!text.empty()) {
-                            const auto tt0 = t0;
-                            const auto tt1 = t1;
-
-                            if (params.print_realtime) {
-                                if (params.print_timestamps) {
-                                    printf("[%s --> %s]  %s\n", to_timestamp(tt0).c_str(), to_timestamp(tt1).c_str(), text.c_str());
-                                } else {
-                                    printf("%s", text.c_str());
-                                    fflush(stdout);
-                                }
-                            }
-
-                            //printf("tt0 = %d, tt1 = %d, text = %s, token = %s, token_id = %d, tid = %d\n", tt0, tt1, text.c_str(), ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].id, tokens_cur[i].tid);
-
-                            result_all.push_back({ tt0, tt1, text, {}, speaker_turn_next });
-                            for (int j = i0; j <= i; j++) {
-                                result_all.back().tokens.push_back(tokens_cur[j]);
-                            }
-
-                            int n_new = 1;
-
-                            if (params.token_timestamps) {
-                                whisper_exp_compute_token_level_timestamps(
-                                        *ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
-
-                                if (params.max_len > 0) {
-                                    n_new = whisper_wrap_segment(*ctx, *state, params.max_len, params.split_on_word);
-                                }
-                            }
-                            if (params.new_segment_callback) {
-                                params.new_segment_callback(ctx, state, n_new, params.new_segment_callback_user_data);
-                            }
-                        }
-                        text = "";
-                        while (i < (int) tokens_cur.size() && tokens_cur[i].id > whisper_token_beg(ctx)) {
-                            i++;
-                        }
-                        i--;
-                        t0 = t1;
-                        i0 = i + 1;
-                        speaker_turn_next = false;
-                    }
-                }
-
-                if (!text.empty()) {
-                    const auto t1 = seek + seek_delta;
-
-                    const auto tt0 = t0;
-                    const auto tt1 = t1;
-
-                    if (params.print_realtime) {
-                        if (params.print_timestamps) {
-                            printf("[%s --> %s]  %s\n", to_timestamp(tt0).c_str(), to_timestamp(tt1).c_str(), text.c_str());
-                        } else {
-                            printf("%s", text.c_str());
-                            fflush(stdout);
-                        }
-                    }
-
-                    result_all.push_back({ tt0, tt1, text, {} , speaker_turn_next });
-                    for (int j = i0; j < (int) tokens_cur.size(); j++) {
+                    result_all.push_back({ t0, t1, text, {}, non_speech_probs, speaker_turn_next });
+                    for (int j = std::max(0, token_offset); j <= end; j++) {
                         result_all.back().tokens.push_back(tokens_cur[j]);
                     }
 
-                    int n_new = 1;
-
                     if (params.token_timestamps) {
-                        whisper_exp_compute_token_level_timestamps(
-                                *ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
-
-                        if (params.max_len > 0) {
-                            n_new = whisper_wrap_segment(*ctx, *state, params.max_len, params.split_on_word);
-                        }
+                        whisper_exp_compute_token_level_timestamps(*ctx, *state, result_all.size() - 1, params.thold_pt, params.thold_ptsum);
                     }
+
+                    if (params.max_len > 0) {
+                        n_new = whisper_wrap_segment(*ctx, *state, params.max_len, params.print_special);
+                    }
+
                     if (params.new_segment_callback) {
                         params.new_segment_callback(ctx, state, n_new, params.new_segment_callback_user_data);
+                    }
+                };
+
+                // a lambda function used to extract common procedures
+                auto print_text = [&](int t1) {
+                    if (params.print_timestamps) {
+                        printf("[%s --> %s]  %s\n", to_timestamp(t0).c_str(), to_timestamp(t1).c_str(), text.c_str());
+                    } else {
+                        printf("%s", text.c_str());
+                        fflush(stdout);
+                    }
+                };
+
+                // if we have timestamps, output it time chunk by time chunk
+                if (!params.no_timestamps) {
+                    int token_offset = 0; // used to locate current time chunk
+                    auto timestamp_start = whisper_token_beg(ctx);
+                    for (int i = 0; i < static_cast<int>(tokens_cur.size()); i++) {
+                        process_token(i);
+
+                        // tokens_cur[i].id > timestamp_start means we've reached the end of the current time chunk
+                        // text for this time chunk is fully assembled and ready for the callback function to be invoked
+                        if (tokens_cur[i].id > timestamp_start && !params.single_segment) {
+                            auto t1 = seek + 2*(tokens_cur[i].tid - whisper_token_beg(ctx));
+                            timestamp_start = tokens_cur[i].id;
+
+                            if (!text.empty()) {
+                                text_callback(t1, token_offset, i);
+                                if (params.print_realtime) {
+                                    print_text(t1);
+                                }
+                            }
+
+                            text.clear();
+                            t0 = t1;
+                            token_offset = i + 1;
+                            speaker_turn_next = false;
+                        }
+                    }
+                } else { // otherwise, output it as a whole
+                    for (int i = 0; i < static_cast<int>(tokens_cur.size()); i++) {
+                        process_token(i);
+                    }
+                    if (!text.empty()) {
+                        auto t1 = seek + seek_delta;
+
+                        text_callback(t1, 0, static_cast<int>(tokens_cur.size()));
+                        if (params.print_realtime) {
+                            print_text(t1);
+                        }
                     }
                 }
             }
 
+            fast_forward = false;
+          
             // FIXME: will timestamp offsets be correct?
             // [EXPERIMENTAL] Token-level timestamps with DTW
             {
@@ -6292,9 +6605,17 @@ int whisper_full_with_state(
             }
 
             // update audio window
-            seek += seek_delta;
-
-            WHISPER_LOG_DEBUG("seek = %d, seek_delta = %d\n", seek, seek_delta);
+            // https://github.com/openai/whisper/blob/ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab/whisper/transcribe.py#L353-L361
+            {
+                const auto & tokens = best_decoder.sequence.tokens;
+                if (tokens.size() >= 2 && tokens[tokens.size() - 1].id > whisper_token_beg(ctx) && tokens[tokens.size() - 2].id < whisper_token_beg(ctx)) {
+                    seek += std::min(3000, state->mel.n_len_org - seek);
+                    WHISPER_LOG_DEBUG("seek = %d, seek_delta = %d\n", seek, std::min(3000, state->mel.n_len_org - seek));
+                } else {
+                    seek += seek_delta;
+                    WHISPER_LOG_DEBUG("seek = %d, seek_delta = %d\n", seek, seek_delta);
+                }
+            }
         }
     }
 
@@ -6440,6 +6761,14 @@ int whisper_full_lang_id(struct whisper_context * ctx) {
     return ctx->state->lang_id;
 }
 
+double whisper_full_get_segment_no_speech_probs_from_state(struct whisper_state * state, int i_segment) {
+    return state->result_all[i_segment].no_speech_probs;
+}
+
+double whisper_full_get_segment_no_speech_probs(struct whisper_context * ctx, int i_segment) {
+    return ctx->state->result_all[i_segment].no_speech_probs;
+}
+
 int64_t whisper_full_get_segment_t0_from_state(struct whisper_state * state, int i_segment) {
     return state->result_all[i_segment].t0;
 }
@@ -6510,6 +6839,11 @@ float whisper_full_get_token_p_from_state(struct whisper_state * state, int i_se
 
 float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token) {
     return ctx->state->result_all[i_segment].tokens[i_token].p;
+}
+
+bool whisper_utf8_is_valid(const char * str) {
+    std::string new_str(str);
+    return whisper_utf8_is_valid(new_str);
 }
 
 // =================================================================================================

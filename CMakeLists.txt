@@ -712,6 +712,7 @@ add_library(${TARGET}
     ${GGML_SOURCES_SYCL}  ${GGML_HEADERS_SYCL}
     ${GGML_SOURCES_ROCM}  ${GGML_HEADERS_ROCM}
     ${GGML_SOURCES_BLAS}  ${GGML_HEADERS_BLAS}
+    unicode.h
     whisper.h
     whisper.cpp
     )

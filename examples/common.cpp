@@ -1,6 +1,7 @@
 #define _USE_MATH_DEFINES // for M_PI
 
 #include "common.h"
+#include "console.h"
 
 // third-party utilities
 // use your favorite implementations
@@ -674,7 +675,11 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
             return false;
         }
     }
+#if _WIN32
+    else if (drwav_init_file_w(&wav, console::UTF8toUTF16(fname).c_str(), nullptr) == false) {
+#else
     else if (drwav_init_file(&wav, fname.c_str(), nullptr) == false) {
+#endif
 #if defined(WHISPER_FFMPEG)
         if (ffmpeg_decode_audio(fname, wav_data) != 0) {
             fprintf(stderr, "error: failed to ffmpeg decode '%s' \n", fname.c_str());
@@ -889,7 +894,11 @@ int timestamp_to_sample(int64_t t, int n_samples, int whisper_sample_rate) {
 
 bool is_file_exist(const char *fileName)
 {
-    std::ifstream infile(fileName);
+    #ifdef _WIN32
+        std::wifstream infile(console::UTF8toUTF16(fileName).c_str());
+    #else
+        std::ifstream infile(fileName);
+    #endif
     return infile.good();
 }
 

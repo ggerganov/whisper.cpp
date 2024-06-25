@@ -3,6 +3,7 @@
 
 #include "common-sdl.h"
 #include "common.h"
+#include "console.h"
 #include "whisper.h"
 #include "gpt-2.h"
 
@@ -42,9 +43,9 @@ struct whisper_params {
     std::string fname_out;
 };
 
-void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
+void whisper_print_usage(int argc, const char ** argv, const whisper_params & params);
 
-bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
+bool whisper_params_parse(int argc, const char ** argv, whisper_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
@@ -81,7 +82,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     return true;
 }
 
-void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params) {
+void whisper_print_usage(int /*argc*/, const char ** argv, const whisper_params & params) {
     fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options]\n", argv[0]);
     fprintf(stderr, "\n");
@@ -172,7 +173,7 @@ Here is how {0} (A) continues the dialogue:
 
 A:)";
 
-int main(int argc, char ** argv) {
+int run(int argc, const char ** argv) {
     whisper_params params;
 
     if (whisper_params_parse(argc, argv, params) == false) {
@@ -374,3 +375,23 @@ int main(int argc, char ** argv) {
 
     return 0;
 }
+
+#if _WIN32
+int wmain(int argc, const wchar_t ** argv_UTF16LE) {
+    console::init(true, true);
+    atexit([]() { console::cleanup(); });
+    std::vector<std::string> buffer(argc);
+    std::vector<const char*> argv_UTF8(argc);
+    for (int i = 0; i < argc; ++i) {
+        buffer[i] = console::UTF16toUTF8(argv_UTF16LE[i]);
+        argv_UTF8[i] = buffer[i].c_str();
+    }
+    return run(argc, argv_UTF8.data());
+}
+#else
+int main(int argc, const char ** argv_UTF8) {
+    console::init(true, true);
+    atexit([]() { console::cleanup(); });
+    return run(argc, argv_UTF8);
+}
+#endif
