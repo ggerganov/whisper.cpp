@@ -751,7 +751,6 @@ int main(int argc, char ** argv) {
 
             wparams.thold_pt         = params.word_thold;
             wparams.max_len          = params.max_len == 0 ? 60 : params.max_len;
-            wparams.split_on_word    = params.split_on_word;
             wparams.audio_ctx        = params.audio_ctx;
 
             wparams.debug_mode       = params.debug_mode;
