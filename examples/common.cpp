@@ -894,7 +894,11 @@ int timestamp_to_sample(int64_t t, int n_samples, int whisper_sample_rate) {
 
 bool is_file_exist(const char *fileName)
 {
-    std::ifstream infile(fileName);
+    #ifdef _WIN32
+        std::wifstream infile(console::UTF8toUTF16(fileName).c_str());
+    #else
+        std::ifstream infile(fileName);
+    #endif
     return infile.good();
 }
 
