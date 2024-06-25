@@ -570,6 +570,7 @@ if (GGML_KOMPUTE)
 
     find_package(Vulkan COMPONENTS glslc REQUIRED)
     find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
+
     if (NOT glslc_executable)
         message(FATAL_ERROR "glslc not found")
     endif()
@@ -718,7 +719,7 @@ if (GGML_KOMPUTE)
         list(APPEND GGML_CDEF_PUBLIC GGML_USE_KOMPUTE)
 
         set(GGML_EXTRA_LIBS     ${GGML_EXTRA_LIBS}     kompute)
-        set(GGML_EXTRA_INCLUDES ${GGML_EXTRA_INCLUDES} ${CMAKE_BINARY_DIR})
+        set(GGML_EXTRA_INCLUDES ${GGML_EXTRA_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
     else()
         message(WARNING "Kompute not found")
     endif()
@@ -1129,7 +1130,7 @@ endif()
 
 # ggml
 
-add_library(ggml OBJECT
+add_library(ggml
             ../include/ggml.h
             ../include/ggml-alloc.h
             ../include/ggml-backend.h
@@ -1167,10 +1168,6 @@ if (MATH_LIBRARY)
     target_link_libraries(ggml PRIVATE ${MATH_LIBRARY})
 endif()
 
-add_library(ggml_static STATIC $<TARGET_OBJECTS:ggml>)
-
 if (BUILD_SHARED_LIBS)
     set_target_properties(ggml PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    add_library(ggml_shared SHARED $<TARGET_OBJECTS:ggml>)
-    target_link_libraries(ggml_shared PRIVATE Threads::Threads ${GGML_EXTRA_LIBS})
 endif()
