@@ -505,14 +505,15 @@ ifdef GGML_CUDA
 	endif
 
 	MK_CPPFLAGS  += -DGGML_USE_CUDA -I$(CUDA_PATH)/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include -DGGML_CUDA_USE_GRAPHS
-	MK_LDFLAGS   += -lcuda -lcublas -lculibos -lcudart -lcufft -lcublasLt -lpthread -ldl -lrt -L$(CUDA_PATH)/lib64 -L/usr/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L$(CUDA_PATH)/lib64/stubs -L/usr/lib/wsl/lib
+	#MK_LDFLAGS   += -lcuda -lcublas -lculibos -lcudart -lcufft -lcublasLt -lpthread -ldl -lrt -L$(CUDA_PATH)/lib64 -L/usr/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L$(CUDA_PATH)/lib64/stubs -L/usr/lib/wsl/lib
+	MK_LDFLAGS   += -lcuda -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L$(CUDA_PATH)/lib64 -L/usr/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L$(CUDA_PATH)/lib64/stubs -L/usr/lib/wsl/lib
 	MK_NVCCFLAGS += -use_fast_math
 
 	OBJ_GGML += ggml/src/ggml-cuda.o
 	OBJ_GGML += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/*.cu))
 	OBJ_GGML += $(OBJ_CUDA_TMPL)
 
-	OBJ_WHISPER += src/whisper-mel-cuda.o
+	#OBJ_WHISPER += src/whisper-mel-cuda.o
 
 ifdef WHISPER_FATAL_WARNINGS
 	MK_NVCCFLAGS += -Werror all-warnings
@@ -623,8 +624,8 @@ ggml/src/ggml-cuda.o: \
 	$(wildcard ggml/src/ggml-cuda/*.cuh)
 	$(NVCC_COMPILE)
 
-src/whisper-mel-cuda.o: src/whisper-mel-cuda.cu src/whisper-mel-cuda.hpp
-	$(NVCC) $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler "$(CUDA_CXXFLAGS)" -c $< -o $@
+#src/whisper-mel-cuda.o: src/whisper-mel-cuda.cu src/whisper-mel-cuda.hpp
+#	$(NVCC) $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler "$(CUDA_CXXFLAGS)" -c $< -o $@
 
 endif # GGML_CUDA
 
