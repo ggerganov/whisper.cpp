@@ -10,7 +10,7 @@ option(GGML_HOME       "whisper: Path to external GGML source" OFF)
 
 set(
     SOURCE_FILES
-    ${WHISPER_LIB_DIR}/whisper.cpp
+    ${WHISPER_LIB_DIR}/src/whisper.cpp
     ${CMAKE_SOURCE_DIR}/jni.c
     )
 
@@ -18,10 +18,10 @@ if (NOT GGML_HOME)
     set(
         SOURCE_FILES
         ${SOURCE_FILES}
-        ${WHISPER_LIB_DIR}/ggml.c
-        ${WHISPER_LIB_DIR}/ggml-alloc.c
-        ${WHISPER_LIB_DIR}/ggml-backend.c
-        ${WHISPER_LIB_DIR}/ggml-quants.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-alloc.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-backend.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-quants.c
         )
 endif()
 
@@ -75,3 +75,7 @@ endif ()
 build_library("whisper") # Default target
 
 include_directories(${WHISPER_LIB_DIR})
+include_directories(${WHISPER_LIB_DIR}/src)
+include_directories(${WHISPER_LIB_DIR}/include)
+include_directories(${WHISPER_LIB_DIR}/ggml/include)
+include_directories(${WHISPER_LIB_DIR}/ggml/src)

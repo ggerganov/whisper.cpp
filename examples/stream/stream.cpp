@@ -44,7 +44,7 @@ struct whisper_params {
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
 
-bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
+static bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 

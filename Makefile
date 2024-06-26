@@ -1,4 +1,89 @@
-default: main bench quantize server
+# Define the default target now so that it is always the first target
+BUILD_TARGETS = \
+	main \
+	bench \
+	quantize \
+	server \
+	tests/test-c.o
+
+# Binaries only useful for tests
+TEST_TARGETS = \
+	tests/test-backend-ops
+
+# Deprecation aliases
+ifdef WHISPER_CUBLAS
+$(error WHISPER_CUBLAS is removed. Use GGML_CUDA instead.)
+endif
+
+ifdef WHISPER_CUDA
+GGML_CUDA := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_KOMPUTE
+GGML_KOMPUTE := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_METAL
+GGML_METAL := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_OPENMP
+GGML_OPENMP := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_RPC
+GGML_RPC := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_SYCL
+GGML_SYCL := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_SYCL_F16
+GGML_SYCL_F16 := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_OPENBLAS
+GGML_OPENBLAS := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_OPENBLAS64
+GGML_OPENBLAS64 := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_BLIS
+GGML_BLIS := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_NO_WHISPERFILE
+GGML_NO_WHISPERFILE := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_NO_ACCELERATE
+GGML_NO_ACCELERATE := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_NO_OPENMP
+GGML_NO_OPENMP := 1
+DEPRECATE_WARNING := 1
+endif
+
+ifdef WHISPER_NO_METAL
+GGML_NO_METAL := 1
+DEPRECATE_WARNING := 1
+endif
 
 ifndef UNAME_S
 UNAME_S := $(shell uname -s)
@@ -12,12 +97,6 @@ ifndef UNAME_M
 UNAME_M := $(shell uname -m)
 endif
 
-ifndef NVCC_VERSION
-	ifeq ($(call,$(shell which nvcc))$(.SHELLSTATUS),0)
-		NVCC_VERSION := $(shell nvcc --version | egrep -o "V[0-9]+.[0-9]+.[0-9]+" | cut -c2-)
-	endif
-endif
-
 # In GNU make default CXX is g++ instead of c++.  Let's fix that so that users
 # of non-gcc compilers don't have to provide g++ alias or wrapper.
 DEFCC  := cc
@@ -29,16 +108,17 @@ ifeq ($(origin CXX),default)
 CXX := $(DEFCXX)
 endif
 
-CCV  := $(shell $(CC) --version | head -n 1)
-CXXV := $(shell $(CXX) --version | head -n 1)
-
 # Mac OS + Arm can report x86_64
 # ref: https://github.com/ggerganov/whisper.cpp/issues/66#issuecomment-1282546789
 ifeq ($(UNAME_S),Darwin)
-	WHISPER_NO_OPENMP := 1
+	ifndef GGML_NO_METAL
+		GGML_METAL := 1
+	endif
+
+	GGML_NO_OPENMP := 1
 
 	ifneq ($(UNAME_P),arm)
-		SYSCTL_M := $(shell sysctl -n hw.optional.arm64)
+		SYSCTL_M := $(shell sysctl -n hw.optional.arm64 2>/dev/null)
 		ifeq ($(SYSCTL_M),1)
 			# UNAME_P := arm
 			# UNAME_M := arm64
@@ -47,75 +127,201 @@ ifeq ($(UNAME_S),Darwin)
 	endif
 endif
 
+ifdef GGML_METAL
+	GGML_METAL_EMBED_LIBRARY := 1
+endif
+
+ifdef GGML_RPC
+	BUILD_TARGETS += rpc-server
+endif
+
+ifeq ($(shell sdl2-config --cflags --libs 2>/dev/null),)
+else
+	BUILD_TARGETS += \
+		command \
+		stream \
+		lsp \
+		talk \
+		talk-llama
+endif
+
+default: $(BUILD_TARGETS)
+
+test: $(TEST_TARGETS)
+	@failures=0; \
+	for test_target in $(TEST_TARGETS); do \
+		echo "Running test $$test_target..."; \
+		./$$test_target; \
+		if [ $$? -ne 0 ]; then \
+			printf 'Test %s FAILED!\n\n' $$test_target; \
+			failures=$$(( failures + 1 )); \
+		else \
+			printf 'Test %s passed.\n\n' $$test_target; \
+		fi; \
+	done; \
+	failures=$$(( failures + $$? )); \
+	if [ $$failures -gt 0 ]; then \
+		printf '\n%s tests failed.\n' $$failures; \
+		exit 1; \
+	fi
+	@echo 'All tests passed.'
+
+all: $(BUILD_TARGETS) $(TEST_TARGETS)
+
+ifdef RISCV_CROSS_COMPILE
+	CC	:= riscv64-unknown-linux-gnu-gcc
+	CXX	:= riscv64-unknown-linux-gnu-g++
+endif
+
 #
 # Compile flags
 #
 
-CFLAGS   = -I.              -O3 -DNDEBUG -std=c11   -fPIC
-CXXFLAGS = -I. -I./examples -O3 -DNDEBUG -std=c++11 -fPIC
-LDFLAGS  =
+# keep standard at C11 and C++11
+MK_CPPFLAGS  = -Iggml/include -Iggml/src -Iinclude -Isrc -Iexamples
+MK_CFLAGS    = -std=c11   -fPIC
+MK_CXXFLAGS  = -std=c++11 -fPIC
+MK_NVCCFLAGS = -std=c++11
 
-ifdef MACOSX_DEPLOYMENT_TARGET
-	CFLAGS   += -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
-	CXXFLAGS += -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
-	LDFLAGS  += -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
-endif
+ifndef WHISPER_NO_CCACHE
+CCACHE := $(shell which ccache)
+ifdef CCACHE
+export CCACHE_SLOPPINESS = time_macros
+$(info I ccache found, compilation results will be cached. Disable with WHISPER_NO_CCACHE.)
+CC    := $(CCACHE) $(CC)
+CXX   := $(CCACHE) $(CXX)
+else
+$(info I ccache not found. Consider installing it for faster compilation.)
+endif # CCACHE
+endif # WHISPER_NO_CCACHE
 
 # clock_gettime came in POSIX.1b (1993)
 # CLOCK_MONOTONIC came in POSIX.1-2001 / SUSv3 as optional
 # posix_memalign came in POSIX.1-2001 / SUSv3
 # M_PI is an XSI extension since POSIX.1-2001 / SUSv3, came in XPG1 (1985)
-CFLAGS   += -D_XOPEN_SOURCE=600
-CXXFLAGS += -D_XOPEN_SOURCE=600
+MK_CPPFLAGS += -D_XOPEN_SOURCE=600
 
 # Somehow in OpenBSD whenever POSIX conformance is specified
 # some string functions rely on locale_t availability,
 # which was introduced in POSIX.1-2008, forcing us to go higher
 ifeq ($(UNAME_S),OpenBSD)
-	CFLAGS   += -U_XOPEN_SOURCE -D_XOPEN_SOURCE=700
-	CXXFLAGS += -U_XOPEN_SOURCE -D_XOPEN_SOURCE=700
+	MK_CPPFLAGS += -U_XOPEN_SOURCE -D_XOPEN_SOURCE=700
 endif
 
-# Data types, macros and functions related to controlling CPU affinity
-# are available on Linux through GNU extensions in libc
+# Data types, macros and functions related to controlling CPU affinity and
+# some memory allocation are available on Linux through GNU extensions in libc
 ifeq ($(UNAME_S),Linux)
-	CFLAGS   += -D_GNU_SOURCE
-	CXXFLAGS += -D_GNU_SOURCE
+	MK_CPPFLAGS += -D_GNU_SOURCE
 endif
 
 # RLIMIT_MEMLOCK came in BSD, is not specified in POSIX.1,
 # and on macOS its availability depends on enabling Darwin extensions
 # similarly on DragonFly, enabling BSD extensions is necessary
 ifeq ($(UNAME_S),Darwin)
-	CFLAGS   += -D_DARWIN_C_SOURCE
-	CXXFLAGS += -D_DARWIN_C_SOURCE
+	MK_CPPFLAGS += -D_DARWIN_C_SOURCE
 endif
 ifeq ($(UNAME_S),DragonFly)
-	CFLAGS   += -D__BSD_VISIBLE
-	CXXFLAGS += -D__BSD_VISIBLE
+	MK_CPPFLAGS += -D__BSD_VISIBLE
 endif
 
 # alloca is a non-standard interface that is not visible on BSDs when
 # POSIX conformance is specified, but not all of them provide a clean way
 # to enable it in such cases
 ifeq ($(UNAME_S),FreeBSD)
-	CFLAGS   += -D__BSD_VISIBLE
-	CXXFLAGS += -D__BSD_VISIBLE
+	MK_CPPFLAGS += -D__BSD_VISIBLE
 endif
 ifeq ($(UNAME_S),NetBSD)
-	CFLAGS   += -D_NETBSD_SOURCE
-	CXXFLAGS += -D_NETBSD_SOURCE
+	MK_CPPFLAGS += -D_NETBSD_SOURCE
 endif
 ifeq ($(UNAME_S),OpenBSD)
-	CFLAGS   += -D_BSD_SOURCE
-	CXXFLAGS += -D_BSD_SOURCE
+	MK_CPPFLAGS += -D_BSD_SOURCE
+endif
+
+ifdef GGML_SCHED_MAX_COPIES
+	MK_CPPFLAGS += -DGGML_SCHED_MAX_COPIES=$(GGML_SCHED_MAX_COPIES)
+endif
+
+ifdef WHISPER_DEBUG
+	MK_CFLAGS    += -O0 -g
+	MK_CXXFLAGS  += -O0 -g
+	MK_LDFLAGS   += -g
+	MK_NVCCFLAGS += -O0 -g
+
+	ifeq ($(UNAME_S),Linux)
+		MK_CPPFLAGS += -D_GLIBCXX_ASSERTIONS
+	endif
+else
+	MK_CPPFLAGS += -DNDEBUG
+endif
+
+ifdef WHISPER_SANITIZE_THREAD
+	MK_CFLAGS   += -fsanitize=thread -g
+	MK_CXXFLAGS += -fsanitize=thread -g
+	MK_LDFLAGS  += -fsanitize=thread -g
+endif
+
+ifdef WHISPER_SANITIZE_ADDRESS
+	MK_CFLAGS   += -fsanitize=address -fno-omit-frame-pointer -g
+	MK_CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer -g
+	MK_LDFLAGS  += -fsanitize=address -fno-omit-frame-pointer -g
+endif
+
+ifdef WHISPER_SANITIZE_UNDEFINED
+	MK_CFLAGS   += -fsanitize=undefined -g
+	MK_CXXFLAGS += -fsanitize=undefined -g
+	MK_LDFLAGS  += -fsanitize=undefined -g
+endif
+
+ifdef WHISPER_SERVER_VERBOSE
+	MK_CPPFLAGS += -DSERVER_VERBOSE=$(WHISPER_SERVER_VERBOSE)
+endif
+
+ifdef WHISPER_SERVER_SSL
+	MK_CPPFLAGS += -DCPPHTTPLIB_OPENSSL_SUPPORT
+	MK_LDFLAGS  += -lssl -lcrypto
+endif
+
+ifdef WHISPER_DISABLE_LOGS
+	MK_CPPFLAGS += -DLOG_DISABLE_LOGS
+endif # WHISPER_DISABLE_LOGS
+
+# warnings
+WARN_FLAGS = \
+	-Wall \
+	-Wextra \
+	-Wpedantic \
+	-Wcast-qual \
+	-Wno-unused-function
+
+MK_CFLAGS += \
+	$(WARN_FLAGS) \
+	-Wshadow \
+	-Wstrict-prototypes \
+	-Wpointer-arith \
+	-Wmissing-prototypes \
+	-Werror=implicit-int \
+	-Werror=implicit-function-declaration
+
+MK_CXXFLAGS += \
+	$(WARN_FLAGS) \
+	-Wmissing-declarations \
+	-Wmissing-noreturn
+
+ifeq ($(WHISPER_FATAL_WARNINGS),1)
+	MK_CFLAGS   += -Werror
+	MK_CXXFLAGS += -Werror
+endif
+
+# this version of Apple ld64 is buggy
+ifneq '' '$(findstring dyld-1015.7,$(shell $(CC) $(LDFLAGS) -Wl,-v 2>&1))'
+	MK_CPPFLAGS += -DHAVE_BUGGY_APPLE_LINKER
 endif
 
 # OS specific
 # TODO: support Windows
-ifeq ($(filter $(UNAME_S),Linux Darwin DragonFly FreeBSD NetBSD OpenBSD Haiku),$(UNAME_S))
-	CFLAGS   += -pthread
-	CXXFLAGS += -pthread
+ifneq '' '$(filter $(UNAME_S),Linux Darwin FreeBSD NetBSD OpenBSD Haiku)'
+	MK_CFLAGS   += -pthread
+	MK_CXXFLAGS += -pthread
 endif
 
 # detect Windows
@@ -123,253 +329,508 @@ ifneq ($(findstring _NT,$(UNAME_S)),)
 	_WIN32 := 1
 endif
 
+# library name prefix
+ifneq ($(_WIN32),1)
+	LIB_PRE := lib
+endif
+
+# Dynamic Shared Object extension
+ifneq ($(_WIN32),1)
+	DSO_EXT := .so
+else
+	DSO_EXT := .dll
+endif
+
 # Windows Sockets 2 (Winsock) for network-capable apps
 ifeq ($(_WIN32),1)
 	LWINSOCK2 := -lws2_32
 endif
 
+ifdef WHISPER_GPROF
+	MK_CFLAGS   += -pg
+	MK_CXXFLAGS += -pg
+endif
+
 # Architecture specific
 # TODO: probably these flags need to be tweaked on some architectures
 #       feel free to update the Makefile for your architecture and send a pull request or issue
+
+ifndef RISCV
+
 ifeq ($(UNAME_M),$(filter $(UNAME_M),x86_64 i686 amd64))
-	ifeq ($(UNAME_S),Darwin)
-		CPUINFO_CMD := sysctl machdep.cpu.features machdep.cpu.leaf7_features
-	else ifeq ($(UNAME_S),Linux)
-		CPUINFO_CMD := cat /proc/cpuinfo
-	else ifneq (,$(filter MINGW32_NT% MINGW64_NT% MSYS_NT%,$(UNAME_S)))
-		CPUINFO_CMD := cat /proc/cpuinfo
-	else ifneq (,$(filter DragonFly FreeBSD,$(UNAME_S)))
-		CPUINFO_CMD := grep Features /var/run/dmesg.boot
-	else ifeq ($(UNAME_S),Haiku)
-		CPUINFO_CMD := sysinfo -cpu
-	endif
+	# Use all CPU extensions that are available:
+	MK_CFLAGS     += -march=native -mtune=native
+	HOST_CXXFLAGS += -march=native -mtune=native
 
-	# x86 ISA extensions (chronological order)
-	ifdef CPUINFO_CMD
-		SSE3_M := $(shell $(CPUINFO_CMD) | grep -iwE 'PNI|SSE3')
-		SSSE3_M := $(shell $(CPUINFO_CMD) | grep -iw 'SSSE3')
-		AVX_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX|AVX1.0')
-		F16C_M := $(shell $(CPUINFO_CMD) | grep -iw 'F16C')
-		FMA_M := $(shell $(CPUINFO_CMD) | grep -iw 'FMA')
-		AVX2_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX2')
-		AVX512F_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512F')
-		AVX512VBMI_M := $(shell $(CPUINFO_CMD) | grep -iw 'AVX512VBMI')
-		AVX512VNNI_M := $(shell $(CPUINFO_CMD) | grep -iwE 'AVX512_VNNI|AVX512VNNI')
+	# Usage AVX-only
+	#MK_CFLAGS   += -mfma -mf16c -mavx
+	#MK_CXXFLAGS += -mfma -mf16c -mavx
 
-		# AVX-512 has many subsets, so let's make it easy to disable them all
-		ifneq ($(filter-out 0,$(WHISPER_NO_AVX512)),)
-			AVX512F_M :=
-			AVX512VBMI_M :=
-			AVX512VNNI_M :=
-		endif
+	# Usage SSSE3-only (Not is SSE3!)
+	#MK_CFLAGS   += -mssse3
+	#MK_CXXFLAGS += -mssse3
+endif
 
-		ifneq (,$(SSE3_M))
-			CFLAGS   += -msse3
-			CXXFLAGS += -msse3
-		endif
+ifneq '' '$(findstring mingw,$(shell $(CC) -dumpmachine))'
+	# The stack is only 16-byte aligned on Windows, so don't let gcc emit aligned moves.
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=54412
+	# https://github.com/ggerganov/llama.cpp/issues/2922
+	MK_CFLAGS   += -Xassembler -muse-unaligned-vector-move
+	MK_CXXFLAGS += -Xassembler -muse-unaligned-vector-move
 
-		ifneq (,$(SSSE3_M))
-			CFLAGS   += -mssse3
-			CXXFLAGS += -mssse3
-		endif
+	# Target Windows 8 for PrefetchVirtualMemory
+	MK_CPPFLAGS += -D_WIN32_WINNT=0x602
+endif
 
-		ifneq (,$(AVX_M))
-			CFLAGS   += -mavx
-			CXXFLAGS += -mavx
-		endif
-
-		ifneq (,$(F16C_M))
-			CFLAGS   += -mf16c
-			CXXFLAGS += -mf16c
-		endif
-
-		ifneq (,$(FMA_M))
-			CFLAGS   += -mfma
-			CXXFLAGS += -mfma
-		endif
-
-		ifneq (,$(AVX2_M))
-			CFLAGS   += -mavx2
-			CXXFLAGS += -mavx2
-		endif
-
-		ifneq (,$(AVX512F_M))
-			CFLAGS   += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
-			CXXFLAGS += -mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw
-		endif
-
-		ifneq (,$(AVX512VBMI_M))
-			CFLAGS   += -mavx512vbmi
-			CXXFLAGS += -mavx512vbmi
-		endif
-
-		ifneq (,$(AVX512VNNI_M))
-			CFLAGS   += -mavx512vnni
-			CXXFLAGS += -mavx512vnni
+ifneq ($(filter aarch64%,$(UNAME_M)),)
+	# Apple M1, M2, etc.
+	# Raspberry Pi 3, 4, Zero 2 (64-bit)
+	# Nvidia Jetson
+	MK_CFLAGS   += -mcpu=native
+	MK_CXXFLAGS += -mcpu=native
+	JETSON_RELEASE_INFO = $(shell jetson_release)
+	ifdef JETSON_RELEASE_INFO
+		ifneq ($(filter TX2%,$(JETSON_RELEASE_INFO)),)
+			JETSON_EOL_MODULE_DETECT = 1
+			CC = aarch64-unknown-linux-gnu-gcc
+			cxx = aarch64-unknown-linux-gnu-g++
 		endif
 	endif
+endif
+
+ifneq ($(filter armv6%,$(UNAME_M)),)
+	# Raspberry Pi 1, Zero
+	MK_CFLAGS   += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access
+	MK_CXXFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access
+endif
+
+ifneq ($(filter armv7%,$(UNAME_M)),)
+	# Raspberry Pi 2
+	MK_CFLAGS   += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations
+	MK_CXXFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -mno-unaligned-access -funsafe-math-optimizations
+endif
+
+ifneq ($(filter armv8%,$(UNAME_M)),)
+	# Raspberry Pi 3, 4, Zero 2 (32-bit)
+	MK_CFLAGS   += -mfp16-format=ieee -mno-unaligned-access
+	MK_CXXFLAGS += -mfp16-format=ieee -mno-unaligned-access
 endif
 
 ifneq ($(filter ppc64%,$(UNAME_M)),)
 	POWER9_M := $(shell grep "POWER9" /proc/cpuinfo)
 	ifneq (,$(findstring POWER9,$(POWER9_M)))
-		CFLAGS += -mpower9-vector
-	endif
-	# Require c++23's std::byteswap for big-endian support.
-	ifeq ($(UNAME_M),ppc64)
-		CXXFLAGS += -std=c++23 -DGGML_BIG_ENDIAN
+		MK_CFLAGS   += -mcpu=power9
+		MK_CXXFLAGS += -mcpu=power9
 	endif
 endif
 
-ifndef WHISPER_NO_ACCELERATE
-	# Mac M1 - include Accelerate framework
-	ifeq ($(UNAME_S),Darwin)
-		CFLAGS      += -DGGML_USE_ACCELERATE -DGGML_USE_BLAS
-		CFLAGS      += -DACCELERATE_NEW_LAPACK
-		CFLAGS      += -DACCELERATE_LAPACK_ILP64
-		CXXFLAGS    += -DGGML_USE_ACCELERATE -DGGML_USE_BLAS
-		CXXFLAGS    += -DACCELERATE_NEW_LAPACK
-		CXXFLAGS    += -DACCELERATE_LAPACK_ILP64
-		LDFLAGS     += -framework Accelerate
-		WHISPER_OBJ += ggml-blas.o
-	endif
+ifneq ($(filter ppc64le%,$(UNAME_M)),)
+	MK_CFLAGS   += -mcpu=powerpc64le
+	MK_CXXFLAGS += -mcpu=powerpc64le
+	CUDA_POWER_ARCH = 1
 endif
+
+ifneq ($(filter loongarch64%,$(UNAME_M)),)
+	MK_CFLAGS   += -mlasx
+	MK_CXXFLAGS += -mlasx
+endif
+
+else
+	MK_CFLAGS   += -march=rv64gcv -mabi=lp64d
+	MK_CXXFLAGS += -march=rv64gcv -mabi=lp64d
+endif
+
+ifndef GGML_NO_ACCELERATE
+	# Mac OS - include Accelerate framework.
+	# `-framework Accelerate` works both with Apple Silicon and Mac Intel
+	ifeq ($(UNAME_S),Darwin)
+		MK_CPPFLAGS += -DGGML_USE_ACCELERATE -DGGML_USE_BLAS
+		MK_CPPFLAGS += -DACCELERATE_NEW_LAPACK
+		MK_CPPFLAGS += -DACCELERATE_LAPACK_ILP64
+		MK_LDFLAGS  += -framework Accelerate
+		OBJ_GGML    += ggml/src/ggml-blas.o
+	endif
+endif # GGML_NO_ACCELERATE
+
+ifndef GGML_NO_OPENMP
+	MK_CPPFLAGS += -DGGML_USE_OPENMP
+	MK_CFLAGS   += -fopenmp
+	MK_CXXFLAGS += -fopenmp
+endif # GGML_NO_OPENMP
+
+ifdef GGML_OPENBLAS
+	MK_CPPFLAGS += -DGGML_USE_BLAS $(shell pkg-config --cflags-only-I openblas)
+	MK_CFLAGS   += $(shell pkg-config --cflags-only-other openblas)
+	MK_LDFLAGS  += $(shell pkg-config --libs openblas)
+	OBJ_GGML    += ggml/src/ggml-blas.o
+endif # GGML_OPENBLAS
+
+ifdef GGML_OPENBLAS64
+	MK_CPPFLAGS += -DGGML_USE_BLAS $(shell pkg-config --cflags-only-I openblas64)
+	MK_CFLAGS   += $(shell pkg-config --cflags-only-other openblas64)
+	MK_LDFLAGS  += $(shell pkg-config --libs openblas64)
+	OBJ_GGML    += ggml/src/ggml-blas.o
+endif # GGML_OPENBLAS64
+
+ifdef GGML_BLIS
+	MK_CPPFLAGS += -DGGML_USE_BLAS -I/usr/local/include/blis -I/usr/include/blis
+	MK_LDFLAGS  += -lblis -L/usr/local/lib
+	OBJ_GGML    += ggml/src/ggml-blas.o
+endif # GGML_BLIS
+
+ifdef GGML_RPC
+	MK_CPPFLAGS += -DGGML_USE_RPC
+	OBJ_GGML    += ggml/src/ggml-rpc.o
+endif # GGML_RPC
+
+OBJ_CUDA_TMPL      = $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/template-instances/fattn-wmma*.cu))
+OBJ_CUDA_TMPL     += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/template-instances/mmq*.cu))
+
+ifdef GGML_CUDA_FA_ALL_QUANTS
+	OBJ_CUDA_TMPL += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/template-instances/fattn-vec*.cu))
+else
+	OBJ_CUDA_TMPL += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu))
+	OBJ_CUDA_TMPL += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu))
+	OBJ_CUDA_TMPL += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/template-instances/fattn-vec*f16-f16.cu))
+endif # GGML_CUDA_FA_ALL_QUANTS
+
+ifdef GGML_CUDA
+	ifneq ('', '$(wildcard /opt/cuda)')
+		CUDA_PATH ?= /opt/cuda
+	else
+		CUDA_PATH ?= /usr/local/cuda
+	endif
+
+	MK_CPPFLAGS  += -DGGML_USE_CUDA -I$(CUDA_PATH)/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include -DGGML_CUDA_USE_GRAPHS
+	MK_LDFLAGS   += -lcuda -lcublas -lculibos -lcudart -lcufft -lcublasLt -lpthread -ldl -lrt -L$(CUDA_PATH)/lib64 -L/usr/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L$(CUDA_PATH)/lib64/stubs -L/usr/lib/wsl/lib
+	MK_NVCCFLAGS += -use_fast_math
+
+	OBJ_GGML += ggml/src/ggml-cuda.o
+	OBJ_GGML += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/*.cu))
+	OBJ_GGML += $(OBJ_CUDA_TMPL)
+
+	OBJ_WHISPER += src/whisper-mel-cuda.o
+
+ifdef WHISPER_FATAL_WARNINGS
+	MK_NVCCFLAGS += -Werror all-warnings
+endif # WHISPER_FATAL_WARNINGS
+
+ifndef JETSON_EOL_MODULE_DETECT
+	MK_NVCCFLAGS += --forward-unknown-to-host-compiler
+endif # JETSON_EOL_MODULE_DETECT
+
+ifdef WHISPER_DEBUG
+	MK_NVCCFLAGS += -lineinfo
+endif # WHISPER_DEBUG
+
+ifdef GGML_CUDA_DEBUG
+	MK_NVCCFLAGS += --device-debug
+endif # GGML_CUDA_DEBUG
+
+ifdef GGML_CUDA_NVCC
+	NVCC = $(CCACHE) $(GGML_CUDA_NVCC)
+else
+	NVCC = $(CCACHE) nvcc
+endif #GGML_CUDA_NVCC
+
+ifdef CUDA_DOCKER_ARCH
+	MK_NVCCFLAGS += -Wno-deprecated-gpu-targets -arch=$(CUDA_DOCKER_ARCH)
+else ifndef CUDA_POWER_ARCH
+	MK_NVCCFLAGS += -arch=native
+endif # CUDA_DOCKER_ARCH
+
+ifdef GGML_CUDA_FORCE_DMMV
+	MK_NVCCFLAGS += -DGGML_CUDA_FORCE_DMMV
+endif # GGML_CUDA_FORCE_DMMV
+
+ifdef GGML_CUDA_FORCE_MMQ
+	MK_NVCCFLAGS += -DGGML_CUDA_FORCE_MMQ
+endif # GGML_CUDA_FORCE_MMQ
+
+ifdef GGML_CUDA_DMMV_X
+	MK_NVCCFLAGS += -DGGML_CUDA_DMMV_X=$(GGML_CUDA_DMMV_X)
+else
+	MK_NVCCFLAGS += -DGGML_CUDA_DMMV_X=32
+endif # GGML_CUDA_DMMV_X
+
+ifdef GGML_CUDA_MMV_Y
+	MK_NVCCFLAGS += -DGGML_CUDA_MMV_Y=$(GGML_CUDA_MMV_Y)
+else ifdef GGML_CUDA_DMMV_Y
+	MK_NVCCFLAGS += -DGGML_CUDA_MMV_Y=$(GGML_CUDA_DMMV_Y) # for backwards compatibility
+else
+	MK_NVCCFLAGS += -DGGML_CUDA_MMV_Y=1
+endif # GGML_CUDA_MMV_Y
+
+ifdef GGML_CUDA_F16
+	MK_NVCCFLAGS += -DGGML_CUDA_F16
+endif # GGML_CUDA_F16
+
+ifdef GGML_CUDA_DMMV_F16
+	MK_NVCCFLAGS += -DGGML_CUDA_F16
+endif # GGML_CUDA_DMMV_F16
+
+ifdef GGML_CUDA_KQUANTS_ITER
+	MK_NVCCFLAGS += -DK_QUANTS_PER_ITERATION=$(GGML_CUDA_KQUANTS_ITER)
+else
+	MK_NVCCFLAGS += -DK_QUANTS_PER_ITERATION=2
+endif
+
+ifdef GGML_CUDA_PEER_MAX_BATCH_SIZE
+	MK_NVCCFLAGS += -DGGML_CUDA_PEER_MAX_BATCH_SIZE=$(GGML_CUDA_PEER_MAX_BATCH_SIZE)
+else
+	MK_NVCCFLAGS += -DGGML_CUDA_PEER_MAX_BATCH_SIZE=128
+endif # GGML_CUDA_PEER_MAX_BATCH_SIZE
+
+ifdef GGML_CUDA_NO_PEER_COPY
+	MK_NVCCFLAGS += -DGGML_CUDA_NO_PEER_COPY
+endif # GGML_CUDA_NO_PEER_COPY
+
+ifdef GGML_CUDA_CCBIN
+	MK_NVCCFLAGS += -ccbin $(GGML_CUDA_CCBIN)
+endif # GGML_CUDA_CCBIN
+
+ifdef GGML_CUDA_FA_ALL_QUANTS
+	MK_NVCCFLAGS += -DGGML_CUDA_FA_ALL_QUANTS
+endif # GGML_CUDA_FA_ALL_QUANTS
+
+ifdef JETSON_EOL_MODULE_DETECT
+define NVCC_COMPILE
+	$(NVCC) -I. -Icommon -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -DNDEBUG -DGGML_USE_CUDA -I/usr/local/cuda/include -I/opt/cuda/include -I/usr/local/cuda/targets/aarch64-linux/include -std=c++11 -O3 $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler "$(CUDA_CXXFLAGS)" -c $< -o $@
+endef # NVCC_COMPILE
+else
+define NVCC_COMPILE
+	$(NVCC) $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler "$(CUDA_CXXFLAGS)" -c $< -o $@
+endef # NVCC_COMPILE
+endif # JETSON_EOL_MODULE_DETECT
+
+ggml/src/ggml-cuda/%.o: \
+	ggml/src/ggml-cuda/%.cu \
+	ggml/include/ggml.h \
+	ggml/src/ggml-common.h \
+	ggml/src/ggml-cuda/common.cuh
+	$(NVCC_COMPILE)
+
+ggml/src/ggml-cuda.o: \
+	ggml/src/ggml-cuda.cu \
+	ggml/include/ggml.h \
+	ggml/include/ggml-backend.h \
+	ggml/include/ggml-cuda.h \
+	ggml/src/ggml-backend-impl.h \
+	ggml/src/ggml-common.h \
+	$(wildcard ggml/src/ggml-cuda/*.cuh)
+	$(NVCC_COMPILE)
+
+src/whisper-mel-cuda.o: src/whisper-mel-cuda.cu src/whisper-mel-cuda.hpp
+	$(NVCC) $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler "$(CUDA_CXXFLAGS)" -c $< -o $@
+
+endif # GGML_CUDA
+
+ifdef GGML_VULKAN
+	MK_CPPFLAGS += -DGGML_USE_VULKAN
+	MK_LDFLAGS  += -lvulkan
+	OBJ_GGML    += ggml/src/ggml-vulkan.o
+
+ifdef GGML_VULKAN_CHECK_RESULTS
+	MK_CPPFLAGS  += -DGGML_VULKAN_CHECK_RESULTS
+endif
+
+ifdef GGML_VULKAN_DEBUG
+	MK_CPPFLAGS  += -DGGML_VULKAN_DEBUG
+endif
+
+ifdef GGML_VULKAN_MEMORY_DEBUG
+	MK_CPPFLAGS  += -DGGML_VULKAN_MEMORY_DEBUG
+endif
+
+ifdef GGML_VULKAN_VALIDATE
+	MK_CPPFLAGS  += -DGGML_VULKAN_VALIDATE
+endif
+
+ifdef GGML_VULKAN_RUN_TESTS
+	MK_CPPFLAGS  += -DGGML_VULKAN_RUN_TESTS
+endif
+
+ggml/src/ggml-vulkan.o: \
+	ggml/src/ggml-vulkan.cpp \
+	ggml/include/ggml-vulkan.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+endif # GGML_VULKAN
+
+ifdef GGML_HIPBLAS
+	ifeq ($(wildcard /opt/rocm),)
+		ROCM_PATH      ?= /usr
+		AMDGPU_TARGETS ?= $(shell $(shell which amdgpu-arch))
+	else
+		ROCM_PATH	?= /opt/rocm
+		AMDGPU_TARGETS ?= $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
+	endif
+
+	GGML_CUDA_DMMV_X       ?= 32
+	GGML_CUDA_MMV_Y        ?= 1
+	GGML_CUDA_KQUANTS_ITER ?= 2
+
+	MK_CPPFLAGS += -DGGML_USE_HIPBLAS -DGGML_USE_CUDA
+
+ifdef GGML_HIP_UMA
+	MK_CPPFLAGS += -DGGML_HIP_UMA
+endif # GGML_HIP_UMA
+
+	MK_LDFLAGS += -L$(ROCM_PATH)/lib -Wl,-rpath=$(ROCM_PATH)/lib
+	MK_LDFLAGS += -L$(ROCM_PATH)/lib64 -Wl,-rpath=$(ROCM_PATH)/lib64
+	MK_LDFLAGS += -lhipblas -lamdhip64 -lrocblas
+
+	HIPCC ?= $(CCACHE) $(ROCM_PATH)/bin/hipcc
+
+	HIPFLAGS += $(addprefix --offload-arch=,$(AMDGPU_TARGETS))
+	HIPFLAGS += -DGGML_CUDA_DMMV_X=$(GGML_CUDA_DMMV_X)
+	HIPFLAGS += -DGGML_CUDA_MMV_Y=$(GGML_CUDA_MMV_Y)
+	HIPFLAGS += -DK_QUANTS_PER_ITERATION=$(GGML_CUDA_KQUANTS_ITER)
+
+ifdef GGML_CUDA_FORCE_DMMV
+	HIPFLAGS += -DGGML_CUDA_FORCE_DMMV
+endif # GGML_CUDA_FORCE_DMMV
+
+ifdef GGML_CUDA_NO_PEER_COPY
+	HIPFLAGS += -DGGML_CUDA_NO_PEER_COPY
+endif # GGML_CUDA_NO_PEER_COPY
+
+	OBJ_GGML += ggml/src/ggml-cuda.o
+	OBJ_GGML += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/*.cu))
+	OBJ_GGML += $(OBJ_CUDA_TMPL)
+
+ggml/src/ggml-cuda.o: \
+	ggml/src/ggml-cuda.cu \
+	ggml/include/ggml.h \
+	ggml/include/ggml-backend.h \
+	ggml/include/ggml-cuda.h \
+	ggml/src/ggml-backend-impl.h \
+	ggml/src/ggml-common.h \
+	$(wildcard ggml/src/ggml-cuda/*.cuh)
+	$(HIPCC) $(CXXFLAGS) $(HIPFLAGS) -x hip -c -o $@ $<
+
+ggml/src/ggml-cuda/%.o: \
+	ggml/src/ggml-cuda/%.cu \
+	ggml/include/ggml.h \
+	ggml/src/ggml-common.h \
+	ggml/src/ggml-cuda/common.cuh
+	$(HIPCC) $(CXXFLAGS) $(HIPFLAGS) -x hip -c -o $@ $<
+endif # GGML_HIPBLAS
+
+ifdef GGML_METAL
+	MK_CPPFLAGS += -DGGML_USE_METAL
+	MK_LDFLAGS  += -framework Foundation -framework Metal -framework MetalKit
+	OBJ_GGML	+= ggml/src/ggml-metal.o
+ifdef GGML_METAL_NDEBUG
+	MK_CPPFLAGS += -DGGML_METAL_NDEBUG
+endif
+
+ifdef GGML_METAL_EMBED_LIBRARY
+	MK_CPPFLAGS += -DGGML_METAL_EMBED_LIBRARY
+	OBJ_GGML    += ggml/src/ggml-metal-embed.o
+endif
+endif # GGML_METAL
 
 ifdef WHISPER_COREML
-	CXXFLAGS += -DWHISPER_USE_COREML
-	LDFLAGS  += -framework Foundation -framework CoreML
+	MK_CXXFLAGS += -DWHISPER_USE_COREML
+	LDFLAGS     += -framework Foundation -framework CoreML
 
 ifdef WHISPER_COREML_ALLOW_FALLBACK
-	CXXFLAGS += -DWHISPER_COREML_ALLOW_FALLBACK
+	MK_CXXFLAGS += -DWHISPER_COREML_ALLOW_FALLBACK
 endif
 endif
 
-ifndef WHISPER_NO_METAL
-	ifeq ($(UNAME_S),Darwin)
-		WHISPER_METAL := 1
+# ===
 
-		CFLAGS   += -DGGML_USE_METAL
-		CXXFLAGS += -DGGML_USE_METAL
-		LDFLAGS  += -framework Foundation -framework Metal -framework MetalKit
-	endif
+ifdef GGML_METAL
+ggml/src/ggml-metal.o: \
+	ggml/src/ggml-metal.m \
+	ggml/include/ggml-metal.h \
+	ggml/include/ggml.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+ifdef GGML_METAL_EMBED_LIBRARY
+ggml/src/ggml-metal-embed.o: \
+	ggml/src/ggml-metal.metal \
+	ggml/src/ggml-common.h
+	@echo "Embedding Metal library"
+	@sed -e '/#include "ggml-common.h"/r ggml/src/ggml-common.h' -e '/#include "ggml-common.h"/d' < ggml/src/ggml-metal.metal > ggml/src/ggml-metal-embed.metal
+	$(eval TEMP_ASSEMBLY=$(shell mktemp))
+	@echo ".section __DATA, __ggml_metallib"            >  $(TEMP_ASSEMBLY)
+	@echo ".globl _ggml_metallib_start"                 >> $(TEMP_ASSEMBLY)
+	@echo "_ggml_metallib_start:"                       >> $(TEMP_ASSEMBLY)
+	@echo ".incbin \"ggml/src/ggml-metal-embed.metal\"" >> $(TEMP_ASSEMBLY)
+	@echo ".globl _ggml_metallib_end"                   >> $(TEMP_ASSEMBLY)
+	@echo "_ggml_metallib_end:"                         >> $(TEMP_ASSEMBLY)
+	@$(AS) $(TEMP_ASSEMBLY) -o $@
+	@rm -f ${TEMP_ASSEMBLY}
+endif
+endif # GGML_METAL
+
+ifdef WHISPER_COREML
+src/coreml/whisper-encoder.o: src/coreml/whisper-encoder.mm src/coreml/whisper-encoder.h
+	$(CXX) -O3 -I . -fobjc-arc -c src/coreml/whisper-encoder.mm -o src/coreml/whisper-encoder.o
+
+src/coreml/whisper-encoder-impl.o: src/coreml/whisper-encoder-impl.m src/coreml/whisper-encoder-impl.h
+	$(CXX) -O3 -I . -fobjc-arc -c src/coreml/whisper-encoder-impl.m -o src/coreml/whisper-encoder-impl.o
+
+OBJ_WHISPER += src/coreml/whisper-encoder.o src/coreml/whisper-encoder-impl.o
 endif
 
-ifndef WHISPER_NO_OPENMP
-	CXXFLAGS += -DGGML_USE_OPENMP
-	CFLAGS   += -fopenmp
-	CXXFLAGS += -fopenmp
-endif # WHISPER_NO_OPENMP
+OBJ_GGML += \
+	ggml/src/ggml.o \
+	ggml/src/ggml-alloc.o \
+	ggml/src/ggml-backend.o \
+	ggml/src/ggml-quants.o
 
-ifdef WHISPER_OPENBLAS
-	CXXFLAGS    += -DGGML_USE_BLAS $(shell pkg-config --cflags-only-I openblas)
-	CFLAGS      += $(shell pkg-config --cflags-only-other openblas)
-	LDFLAGS     += $(shell pkg-config --libs openblas)
-	WHISPER_OBJ += ggml-blas.o
-endif # WHISPER_OPENBLAS
+OBJ_WHISPER += \
+	src/whisper.o
 
-ifdef WHISPER_OPENBLAS64
-	CXXFLAGS    += -DGGML_USE_BLAS $(shell pkg-config --cflags-only-I openblas64)
-	CFLAGS      += $(shell pkg-config --cflags-only-other openblas64)
-	LDFLAGS     += $(shell pkg-config --libs openblas64)
-	WHISPER_OBJ += ggml-blas.o
-endif # WHISPER_OPENBLAS64
+OBJ_COMMON += \
+	examples/common.o \
+	examples/common-ggml.o \
+	examples/grammar-parser.o
 
-ifdef WHISPER_BLIS
-	CXXFLAGS    += -DGGML_USE_BLAS -I/usr/local/include/blis -I/usr/include/blis
-	LDFLAGS     += -lblis -L/usr/local/lib
-	WHISPER_OBJ += ggml-blas.o
-endif # WHISPER_BLIS
+OBJ_SDL += \
+	examples/common-sdl.o
 
-ifdef WHISPER_CUBLAS
-# WHISPER_CUBLAS is deprecated and will be removed in the future
-	WHISPER_CUDA := 1
+OBJ_ALL = $(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON) $(OBJ_SDL)
+
+LIB_GGML   = $(LIB_PRE)ggml$(DSO_EXT)
+LIB_GGML_S = $(LIB_PRE)ggml.a
+
+LIB_WHISPER   = $(LIB_PRE)whisper$(DSO_EXT)
+LIB_WHISPER_S = $(LIB_PRE)whisper.a
+
+LIB_COMMON   = $(LIB_PRE)common$(DSO_EXT)
+LIB_COMMON_S = $(LIB_PRE)common.a
+
+LIB_COMMON_SDL   = $(LIB_PRE)common-sdl$(DSO_EXT)
+LIB_COMMON_SDL_S = $(LIB_PRE)common-sdl.a
+
+LIB_ALL   = $(LIB_GGML)   $(LIB_WHISPER)   $(LIB_COMMON)   $(LIB_COMMON_SDL)
+LIB_ALL_S = $(LIB_GGML_S) $(LIB_WHISPER_S) $(LIB_COMMON_S) $(LIB_COMMON_SDL_S)
+
+GF_CC := $(CC)
+include scripts/get-flags.mk
+
+# combine build flags with cmdline overrides
+override CPPFLAGS  := $(MK_CPPFLAGS) $(CPPFLAGS)
+override CFLAGS    := $(CPPFLAGS) $(MK_CFLAGS) $(GF_CFLAGS) $(CFLAGS)
+BASE_CXXFLAGS      := $(MK_CXXFLAGS) $(CXXFLAGS)
+override CXXFLAGS  := $(BASE_CXXFLAGS) $(HOST_CXXFLAGS) $(GF_CXXFLAGS) $(CPPFLAGS)
+override NVCCFLAGS := $(MK_NVCCFLAGS) $(NVCCFLAGS)
+override LDFLAGS   := $(MK_LDFLAGS) $(LDFLAGS)
+
+# identify CUDA host compiler
+ifdef GGML_CUDA
+GF_CC := $(NVCC) $(NVCCFLAGS) 2>/dev/null .c -Xcompiler
+include scripts/get-flags.mk
+CUDA_CXXFLAGS := $(BASE_CXXFLAGS) $(GF_CXXFLAGS) -Wno-pedantic
 endif
 
-OBJS_CUDA_TEMP_INST      = $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-wmma*.cu))
-OBJS_CUDA_TEMP_INST     += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/mmq*.cu))
-ifdef WHISPER_CUDA_FA_ALL_QUANTS
-	OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*.cu))
-else
-	OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*q4_0-q4_0.cu))
-	OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*q8_0-q8_0.cu))
-	OBJS_CUDA_TEMP_INST += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/template-instances/fattn-vec*f16-f16.cu))
-endif # WHISPER_CUDA_FA_ALL_QUANTS
-
-ifdef WHISPER_CUDA
-	ifeq ($(shell expr $(NVCC_VERSION) \>= 11.6), 1)
-		CUDA_ARCH_FLAG ?= native
-	else
-		CUDA_ARCH_FLAG ?= all
-	endif
-
-	CFLAGS      += -DGGML_USE_CUDA -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include
-	CXXFLAGS    += -DGGML_USE_CUDA -I/usr/local/cuda/include -I/opt/cuda/include -I$(CUDA_PATH)/targets/$(UNAME_M)-linux/include -DGGML_CUDA_USE_GRAPHS
-	LDFLAGS     += -lcuda -lcublas -lculibos -lcudart -lcublasLt -lcufft -lpthread -ldl -lrt -L/usr/local/cuda/lib64 -L/opt/cuda/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L/usr/lib/wsl/lib
-	WHISPER_OBJ += ggml-cuda.o whisper-mel-cuda.o
-	WHISPER_OBJ += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/*.cu))
-	WHISPER_OBJ += $(OBJS_CUDA_TEMP_INST)
-	NVCC        = nvcc
-	NVCCFLAGS   = --forward-unknown-to-host-compiler -arch=$(CUDA_ARCH_FLAG)
-
-ggml-cuda/%.o: ggml-cuda/%.cu ggml.h ggml-common.h ggml-cuda/common.cuh
-	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -c $< -o $@
-
-ggml-cuda.o: ggml-cuda.cu ggml-cuda.h ggml.h ggml-backend.h ggml-backend-impl.h ggml-common.h $(wildcard ggml-cuda/*.cuh)
-	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
-
-whisper-mel-cuda.o: whisper-mel-cuda.cu whisper.h ggml.h ggml-backend.h whisper-mel.hpp whisper-mel-cuda.hpp
-	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -Wno-pedantic -c $< -o $@
-endif
-
-ifdef WHISPER_HIPBLAS
-	ROCM_PATH   ?= /opt/rocm
-	HIPCC       ?= $(ROCM_PATH)/bin/hipcc
-	GPU_TARGETS ?= $(shell $(ROCM_PATH)/llvm/bin/amdgpu-arch)
-	CFLAGS      += -DGGML_USE_HIPBLAS -DGGML_USE_CUDA
-	CXXFLAGS    += -DGGML_USE_HIPBLAS -DGGML_USE_CUDA
-	LDFLAGS     += -L$(ROCM_PATH)/lib -Wl,-rpath=$(ROCM_PATH)/lib
-	LDFLAGS     += -lhipblas -lamdhip64 -lrocblas
-	HIPFLAGS    += $(addprefix --offload-arch=,$(GPU_TARGETS))
-	WHISPER_OBJ += ggml-cuda.o
-	WHISPER_OBJ += $(patsubst %.cu,%.o,$(wildcard ggml-cuda/*.cu))
-	WHISPER_OBJ += $(OBJS_CUDA_TEMP_INST)
-
-ggml-cuda/%.o: ggml-cuda/%.cu ggml-cuda/%.cuh ggml.h ggml-common.h ggml-cuda/common.cuh
-	$(HIPCC) $(CXXFLAGS) $(HIPFLAGS) -x hip -c -o $@ $<
-
-ggml-cuda.o: ggml-cuda.cu ggml-cuda.h ggml.h ggml-backend.h ggml-backend-impl.h ggml-common.h $(wildcard ggml-cuda/*.cuh)
-	$(HIPCC) $(CXXFLAGS) $(HIPFLAGS) -x hip -c -o $@ $<
-endif
-
-ifdef WHISPER_GPROF
-	CFLAGS   += -pg
-	CXXFLAGS += -pg
-endif
-
-ifneq ($(filter aarch64%,$(UNAME_M)),)
-	CFLAGS   += -mcpu=native
-	CXXFLAGS += -mcpu=native
-endif
-
-ifneq ($(filter armv6%,$(UNAME_M)),)
-	# 32-bit Raspberry Pi 1, 2, 3
-	CFLAGS += -mfpu=neon -mfp16-format=ieee -mno-unaligned-access
-endif
-
-ifneq ($(filter armv7%,$(UNAME_M)),)
-	# 32-bit ARM, for example on Armbian or possibly raspbian
-	#CFLAGS   += -mfpu=neon -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
-	#CXXFLAGS += -mfpu=neon -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
-
-	# 64-bit ARM on 32-bit OS, use these (TODO: auto-detect 64-bit)
-	CFLAGS   += -mfpu=neon-fp-armv8 -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
-	CXXFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
-endif
-
-ifneq ($(filter armv8%,$(UNAME_M)),)
-	# Raspberry Pi 4
-	CFLAGS   += -mfpu=neon-fp-armv8 -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
-	CXXFLAGS += -mfpu=neon-fp-armv8 -mfp16-format=ieee -funsafe-math-optimizations -mno-unaligned-access
+ifdef WHISPER_CURL
+override CXXFLAGS := $(CXXFLAGS) -DWHISPER_USE_CURL
+override LDFLAGS  := $(LDFLAGS) -lcurl
 endif
 
 #
@@ -377,133 +838,260 @@ endif
 #
 
 $(info I whisper.cpp build info: )
-$(info I UNAME_S:  $(UNAME_S))
-$(info I UNAME_P:  $(UNAME_P))
-$(info I UNAME_M:  $(UNAME_M))
-$(info I CFLAGS:   $(CFLAGS))
-$(info I CXXFLAGS: $(CXXFLAGS))
-$(info I LDFLAGS:  $(LDFLAGS))
-$(info I CC:       $(CCV))
-$(info I CXX:      $(CXXV))
+$(info I UNAME_S:   $(UNAME_S))
+$(info I UNAME_P:   $(UNAME_P))
+$(info I UNAME_M:   $(UNAME_M))
+$(info I CFLAGS:    $(CFLAGS))
+$(info I CXXFLAGS:  $(CXXFLAGS))
+$(info I NVCCFLAGS: $(NVCCFLAGS))
+$(info I LDFLAGS:   $(LDFLAGS))
+$(info I CC:        $(shell $(CC)   --version | head -n 1))
+$(info I CXX:       $(shell $(CXX)  --version | head -n 1))
+ifdef GGML_CUDA
+$(info I NVCC:      $(shell $(NVCC) --version | tail -n 1))
+CUDA_VERSION := $(shell $(NVCC) --version | grep -oP 'release (\K[0-9]+\.[0-9])')
+ifeq ($(shell awk -v "v=$(CUDA_VERSION)" 'BEGIN { print (v < 11.7) }'),1)
+
+ifndef CUDA_DOCKER_ARCH
+ifndef CUDA_POWER_ARCH
+$(error I ERROR: For CUDA versions < 11.7 a target CUDA architecture must be explicitly provided via environment variable CUDA_DOCKER_ARCH, e.g. by running "export CUDA_DOCKER_ARCH=compute_XX" on Unix-like systems, where XX is the minimum compute capability that the code needs to run on. A list with compute capabilities can be found here: https://developer.nvidia.com/cuda-gpus )
+endif # CUDA_POWER_ARCH
+endif # CUDA_DOCKER_ARCH
+
+endif # eq ($(shell echo "$(CUDA_VERSION) < 11.7" | bc),1)
+endif # GGML_CUDA
 $(info )
 
-ifdef WHISPER_CUBLAS
-$(info !!!!)
-$(info WHISPER_CUBLAS is deprecated and will be removed in the future. Use WHISPER_CUDA instead.)
-$(info !!!!)
+ifdef DEPRECATE_WARNING
+$(info !!! DEPRECATION WARNING !!!)
+$(info The following WHISPER_ options are deprecated and will be removed in the future. Use the GGML_ prefix instead)
+$(info   - WHISPER_CUDA)
+$(info   - WHISPER_METAL)
+$(info   - WHISPER_OPENMP)
+$(info   - WHISPER_RPC)
+$(info   - WHISPER_SYCL)
+$(info   - WHISPER_SYCL_F16)
+$(info   - WHISPER_OPENBLAS)
+$(info   - WHISPER_OPENBLAS64)
+$(info   - WHISPER_BLIS)
+$(info   - WHISPER_NO_LLAMAFILE)
+$(info   - WHISPER_NO_ACCELERATE)
+$(info   - WHISPER_NO_OPENMP)
+$(info   - WHISPER_NO_METAL)
 $(info )
 endif
 
 #
-# Build library
+# Build libraries
 #
 
-ggml.o: ggml.c ggml.h ggml-cuda.h
+# ggml
+
+ggml/src/ggml.o: \
+	ggml/src/ggml.c \
+	ggml/include/ggml.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
-ggml-alloc.o: ggml-alloc.c ggml.h ggml-alloc.h
+ggml/src/ggml-alloc.o: \
+	ggml/src/ggml-alloc.c \
+	ggml/include/ggml.h \
+	ggml/include/ggml-alloc.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
-ggml-backend.o: ggml-backend.c ggml.h ggml-backend.h
+ggml/src/ggml-backend.o: \
+	ggml/src/ggml-backend.c \
+	ggml/include/ggml.h \
+	ggml/include/ggml-backend.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
-ggml-quants.o: ggml-quants.c ggml.h ggml-quants.h
-	$(CC)  $(CFLAGS)   -c $< -o $@
+ggml/src/ggml-quants.o: \
+	ggml/src/ggml-quants.c \
+	ggml/include/ggml.h \
+	ggml/src/ggml-quants.h \
+	ggml/src/ggml-common.h
+	$(CC) $(CFLAGS)    -c $< -o $@
 
-ggml-blas.o: ggml-blas.cpp ggml-blas.h
+ggml/src/ggml-blas.o: \
+	ggml/src/ggml-blas.cpp \
+	ggml/include/ggml-blas.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-WHISPER_OBJ += ggml.o ggml-alloc.o ggml-backend.o ggml-quants.o
+ifdef GGML_LLAMAFILE
+ggml/src/sgemm.o: \
+	ggml/src/sgemm.cpp \
+	ggml/src/sgemm.h \
+	ggml/include/ggml.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+endif # GGML_LLAMAFILE
 
-whisper.o: whisper.cpp whisper.h whisper-mel.hpp ggml.h ggml-cuda.h
+ifdef GGML_RPC
+ggml/src/ggml-rpc.o: \
+	ggml/src/ggml-rpc.cpp \
+	ggml/include/ggml-rpc.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+endif # GGML_RPC
+
+$(LIB_GGML): \
+	$(OBJ_GGML)
+	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS)
+
+$(LIB_GGML_S): \
+	$(OBJ_GGML)
+	ar rcs $(LIB_GGML_S) $^
+
+# whisper
+
+src/whisper.o: \
+	src/whisper.cpp \
+	src/whisper-mel.hpp \
+	include/whisper.h \
+	ggml/include/ggml.h \
+	ggml/include/ggml-alloc.h \
+	ggml/include/ggml-backend.h \
+	ggml/include/ggml-cuda.h \
+	ggml/include/ggml-metal.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-ifndef WHISPER_COREML
-WHISPER_OBJ += whisper.o
-else
-whisper-encoder.o: coreml/whisper-encoder.mm coreml/whisper-encoder.h
-	$(CXX) -O3 -I . -fobjc-arc -c coreml/whisper-encoder.mm -o whisper-encoder.o
+$(LIB_WHISPER): \
+	$(OBJ_WHISPER) \
+	$(LIB_GGML)
+	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS)
 
-whisper-encoder-impl.o: coreml/whisper-encoder-impl.m coreml/whisper-encoder-impl.h
-	$(CXX) -O3 -I . -fobjc-arc -c coreml/whisper-encoder-impl.m -o whisper-encoder-impl.o
+$(LIB_WHISPER_S): \
+	$(OBJ_WHISPER)
+	ar rcs $(LIB_WHISPER_S) $^
 
-WHISPER_OBJ += whisper.o whisper-encoder.o whisper-encoder-impl.o
-endif
+# common
 
-ifdef WHISPER_METAL
-ggml-metal.o: ggml-metal.m ggml-metal.h
-	$(CC) $(CFLAGS) -c $< -o $@
+examples/common.o: \
+	examples/common.cpp \
+	examples/common.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-WHISPER_OBJ += ggml-metal.o
+examples/common-ggml.o: \
+	examples/common-ggml.cpp \
+	examples/common-ggml.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-ifdef WHISPER_METAL_EMBED_LIBRARY
-CFLAGS += -DGGML_METAL_EMBED_LIBRARY
+$(LIB_COMMON): \
+	$(OBJ_COMMON)
+	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS)
 
-ggml-metal-embed.o: ggml-metal.metal ggml-common.h
-	@echo "Embedding Metal library"
-	$(eval TEMP_ASSEMBLY=$(shell mktemp))
-	$(eval TEMP_METALLIB=$(shell mktemp))
-	@sed "/^#include \"ggml-common.h\"/{r ggml-common.h"$$'\n'"d;}" ggml-metal.metal > $(TEMP_METALLIB)
-	@echo ".section __DATA, __ggml_metallib" > $(TEMP_ASSEMBLY)
-	@echo ".globl _ggml_metallib_start" >> $(TEMP_ASSEMBLY)
-	@echo "_ggml_metallib_start:" >> $(TEMP_ASSEMBLY)
-	@echo ".incbin \"$(TEMP_METALLIB)\"" >> $(TEMP_ASSEMBLY)
-	@echo ".globl _ggml_metallib_end" >> $(TEMP_ASSEMBLY)
-	@echo "_ggml_metallib_end:" >> $(TEMP_ASSEMBLY)
-	@$(AS) $(TEMP_ASSEMBLY) -o $@
-	@rm -f $(TEMP_ASSEMBLY) $(TEMP_METALLIB)
+$(LIB_COMMON_S): \
+	$(OBJ_COMMON)
+	ar rcs $(LIB_COMMON_S) $^
 
-WHISPER_OBJ += ggml-metal-embed.o
-endif
-endif
+# common-sdl
 
-libwhisper.a: $(WHISPER_OBJ)
-	$(AR) rcs libwhisper.a $(WHISPER_OBJ)
+CFLAGS_SDL=$(shell sdl2-config --cflags)
+LDFLAGS_SDL=$(shell sdl2-config --libs)
 
-libwhisper.so: $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) -shared -o libwhisper.so $(WHISPER_OBJ) $(LDFLAGS)
+examples/common-sdl.o: \
+	examples/common-sdl.cpp \
+	examples/common-sdl.h
+	$(CXX) $(CXXFLAGS) $(CFLAGS_SDL) -c $< -o $@
+
+$(LIB_COMMON_SDL): \
+	$(OBJ_SDL)
+	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS) $(LDFLAGS_SDL)
+
+$(LIB_COMMON_SDL_S): \
+	$(OBJ_SDL)
+	ar rcs $(LIB_COMMON_SDL_S) $^
 
 clean:
-	rm -f *.o main stream command talk talk-llama bench quantize server lsp libwhisper.a libwhisper.so
-	rm -vrf ggml-cuda/*.o
-	rm -vrf ggml-cuda/template-instances/*.o
+	rm -vrf *.dot $(BUILD_TARGETS) $(TEST_TARGETS)
+	rm -rvf src/*.o
+	rm -rvf src/coreml/*.o
+	rm -rvf tests/*.o
+	rm -rvf examples/*.o
+	rm -rvf *.a
+	rm -rvf *.dll
+	rm -rvf *.so
+	rm -rvf *.dot
+	rm -rvf ggml/*.a
+	rm -rvf ggml/*.dll
+	rm -rvf ggml/*.so
+	rm -vrf ggml/src/*.o
+	rm -vrf ggml/src/ggml-metal-embed.metal
+	rm -vrf ggml/src/ggml-cuda/*.o
+	rm -vrf ggml/src/ggml-cuda/template-instances/*.o
+	rm -rvf $(BUILD_TARGETS)
+	rm -rvf $(TEST_TARGETS)
+	find examples -type f -name "*.o" -delete
 
 #
 # Examples
 #
 
-CC_SDL=`sdl2-config --cflags --libs`
+# $< is the first prerequisite, i.e. the source file.
+# Explicitly compile this to an object file so that it can be cached with ccache.
+# The source file is then filtered out from $^ (the list of all prerequisites) and the object file is added instead.
 
-SRC_COMMON     = examples/common.cpp examples/common-ggml.cpp examples/grammar-parser.cpp
-SRC_COMMON_SDL = examples/common-sdl.cpp
+# Helper function that replaces .c, .cpp, and .cu file endings with .o:
+GET_OBJ_FILE = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(patsubst %.cu,%.o,$(1))))
 
-main: examples/main/main.cpp $(SRC_COMMON) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/main/main.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o main $(LDFLAGS)
-	./main -h
+main: examples/main/main.cpp \
+	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON)
+	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
+	@echo
+	@echo '====  Run ./llama-cli -h for help.  ===='
+	@echo
 
-bench: examples/bench/bench.cpp $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/bench/bench.cpp $(WHISPER_OBJ) -o bench $(LDFLAGS)
+bench: examples/bench/bench.cpp \
+	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON)
+	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
 
-quantize: examples/quantize/quantize.cpp $(WHISPER_OBJ) $(SRC_COMMON)
-	$(CXX) $(CXXFLAGS) examples/quantize/quantize.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o quantize $(LDFLAGS)
+quantize: examples/quantize/quantize.cpp \
+	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON)
+	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
 
-server: examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/server/server.cpp $(SRC_COMMON) $(WHISPER_OBJ) -o server $(LDFLAGS) $(LWINSOCK2)
+server: examples/server/server.cpp \
+	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON)
+	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS) $(LWINSOCK2)
 
-stream: examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/stream/stream.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o stream $(CC_SDL) $(LDFLAGS)
+command: examples/command/command.cpp \
+	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON) $(OBJ_SDL)
+	$(CXX) $(CXXFLAGS) $(CFLAGS_SDL) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS) $(LDFLAGS_SDL)
 
-command: examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/command/command.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o command $(CC_SDL) $(LDFLAGS)
+stream: examples/stream/stream.cpp \
+	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON) $(OBJ_SDL)
+	$(CXX) $(CXXFLAGS) $(CFLAGS_SDL) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS) $(LDFLAGS_SDL)
 
-lsp: examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/lsp/lsp.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o lsp $(CC_SDL) $(LDFLAGS)
+lsp: examples/lsp/lsp.cpp \
+	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON) $(OBJ_SDL)
+	$(CXX) $(CXXFLAGS) $(CFLAGS_SDL) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS) $(LDFLAGS_SDL)
 
-talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/talk/talk.cpp examples/talk/gpt-2.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o talk $(CC_SDL) $(LDFLAGS)
+talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp \
+	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON) $(OBJ_SDL)
+	$(CXX) $(CXXFLAGS) $(CFLAGS_SDL) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS) $(LDFLAGS_SDL)
 
-talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp examples/talk-llama/unicode.cpp examples/talk-llama/unicode-data.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ)
-	$(CXX) $(CXXFLAGS) examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp examples/talk-llama/unicode.cpp examples/talk-llama/unicode-data.cpp $(SRC_COMMON) $(SRC_COMMON_SDL) $(WHISPER_OBJ) -o talk-llama $(CC_SDL) $(LDFLAGS)
+talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp examples/talk-llama/unicode.cpp examples/talk-llama/unicode-data.cpp \
+	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON) $(OBJ_SDL)
+	$(CXX) $(CXXFLAGS) $(CFLAGS_SDL) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS) $(LDFLAGS_SDL)
+
+#
+# Tests
+#
+
+tests: $(TEST_TARGETS)
+
+tests/test-c.o: tests/test-c.c include/whisper.h
+	$(CC) $(CFLAGS) -c $(filter-out %.h,$^) -o $@
+
+tests/test-backend-ops: tests/test-backend-ops.cpp \
+	$(OBJ_GGML)
+	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
+	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
 
 #
 # Audio samples
@@ -566,11 +1154,3 @@ tiny.en tiny base.en base small.en small medium.en medium large-v1 large-v2 larg
 		./main -m models/ggml-$@.bin -f $$f ; \
 		echo "" ; \
 	done
-
-#
-# Tests
-#
-
-.PHONY: tests
-tests:
-	bash ./tests/run-tests.sh $(word 2, $(MAKECMDGOALS))

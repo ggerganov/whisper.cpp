@@ -18,7 +18,7 @@ struct whisper_params {
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
 
-bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
+static bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
@@ -58,7 +58,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "\n");
 }
 
-int whisper_bench_full(const whisper_params & params) {
+static int whisper_bench_full(const whisper_params & params) {
     // whisper init
 
     struct whisper_context_params cparams = whisper_context_default_params();

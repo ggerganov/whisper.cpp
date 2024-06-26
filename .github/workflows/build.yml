@@ -101,7 +101,10 @@ jobs:
       fail-fast: false
       matrix:
         build: [Debug, Release]
-        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+        #arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+        # TODO: arm/v7 disabled due to clang bug
+        #       https://github.com/ggerganov/whisper.cpp/actions/runs/9657764109/job/26637633042?pr=2256#step:4:1990
+        arch: [linux/amd64, linux/arm64, linux/ppc64le]
 
     steps:
       - name: Clone
@@ -197,7 +200,7 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           mkdir build
           cd build
-          cmake -DWHISPER_SYCL=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx ..
+          cmake -DGGML_SYCL=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx ..
           cmake --build . --config Release -j $(nproc)
 
   ubuntu-22-cmake-sycl-fp16:
@@ -247,7 +250,7 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           mkdir build
           cd build
-          cmake -DWHISPER_SYCL_F16=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx ..
+          cmake -DGGML_SYCL_F16=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx ..
           cmake --build . --config Release -j $(nproc)
 
   windows-msys2:
@@ -289,7 +292,7 @@ jobs:
       - name: Build using make w/ OpenBLAS
         shell: msys2 {0}
         run: |
-            make WHISPER_OPENBLAS=1 -j $(nproc)
+            make GGML_OPENBLAS=1 -j $(nproc)
 
       - name: Build using CMake
         shell: msys2 {0}
@@ -305,7 +308,7 @@ jobs:
       - name: Build using CMake w/ OpenBLAS
         shell: msys2 {0}
         run: |
-            cmake -B build -DWHISPER_OPENBLAS=ON
+            cmake -B build -DGGML_OPENBLAS=ON
             cmake --build build --config ${{ matrix.build }} -j $(nproc)
 
   windows:
@@ -381,12 +384,9 @@ jobs:
           - arch: Win32
             obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x86.zip
             s2arc: x86
-            clblast: OFF
           - arch: x64
             obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x64.zip
             s2arc: x64
-            clblast: ON
-            clver: 1.6.1
           - sdl2: ON
             s2ver: 2.28.5
 
@@ -413,26 +413,13 @@ jobs:
           7z x sdl2.zip
           echo "SDL2_DIR=$env:GITHUB_WORKSPACE/SDL2-${{ matrix.s2ver }}/cmake" >> $env:GITHUB_ENV
 
-      - name: Install OpenCL
-        if: matrix.clblast == 'ON'
-        run: vcpkg.exe --triplet=${{ matrix.arch }}-windows install opencl
-
-      - name: Fetch CLBlast and set CLBlast_DIR
-        if: matrix.clblast == 'ON'
-        run: |
-          C:/msys64/usr/bin/wget.exe -qO clblast.zip https://github.com/CNugteren/CLBlast/releases/download/${{ matrix.clver }}/CLBlast-${{ matrix.clver }}-windows-x64.zip
-          7z x clblast.zip
-          7z x CLBlast-${{ matrix.clver }}-windows-x64.7z
-          echo "CLBlast_DIR=$env:GITHUB_WORKSPACE/CLBlast-${{ matrix.clver }}-windows-x64/lib/cmake/CLBlast" >> $env:GITHUB_ENV
-
       - name: Configure
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_OPENBLAS=${{ matrix.blas }}
+          -DGGML_OPENBLAS=${{ matrix.blas }}
           -DCMAKE_LIBRARY_PATH="$env:OPENBLAS_PATH/lib"
           -DWHISPER_SDL2=${{ matrix.sdl2 }}
-          -DWHISPER_CLBLAST=${{ matrix.clblast }}
 
       - name: Build
         run: |
@@ -447,15 +434,11 @@ jobs:
         if: matrix.sdl2 == 'ON'
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
 
-      - name: Copy clblast.dll
-        if: matrix.clblast == 'ON'
-        run: copy "$env:CLBlast_DIR/../../clblast.dll" build/bin/${{ matrix.build }}
-
       - name: Upload binaries
         if: matrix.blas == 'ON' && matrix.sdl2 == 'ON'
         uses: actions/upload-artifact@v4
         with:
-          name: whisper-blas${{ matrix.clblast == 'ON' && '-clblast' || ''}}-bin-${{ matrix.arch }}
+          name: whisper-blas-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
 
   windows-cublas:
@@ -498,7 +481,7 @@ jobs:
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_CUDA=${{ matrix.cublas }}
+          -DGGML_CUDA=${{ matrix.cublas }}
           -DWHISPER_SDL2=${{ matrix.sdl2 }}
 
       - name: Build ${{ matrix.cuda-toolkit }}

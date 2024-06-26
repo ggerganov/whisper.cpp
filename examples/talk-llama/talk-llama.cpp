@@ -16,7 +16,7 @@
 #include <regex>
 #include <sstream>
 
-std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos) {
+static std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos) {
     auto * model = llama_get_model(ctx);
 
     // upper limit for the number of tokens
@@ -33,7 +33,7 @@ std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::s
     return result;
 }
 
-std::string llama_token_to_piece(const struct llama_context * ctx, llama_token token) {
+static std::string llama_token_to_piece(const struct llama_context * ctx, llama_token token) {
     std::vector<char> result(8, 0);
     const int n_tokens = llama_token_to_piece(llama_get_model(ctx), token, result.data(), result.size(), false);
     if (n_tokens < 0) {
@@ -83,7 +83,7 @@ struct whisper_params {
 
 void whisper_print_usage(int argc, char ** argv, const whisper_params & params);
 
-bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
+static bool whisper_params_parse(int argc, char ** argv, whisper_params & params) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
@@ -168,7 +168,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "\n");
 }
 
-std::string transcribe(
+static std::string transcribe(
         whisper_context * ctx,
         const whisper_params & params,
         const std::vector<float> & pcmf32,
@@ -235,7 +235,7 @@ std::string transcribe(
     return result;
 }
 
-std::vector<std::string> get_words(const std::string &txt) {
+static std::vector<std::string> get_words(const std::string &txt) {
     std::vector<std::string> words;
 
     std::istringstream iss(txt);
