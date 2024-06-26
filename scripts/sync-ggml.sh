@@ -37,5 +37,5 @@ cp -rpv ../ggml/examples/common.cpp      ./examples/common.cpp
 cp -rpv ../ggml/examples/common-ggml.h   ./examples/common-ggml.h
 cp -rpv ../ggml/examples/common-ggml.cpp ./examples/common-ggml.cpp
 
-cp -rpv ../LICENSE                     ./LICENSE
+cp -rpv ../ggml/LICENSE                ./LICENSE
 cp -rpv ../ggml/scripts/gen-authors.sh ./scripts/gen-authors.sh
