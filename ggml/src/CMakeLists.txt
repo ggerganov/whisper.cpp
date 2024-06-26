@@ -295,7 +295,16 @@ if (GGML_CUDA)
 
         list(APPEND GGML_CDEF_PUBLIC GGML_USE_CUDA)
 
-        add_compile_definitions(GGML_CUDA_USE_GRAPHS)
+        # TODO: for now CUDA graphs should be used only with llama.cpp
+        #       https://github.com/ggerganov/whisper.cpp/issues/2258
+        message(STATUS "CMAKE_PROJECT_NAME: ${CMAKE_PROJECT_NAME}")
+        if (CMAKE_PROJECT_NAME STREQUAL "llama.cpp")
+            add_compile_definitions(GGML_CUDA_USE_GRAPHS)
+            message(STATUS "GGML_CUDA_USE_GRAPHS enabled")
+        else()
+            message(STATUS "GGML_CUDA_USE_GRAPHS disabled")
+        endif()
+
         add_compile_definitions(GGML_CUDA_DMMV_X=${GGML_CUDA_DMMV_X})
         add_compile_definitions(GGML_CUDA_MMV_Y=${GGML_CUDA_MMV_Y})
         add_compile_definitions(K_QUANTS_PER_ITERATION=${GGML_CUDA_KQUANTS_ITER})
