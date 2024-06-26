@@ -2,8 +2,7 @@
 #include "whisper-mel-cuda.hpp"
 #include "whisper.h"
 
-#include <ggml-cuda/common.cuh>
-#include <ggml-backend-impl.h>
+#include <ggml-backend.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>

@@ -3215,7 +3215,9 @@ struct mel_calc_cpu : public whisper_mel_calc {
 }
 
 static whisper_mel_calc * whisper_mel_calc_create(ggml_backend_t backend, const whisper_filters & filters) {
-#if defined(GGML_USE_CUDA) && !defined(GGML_USE_HIPBLAS)
+// TODO: disabled because it relies on ggml internals that are no longer accessible (ggml-backend-impl.h, ggml-cuda/common.cuh, ..)
+//#if defined(GGML_USE_CUDA) && !defined(GGML_USE_HIPBLAS)
+#if 0
     if (ggml_backend_is_cuda(backend)) {
         auto ret = whisper_mel_calc_create_cuda(backend, filters);
         if (ret) {

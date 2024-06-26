@@ -30,7 +30,7 @@ extern bool ffmpeg_decode_audio(const std::string & ifname, std::vector<uint8_t>
 #endif
 
 // Function to check if the next argument exists
-std::string get_next_arg(int& i, int argc, char** argv, const std::string& flag, gpt_params& params) {
+static std::string get_next_arg(int& i, int argc, char** argv, const std::string& flag, gpt_params& params) {
     if (i + 1 < argc && argv[i + 1][0] != '-') {
         return argv[++i];
     } else {
@@ -346,7 +346,7 @@ std::vector<gpt_vocab::id> gpt_tokenize(const gpt_vocab & vocab, const std::stri
     return tokens;
 }
 
-std::vector<gpt_vocab::id> parse_tokens_from_string(const std::string& input, char delimiter) {
+static std::vector<gpt_vocab::id> parse_tokens_from_string(const std::string& input, char delimiter) {
     std::vector<gpt_vocab::id> output;
     std::stringstream ss(input);
     std::string token;
@@ -358,7 +358,7 @@ std::vector<gpt_vocab::id> parse_tokens_from_string(const std::string& input, ch
     return output;
 }
 
-std::map<std::string, std::vector<gpt_vocab::id>> extract_tests_from_file(const std::string & fpath_test){
+static std::map<std::string, std::vector<gpt_vocab::id>> extract_tests_from_file(const std::string & fpath_test){
     if (fpath_test.empty()){
         fprintf(stderr, "%s : No test file found.\n", __func__);
         return std::map<std::string, std::vector<gpt_vocab::id>>();
