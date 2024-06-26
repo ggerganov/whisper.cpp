@@ -65,7 +65,7 @@
 		18627C9529052C5800BD2A04 /* ggml.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ggml.c; path = ../../../ggml/src/ggml.c; sourceTree = "<group>"; };
 		18627C9729052C6600BD2A04 /* ggml.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ggml.h; path = ../../../ggml/include/ggml.h; sourceTree = "<group>"; };
 		18627C9A29052CFF00BD2A04 /* ggml-base.en.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; name = "ggml-base.en.bin"; path = "../../../models/ggml-base.en.bin"; sourceTree = "<group>"; };
-		18A275FE2C2A94DE001C8D37 /* ggml-metal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-metal.h"; path = "../../../ggml/src/ggml-metal.h"; sourceTree = "<group>"; };
+		18A275FE2C2A94DE001C8D37 /* ggml-metal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-metal.h"; path = "../../../ggml/include/ggml-metal.h"; sourceTree = "<group>"; };
 		18A275FF2C2A9563001C8D37 /* ggml-common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-common.h"; path = "../../../ggml/src/ggml-common.h"; sourceTree = "<group>"; };
 		18ABE1542AF556340044A204 /* ggml-quants.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-quants.h"; path = "../../../ggml/src/ggml-quants.h"; sourceTree = "<group>"; };
 		18ABE1552AF556340044A204 /* ggml-backend.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-backend.h"; path = "../../../ggml/include/ggml-backend.h"; sourceTree = "<group>"; };
