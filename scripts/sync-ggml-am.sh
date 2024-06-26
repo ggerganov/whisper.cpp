@@ -106,24 +106,25 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
     # src/ggml-common.h       -> ggml/src/ggml-common.h
     # src/ggml-cuda/*         -> ggml/src/ggml-cuda/
     # src/ggml-cuda.cu        -> ggml/src/ggml-cuda.cu
-    # src/ggml-cuda.h         -> ggml/src/ggml-cuda.h
     # src/ggml-impl.h         -> ggml/src/ggml-impl.h
     # src/ggml-kompute.cpp    -> ggml/src/ggml-kompute.cpp
-    # src/ggml-kompute.h      -> ggml/src/ggml-kompute.h
-    # src/ggml-metal.h        -> ggml/src/ggml-metal.h
     # src/ggml-metal.m        -> ggml/src/ggml-metal.m
     # src/ggml-quants.c       -> ggml/src/ggml-quants.c
     # src/ggml-quants.h       -> ggml/src/ggml-quants.h
     # src/ggml-rpc.cpp        -> ggml/src/ggml-rpc.cpp
-    # src/ggml-rpc.h          -> ggml/src/ggml-rpc.h
     # src/ggml-sycl.cpp       -> ggml/src/ggml-sycl.cpp
-    # src/ggml-sycl.h         -> ggml/src/ggml-sycl.h
     # src/ggml-vulkan.cpp     -> ggml/src/ggml-vulkan.cpp
-    # src/ggml-vulkan.h       -> ggml/src/ggml-vulkan.h
     #
-    # include/ggml/ggml.h         -> ggml/include/ggml.h
-    # include/ggml/ggml-alloc.h   -> ggml/include/ggml-alloc.h
-    # include/ggml/ggml-backend.h -> ggml/include/ggml-backend.h
+    # include/ggml.h         -> ggml/include/ggml.h
+    # include/ggml-alloc.h   -> ggml/include/ggml-alloc.h
+    # include/ggml-backend.h -> ggml/include/ggml-backend.h
+    # include/ggml-blas.h    -> ggml/include/ggml-blas.h
+    # include/ggml-cuda.h    -> ggml/include/ggml-cuda.h
+    # include/ggml-kompute.h -> ggml/include/ggml-kompute.h
+    # include/ggml-metal.h   -> ggml/include/ggml-metal.h
+    # include/ggml-rpc.h     -> ggml/include/ggml-rpc.h
+    # include/ggml-sycl.h    -> ggml/include/ggml-sycl.h
+    # include/ggml-vulkan.h  -> ggml/include/ggml-vulkan.h
     #
     # examples/common.h                   -> examples/common.h
     # examples/common.cpp                 -> examples/common.cpp
@@ -144,23 +145,24 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
         -e 's/src\/ggml-common\.h/ggml/src/ggml-common.h/g' \
         -e 's/src\/ggml-cuda\//ggml-cuda\//g' \
         -e 's/src\/ggml-cuda\.cu/ggml/src/ggml-cuda.cu/g' \
-        -e 's/src\/ggml-cuda\.h/ggml/src/ggml-cuda.h/g' \
         -e 's/src\/ggml-impl\.h/ggml/src/ggml-impl.h/g' \
         -e 's/src\/ggml-kompute\.cpp/ggml/src/ggml-kompute.cpp/g' \
-        -e 's/src\/ggml-kompute\.h/ggml/src/ggml-kompute.h/g' \
-        -e 's/src\/ggml-metal\.h/ggml/src/ggml-metal.h/g' \
         -e 's/src\/ggml-metal\.m/ggml/src/ggml-metal.m/g' \
         -e 's/src\/ggml-quants\.c/ggml/src/ggml-quants.c/g' \
         -e 's/src\/ggml-quants\.h/ggml/src/ggml-quants.h/g' \
         -e 's/src\/ggml-rpc\.cpp/ggml/src/ggml-rpc.cpp/g' \
-        -e 's/src\/ggml-rpc\.h/ggml/src/ggml-rpc.h/g' \
         -e 's/src\/ggml-sycl\.cpp/ggml/src/ggml-sycl.cpp/g' \
-        -e 's/src\/ggml-sycl\.h/ggml/src/ggml-sycl.h/g' \
         -e 's/src\/ggml-vulkan\.cpp/ggml/src/ggml-vulkan.cpp/g' \
-        -e 's/src\/ggml-vulkan\.h/ggml/src/ggml-vulkan.h/g' \
-        -e 's/include\/ggml\/ggml\.h/ggml/include/ggml.h/g' \
-        -e 's/include\/ggml\/ggml-alloc\.h/ggml/include/ggml-alloc.h/g' \
-        -e 's/include\/ggml\/ggml-backend\.h/ggml/include/ggml-backend.h/g' \
+        -e 's/include\/ggml\.h/ggml/include/ggml.h/g' \
+        -e 's/include\/ggml-alloc\.h/ggml/include/ggml-alloc.h/g' \
+        -e 's/include\/ggml-backend\.h/ggml/include/ggml-backend.h/g' \
+        -e 's/include\/ggml-blas\.h/ggml/include/ggml-blas.h/g' \
+        -e 's/include\/ggml-cuda\.h/ggml/include/ggml-cuda.h/g' \
+        -e 's/include\/ggml-kompute\.h/ggml/include/ggml-kompute.h/g' \
+        -e 's/include\/ggml-metal\.h/ggml/include/ggml-metal.h/g' \
+        -e 's/include\/ggml-rpc\.h/ggml/include/ggml-rpc.h/g' \
+        -e 's/include\/ggml-sycl\.h/ggml/include/ggml-sycl.h/g' \
+        -e 's/include\/ggml-vulkan\.h/ggml/include/ggml-vulkan.h/g' \
         -e 's/examples\/common\.h/examples\/common.h/g' \
         -e 's/examples\/common\.cpp/examples\/common.cpp/g' \
         -e 's/examples\/common-ggml\.h/examples\/common-ggml.h/g' \

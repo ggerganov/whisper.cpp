@@ -612,9 +612,9 @@ ggml/src/ggml-cuda/%.o: \
 
 ggml/src/ggml-cuda.o: \
 	ggml/src/ggml-cuda.cu \
-	ggml/src/ggml-cuda.h \
 	ggml/include/ggml.h \
 	ggml/include/ggml-backend.h \
+	ggml/include/ggml-cuda.h \
 	ggml/src/ggml-backend-impl.h \
 	ggml/src/ggml-common.h \
 	$(wildcard ggml/src/ggml-cuda/*.cuh)
@@ -652,7 +652,7 @@ endif
 
 ggml/src/ggml-vulkan.o: \
 	ggml/src/ggml-vulkan.cpp \
-	ggml/src/ggml-vulkan.h
+	ggml/include/ggml-vulkan.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 endif # GGML_VULKAN
 
@@ -700,9 +700,9 @@ endif # GGML_CUDA_NO_PEER_COPY
 
 ggml/src/ggml-cuda.o: \
 	ggml/src/ggml-cuda.cu \
-	ggml/src/ggml-cuda.h \
 	ggml/include/ggml.h \
 	ggml/include/ggml-backend.h \
+	ggml/include/ggml-cuda.h \
 	ggml/src/ggml-backend-impl.h \
 	ggml/src/ggml-common.h \
 	$(wildcard ggml/src/ggml-cuda/*.cuh)
@@ -744,7 +744,7 @@ endif
 ifdef GGML_METAL
 ggml/src/ggml-metal.o: \
 	ggml/src/ggml-metal.m \
-	ggml/src/ggml-metal.h \
+	ggml/include/ggml-metal.h \
 	ggml/include/ggml.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -913,7 +913,7 @@ ggml/src/ggml-quants.o: \
 
 ggml/src/ggml-blas.o: \
 	ggml/src/ggml-blas.cpp \
-	ggml/src/ggml-blas.h
+	ggml/include/ggml-blas.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 ifdef GGML_LLAMAFILE
@@ -927,7 +927,7 @@ endif # GGML_LLAMAFILE
 ifdef GGML_RPC
 ggml/src/ggml-rpc.o: \
 	ggml/src/ggml-rpc.cpp \
-	ggml/src/ggml-rpc.h
+	ggml/include/ggml-rpc.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 endif # GGML_RPC
 
@@ -945,11 +945,11 @@ src/whisper.o: \
 	src/whisper.cpp \
 	src/whisper-mel.hpp \
 	include/whisper.h \
-	ggml/src/ggml-cuda.h \
-	ggml/src/ggml-metal.h \
 	ggml/include/ggml.h \
 	ggml/include/ggml-alloc.h \
-	ggml/include/ggml-backend.h
+	ggml/include/ggml-backend.h \
+	ggml/include/ggml-cuda.h \
+	ggml/include/ggml-metal.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(LIB_WHISPER): \
