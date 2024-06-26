@@ -321,7 +321,7 @@ int ffmpeg_decode_audio(const std::string &ifname, std::vector<uint8_t>& owav_da
         LOG("Couldn't map input file %s\n", ifname.c_str());
         return err;
     }
-    LOG("Mapped input file: %x size: %d\n", ibuf, ibuf_size);
+    LOG("Mapped input file: %s size: %d\n", ibuf, (int) ibuf_size);
     struct audio_buffer inaudio_buf;
     inaudio_buf.ptr = ibuf;
     inaudio_buf.size = ibuf_size;

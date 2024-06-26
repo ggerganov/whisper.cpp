@@ -36,7 +36,7 @@ include(FindPackageHandleStandardArgs)
 
 # The default components were taken from a survey over other FindFFMPEG.cmake files
 if (NOT FFmpeg_FIND_COMPONENTS)
-  set(FFmpeg_FIND_COMPONENTS AVFORMAT AVCODEC AVUTIL SWRESAMPLE) 
+  set(FFmpeg_FIND_COMPONENTS AVFORMAT AVCODEC AVUTIL SWRESAMPLE)
 endif()
 
 #
@@ -84,7 +84,7 @@ macro(find_component _component _pkgconfig _library _header)
 
   # CMake's default is to search first for shared libraries and then for static libraries.
   # Todo later: add option to prefer static libs over dynamic:
-  find_library(${_component}_LIBRARIES NAMES ${_library} lib${_library}.a  
+  find_library(${_component}_LIBRARIES NAMES ${_library} lib${_library}.a
       HINTS
       ${PC_${_component}_LIBDIR}
       ${PC_${_component}_LIBRARY_DIRS}

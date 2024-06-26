@@ -1,7 +1,7 @@
-set(LLAMA_VERSION      @LLAMA_INSTALL_VERSION@)
-set(LLAMA_BUILD_COMMIT @LLAMA_BUILD_COMMIT@)
-set(LLAMA_BUILD_NUMBER @LLAMA_BUILD_NUMBER@)
-set(LLAMA_SHARED_LIB   @BUILD_SHARED_LIBS@)
+set(WHISPER_VERSION      @WHISPER_INSTALL_VERSION@)
+set(WHISPER_BUILD_COMMIT @WHISPER_BUILD_COMMIT@)
+set(WHISPER_BUILD_NUMBER @WHISPER_BUILD_NUMBER@)
+set(WHISPER_SHARED_LIB   @BUILD_SHARED_LIBS@)
 
 set(GGML_BLAS       @GGML_BLAS@)
 set(GGML_CUDA       @GGML_CUDA@)
@@ -11,9 +11,9 @@ set(GGML_ACCELERATE @GGML_ACCELERATE@)
 
 @PACKAGE_INIT@
 
-set_and_check(LLAMA_INCLUDE_DIR "@PACKAGE_LLAMA_INCLUDE_INSTALL_DIR@")
-set_and_check(LLAMA_LIB_DIR     "@PACKAGE_LLAMA_LIB_INSTALL_DIR@")
-set_and_check(LLAMA_BIN_DIR     "@PACKAGE_LLAMA_BIN_INSTALL_DIR@")
+set_and_check(WHISPER_INCLUDE_DIR "@PACKAGE_WHISPER_INCLUDE_INSTALL_DIR@")
+set_and_check(WHISPER_LIB_DIR     "@PACKAGE_WHISPER_LIB_INSTALL_DIR@")
+set_and_check(WHISPER_BIN_DIR     "@PACKAGE_WHISPER_BIN_INSTALL_DIR@")
 
 # Ensure transient dependencies satisfied
 
@@ -43,23 +43,23 @@ if (GGML_HIPBLAS)
     find_package(rocblas REQUIRED)
 endif()
 
-find_library(llama_LIBRARY llama
+find_library(whisper_LIBRARY whisper
     REQUIRED
-    HINTS ${LLAMA_LIB_DIR})
+    HINTS ${WHISPER_LIB_DIR})
 
-set(_llama_link_deps "Threads::Threads" "@LLAMA_EXTRA_LIBS@")
-set(_llama_transient_defines "@LLAMA_TRANSIENT_DEFINES@")
+set(_whisper_link_deps "Threads::Threads" "@WHISPER_EXTRA_LIBS@")
+set(_whisper_transient_defines "@WHISPER_TRANSIENT_DEFINES@")
 
-add_library(llama UNKNOWN IMPORTED)
+add_library(whisper UNKNOWN IMPORTED)
 
-set_target_properties(llama
+set_target_properties(whisper
     PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${LLAMA_INCLUDE_DIR}"
-        INTERFACE_LINK_LIBRARIES "${_llama_link_deps}"
-        INTERFACE_COMPILE_DEFINITIONS "${_llama_transient_defines}"
+    INTERFACE_INCLUDE_DIRECTORIES "${WHISPER_INCLUDE_DIR}"
+        INTERFACE_LINK_LIBRARIES "${_whisper_link_deps}"
+        INTERFACE_COMPILE_DEFINITIONS "${_whisper_transient_defines}"
         IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
-        IMPORTED_LOCATION "${llama_LIBRARY}"
+        IMPORTED_LOCATION "${whisper_LIBRARY}"
         INTERFACE_COMPILE_FEATURES cxx_std_11
         POSITION_INDEPENDENT_CODE ON )
 
-check_required_components(Llama)
+check_required_components(whisper)

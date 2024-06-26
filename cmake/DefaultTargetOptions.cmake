@@ -13,5 +13,5 @@ set_target_properties(${TARGET}
     PROPERTIES
         EXPORT_COMPILE_COMMANDS ON
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-        INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"
+        INSTALL_RPATH            "${CMAKE_INSTALL_PREFIX}/lib"
 )

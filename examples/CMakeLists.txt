@@ -40,7 +40,7 @@ if (WHISPER_FFMPEG)
     message(STATUS "Found ffmpeg libs:       ${FFMPEG_LIBRARIES}")
     message(STATUS "Found ffmpeg headers in: ${FFMPEG_INCLUDE_DIRS}")
     message(STATUS "ffmpeg definitions:      ${FFMPEG_DEFINITIONS}")
-    message(STATUS "Found avformat ${AVFORMAT_VERSION}")
+    message(STATUS "Found avformat           ${AVFORMAT_VERSION}")
 
     include_directories(${FFMPEG_INCLUDE_DIRS})
     add_compile_definitions(WHISPER_FFMPEG)
