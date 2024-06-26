@@ -21,7 +21,7 @@ COPY . .
 # Set nvcc architecture
 ENV CUDA_DOCKER_ARCH=${CUDA_DOCKER_ARCH}
 # Enable cuBLAS
-ENV WHISPER_CUBLAS=1
+ENV GGML_CUDA=1
 
 RUN make
 
