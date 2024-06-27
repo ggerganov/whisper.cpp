@@ -134,7 +134,7 @@ endif()
 
 if (WHISPER_FFMPEG)
     # As of cmake 3.27, there is no official cmake support for FindFFmpeg.
-    # Consequnelty we added a FindFFmpeg.cmake script the cmake subfolder:
+    # Consequently we added a FindFFmpeg.cmake script the cmake subfolder:
     # whisper.cpp does not need the full ffmpeg libs, just AVFORMAT AVCODEC AVUTIL SWRESAMPLE
     # libswresample  performs highly optimized audio resampling, rematrixing and sample format conversion operations
     # libavcodec provides a generic encoding/decoding framework and contains multiple decoders and encoders for audio, video and subtitle streams, and several bitstream filters.
