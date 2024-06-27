@@ -88,6 +88,6 @@ func TestProcess(t *testing.T) {
 	context, err := model.NewContext()
 	assert.NoError(err)
 
-	err = context.Process(data, nil, nil)
+	err = context.Process(data, nil, nil, nil)
 	assert.NoError(err)
 }

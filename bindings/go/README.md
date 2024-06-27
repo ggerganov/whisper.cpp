@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := context.Process(samples, nil, nil); err != nil {
+	if err := context.Process(samples, nil, nil, nil); err != nil {
 		return err
 	}
 
