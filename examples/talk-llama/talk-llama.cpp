@@ -417,7 +417,7 @@ int main(int argc, char ** argv) {
 
             session_tokens.resize(llama_n_ctx(ctx_llama));
             size_t n_token_count_out = 0;
-            if (!llama_load_session_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.capacity(), &n_token_count_out)) {
+            if (!llama_state_load_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.capacity(), &n_token_count_out)) {
                 fprintf(stderr, "%s: error: failed to load session file '%s'\n", __func__, path_session.c_str());
                 return 1;
             }
@@ -709,7 +709,7 @@ int main(int argc, char ** argv) {
 
                         if (!path_session.empty() && need_to_save_session) {
                             need_to_save_session = false;
-                            llama_save_session_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.size());
+                            llama_state_save_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.size());
                         }
 
                         llama_token id = 0;
