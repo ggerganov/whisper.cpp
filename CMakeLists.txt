@@ -161,18 +161,6 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/whisper-config.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/whisper-version.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/whisper)
 
-install(
-    FILES convert-hf-to-gguf.py
-    PERMISSIONS
-        OWNER_READ
-        OWNER_WRITE
-        OWNER_EXECUTE
-        GROUP_READ
-        GROUP_EXECUTE
-        WORLD_READ
-        WORLD_EXECUTE
-    DESTINATION ${CMAKE_INSTALL_BINDIR})
-
 configure_file(cmake/whisper.pc.in
         "${CMAKE_CURRENT_BINARY_DIR}/whisper.pc"
         @ONLY)
