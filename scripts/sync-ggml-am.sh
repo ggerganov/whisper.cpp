@@ -63,6 +63,7 @@ while read c; do
         src/ggml*.metal \
         src/ggml*.cu \
         src/ggml-cuda/* \
+        src/ggml-sycl/* \
         include/ggml*.h \
         examples/common.h \
         examples/common.cpp \
@@ -112,6 +113,7 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
     # src/ggml-quants.c       -> ggml/src/ggml-quants.c
     # src/ggml-quants.h       -> ggml/src/ggml-quants.h
     # src/ggml-rpc.cpp        -> ggml/src/ggml-rpc.cpp
+    # src/ggml-sycl/*         -> ggml/src/ggml-sycl/*
     # src/ggml-sycl.cpp       -> ggml/src/ggml-sycl.cpp
     # src/ggml-vulkan.cpp     -> ggml/src/ggml-vulkan.cpp
     #
@@ -151,6 +153,7 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
         -e 's/([[:space:]]|[ab]\/)src\/ggml-quants\.c/\1ggml\/src\/ggml-quants.c/g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-quants\.h/\1ggml\/src\/ggml-quants.h/g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-rpc\.cpp/\1ggml\/src\/ggml-rpc.cpp/g' \
+        -e 's/([[:space:]]|[ab]\/)src\/ggml-sycl\//\1ggml\/src\/ggml-sycl\//g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-sycl\.cpp/\1ggml\/src\/ggml-sycl.cpp/g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-vulkan\.cpp/\1ggml\/src\/ggml-vulkan.cpp/g' \
         -e 's/([[:space:]]|[ab]\/)include\/ggml\.h/\1ggml\/include\/ggml.h/g' \
