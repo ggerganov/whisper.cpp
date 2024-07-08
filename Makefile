@@ -1040,9 +1040,6 @@ main: examples/main/main.cpp \
 	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON)
 	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
-	@echo
-	@echo '====  Run ./llama-cli -h for help.  ===='
-	@echo
 
 bench: examples/bench/bench.cpp \
 	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON)
