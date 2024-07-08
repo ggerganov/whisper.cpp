@@ -23,7 +23,7 @@ static std::string unicode_cpts_to_utf8(const std::vector<uint32_t> & cps) {
     return result;
 }
 
-static uint32_t unicode_cpt_from_utf8(const std::string & utf8, size_t & offset) {
+uint32_t unicode_cpt_from_utf8(const std::string & utf8, size_t & offset) {
     assert(offset < utf8.size());
     if (!(utf8[offset + 0] & 0x80)) {
         auto result = utf8[offset + 0];
@@ -232,8 +232,7 @@ static std::vector<size_t> unicode_regex_split_custom_gpt2(const std::string & t
         };
 
         auto _get_flags = [&] (const size_t pos) -> codepoint_flags {
-            static const codepoint_flags undef(codepoint_flags::UNDEFINED);
-            return (offset_ini <= pos && pos < offset_end) ? unicode_cpt_flags(cpts[pos]) : undef;
+            return (offset_ini <= pos && pos < offset_end) ? unicode_cpt_flags(cpts[pos]) : codepoint_flags{};
         };
 
         size_t _prev_end = offset_ini;
@@ -295,9 +294,9 @@ static std::vector<size_t> unicode_regex_split_custom_gpt2(const std::string & t
                 continue;
             }
             // regex: <space>?[^\s\p{L}\p{N}]+
-            if (!(flags2.is_whitespace || flags2.is_letter || flags2.is_number || flags2.is_undefined)) {
+            if (!(flags2.is_whitespace | flags2.is_letter | flags2.is_number) && flags2.as_uint()) {
                 pos += (cpt == ' ');
-                while (!(flags2.is_whitespace || flags2.is_letter || flags2.is_number || flags2.is_undefined)) {
+                while (!(flags2.is_whitespace | flags2.is_letter | flags2.is_number) && flags2.as_uint()) {
                     flags2 = _get_flags(++pos);
                 }
                 _add_token(pos);
@@ -351,8 +350,7 @@ static std::vector<size_t> unicode_regex_split_custom_llama3(const std::string &
         };
 
         auto _get_flags = [&] (const size_t pos) -> codepoint_flags {
-            static const codepoint_flags undef(codepoint_flags::UNDEFINED);
-            return (offset_ini <= pos && pos < offset_end) ? unicode_cpt_flags(cpts[pos]) : undef;
+            return (offset_ini <= pos && pos < offset_end) ? unicode_cpt_flags(cpts[pos]) : codepoint_flags{};
         };
 
         size_t _prev_end = offset_ini;
@@ -394,8 +392,8 @@ static std::vector<size_t> unicode_regex_split_custom_llama3(const std::string &
                 }
             }
 
-            // regex: [^\r\n\p{L}\p{N}]?\p{L}+  //####FIXME: the first \p{L} is correct?
-            if (!(cpt == '\r' || cpt == '\n' || /*flags.is_letter |*/ flags.is_number)) {
+            // regex: [^\r\n\p{L}\p{N}]?\p{L}+
+            if (!(cpt == '\r' || cpt == '\n' || flags.is_number)) {
                 if (flags.is_letter || _get_flags(pos+1).is_letter) {  // one or more letters
                     pos++;
                     while (_get_flags(pos).is_letter) {
@@ -421,9 +419,9 @@ static std::vector<size_t> unicode_regex_split_custom_llama3(const std::string &
 
             // regex: <space>?[^\s\p{L}\p{N}]+[\r\n]*
             auto flags2 = (cpt == ' ' ? _get_flags(pos+1) : flags);
-            if (!(flags2.is_whitespace || flags2.is_letter || flags2.is_number || flags2.is_undefined)) {
+            if (!(flags2.is_whitespace | flags2.is_letter | flags2.is_number) && flags.as_uint()) {
                 pos += (cpt == ' ');
-                while (!(flags2.is_whitespace || flags2.is_letter || flags2.is_number || flags2.is_undefined)) {
+                while (!(flags2.is_whitespace | flags2.is_letter | flags2.is_number) && flags2.as_uint()) {
                     flags2 = _get_flags(++pos);
                 }
                 uint32_t cpt2 = _get_cpt(pos);

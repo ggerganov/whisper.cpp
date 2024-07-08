@@ -2949,7 +2949,7 @@ struct whisper_global_cache {
 // Mel spectrogram
 
 void whisper_mel_init(whisper_mel & mel, ggml_backend_t backend, int n_len, int n_len_org, int n_mel) {
-    WHISPER_LOG_INFO("%s: n_len = %d, n_len_org = %d, n_mel = %d\n", __func__, n_len, n_len_org, n_mel);
+    //WHISPER_LOG_INFO("%s: n_len = %d, n_len_org = %d, n_mel = %d\n", __func__, n_len, n_len_org, n_mel);
     mel.n_len_org = n_len_org;
     assert(!mel.ctx);
     mel.ctx = ggml_init({ggml_tensor_overhead(), nullptr, true});
