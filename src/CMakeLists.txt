@@ -73,7 +73,7 @@ if (WHISPER_OPENVINO)
     set_property(TARGET ${TARGET} PROPERTY POSITION_INDEPENDENT_CODE ON)
     set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_USE_OPENVINO)
 
-    target_link_libraries(${TARGET} PRIVATE openvino::runtime)
+    target_link_libraries(${TARGET} PRIVATE ggml openvino::runtime)
     set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
 endif()
 
