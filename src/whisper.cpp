@@ -17,6 +17,10 @@
 #include "ggml-sycl.h"
 #endif
 
+#ifdef GGML_USE_VULKAN
+#include "ggml-vulkan.h"
+#endif
+
 #ifdef GGML_USE_BLAS
 #include "ggml-blas.h"
 #endif
@@ -1265,6 +1269,16 @@ static ggml_backend_t whisper_backend_init_gpu(const whisper_context_params & pa
         result = ggml_backend_sycl_init(params.gpu_device);
         if (!result) {
             WHISPER_LOG_ERROR("%s: ggml_backend_sycl_init() failed\n", __func__);
+        }
+    }
+#endif
+
+#ifdef GGML_USE_VULKAN
+    if (params.use_gpu) {
+        WHISPER_LOG_INFO("%s: using Vulkan backend\n", __func__);
+        result = ggml_backend_vk_init(params.gpu_device);
+        if (!result) {
+            WHISPER_LOG_ERROR("%s: ggml_backend_vk_init() failed\n", __func__);
         }
     }
 #endif
