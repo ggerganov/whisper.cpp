@@ -117,13 +117,6 @@ class TestWhisper < Test::Unit::TestCase
     assert !@params.split_on_word
   end
 
-  def test_speed_up
-    @params.speed_up = true
-    assert @params.speed_up
-    @params.speed_up = false
-    assert !@params.speed_up
-  end
-
   def test_whisper
     @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
     params  = Whisper::Params.new

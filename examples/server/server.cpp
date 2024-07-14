@@ -22,13 +22,6 @@ using json = nlohmann::ordered_json;
 
 namespace {
 
-// Terminal color map. 10 colors grouped in ranges [0.0, 0.1, ..., 0.9]
-// Lowest is red, middle is yellow, highest is green.
-const std::vector<std::string> k_colors = {
-    "\033[38;5;196m", "\033[38;5;202m", "\033[38;5;208m", "\033[38;5;214m", "\033[38;5;220m",
-    "\033[38;5;226m", "\033[38;5;190m", "\033[38;5;154m", "\033[38;5;118m", "\033[38;5;82m",
-};
-
 // output formats
 const std::string json_format   = "json";
 const std::string text_format   = "text";
@@ -41,6 +34,7 @@ struct server_params
     std::string hostname = "127.0.0.1";
     std::string public_path = "examples/server/public";
     std::string request_path = "";
+    std::string inference_path = "/inference";
 
     int32_t port          = 8080;
     int32_t read_timeout  = 600;
@@ -60,6 +54,7 @@ struct whisper_params {
     int32_t max_len       = 0;
     int32_t best_of       = 2;
     int32_t beam_size     = -1;
+    int32_t audio_ctx     = 0;
 
     float word_thold      =  0.01f;
     float entropy_thold   =  2.40f;
@@ -67,7 +62,6 @@ struct whisper_params {
     float temperature     =  0.00f;
     float temperature_inc =  0.20f;
 
-    bool speed_up        = false;
     bool debug_mode      = false;
     bool translate       = false;
     bool detect_language = false;
@@ -81,6 +75,7 @@ struct whisper_params {
     bool print_progress  = false;
     bool no_timestamps   = false;
     bool use_gpu         = true;
+    bool flash_attn      = false;
 
     std::string language        = "en";
     std::string prompt          = "";
@@ -93,37 +88,11 @@ struct whisper_params {
     std::string tdrz_speaker_turn = " [SPEAKER_TURN]"; // TODO: set from command line
 
     std::string openvino_encode_device = "CPU";
+
+    std::string dtw = "";
 };
 
-//  500 -> 00:05.000
-// 6000 -> 01:00.000
-std::string to_timestamp(int64_t t, bool comma = false) {
-    int64_t msec = t * 10;
-    int64_t hr = msec / (1000 * 60 * 60);
-    msec = msec - hr * (1000 * 60 * 60);
-    int64_t min = msec / (1000 * 60);
-    msec = msec - min * (1000 * 60);
-    int64_t sec = msec / 1000;
-    msec = msec - sec * 1000;
-
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%02d:%02d:%02d%s%03d", (int) hr, (int) min, (int) sec, comma ? "," : ".", (int) msec);
-
-    return std::string(buf);
-}
-
-int timestamp_to_sample(int64_t t, int n_samples) {
-    return std::max(0, std::min((int) n_samples - 1, (int) ((t*WHISPER_SAMPLE_RATE)/100)));
-}
-
-bool is_file_exist(const char *fileName)
-{
-    std::ifstream infile(fileName);
-    return infile.good();
-}
-
-void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params,
-                         const server_params& sparams) {
+void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params, const server_params& sparams) {
     fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options] \n", argv[0]);
     fprintf(stderr, "\n");
@@ -139,10 +108,10 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -sow,      --split-on-word     [%-7s] split on word rather than on token\n",             params.split_on_word ? "true" : "false");
     fprintf(stderr, "  -bo N,     --best-of N         [%-7d] number of best candidates to keep\n",              params.best_of);
     fprintf(stderr, "  -bs N,     --beam-size N       [%-7d] beam size for beam search\n",                      params.beam_size);
+    fprintf(stderr, "  -ac N,     --audio-ctx N       [%-7d] audio context size (0 - all)\n",                   params.audio_ctx);
     fprintf(stderr, "  -wt N,     --word-thold N      [%-7.2f] word timestamp probability threshold\n",         params.word_thold);
     fprintf(stderr, "  -et N,     --entropy-thold N   [%-7.2f] entropy threshold for decoder fail\n",           params.entropy_thold);
     fprintf(stderr, "  -lpt N,    --logprob-thold N   [%-7.2f] log probability threshold for decoder fail\n",   params.logprob_thold);
-    // fprintf(stderr, "  -su,       --speed-up          [%-7s] speed up audio by x2 (reduced accuracy)\n",        params.speed_up ? "true" : "false");
     fprintf(stderr, "  -debug,    --debug-mode        [%-7s] enable debug mode (eg. dump log_mel)\n",           params.debug_mode ? "true" : "false");
     fprintf(stderr, "  -tr,       --translate         [%-7s] translate from source language to english\n",      params.translate ? "true" : "false");
     fprintf(stderr, "  -di,       --diarize           [%-7s] stereo audio diarization\n",                       params.diarize ? "true" : "false");
@@ -159,10 +128,12 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -m FNAME,  --model FNAME       [%-7s] model path\n",                                     params.model.c_str());
     fprintf(stderr, "  -oved D,   --ov-e-device DNAME [%-7s] the OpenVINO device used for encode inference\n",  params.openvino_encode_device.c_str());
     // server params
+    fprintf(stderr, "  -dtw MODEL --dtw MODEL         [%-7s] compute token-level timestamps\n", params.dtw.c_str());
     fprintf(stderr, "  --host HOST,                   [%-7s] Hostname/ip-adress for the server\n", sparams.hostname.c_str());
     fprintf(stderr, "  --port PORT,                   [%-7d] Port number for the server\n", sparams.port);
     fprintf(stderr, "  --public PATH,                 [%-7s] Path to the public folder\n", sparams.public_path.c_str());
     fprintf(stderr, "  --request-path PATH,           [%-7s] Request path for all requests\n", sparams.request_path.c_str());
+    fprintf(stderr, "  --inference-path PATH,         [%-7s] Inference path for all requests\n", sparams.inference_path.c_str());
     fprintf(stderr, "  --convert,                     [%-7s] Convert audio to WAV, requires ffmpeg on the server", sparams.ffmpeg_converter ? "true" : "false");
     fprintf(stderr, "\n");
 }
@@ -184,10 +155,10 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
         else if (arg == "-ml"   || arg == "--max-len")         { params.max_len         = std::stoi(argv[++i]); }
         else if (arg == "-bo"   || arg == "--best-of")         { params.best_of         = std::stoi(argv[++i]); }
         else if (arg == "-bs"   || arg == "--beam-size")       { params.beam_size       = std::stoi(argv[++i]); }
+        else if (arg == "-ac"   || arg == "--audio-ctx")       { params.audio_ctx       = std::stoi(argv[++i]); }
         else if (arg == "-wt"   || arg == "--word-thold")      { params.word_thold      = std::stof(argv[++i]); }
         else if (arg == "-et"   || arg == "--entropy-thold")   { params.entropy_thold   = std::stof(argv[++i]); }
         else if (arg == "-lpt"  || arg == "--logprob-thold")   { params.logprob_thold   = std::stof(argv[++i]); }
-        // else if (arg == "-su"   || arg == "--speed-up")        { params.speed_up        = true; }
         else if (arg == "-debug"|| arg == "--debug-mode")      { params.debug_mode      = true; }
         else if (arg == "-tr"   || arg == "--translate")       { params.translate       = true; }
         else if (arg == "-di"   || arg == "--diarize")         { params.diarize         = true; }
@@ -205,12 +176,15 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
         else if (                  arg == "--prompt")          { params.prompt          = argv[++i]; }
         else if (arg == "-m"    || arg == "--model")           { params.model           = argv[++i]; }
         else if (arg == "-oved" || arg == "--ov-e-device")     { params.openvino_encode_device = argv[++i]; }
+        else if (arg == "-dtw"  || arg == "--dtw")             { params.dtw             = argv[++i]; }
         else if (arg == "-ng"   || arg == "--no-gpu")          { params.use_gpu         = false; }
+        else if (arg == "-fa"   || arg == "--flash-attn")      { params.flash_attn      = true; }
         // server params
         else if (                  arg == "--port")            { sparams.port        = std::stoi(argv[++i]); }
         else if (                  arg == "--host")            { sparams.hostname    = argv[++i]; }
         else if (                  arg == "--public")          { sparams.public_path = argv[++i]; }
         else if (                  arg == "--request-path")    { sparams.request_path = argv[++i]; }
+        else if (                  arg == "--inference-path")  { sparams.inference_path = argv[++i]; }
         else if (                  arg == "--convert")         { sparams.ffmpeg_converter     = true; }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
@@ -272,8 +246,8 @@ std::string estimate_diarization_speaker(std::vector<std::vector<float>> pcmf32s
     std::string speaker = "";
     const int64_t n_samples = pcmf32s[0].size();
 
-    const int64_t is0 = timestamp_to_sample(t0, n_samples);
-    const int64_t is1 = timestamp_to_sample(t1, n_samples);
+    const int64_t is0 = timestamp_to_sample(t0, n_samples, WHISPER_SAMPLE_RATE);
+    const int64_t is1 = timestamp_to_sample(t1, n_samples, WHISPER_SAMPLE_RATE);
 
     double energy0 = 0.0f;
     double energy1 = 0.0f;
@@ -434,6 +408,10 @@ void get_req_parameters(const Request & req, whisper_params & params)
     {
         params.beam_size = std::stoi(req.get_file_value("beam_size").content);
     }
+    if (req.has_file("audio_ctx"))
+    {
+        params.audio_ctx = std::stof(req.get_file_value("audio_ctx").content);
+    }
     if (req.has_file("word_thold"))
     {
         params.word_thold = std::stof(req.get_file_value("word_thold").content);
@@ -525,8 +503,54 @@ int main(int argc, char ** argv) {
         check_ffmpeg_availibility();
     }
     // whisper init
-    struct whisper_context_params cparams;
-    cparams.use_gpu = params.use_gpu;
+    struct whisper_context_params cparams = whisper_context_default_params();
+
+    cparams.use_gpu    = params.use_gpu;
+    cparams.flash_attn = params.flash_attn;
+
+    if (!params.dtw.empty()) {
+        cparams.dtw_token_timestamps = true;
+        cparams.dtw_aheads_preset = WHISPER_AHEADS_NONE;
+
+        if (params.dtw == "tiny") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_TINY;
+        }
+        if (params.dtw == "tiny.en") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_TINY_EN;
+        }
+        if (params.dtw == "base") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_BASE;
+        }
+        if (params.dtw == "base.en") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_BASE_EN;
+        }
+        if (params.dtw == "small") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_SMALL;
+        }
+        if (params.dtw == "small.en") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_SMALL_EN;
+        }
+        if (params.dtw == "medium") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_MEDIUM;
+        }
+        if (params.dtw == "medium.en") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_MEDIUM_EN;
+        }
+        if (params.dtw == "large.v1") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_LARGE_V1;
+        }
+        if (params.dtw == "large.v2") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_LARGE_V2;
+        }
+        if (params.dtw == "large.v3") {
+            cparams.dtw_aheads_preset = WHISPER_AHEADS_LARGE_V3;
+        }
+
+        if (cparams.dtw_aheads_preset == WHISPER_AHEADS_NONE) {
+            fprintf(stderr, "error: unknown DTW preset '%s'\n", params.dtw.c_str());
+            return 3;
+        }
+    }
 
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
@@ -541,7 +565,7 @@ int main(int argc, char ** argv) {
     Server svr;
     svr.set_default_headers({{"Server", "whisper.cpp"},
                              {"Access-Control-Allow-Origin", "*"},
-                             {"Access-Control-Allow-Headers", "content-type"}});
+                             {"Access-Control-Allow-Headers", "content-type, authorization"}});
 
     std::string const default_content = R"(
     <html>
@@ -623,7 +647,10 @@ int main(int argc, char ** argv) {
         return false;
     });
 
-    svr.Post(sparams.request_path + "/inference", [&](const Request &req, Response &res){
+    svr.Options(sparams.request_path + sparams.inference_path, [&](const Request &, Response &){
+    });
+
+    svr.Post(sparams.request_path + sparams.inference_path, [&](const Request &req, Response &res){
         // acquire whisper model mutex lock
         std::lock_guard<std::mutex> lock(whisper_mutex);
 
@@ -739,8 +766,8 @@ int main(int argc, char ** argv) {
             wparams.thold_pt         = params.word_thold;
             wparams.max_len          = params.max_len == 0 ? 60 : params.max_len;
             wparams.split_on_word    = params.split_on_word;
+            wparams.audio_ctx        = params.audio_ctx;
 
-            wparams.speed_up         = params.speed_up;
             wparams.debug_mode       = params.debug_mode;
 
             wparams.tdrz_enable      = params.tinydiarize; // [TDRZ]
@@ -808,7 +835,7 @@ int main(int argc, char ** argv) {
         if (params.response_format == text_format)
         {
             std::string results = output_str(ctx, params, pcmf32s);
-            res.set_content(results.c_str(), "text/html");
+            res.set_content(results.c_str(), "text/html; charset=utf-8");
         }
         else if (params.response_format == srt_format)
         {
@@ -889,6 +916,7 @@ int main(int argc, char ** argv) {
                     if (!params.no_timestamps) {
                         word["start"] = token.t0 * 0.01;
                         word["end"] = token.t1 * 0.01;
+                        word["t_dtw"] = token.t_dtw;
                     }
                     word["probability"] = token.p;
                     total_logprob += token.plog;
@@ -918,7 +946,7 @@ int main(int argc, char ** argv) {
                             "application/json");
         }
 
-        // reset params to thier defaults
+        // reset params to their defaults
         params = default_params;
     });
     svr.Post(sparams.request_path + "/load", [&](const Request &req, Response &res){

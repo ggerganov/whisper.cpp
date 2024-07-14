@@ -219,7 +219,7 @@ bool sdl_poll_events() {
             case SDL_QUIT:
                 {
                     return false;
-                } break;
+                }
             default:
                 break;
         }

@@ -16,6 +16,28 @@ android {
         ndk {
             abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
         }
+        externalNativeBuild {
+            cmake {
+                // When set, builds whisper.android against the version located
+                // at GGML_HOME instead of the copy bundled with whisper.cpp.
+                if (
+                    project.hasProperty('GGML_HOME') &&
+                    project.findProperty('GGML_CLBLAST') == 'ON'
+                ) {
+                    // Turning on CLBlast requires GGML_HOME
+                    arguments "-DGGML_HOME=${project.property('GGML_HOME')}",
+                         "-DGGML_CLBLAST=ON",
+                         "-DOPENCL_LIB=${project.property('OPENCL_LIB')}",
+                         "-DCLBLAST_HOME=${project.property('CLBLAST_HOME')}",
+                         "-DOPENCL_ROOT=${project.property('OPENCL_ROOT')}",
+                         "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH",
+                         "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH"
+                } else if (project.hasProperty('GGML_HOME')) {
+                    arguments "-DGGML_HOME=${project.property('GGML_HOME')}"
+                }
+
+            }
+        }
     }
 
     buildTypes {

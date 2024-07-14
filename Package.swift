@@ -13,13 +13,9 @@ let package = Package(
     products: [
         .library(name: "whisper", targets: ["whisper"]),
     ],
-    dependencies: [
-        .package(url: "https://github.com/ggerganov/ggml.git", .branch("release"))
-    ],
     targets: [
         .target(
             name: "whisper",
-            dependencies: ["ggml"],
             path: ".",
             exclude: [
                "bindings",
@@ -31,13 +27,17 @@ let package = Package(
                "samples",
                "tests",
                "CMakeLists.txt",
-               "ggml-cuda.cu",
-               "ggml-cuda.h",
                "Makefile"
             ],
             sources: [
-                "whisper.cpp",
+                "ggml/src/ggml.c",
+                "src/whisper.cpp",
+                "ggml/src/ggml-alloc.c",
+                "ggml/src/ggml-backend.c",
+                "ggml/src/ggml-quants.c",
+                "ggml/src/ggml-metal.m"
             ],
+            resources: [.process("ggml-metal.metal")],
             publicHeadersPath: "spm-headers",
             cSettings: [
                 .unsafeFlags(["-Wno-shorten-64-to-32", "-O3", "-DNDEBUG"]),

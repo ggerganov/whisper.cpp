@@ -103,11 +103,11 @@ void stream_main(size_t index) {
 
             {
                 const int n_segments = whisper_full_n_segments(ctx);
-                for (int i = n_segments - 1; i < n_segments; ++i) {
-                    const char * text = whisper_full_get_segment_text(ctx, i);
+                if (n_segments > 0) {
+                    const char * text = whisper_full_get_segment_text(ctx, n_segments - 1);
 
-                    const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                    const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+                    const int64_t t0 = whisper_full_get_segment_t0(ctx, n_segments - 1);
+                    const int64_t t1 = whisper_full_get_segment_t1(ctx, n_segments - 1);
 
                     printf("transcribed: %s\n", text);
 

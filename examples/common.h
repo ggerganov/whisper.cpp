@@ -21,7 +21,7 @@ struct gpt_params {
     int32_t n_threads    = std::min(4, (int32_t) std::thread::hardware_concurrency());
     int32_t n_predict    = 200;  // new tokens to predict
     int32_t n_parallel   = 1;    // number of parallel streams
-    int32_t n_batch      = 8;    // batch size for prompt processing
+    int32_t n_batch      = 32;   // batch size for prompt processing
     int32_t n_ctx        = 2048; // context size (this is the KV cache max size)
     int32_t n_gpu_layers = 0;    // number of layers to offlload to the GPU
 
@@ -185,7 +185,7 @@ private:
     // It is assumed that PCM data is normalized to a range from -1 to 1
     bool write_audio(const float * data, size_t length) {
         for (size_t i = 0; i < length; ++i) {
-            const int16_t intSample = data[i] * 32767;
+            const int16_t intSample = int16_t(data[i] * 32767);
             file.write(reinterpret_cast<const char *>(&intSample), sizeof(int16_t));
             dataSize += sizeof(int16_t);
         }
@@ -281,3 +281,31 @@ struct sam_params {
 bool sam_params_parse(int argc, char ** argv, sam_params & params);
 
 void sam_print_usage(int argc, char ** argv, const sam_params & params);
+
+//
+// Terminal utils
+//
+
+
+// Terminal color map. 10 colors grouped in ranges [0.0, 0.1, ..., 0.9]
+// Lowest is red, middle is yellow, highest is green.
+const std::vector<std::string> k_colors = {
+    "\033[38;5;196m", "\033[38;5;202m", "\033[38;5;208m", "\033[38;5;214m", "\033[38;5;220m",
+    "\033[38;5;226m", "\033[38;5;190m", "\033[38;5;154m", "\033[38;5;118m", "\033[38;5;82m",
+};
+
+//
+// Other utils
+//
+
+// convert timestamp to string, 6000 -> 01:00.000
+std::string to_timestamp(int64_t t, bool comma = false);
+
+// given a timestamp get the sample
+int timestamp_to_sample(int64_t t, int n_samples, int whisper_sample_rate);
+
+// check if file exists using ifstream
+bool is_file_exist(const char *fileName);
+
+// write text to file, and call system("command voice_id file")
+bool speak_with_file(const std::string & command, const std::string & text, const std::string & path, int voice_id);

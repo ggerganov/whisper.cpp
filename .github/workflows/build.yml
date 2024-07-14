@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Build ${{ matrix.arch }}
         run: |
@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Dependencies
         run: |
@@ -53,10 +53,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build
-        uses: cross-platform-actions/action@v0.15.0
+        uses: cross-platform-actions/action@v0.24.0
         with:
           operating_system: freebsd
           version: '13.2'
@@ -77,10 +77,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Build ${{ matrix.arch }}
         run: |
@@ -101,14 +101,17 @@ jobs:
       fail-fast: false
       matrix:
         build: [Debug, Release]
-        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+        #arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+        # TODO: arm/v7 disabled due to clang bug
+        #       https://github.com/ggerganov/whisper.cpp/actions/runs/9657764109/job/26637633042?pr=2256#step:4:1990
+        arch: [linux/amd64, linux/arm64, linux/ppc64le]
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Build ${{ matrix.arch }}
         run: |
@@ -133,10 +136,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Build ${{ matrix.arch }}
         run: |
@@ -149,6 +152,164 @@ jobs:
             cmake . -DCMAKE_BUILD_TYPE=Debug -DWHISPER_SANITIZE_${{ matrix.sanitizer }}=ON
             make
             ctest -L gh --output-on-failure'
+
+  ubuntu-22-cmake-sycl:
+    runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dwhisper_sycl: [ON]
+        dcmake_c_compiler: [icx]
+        dcmake_cxx_compiler: [icpx]
+        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+
+    continue-on-error: true
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: add oneAPI to apt
+        shell: bash
+        run: |
+          cd /tmp
+          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
+
+      - name: install oneAPI dpcpp compiler
+        shell: bash
+        run: |
+          sudo apt update
+          sudo apt install intel-oneapi-compiler-dpcpp-cpp
+
+      - name: install oneAPI MKL library
+        shell: bash
+        run: |
+          sudo apt install intel-oneapi-mkl-devel
+
+      - name: Clone
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        id: cmake_build
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          mkdir build
+          cd build
+          cmake -DGGML_SYCL=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx ..
+          cmake --build . --config Release -j $(nproc)
+
+  ubuntu-22-cmake-sycl-fp16:
+    runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dwhisper_sycl: [ON]
+        dcmake_c_compiler: [icx]
+        dcmake_cxx_compiler: [icpx]
+        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+
+    continue-on-error: true
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: add oneAPI to apt
+        shell: bash
+        run: |
+          cd /tmp
+          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
+
+      - name: install oneAPI dpcpp compiler
+        shell: bash
+        run: |
+          sudo apt update
+          sudo apt install intel-oneapi-compiler-dpcpp-cpp
+
+      - name: install oneAPI MKL library
+        shell: bash
+        run: |
+          sudo apt install intel-oneapi-mkl-devel
+
+      - name: Clone
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        id: cmake_build
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          mkdir build
+          cd build
+          cmake -DGGML_SYCL_F16=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx ..
+          cmake --build . --config Release -j $(nproc)
+
+  windows-msys2:
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { sys: UCRT64,  env: ucrt-x86_64,  build: Release }
+          - { sys: CLANG64, env: clang-x86_64, build: Release }
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: Setup ${{ matrix.sys }}
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: ${{matrix.sys}}
+          install: >-
+            base-devel
+            mingw-w64-${{matrix.env}}-toolchain
+            mingw-w64-${{matrix.env}}-cmake
+            mingw-w64-${{matrix.env}}-SDL2
+            mingw-w64-${{matrix.env}}-openblas
+
+      - name: Build using make
+        shell: msys2 {0}
+        run: |
+            make -j $(nproc)
+
+      - name: Clean after building using make
+        shell: msys2 {0}
+        run: |
+            make clean
+
+      - name: Build using make w/ OpenBLAS
+        shell: msys2 {0}
+        run: |
+            make GGML_OPENBLAS=1 -j $(nproc)
+
+      - name: Build using CMake
+        shell: msys2 {0}
+        run: |
+            cmake -B build
+            cmake --build build --config ${{ matrix.build }} -j $(nproc)
+
+      - name: Clean after building using CMake
+        shell: msys2 {0}
+        run: |
+            rm -rf build
+
+      - name: Build using CMake w/ OpenBLAS
+        shell: msys2 {0}
+        run: |
+            cmake -B build -DGGML_OPENBLAS=ON
+            cmake --build build --config ${{ matrix.build }} -j $(nproc)
 
   windows:
     runs-on: windows-latest
@@ -170,10 +331,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v2
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
@@ -198,14 +359,14 @@ jobs:
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
 
       - name: Upload dll
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.jnaPath }}_whisper.dll
           path: build/bin/${{ matrix.build }}/whisper.dll
 
       - name: Upload binaries
         if: matrix.sdl2 == 'ON'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: whisper-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
@@ -223,21 +384,18 @@ jobs:
           - arch: Win32
             obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x86.zip
             s2arc: x86
-            clblast: OFF
           - arch: x64
             obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x64.zip
             s2arc: x64
-            clblast: ON
-            clver: 1.6.1
           - sdl2: ON
             s2ver: 2.28.5
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v2
 
       - name: Fetch OpenBLAS
         if: matrix.blas == 'ON'
@@ -255,26 +413,13 @@ jobs:
           7z x sdl2.zip
           echo "SDL2_DIR=$env:GITHUB_WORKSPACE/SDL2-${{ matrix.s2ver }}/cmake" >> $env:GITHUB_ENV
 
-      - name: Install OpenCL
-        if: matrix.clblast == 'ON'
-        run: vcpkg.exe --triplet=${{ matrix.arch }}-windows install opencl
-
-      - name: Fetch CLBlast and set CLBlast_DIR
-        if: matrix.clblast == 'ON'
-        run: |
-          C:/msys64/usr/bin/wget.exe -qO clblast.zip https://github.com/CNugteren/CLBlast/releases/download/${{ matrix.clver }}/CLBlast-${{ matrix.clver }}-windows-x64.zip
-          7z x clblast.zip
-          7z x CLBlast-${{ matrix.clver }}-windows-x64.7z
-          echo "CLBlast_DIR=$env:GITHUB_WORKSPACE/CLBlast-${{ matrix.clver }}-windows-x64/lib/cmake/CLBlast" >> $env:GITHUB_ENV
-
       - name: Configure
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_OPENBLAS=${{ matrix.blas }}
+          -DGGML_OPENBLAS=${{ matrix.blas }}
           -DCMAKE_LIBRARY_PATH="$env:OPENBLAS_PATH/lib"
           -DWHISPER_SDL2=${{ matrix.sdl2 }}
-          -DWHISPER_CLBLAST=${{ matrix.clblast }}
 
       - name: Build
         run: |
@@ -289,19 +434,15 @@ jobs:
         if: matrix.sdl2 == 'ON'
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
 
-      - name: Copy clblast.dll
-        if: matrix.clblast == 'ON'
-        run: copy "$env:CLBlast_DIR/../../clblast.dll" build/bin/${{ matrix.build }}
-
       - name: Upload binaries
         if: matrix.blas == 'ON' && matrix.sdl2 == 'ON'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
-          name: whisper-blas${{ matrix.clblast == 'ON' && '-clblast' || ''}}-bin-${{ matrix.arch }}
+          name: whisper-blas-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
 
   windows-cublas:
-    runs-on: windows-latest
+    runs-on: windows-2019
 
     strategy:
       matrix:
@@ -318,14 +459,14 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v2
 
       - name: Install CUDA Toolkit
         id: cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.11
+        uses: Jimver/cuda-toolkit@v0.2.15
         with:
           cuda: '${{ matrix.cuda-toolkit }}'
 
@@ -340,7 +481,7 @@ jobs:
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DWHISPER_CUBLAS=${{ matrix.cublas }}
+          -DGGML_CUDA=${{ matrix.cublas }}
           -DWHISPER_SDL2=${{ matrix.sdl2 }}
 
       - name: Build ${{ matrix.cuda-toolkit }}
@@ -361,7 +502,7 @@ jobs:
 
       - name: Upload binaries
         if: matrix.sdl2 == 'ON'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: whisper-cublas-${{ matrix.cuda-toolkit }}-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
@@ -375,10 +516,10 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup emsdk
-        uses: mymindstorm/setup-emsdk@v12
+        uses: mymindstorm/setup-emsdk@v14
 
       - name: Verify
         run: emcc -v
@@ -397,7 +538,7 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure
         run: |
@@ -415,96 +556,111 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          path: whisper
+
+      - name: Clone
+        uses: actions/checkout@v4
+        with:
+          repository: ggerganov/ggml
+          path: ggml
 
       - name: Install Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: 17
+          java-version: 21
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
 
       - name: Build
         run: |
-          cd examples/whisper.android
+          cd whisper/examples/whisper.android
           ./gradlew assembleRelease --no-daemon
+
+      - name: Build with external ggml
+        run: |
+          export PATH_TO_GGML=$PWD/ggml
+          cd whisper/examples/whisper.android
+          ./gradlew assembleRelease --no-daemon -PGGML_HOME=$PATH_TO_GGML
 
   android_java:
     runs-on: ubuntu-latest
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: set up JDK 11
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '11'
           distribution: 'temurin'
           cache: gradle
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
         with:
-          api-level: 30
-          build-tools-version: 30.0.3
+          cmdline-tools-version: 9.0
 
       - name: Build
         run: |
           cd examples/whisper.android.java
-          chmod +x ./gradlew 
+          chmod +x ./gradlew
           ./gradlew assembleRelease
 
-  java:
-    needs: [ 'windows' ]
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install Java
-        uses: actions/setup-java@v1
-        with:
-          java-version: 17
-
-      - name: Download Windows lib
-        uses: actions/download-artifact@v3
-        with:
-          name: win32-x86-64_whisper.dll
-          path: bindings/java/build/generated/resources/main/win32-x86-64
-
-      - name: Build
-        run: |
-          models\download-ggml-model.cmd tiny.en
-          cd bindings/java
-          chmod +x ./gradlew
-          ./gradlew build
-
-      - name: Upload jar
-        uses: actions/upload-artifact@v3
-        with:
-          name: whispercpp.jar
-          path: bindings/java/build/libs/whispercpp-*.jar
-
-      - name: Publish package
-        if: ${{ github.ref == 'refs/heads/master' }}
-        uses: gradle/gradle-build-action@v2.4.2
-        with:
-          arguments: publish
-          build-root-directory: bindings/java
-        env:
-          MAVEN_USERNAME: ${{ secrets.JIRA_USER }}
-          MAVEN_PASSWORD: ${{ secrets.JIRA_PASS }}
-          PGP_SECRET: ${{ secrets.GPG_PRIVATE_KEY }}
-          PGP_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+# TODO: disabled because of following fail: https://github.com/ggerganov/whisper.cpp/actions/runs/9686220096/job/26735899598
+#  java:
+#    needs: [ 'windows' ]
+#    runs-on: windows-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - name: Install Java
+#        uses: actions/setup-java@v4
+#        with:
+#          distribution: zulu
+#          java-version: 20
+#
+#      - name: Download Windows lib
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: win32-x86-64_whisper.dll
+#          path: bindings/java/build/generated/resources/main/win32-x86-64
+#
+#      - name: Build
+#        run: |
+#          models\download-ggml-model.cmd tiny.en
+#          cd bindings/java
+#          chmod +x ./gradlew
+#          ./gradlew build
+#
+#      - name: Upload jar
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: whispercpp.jar
+#          path: bindings/java/build/libs/whispercpp-*.jar
+#
+#      - name: Publish package
+#        if: ${{ github.ref == 'refs/heads/master' }}
+#        uses: gradle/gradle-build-action@v2.4.2
+#        with:
+#          arguments: publish
+#          build-root-directory: bindings/java
+#        env:
+#          MAVEN_USERNAME: ${{ secrets.JIRA_USER }}
+#          MAVEN_PASSWORD: ${{ secrets.JIRA_PASS }}
+#          PGP_SECRET: ${{ secrets.GPG_PRIVATE_KEY }}
+#          PGP_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
   quantize:
     runs-on: ubuntu-latest
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Test quantize
         run: |

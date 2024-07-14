@@ -19,8 +19,18 @@
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
+#ifdef WHISPER_FFMPEG
+// as implemented in ffmpeg_trancode.cpp only embedded in common lib if whisper built with ffmpeg support
+extern bool ffmpeg_decode_audio(const std::string & ifname, std::vector<uint8_t> & wav_data);
+#endif
+
 // Function to check if the next argument exists
-std::string get_next_arg(int& i, int argc, char** argv, const std::string& flag, gpt_params& params) {
+static std::string get_next_arg(int& i, int argc, char** argv, const std::string& flag, gpt_params& params) {
     if (i + 1 < argc && argv[i + 1][0] != '-') {
         return argv[++i];
     } else {
@@ -137,7 +147,6 @@ std::string gpt_random_prompt(std::mt19937 & rng) {
         case 7: return "He";
         case 8: return "She";
         case 9: return "They";
-        default: return "To";
     }
 
     return "The";
@@ -336,7 +345,7 @@ std::vector<gpt_vocab::id> gpt_tokenize(const gpt_vocab & vocab, const std::stri
     return tokens;
 }
 
-std::vector<gpt_vocab::id> parse_tokens_from_string(const std::string& input, char delimiter) {
+static std::vector<gpt_vocab::id> parse_tokens_from_string(const std::string& input, char delimiter) {
     std::vector<gpt_vocab::id> output;
     std::stringstream ss(input);
     std::string token;
@@ -348,7 +357,7 @@ std::vector<gpt_vocab::id> parse_tokens_from_string(const std::string& input, ch
     return output;
 }
 
-std::map<std::string, std::vector<gpt_vocab::id>> extract_tests_from_file(const std::string & fpath_test){
+static std::map<std::string, std::vector<gpt_vocab::id>> extract_tests_from_file(const std::string & fpath_test){
     if (fpath_test.empty()){
         fprintf(stderr, "%s : No test file found.\n", __func__);
         return std::map<std::string, std::vector<gpt_vocab::id>>();
@@ -632,10 +641,14 @@ bool is_wav_buffer(const std::string buf) {
 
 bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector<std::vector<float>>& pcmf32s, bool stereo) {
     drwav wav;
-    std::vector<uint8_t> wav_data; // used for pipe input from stdin
+    std::vector<uint8_t> wav_data; // used for pipe input from stdin or ffmpeg decoding output
 
     if (fname == "-") {
         {
+            #ifdef _WIN32
+            _setmode(_fileno(stdin), _O_BINARY);
+            #endif
+
             uint8_t buf[1024];
             while (true)
             {
@@ -661,27 +674,42 @@ bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector
         }
     }
     else if (drwav_init_file(&wav, fname.c_str(), nullptr) == false) {
+#if defined(WHISPER_FFMPEG)
+        if (ffmpeg_decode_audio(fname, wav_data) != 0) {
+            fprintf(stderr, "error: failed to ffmpeg decode '%s' \n", fname.c_str());
+            return false;
+        }
+        if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), nullptr) == false) {
+            fprintf(stderr, "error: failed to read wav data as wav \n");
+            return false;
+        }
+#else
         fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname.c_str());
         return false;
+#endif
     }
 
     if (wav.channels != 1 && wav.channels != 2) {
         fprintf(stderr, "%s: WAV file '%s' must be mono or stereo\n", __func__, fname.c_str());
+        drwav_uninit(&wav);
         return false;
     }
 
     if (stereo && wav.channels != 2) {
         fprintf(stderr, "%s: WAV file '%s' must be stereo for diarization\n", __func__, fname.c_str());
+        drwav_uninit(&wav);
         return false;
     }
 
     if (wav.sampleRate != COMMON_SAMPLE_RATE) {
         fprintf(stderr, "%s: WAV file '%s' must be %i kHz\n", __func__, fname.c_str(), COMMON_SAMPLE_RATE/1000);
+        drwav_uninit(&wav);
         return false;
     }
 
     if (wav.bitsPerSample != 16) {
         fprintf(stderr, "%s: WAV file '%s' must be 16-bit\n", __func__, fname.c_str());
+        drwav_uninit(&wav);
         return false;
     }
 
@@ -835,4 +863,49 @@ void sam_print_usage(int /*argc*/, char ** argv, const sam_params & params) {
     fprintf(stderr, "  -o FNAME, --out FNAME\n");
     fprintf(stderr, "                        output file (default: %s)\n", params.fname_out.c_str());
     fprintf(stderr, "\n");
+}
+
+//  500 -> 00:05.000
+// 6000 -> 01:00.000
+std::string to_timestamp(int64_t t, bool comma) {
+    int64_t msec = t * 10;
+    int64_t hr = msec / (1000 * 60 * 60);
+    msec = msec - hr * (1000 * 60 * 60);
+    int64_t min = msec / (1000 * 60);
+    msec = msec - min * (1000 * 60);
+    int64_t sec = msec / 1000;
+    msec = msec - sec * 1000;
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d%s%03d", (int) hr, (int) min, (int) sec, comma ? "," : ".", (int) msec);
+
+    return std::string(buf);
+}
+
+int timestamp_to_sample(int64_t t, int n_samples, int whisper_sample_rate) {
+    return std::max(0, std::min((int) n_samples - 1, (int) ((t*whisper_sample_rate)/100)));
+}
+
+bool is_file_exist(const char *fileName)
+{
+    std::ifstream infile(fileName);
+    return infile.good();
+}
+
+bool speak_with_file(const std::string & command, const std::string & text, const std::string & path, int voice_id)
+{
+    std::ofstream speak_file(path.c_str());
+    if (speak_file.fail()) {
+        fprintf(stderr, "%s: failed to open speak_file\n", __func__);
+        return false;
+    } else {
+        speak_file.write(text.c_str(), text.size());
+        speak_file.close();
+        int ret = system((command + " " + std::to_string(voice_id) + " " + path).c_str());
+        if (ret != 0) {
+            fprintf(stderr, "%s: failed to speak\n", __func__);
+            return false;
+        }
+    }
+    return true;
 }

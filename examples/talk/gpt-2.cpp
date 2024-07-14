@@ -72,7 +72,7 @@ struct gpt2_model {
 };
 
 // load the model's weights from a file
-bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & vocab) {
+static bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & vocab) {
     printf("%s: loading model from '%s'\n", __func__, fname.c_str());
 
     auto fin = std::ifstream(fname, std::ios::binary);
@@ -380,7 +380,7 @@ bool gpt2_model_load(const std::string & fname, gpt2_model & model, gpt_vocab & 
 //   - embd_w:    the predicted logits for the next token
 //
 // TODO: sync latest version from ggml repo
-bool gpt2_eval(
+static bool gpt2_eval(
         const gpt2_model & model,
         const int n_threads,
         const int n_past,

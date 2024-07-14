@@ -37,7 +37,7 @@ jobs:
         run: npm install
 
       - name: Compile addon.node
-        run: npx cmake-js compile -T whisper-addon -B Release
+        run: npx cmake-js compile -T addon.node -B Release
 
       - name: Download test model
         run: |
