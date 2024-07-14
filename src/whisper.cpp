@@ -1331,6 +1331,10 @@ static ggml_backend_buffer_type_t whisper_default_buffer_type(const whisper_cont
     result || (result = ggml_backend_sycl_buffer_type(params.gpu_device));
 #endif
 
+#ifdef GGML_USE_VULKAN
+    result || (result = ggml_backend_vk_buffer_type(params.gpu_device));
+#endif
+
     result || (result = ggml_backend_cpu_buffer_type());
 
     return result;
