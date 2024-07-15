@@ -7220,9 +7220,10 @@ struct median_filter_user_data {
 };
 
 static void median_filter(struct ggml_tensor * dst , const struct ggml_tensor * a, int ith, int nth, void * userdata) {
+    if (ith != 0) {
+        return;
+    }
     int filter_width = ((median_filter_user_data *) userdata)->filter_width;
-    WHISPER_ASSERT(nth == 1);
-    WHISPER_ASSERT(ith == 0);
     WHISPER_ASSERT(filter_width < a->ne[2]);
     WHISPER_ASSERT(filter_width % 2);
     WHISPER_ASSERT(ggml_n_dims(a) == 3);
