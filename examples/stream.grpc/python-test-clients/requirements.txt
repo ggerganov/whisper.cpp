@@ -1,2 +1,4 @@
 argparse
 pyaudio
+grpcio
+grpcio-tools
