@@ -54,6 +54,7 @@ if (WHISPER_COREML)
 
     set_target_properties(${TARGET} PROPERTIES
         COMPILE_FLAGS "-fobjc-arc"
+        XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
         )
     set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
 endif()
