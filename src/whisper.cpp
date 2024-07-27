@@ -1920,7 +1920,7 @@ static struct ggml_cgraph * whisper_build_graph_conv(
     ggml_set_input(mel_inp);
 
     ggml_tensor * mel;
-    {
+    if (ggml_nelements(mel_inp) > 0) {
         const int n_len = int(mel_inp->ne[0]);
         const int out_s = 2 * n_ctx;
         const int i0 = std::min(mel_offset, n_len);
@@ -1937,6 +1937,9 @@ static struct ggml_cgraph * whisper_build_graph_conv(
         } else {
             mel = ggml_cont(ctx0, cur);
         }
+    } else {
+        // empty mel - just create a dummy tensor with the correct size
+        mel = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, 2*n_ctx, n_mels);
     }
 
     ggml_set_name(mel, "mel");
