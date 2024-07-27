@@ -14765,21 +14765,21 @@ static void ggml_compute_forward_pool_1d_sk_p0(
             switch (op) {
                 case GGML_OP_POOL_AVG:   drow[i] = 0;        break;
                 case GGML_OP_POOL_MAX:   drow[i] = -FLT_MAX; break;
-                case GGML_OP_POOL_COUNT: GGML_ASSERT(false); break;
+                case GGML_OP_POOL_COUNT: GGML_ABORT("fatal error");
             }
             for (int ki = 0; ki < k; ++ki) {
                 const float srow_j = (src->type == GGML_TYPE_F32) ? ((const float*)srow)[j] : GGML_FP16_TO_FP32(((const ggml_fp16_t*)srow)[j]);
                 switch (op) {
                     case GGML_OP_POOL_AVG:                         drow[i] += srow_j; break;
                     case GGML_OP_POOL_MAX:   if (srow_j > drow[i]) drow[i]  = srow_j; break;
-                    case GGML_OP_POOL_COUNT:                       GGML_ASSERT(false); break;
+                    case GGML_OP_POOL_COUNT:                       GGML_ABORT("fatal error");
                 }
                 ++j;
             }
             switch (op) {
                 case GGML_OP_POOL_AVG:         drow[i] /= k; break;
                 case GGML_OP_POOL_MAX:                       break;
-                case GGML_OP_POOL_COUNT: GGML_ASSERT(false); break;
+                case GGML_OP_POOL_COUNT: GGML_ABORT("fatal error");
             }
         }
 
@@ -14848,7 +14848,7 @@ static void ggml_compute_forward_pool_2d(
                 switch (op) {
                     case GGML_OP_POOL_AVG:     *out = 0;        break;
                     case GGML_OP_POOL_MAX:     *out = -FLT_MAX; break;
-                    case GGML_OP_POOL_COUNT: GGML_ASSERT(false); break;
+                    case GGML_OP_POOL_COUNT: GGML_ABORT("fatal error");
                 }
 
                 const int ix = offset0 + ox * s0;
@@ -14864,14 +14864,14 @@ static void ggml_compute_forward_pool_2d(
                         switch (op) {
                             case GGML_OP_POOL_AVG:                     *out += srow_j; break;
                             case GGML_OP_POOL_MAX: if (srow_j > *out)  *out  = srow_j; break;
-                            case GGML_OP_POOL_COUNT:               GGML_ASSERT(false); break;
+                            case GGML_OP_POOL_COUNT:               GGML_ABORT("fatal error");
                         }
                     }
                 }
                 switch (op) {
                     case GGML_OP_POOL_AVG:           *out /= ka; break;
                     case GGML_OP_POOL_MAX:                       break;
-                    case GGML_OP_POOL_COUNT: GGML_ASSERT(false); break;
+                    case GGML_OP_POOL_COUNT: GGML_ABORT("fatal error");
                 }
             }
         }
