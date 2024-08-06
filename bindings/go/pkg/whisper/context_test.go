@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	ModelPath  = "../../models/ggml-tiny.bin"
+	ModelPath  = "../../models/ggml-small.en.bin"
 	SamplePath = "../../samples/jfk.wav"
 )
 
