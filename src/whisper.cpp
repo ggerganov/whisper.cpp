@@ -7240,7 +7240,7 @@ struct median_filter_user_data {
     int filter_width;
 };
 
-static void median_filter(struct ggml_tensor * dst , const struct ggml_tensor * a, int ith, int nth, void * userdata) {
+static void median_filter(struct ggml_tensor * dst , const struct ggml_tensor * a, int ith, int /*nth*/, void * userdata) {
     if (ith != 0) {
         return;
     }
