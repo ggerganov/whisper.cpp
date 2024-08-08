@@ -5,6 +5,8 @@ system("cp #{File.join(File.dirname(__FILE__),'..','..','..','whisper-mel.hpp')}
 system("cp #{File.join(File.dirname(__FILE__),'..','..','..','ggml.h')} .")
 system("cp #{File.join(File.dirname(__FILE__),'..','..','..','ggml.c')} .")
 system("cp #{File.join(File.dirname(__FILE__),'..','..','..','ggml-impl.h')} .")
+system("cp #{File.join(File.dirname(__FILE__),'..','..','..','ggml-aarch64.h')} .")
+system("cp #{File.join(File.dirname(__FILE__),'..','..','..','ggml-aarch64.c')} .")
 system("cp #{File.join(File.dirname(__FILE__),'..','..','..','ggml-alloc.h')} .")
 system("cp #{File.join(File.dirname(__FILE__),'..','..','..','ggml-alloc.c')} .")
 system("cp #{File.join(File.dirname(__FILE__),'..','..','..','ggml-backend-impl.h')} .")
