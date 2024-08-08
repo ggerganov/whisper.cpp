@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		18133C802C64E342005CEAAC /* ggml-aarch64.c in Sources */ = {isa = PBXBuildFile; fileRef = 18133C7F2C64E342005CEAAC /* ggml-aarch64.c */; };
 		1844471A2AB211A2007D6BFE /* ggml-alloc.c in Sources */ = {isa = PBXBuildFile; fileRef = 184447182AB211A2007D6BFE /* ggml-alloc.c */; };
 		1844471C2AB21655007D6BFE /* ggml-metal.m in Sources */ = {isa = PBXBuildFile; fileRef = 1844471B2AB21655007D6BFE /* ggml-metal.m */; settings = {COMPILER_FLAGS = "-framework Foundation -framework Metal -framework MetalKit -fno-objc-arc"; }; };
 		18627C7B29052BDF00BD2A04 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 18627C7A29052BDF00BD2A04 /* AppDelegate.m */; };
@@ -44,6 +45,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		18133C7E2C64E342005CEAAC /* ggml-aarch64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-aarch64.h"; path = "../../../ggml/src/ggml-aarch64.h"; sourceTree = "<group>"; };
+		18133C7F2C64E342005CEAAC /* ggml-aarch64.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-aarch64.c"; path = "../../../ggml/src/ggml-aarch64.c"; sourceTree = "<group>"; };
 		184447182AB211A2007D6BFE /* ggml-alloc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-alloc.c"; path = "../../../ggml/src/ggml-alloc.c"; sourceTree = "<group>"; };
 		184447192AB211A2007D6BFE /* ggml-alloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-alloc.h"; path = "../../../ggml/include/ggml-alloc.h"; sourceTree = "<group>"; };
 		1844471B2AB21655007D6BFE /* ggml-metal.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "ggml-metal.m"; path = "../../../ggml/src/ggml-metal.m"; sourceTree = "<group>"; };
@@ -112,6 +115,8 @@
 		18627C7829052BDF00BD2A04 /* whisper.objc */ = {
 			isa = PBXGroup;
 			children = (
+				18133C7F2C64E342005CEAAC /* ggml-aarch64.c */,
+				18133C7E2C64E342005CEAAC /* ggml-aarch64.h */,
 				18A275FF2C2A9563001C8D37 /* ggml-common.h */,
 				18A275FE2C2A94DE001C8D37 /* ggml-metal.h */,
 				18ABE1562AF556340044A204 /* ggml-backend-impl.h */,
@@ -236,6 +241,7 @@
 			files = (
 				18627C8129052BDF00BD2A04 /* ViewController.m in Sources */,
 				18ABE15B2AF556340044A204 /* ggml-quants.c in Sources */,
+				18133C802C64E342005CEAAC /* ggml-aarch64.c in Sources */,
 				7FE3424C2A0C3FA20015A058 /* whisper-encoder.mm in Sources */,
 				18627C9429052C4900BD2A04 /* whisper.cpp in Sources */,
 				18627C9629052C5800BD2A04 /* ggml.c in Sources */,
