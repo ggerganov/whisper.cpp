@@ -785,7 +785,8 @@ OBJ_GGML += \
 	ggml/src/ggml.o \
 	ggml/src/ggml-alloc.o \
 	ggml/src/ggml-backend.o \
-	ggml/src/ggml-quants.o
+	ggml/src/ggml-quants.o \
+	ggml/src/ggml-aarch64.o
 
 OBJ_WHISPER += \
 	src/whisper.o
@@ -913,6 +914,13 @@ ggml/src/ggml-quants.o: \
 	ggml/src/ggml-quants.c \
 	ggml/include/ggml.h \
 	ggml/src/ggml-quants.h \
+	ggml/src/ggml-common.h
+	$(CC) $(CFLAGS)    -c $< -o $@
+
+ggml/src/ggml-aarch64.o: \
+	ggml/src/ggml-aarch64.c \
+	ggml/include/ggml.h \
+	ggml/src/ggml-aarch64.h \
 	ggml/src/ggml-common.h
 	$(CC) $(CFLAGS)    -c $< -o $@
 
@@ -1076,7 +1084,7 @@ talk: examples/talk/talk.cpp examples/talk/gpt-2.cpp \
 	$(CXX) $(CXXFLAGS) $(CFLAGS_SDL) -c $< -o $(call GET_OBJ_FILE, $<)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS) $(LDFLAGS_SDL)
 
-talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp examples/talk-llama/unicode.cpp examples/talk-llama/unicode-data.cpp \
+talk-llama: examples/talk-llama/talk-llama.cpp examples/talk-llama/llama.cpp examples/talk-llama/llama-vocab.cpp examples/talk-llama/llama-grammar.cpp examples/talk-llama/llama-sampling.cpp examples/talk-llama/unicode.cpp examples/talk-llama/unicode-data.cpp \
 	$(OBJ_GGML) $(OBJ_WHISPER) $(OBJ_COMMON) $(OBJ_SDL)
 	$(CXX) $(CXXFLAGS) $(CFLAGS_SDL) -c $< -o $(call GET_OBJ_FILE, $<)
 	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS) $(LDFLAGS_SDL)
