@@ -26,6 +26,7 @@ all: clean whisper examples
 whisper: mkdir
 	@echo Build whisper
 	@${MAKE} -C ../.. libwhisper.a
+	@${MAKE} -C ../.. libggml.a
 
 test: model-small whisper modtidy
 ifeq ($(UNAME_S),Darwin)
