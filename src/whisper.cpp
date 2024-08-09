@@ -29,6 +29,10 @@
 #include "openvino/whisper-openvino-encoder.h"
 #endif
 
+#ifdef GGML_USE_CANN
+#include "ggml-cann.h"
+#endif
+
 #include "ggml.h"
 #include "ggml-alloc.h"
 #include "ggml-backend.h"
@@ -1283,6 +1287,16 @@ static ggml_backend_t whisper_backend_init_gpu(const whisper_context_params & pa
     }
 #endif
 
+#ifdef GGML_USE_CANN
+    if (params.use_gpu) {
+        WHISPER_LOG_INFO("%s: using CANN backend\n", __func__);
+        result = ggml_backend_cann_init(params.gpu_device);
+        if (!result) {
+            WHISPER_LOG_ERROR("%s: ggml_backend_cann_init() failed\n", __func__);
+        }
+    }
+#endif
+
     return result;
 }
 
@@ -1333,6 +1347,10 @@ static ggml_backend_buffer_type_t whisper_default_buffer_type(const whisper_cont
 
 #ifdef GGML_USE_VULKAN
     result || (result = ggml_backend_vk_buffer_type(params.gpu_device));
+#endif
+
+#ifdef GGML_USE_CANN
+    result || (result == ggml_backend_cann_buffer_type(params.gpu_device));
 #endif
 
     result || (result = ggml_backend_cpu_buffer_type());
@@ -4337,8 +4355,8 @@ const char * whisper_print_system_info(void) {
     s += "VSX = "       + std::to_string(ggml_cpu_has_vsx())       + " | ";
     s += "CUDA = "      + std::to_string(ggml_cpu_has_cuda())      + " | ";
     s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
-    s += "OPENVINO = "  + std::to_string(whisper_has_openvino())          ;
-
+    s += "OPENVINO = "  + std::to_string(whisper_has_openvino())   + " | ";
+    s += "CANN = "      + std::to_string(ggml_cpu_has_cann())             ;
     return s.c_str();
 }
 
