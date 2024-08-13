@@ -14353,7 +14353,7 @@ static void ggml_compute_forward_rope_f32(
     float corr_dims[2];
     ggml_rope_yarn_corr_dims(n_dims, n_ctx_orig, freq_base, beta_fast, beta_slow, corr_dims);
 
-    const bool is_neox = mode & 2;
+    const bool is_neox = mode & GGML_ROPE_TYPE_NEOX;
 
     const float * freq_factors = NULL;
     if (src2 != NULL) {
@@ -14478,7 +14478,7 @@ static void ggml_compute_forward_rope_f16(
     float corr_dims[2];
     ggml_rope_yarn_corr_dims(n_dims, n_ctx_orig, freq_base, beta_fast, beta_slow, corr_dims);
 
-    const bool is_neox = mode & 2;
+    const bool is_neox = mode & GGML_ROPE_TYPE_NEOX;
 
     const float * freq_factors = NULL;
     if (src2 != NULL) {
