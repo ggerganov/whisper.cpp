@@ -971,7 +971,8 @@ $(LIB_WHISPER): \
 	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS)
 
 $(LIB_WHISPER_S): \
-	$(OBJ_WHISPER)
+	$(OBJ_WHISPER) \
+	$(LIB_GGML)
 	ar rcs $(LIB_WHISPER_S) $^
 
 # common
