@@ -967,7 +967,6 @@ src/whisper.o: \
 
 $(LIB_WHISPER): \
 	$(OBJ_WHISPER) \
-	$(OBJ_GGML) \
 	$(LIB_GGML)
 	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS)
 
