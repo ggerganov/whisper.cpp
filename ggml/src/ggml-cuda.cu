@@ -2181,6 +2181,9 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
         case GGML_OP_ADD:
             ggml_cuda_op_add(ctx, dst);
             break;
+        case GGML_OP_SUB:
+            ggml_cuda_op_sub(ctx, dst);
+            break;
         case GGML_OP_ACC:
             ggml_cuda_op_acc(ctx, dst);
             break;
@@ -2266,6 +2269,12 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
             break;
         case GGML_OP_SQRT:
             ggml_cuda_op_sqrt(ctx, dst);
+            break;
+        case GGML_OP_SIN:
+            ggml_cuda_op_sin(ctx, dst);
+            break;
+        case GGML_OP_COS:
+            ggml_cuda_op_cos(ctx, dst);
             break;
         case GGML_OP_CLAMP:
             ggml_cuda_op_clamp(ctx, dst);
@@ -2853,12 +2862,15 @@ GGML_CALL static bool ggml_backend_cuda_supports_op(ggml_backend_t backend, cons
         case GGML_OP_TRANSPOSE:
         case GGML_OP_NORM:
         case GGML_OP_ADD:
+        case GGML_OP_SUB:
         case GGML_OP_MUL:
         case GGML_OP_DIV:
         case GGML_OP_RMS_NORM:
         case GGML_OP_SCALE:
         case GGML_OP_SQR:
         case GGML_OP_SQRT:
+        case GGML_OP_SIN:
+        case GGML_OP_COS:
         case GGML_OP_CLAMP:
         case GGML_OP_CONT:
         case GGML_OP_DIAG_MASK_INF:
