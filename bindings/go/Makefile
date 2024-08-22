@@ -10,12 +10,12 @@ ifndef UNAME_M
 UNAME_M := $(shell uname -m)
 endif
 
-GGML_METAL_PATH_RESOURCES := $(abspath ../..)
+GGML_METAL_PATH_RESOURCES := $(abspath ../../ggml/src)
 BUILD_DIR := build
 MODELS_DIR := models
 EXAMPLES_DIR := $(wildcard examples/*)
-INCLUDE_PATH := $(abspath ../..)
-LIBRARY_PATH := $(abspath ../..)
+INCLUDE_PATH := $(abspath ../../include):$(abspath ../../ggml/include)
+LIBRARY_PATH := $(abspath ../..):$(abspath ../../src):$(abspath ../../ggml/src)
 
 ifeq ($(UNAME_S),Darwin)
 	EXT_LDFLAGS := -framework Foundation -framework Metal -framework MetalKit
