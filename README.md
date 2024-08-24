@@ -55,8 +55,8 @@ Or you can even run it straight in the browser: [talk.wasm](examples/talk.wasm)
 
 ## Implementation details
 
-- The core tensor operations are implemented in C ([ggml.h](ggml.h) / [ggml.c](ggml.c))
-- The transformer model and the high-level C-style API are implemented in C++ ([whisper.h](whisper.h) / [whisper.cpp](whisper.cpp))
+- The core tensor operations are implemented in C ([ggml.h](ggml/include/ggml.h) / [ggml.c](ggml/src/ggml.c))
+- The transformer model and the high-level C-style API are implemented in C++ ([whisper.h](include/whisper.h) / [whisper.cpp](src/whisper.cpp))
 - Sample usage is demonstrated in [main.cpp](examples/main)
 - Sample real-time audio transcription from the microphone is demonstrated in [stream.cpp](examples/stream)
 - Various other examples are available in the [examples](examples) folder
