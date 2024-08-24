@@ -263,6 +263,16 @@ bool vad_simple(
         float freq_thold,
         bool  verbose);
 
+// Basic voice activity detection (VAD) using audio energy adaptive threshold
+int vad_simple_int(
+        std::vector<float> & pcmf32,
+        int   sample_rate,
+        int   last_ms,
+        float vad_thold,
+        float freq_thold,
+        bool  verbose,
+        float  vad_start_thold);
+
 // compute similarity between two strings using Levenshtein distance
 float similarity(const std::string & s0, const std::string & s1);
 

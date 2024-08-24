@@ -250,7 +250,7 @@ static std::vector<std::string> get_words(const std::string &txt) {
 const std::string k_prompt_whisper = R"(A conversation with a person called {1}.)";
 
 const std::string k_prompt_llama = R"(Text transcript of a never ending dialog, where {0} interacts with an AI assistant named {1}.
-{1} is helpful, kind, honest, friendly, good at writing and never fails to answer {0}’s requests immediately and with details and precision.
+{1} is helpful, kind, honest, friendly, good at writing and never fails to answer {0}'s requests immediately and with details and precision.
 There are no annotations like (30 seconds passed...) or (to himself), just what {0} and {1} say aloud to each other.
 The transcript only includes text, it does not include markup like HTML and Markdown.
 {1} responds with short and concise answers.
@@ -353,9 +353,9 @@ int main(int argc, char ** argv) {
 
     bool is_running  = true;
     bool force_speak = false;
+    bool conversation_active = false;
 
     float prob0 = 0.0f;
-
     const std::string chat_symb = ":";
 
     std::vector<float> pcmf32_cur;
@@ -520,6 +520,10 @@ int main(int argc, char ** argv) {
         params.person + chat_symb,
     };
 
+    // timeout variables
+    auto last_interaction_time = std::chrono::high_resolution_clock::now();
+    const int timeout_duration = 30000; // 30 seconds
+
     // main loop
     while (is_running) {
         // handle Ctrl + C
@@ -554,7 +558,7 @@ int main(int argc, char ** argv) {
                 std::string text_heard;
 
                 for (int i = 0; i < (int) words.size(); ++i) {
-                    if (i < wake_cmd_length) {
+                    if (!conversation_active && i < wake_cmd_length) {
                         wake_cmd_heard += words[i] + " ";
                     } else {
                         text_heard += words[i] + " ";
@@ -562,12 +566,14 @@ int main(int argc, char ** argv) {
                 }
 
                 // check if audio starts with the wake-up command if enabled
-                if (use_wake_cmd) {
+                if (use_wake_cmd && !conversation_active) {
                     const float sim = similarity(wake_cmd_heard, wake_cmd);
 
                     if ((sim < 0.7f) || (text_heard.empty())) {
                         audio.clear();
                         continue;
+                    } else {
+                        conversation_active = true;
                     }
                 }
 
@@ -788,6 +794,16 @@ int main(int argc, char ** argv) {
                 speak_with_file(params.speak, text_to_speak, params.speak_file, voice_id);
 
                 audio.clear();
+
+                // Reset the timeout timer
+                last_interaction_time = std::chrono::high_resolution_clock::now();
+            }
+
+            // Check if the timeout has been exceeded
+            auto current_time = std::chrono::high_resolution_clock::now();
+            auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_interaction_time).count();
+            if (elapsed_time > timeout_duration) {
+                conversation_active = false;
             }
         }
     }
