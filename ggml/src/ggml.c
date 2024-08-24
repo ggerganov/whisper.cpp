@@ -3745,7 +3745,6 @@ static struct ggml_tensor * ggml_new_tensor_impl(
 
     size_t data_size = ggml_row_size(type, ne[0]);
     for (int i = 1; i < n_dims; i++) {
-        assert(ne[i] > 0);
         data_size *= ne[i];
     }
 
