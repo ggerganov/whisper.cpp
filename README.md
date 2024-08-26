@@ -751,7 +751,7 @@ took to execute it. The results are summarized in the following Github issue:
 
 [Benchmark results](https://github.com/ggerganov/whisper.cpp/issues/89)
 
-Additionally a script to run whisper.cpp with different models and audio files is provided [bench.py](bench.py).
+Additionally a script to run whisper.cpp with different models and audio files is provided [bench.py](scripts/bench.py).
 
 You can run it with the following command, by default it will run against any standard model in the models folder.
 
