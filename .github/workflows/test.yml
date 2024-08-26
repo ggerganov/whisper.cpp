@@ -66,6 +66,12 @@ jobs:
                 .\vulkan.exe --root C:\vulkan --accept-licenses --default-answer --confirm-command install
                 echo "VULKAN_SDK=C:\vulkan" >> $env:GITHUB_ENV
                 Copy-Item -Path "C:\vulkan\Bin\*.dll" -Destination "." -Recurse
+
+                # Add Vulkan runtime DLL to PATH
+                C:\msys64\usr\bin\wget https://sdk.lunarg.com/sdk/download/1.3.290.0/windows/VulkanRT-1.3.290.0-Components.zip -O vulkan_components.exe
+                7z x vulkan_components.exe
+                echo "$pwd\VulkanRT-1.3.290.0-Components\x64" | Out-File -FilePath $env:GITHUB_PATH -Append
+
               if: ${{ contains(matrix.platform, 'windows') && contains(matrix.cmake-args, 'DGGML_VULKAN=ON') }}
 
             - name: Prepare Vulkan SDK for Linux
