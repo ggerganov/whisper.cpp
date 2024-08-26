@@ -174,7 +174,8 @@ static std::string transcribe(
         const std::vector<float> & pcmf32,
         const std::string prompt_text,
         float & prob,
-        int64_t & t_ms) {
+        int64_t & t_ms,
+        const std::function<void(const std::string&)>& partial_callback) {
     const auto t_start = std::chrono::high_resolution_clock::now();
 
     prob = 0.0f;
@@ -215,6 +216,11 @@ static std::string transcribe(
         const char * text = whisper_full_get_segment_text(ctx, i);
 
         result += text;
+
+        // Call the partial callback with the current segment
+        if (partial_callback) {
+            partial_callback(result);
+        }
 
         const int n_tokens = whisper_full_n_tokens(ctx, i);
         for (int j = 0; j < n_tokens; ++j) {
@@ -542,15 +548,19 @@ int main(int argc, char ** argv) {
             audio.get(2000, pcmf32_cur);
 
             if (::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1250, params.vad_thold, params.freq_thold, params.print_energy) || force_speak) {
-                //fprintf(stdout, "%s: Speech detected! Processing ...\n", __func__);
+                fprintf(stdout, "\n%s: Speech detected! Processing ...\n", __func__);
 
                 audio.get(params.voice_ms, pcmf32_cur);
 
                 std::string all_heard;
+                std::string partial_text;
 
                 if (!force_speak) {
-                    all_heard = ::trim(::transcribe(ctx_wsp, params, pcmf32_cur, prompt_whisper, prob0, t_ms));
+                    // Remove the partial output callback
+                    all_heard = ::trim(::transcribe(ctx_wsp, params, pcmf32_cur, prompt_whisper, prob0, t_ms, nullptr));
                 }
+
+                fprintf(stdout, "\nLive Transcription: %s\n", all_heard.c_str());
 
                 const auto words = get_words(all_heard);
 
@@ -569,7 +579,10 @@ int main(int argc, char ** argv) {
                 if (use_wake_cmd && !conversation_active) {
                     const float sim = similarity(wake_cmd_heard, wake_cmd);
 
-                    if ((sim < 0.7f) || (text_heard.empty())) {
+                    fprintf(stdout, "Wake command similarity: %.2f\n", sim);
+
+                    if ((sim < params.vad_thold) || (text_heard.empty())) {
+                        fprintf(stdout, "Wake command not detected or no text heard. Skipping...\n");
                         audio.clear();
                         continue;
                     } else {
@@ -607,7 +620,7 @@ int main(int argc, char ** argv) {
                 const std::vector<llama_token> tokens = llama_tokenize(ctx_llama, text_heard.c_str(), false);
 
                 if (text_heard.empty() || tokens.empty() || force_speak) {
-                    //fprintf(stdout, "%s: Heard nothing, skipping ...\n", __func__);
+                    fprintf(stdout, "%s: Heard nothing, skipping ...\n", __func__);
                     audio.clear();
 
                     continue;
