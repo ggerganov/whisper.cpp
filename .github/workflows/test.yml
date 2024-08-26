@@ -1,5 +1,16 @@
 name: Test
-on: [push, pull_request, workflow_dispatch]
+on: 
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      cmake_build_type:
+        required: false
+        default: Debug
+        type: choice
+        options:
+          - Debug
+          - Release  
 
 env:
   MODEL_URL: https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
@@ -19,25 +30,25 @@ jobs:
 
                 - platform: "macos-latest"
                   name: "MacOS (Arm) - aarch64"
-                  cmake-args: "-DGGML_CCACHE=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release -DGGML_STATIC=ON"
+                  cmake-args: "-DGGML_CCACHE=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=${{ inputs.cmake_build_type }} -DGGML_STATIC=ON"
       
                 # Linux
                 - platform: "ubuntu-24.04"
                   name: "Ubuntu 24.04 - x86_64"
-                  cmake-args: "-DGGML_CCACHE=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release -DGGML_STATIC=ON"
+                  cmake-args: "-DGGML_CCACHE=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=${{ inputs.cmake_build_type }} -DGGML_STATIC=ON"
 
                 - platform: "ubuntu-24.04"
                   name: "Ubuntu 24.04 - x86_64 - Vulkan"
-                  cmake-args: "-DGGML_VULKAN=ON -DGGML_CCACHE=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release -DGGML_STATIC=ON"
+                  cmake-args: "-DGGML_VULKAN=ON -DGGML_CCACHE=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=${{ inputs.cmake_build_type }} -DGGML_STATIC=ON"
       
                 # Windows
                 - platform: "windows-latest"
                   name: "Windows - x86_64"
-                  cmake-args: "-DGGML_CCACHE=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release -DGGML_STATIC=ON"
+                  cmake-args: "-DGGML_CCACHE=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=${{ inputs.cmake_build_type }} -DGGML_STATIC=ON"
 
                 - platform: "windows-latest"
                   name: "Windows - x86_64 - Vulkan"
-                  cmake-args: "-DGGML_VULKAN=ON -DGGML_CCACHE=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=Release -DGGML_STATIC=ON"
+                  cmake-args: "-DGGML_VULKAN=ON -DGGML_CCACHE=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=${{ inputs.cmake_build_type }} -DGGML_STATIC=ON"
 
         runs-on: ${{ matrix.platform }}
         name: ${{ matrix.name }}
@@ -76,12 +87,12 @@ jobs:
             - name: Build
               run: |
                 cmake -B build ${{ matrix.cmake-args }}
-                cmake --build build --target main --config Release
+                cmake --build build --target main --config ${{ inputs.cmake_build_type }}
 
             - name: Test Windows
               if: contains(matrix.platform, 'windows')
               run: |
-                .\build\bin\Release\main -m ${{ env.MODEL_FILENAME }} -f ${{ env.AUDIO_FILENAME }}
+                .\build\bin\${{ inputs.cmake_build_type }}\main -m ${{ env.MODEL_FILENAME }} -f ${{ env.AUDIO_FILENAME }}
 
             - name: Test Unix
               if: ${{ contains(matrix.platform, 'ubuntu') || contains(matrix.platform, 'macos') }}
