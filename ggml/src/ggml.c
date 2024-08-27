@@ -2671,6 +2671,19 @@ static ggml_float ggml_vec_soft_max_f32(const int n, float * y, const float * x,
     return sum;
 }
 
+static ggml_float ggml_vec_log_soft_max_f32(const int n, float * y, const float * x, float max) {
+    // log(soft_max) = log(soft_max_i / soft_max_sum) = log(soft_max_i) - log(soft_max_sum) = (logit_i - max) - log(soft_max_i)
+
+    int i = 0;
+    ggml_float sum = 0;
+    for (; i < n; ++i) {
+        float val = x[i] - max;
+        y[i] = val;
+        sum += (ggml_float)expf(val);
+    }
+    return sum = (ggml_float)logf(sum);
+}
+
 inline static float ggml_silu_backward_f32(float x, float dy) {
     const float s = 1.0f/(1.0f + expf(-x));
     return dy*s*(1.0f + x*(1.0f - s));
@@ -17022,8 +17035,6 @@ static void ggml_compute_forward_cross_entropy_loss_f32(
     }
     ggml_barrier(params->shared);
 
-    const double eps = 1e-9;
-
     // rows per thread
     const int dr = (nr + nth - 1)/nth;
 
@@ -17044,20 +17055,15 @@ static void ggml_compute_forward_cross_entropy_loss_f32(
         }
 #endif
 
-        // soft_max
         float max = -INFINITY;
         ggml_vec_max_f32(nc, &max, s0);
-        ggml_float sum = ggml_vec_soft_max_f32(nc, st, s0, max);
-        assert(sum > 0.0);
-        sum = (1.0 - eps) / sum;
+        ggml_float sum = ggml_vec_log_soft_max_f32(nc, st, s0, max);
+        assert(sum >= 0.0);
 
-        // avoid log(0) by rescaling from [0..1] to [eps..1]
-        ggml_vec_scale_f32(nc, st, sum);
-        ggml_vec_add1_f32(nc, st, st, eps);
-        ggml_vec_log_f32(nc, st, st);
+        ggml_vec_add1_f32(nc, st, st, -sum);
         ggml_vec_mul_f32(nc, st, st, s1);
 
-        float st_sum = 0;
+        float st_sum = 0.0f;
         ggml_vec_sum_f32(nc, &st_sum, st);
         sums[ith] += st_sum;
 
@@ -17114,8 +17120,6 @@ static void ggml_compute_forward_cross_entropy_loss_back_f32(
     const int64_t ith = params->ith;
     const int64_t nth = params->nth;
 
-    const double eps = 1e-9;
-
     // TODO: handle transposed/permuted matrices
     const int64_t nc = src0->ne[0];
     const int64_t nr = ggml_nrows(src0);
@@ -17147,11 +17151,9 @@ static void ggml_compute_forward_cross_entropy_loss_back_f32(
         ggml_vec_max_f32(nc, &max, s0);
         ggml_float sum = ggml_vec_soft_max_f32(nc, ds0, s0, max);
         assert(sum > 0.0);
-        sum = (1.0 - eps) / sum;
+        ggml_vec_scale_f32(nc, ds0, 1.0/sum);
 
         // grad(src0) = (softmax(src0) - src1) * grad(cross_entropy_loss(src0, src1)) / nr
-        ggml_vec_scale_f32(nc, ds0, sum);
-        ggml_vec_add1_f32(nc, ds0, ds0, eps);
         ggml_vec_sub_f32(nc, ds0, ds0, s1);
         ggml_vec_scale_f32(nc, ds0, d[0] / (float) nr);
 
@@ -20287,6 +20289,7 @@ static enum ggml_opt_result ggml_opt_adam(
         ggml_opt_callback callback,
         void * callback_data) {
     GGML_ASSERT(ggml_is_scalar(f));
+    GGML_ASSERT(f->type == GGML_TYPE_F32);
 
     // these will store the parameters we want to optimize
     struct ggml_tensor * ps[GGML_MAX_PARAMS];
