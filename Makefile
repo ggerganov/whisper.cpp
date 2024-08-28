@@ -972,8 +972,7 @@ $(LIB_WHISPER): \
 
 $(LIB_WHISPER_S): \
 	$(OBJ_WHISPER) \
-	$(OBJ_GGML) \
-	$(LIB_GGML)
+	$(OBJ_GGML)
 	ar rcs $(LIB_WHISPER_S) $^
 
 # common
