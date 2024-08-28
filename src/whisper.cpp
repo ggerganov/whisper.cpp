@@ -1297,6 +1297,8 @@ static ggml_backend_t whisper_backend_init_gpu(const whisper_context_params & pa
     }
 #endif
 
+    GGML_UNUSED(params);
+
     return result;
 }
 
