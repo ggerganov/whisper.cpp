@@ -21,7 +21,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Support for CPU-only inference
 - [Efficient GPU support for NVIDIA](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
 - [OpenVINO Support](https://github.com/ggerganov/whisper.cpp#openvino-support)
-- [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/whisper.h)
+- [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/include/whisper.h)
 
 Supported platforms:
 
