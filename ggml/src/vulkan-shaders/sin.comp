@@ -10,6 +10,6 @@ void main() {
         return;
     }
 
-    const FLOAT_TYPE val = FLOAT_TYPE(data_a[src0_idx(idx)]);
+    const float val = float(data_a[src0_idx(idx)]);
     data_d[p.d_offset + dst_idx(idx)] = D_TYPE(sin(val));
 }
