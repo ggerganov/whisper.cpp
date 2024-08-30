@@ -48,6 +48,9 @@ type Context interface {
 	SetTokenTimestamps(bool)        // Set token timestamps flag
 	SetMaxTokensPerSegment(uint)    // Set max tokens per segment (0 = no limit)
 	SetAudioCtx(uint)               // Set audio encoder context
+	SetMaxContext(n int)            // Set maximum number of text context tokens to store
+	SetBeamSize(n int)              // Set Beam Size
+	SetEntropyThold(t float32)      // Set Entropy threshold
 	SetInitialPrompt(prompt string) // Set initial prompt
 
 	// Process mono audio data and return any errors.

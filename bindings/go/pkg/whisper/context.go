@@ -125,6 +125,21 @@ func (context *context) SetAudioCtx(n uint) {
 	context.params.SetAudioCtx(int(n))
 }
 
+// Set maximum number of text context tokens to store
+func (context *context) SetMaxContext(n int) {
+	context.params.SetMaxContext(n)
+}
+
+// Set Beam Size
+func (context *context) SetBeamSize(n int) {
+	context.params.SetBeamSize(n)
+}
+
+// Set Entropy threshold
+func (context *context) SetEntropyThold(t float32) {
+	context.params.SetEntropyThold(t)
+}
+
 // Set initial prompt
 func (context *context) SetInitialPrompt(prompt string) {
 	context.params.SetInitialPrompt(prompt)

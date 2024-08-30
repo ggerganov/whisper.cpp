@@ -33,9 +33,9 @@ Supported platforms:
 - [x] [WebAssembly](examples/whisper.wasm)
 - [x] Windows ([MSVC](https://github.com/ggerganov/whisper.cpp/blob/master/.github/workflows/build.yml#L117-L144) and [MinGW](https://github.com/ggerganov/whisper.cpp/issues/168)]
 - [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/discussions/166)
-- [x] [docker](https://github.com/ggerganov/whisper.cpp/pkgs/container/whisper.cpp)
+- [x] [Docker](https://github.com/ggerganov/whisper.cpp/pkgs/container/whisper.cpp)
 
-The entire high-level implementation of the model is contained in [whisper.h](whisper.h) and [whisper.cpp](whisper.cpp).
+The entire high-level implementation of the model is contained in [whisper.h](include/whisper.h) and [whisper.cpp](src/whisper.cpp).
 The rest of the code is part of the [`ggml`](https://github.com/ggerganov/ggml) machine learning library.
 
 Having such a lightweight implementation of the model allows to easily integrate it in different platforms and applications.
@@ -55,8 +55,8 @@ Or you can even run it straight in the browser: [talk.wasm](examples/talk.wasm)
 
 ## Implementation details
 
-- The core tensor operations are implemented in C ([ggml.h](ggml.h) / [ggml.c](ggml.c))
-- The transformer model and the high-level C-style API are implemented in C++ ([whisper.h](whisper.h) / [whisper.cpp](whisper.cpp))
+- The core tensor operations are implemented in C ([ggml.h](ggml/include/ggml.h) / [ggml.c](ggml/src/ggml.c))
+- The transformer model and the high-level C-style API are implemented in C++ ([whisper.h](include/whisper.h) / [whisper.cpp](src/whisper.cpp))
 - Sample usage is demonstrated in [main.cpp](examples/main)
 - Sample real-time audio transcription from the microphone is demonstrated in [stream.cpp](examples/stream)
 - Various other examples are available in the [examples](examples) folder
@@ -751,7 +751,7 @@ took to execute it. The results are summarized in the following Github issue:
 
 [Benchmark results](https://github.com/ggerganov/whisper.cpp/issues/89)
 
-Additionally a script to run whisper.cpp with different models and audio files is provided [bench.py](bench.py).
+Additionally a script to run whisper.cpp with different models and audio files is provided [bench.py](scripts/bench.py).
 
 You can run it with the following command, by default it will run against any standard model in the models folder.
 

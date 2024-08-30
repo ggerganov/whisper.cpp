@@ -14,7 +14,7 @@ GGML_METAL_PATH_RESOURCES := $(abspath ../..)
 BUILD_DIR := build
 MODELS_DIR := models
 EXAMPLES_DIR := $(wildcard examples/*)
-INCLUDE_PATH := $(abspath ../..)
+INCLUDE_PATH := $(abspath ../../include):$(abspath ../../ggml/include)
 LIBRARY_PATH := $(abspath ../..)
 
 ifeq ($(UNAME_S),Darwin)

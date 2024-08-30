@@ -1297,6 +1297,8 @@ static ggml_backend_t whisper_backend_init_gpu(const whisper_context_params & pa
     }
 #endif
 
+    GGML_UNUSED(params);
+
     return result;
 }
 
@@ -2122,7 +2124,7 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                             ggml_element_size(kv_pad.v)*n_state_head,
                             0);
 
-                cur = ggml_flash_attn_ext(ctx0, Q, K, V, nullptr, KQscale, 0.0f);
+                cur = ggml_flash_attn_ext(ctx0, Q, K, V, nullptr, KQscale, 0.0f, 0.0f);
 
                 cur = ggml_reshape_2d(ctx0, cur, n_state, n_ctx);
             } else {
@@ -2561,7 +2563,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                             ggml_element_size(kv_self.v)*n_state_head,
                             ggml_element_size(kv_self.v)*n_state*n_ctx*il);
 
-                cur = ggml_flash_attn_ext(ctx0, Q, K, V, KQ_mask_f16, 1.0f, 0.0f);
+                cur = ggml_flash_attn_ext(ctx0, Q, K, V, KQ_mask_f16, 1.0f, 0.0f, 0.0f);
 
                 cur = ggml_reshape_2d(ctx0, cur, n_state, n_tokens);
             } else {
@@ -2643,7 +2645,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
                             ggml_element_size(wstate.kv_cross.v)*n_state_head,
                             ggml_element_size(wstate.kv_cross.v)*n_state*n_audio_ctx_pad*il);
 
-                cur = ggml_flash_attn_ext(ctx0, Q, Kcross, Vcross, nullptr, KQscale, 0.0f);
+                cur = ggml_flash_attn_ext(ctx0, Q, Kcross, Vcross, nullptr, KQscale, 0.0f, 0.0f);
 
                 cur = ggml_reshape_2d(ctx0, cur, n_state, n_tokens);
             } else {
