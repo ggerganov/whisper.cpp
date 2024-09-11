@@ -5,8 +5,12 @@
 
 function installed() { command -v $1 >/dev/null 2>&1; }
 
+# piper with aplay
+if installed piper && installed aplay; then
+    cat $2 | piper --model ~/en_US-lessac-medium.onnx --output-raw --cuda | aplay -q -r 22050 -f S16_LE -t raw -
+
 # Eleven Labs
-if installed python3 && \
+elif installed python3 && \
   python3 -c 'import importlib.util; exit(not importlib.util.find_spec("elevenlabs"))' && \
   installed ffplay; then
     # It's possible to use the API for free with limited number of characters.
