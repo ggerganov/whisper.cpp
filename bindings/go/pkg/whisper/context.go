@@ -140,6 +140,17 @@ func (context *context) SetEntropyThold(t float32) {
 	context.params.SetEntropyThold(t)
 }
 
+// Set Temperature
+func (context *context) SetTemperature(t float32) {
+	context.params.SetTemperature(t)
+}
+
+// Set the fallback temperature incrementation
+// Pass -1.0 to disable this feature
+func (context *context) SetTemperatureFallback(t float32) {
+	context.params.SetTemperatureFallback(t)
+}
+
 // Set initial prompt
 func (context *context) SetInitialPrompt(prompt string) {
 	context.params.SetInitialPrompt(prompt)
