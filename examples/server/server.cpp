@@ -677,7 +677,8 @@ int main(int argc, char ** argv) {
         if (sparams.ffmpeg_converter) {
             // if file is not wav, convert to wav
             // write to temporary file
-            const std::string temp_filename = "whisper_server_temp_file.wav";
+            const std::string temp_filename_base = std::tmpnam(nullptr);
+            const std::string temp_filename = temp_filename_base + ".wav";
             std::ofstream temp_file{temp_filename, std::ios::binary};
             temp_file << audio_file.content;
             temp_file.close();
