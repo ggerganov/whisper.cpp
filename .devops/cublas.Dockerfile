@@ -12,7 +12,7 @@ FROM ${BASE_CUDA_DEV_CONTAINER} as build
 ARG CUDA_DOCKER_ARCH=all
 
 RUN apt-get update && \
-    apt-get install -y build-essential git cmake
+    apt-get install -y build-essential git cmake libsdl2-dev
 
 WORKDIR /app
 
