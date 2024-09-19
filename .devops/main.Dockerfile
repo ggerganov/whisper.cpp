@@ -12,7 +12,7 @@ FROM ubuntu:22.04 AS runtime
 WORKDIR /app
 
 RUN apt-get update && \
-  apt-get install -y curl ffmpeg \
+  apt-get install -y curl ffmpeg libsdl2-dev \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 COPY --from=build /app /app
