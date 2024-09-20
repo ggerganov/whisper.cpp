@@ -38,20 +38,22 @@ type Context interface {
 	IsMultilingual() bool     // Return true if the model is multilingual.
 	Language() string         // Get language
 
-	SetOffset(time.Duration)        // Set offset
-	SetDuration(time.Duration)      // Set duration
-	SetThreads(uint)                // Set number of threads to use
-	SetSplitOnWord(bool)            // Set split on word flag
-	SetTokenThreshold(float32)      // Set timestamp token probability threshold
-	SetTokenSumThreshold(float32)   // Set timestamp token sum probability threshold
-	SetMaxSegmentLength(uint)       // Set max segment length in characters
-	SetTokenTimestamps(bool)        // Set token timestamps flag
-	SetMaxTokensPerSegment(uint)    // Set max tokens per segment (0 = no limit)
-	SetAudioCtx(uint)               // Set audio encoder context
-	SetMaxContext(n int)            // Set maximum number of text context tokens to store
-	SetBeamSize(n int)              // Set Beam Size
-	SetEntropyThold(t float32)      // Set Entropy threshold
-	SetInitialPrompt(prompt string) // Set initial prompt
+	SetOffset(time.Duration)          // Set offset
+	SetDuration(time.Duration)        // Set duration
+	SetThreads(uint)                  // Set number of threads to use
+	SetSplitOnWord(bool)              // Set split on word flag
+	SetTokenThreshold(float32)        // Set timestamp token probability threshold
+	SetTokenSumThreshold(float32)     // Set timestamp token sum probability threshold
+	SetMaxSegmentLength(uint)         // Set max segment length in characters
+	SetTokenTimestamps(bool)          // Set token timestamps flag
+	SetMaxTokensPerSegment(uint)      // Set max tokens per segment (0 = no limit)
+	SetAudioCtx(uint)                 // Set audio encoder context
+	SetMaxContext(n int)              // Set maximum number of text context tokens to store
+	SetBeamSize(n int)                // Set Beam Size
+	SetEntropyThold(t float32)        // Set Entropy threshold
+	SetInitialPrompt(prompt string)   // Set initial prompt
+	SetTemperature(t float32)         // Set temperature
+	SetTemperatureFallback(t float32) // Set temperature incrementation
 
 	// Process mono audio data and return any errors.
 	// If defined, newly generated segments are passed to the
