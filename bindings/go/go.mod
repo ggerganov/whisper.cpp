@@ -1,10 +1,10 @@
 module github.com/ggerganov/whisper.cpp/bindings/go
 
-go 1.19
+go 1.23
 
 require (
 	github.com/go-audio/wav v1.1.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
