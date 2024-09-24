@@ -14,6 +14,7 @@ cp -rpv ../ggml/src/ggml-blas.cpp       ./ggml/src/ggml-blas.cpp
 cp -rpv ../ggml/src/ggml-cann/*         ./ggml/src/ggml-cann/
 cp -rpv ../ggml/src/ggml-cann.cpp       ./ggml/src/ggml-cann.cpp
 cp -rpv ../ggml/src/ggml-common.h       ./ggml/src/ggml-common.h
+cp -rpv ../ggml/src/ggml-cpu-impl.h     ./ggml/src/ggml-cpu-impl.h
 cp -rpv ../ggml/src/ggml-cuda/*         ./ggml/src/ggml-cuda/
 cp -rpv ../ggml/src/ggml-cuda.cu        ./ggml/src/ggml-cuda.cu
 cp -rpv ../ggml/src/ggml-impl.h         ./ggml/src/ggml-impl.h

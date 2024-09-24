@@ -98,9 +98,9 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
 
     # replace filenames:
     #
-    # CMakelists.txt          -> ggml/CMakeLists.txt
-    # src/CMakeLists.txt      -> ggml/src/CMakeLists.txt
-    # cmake/FindSIMD.cmake    -> ggml/cmake/FindSIMD.cmake
+    # CMakelists.txt       -> ggml/CMakeLists.txt
+    # src/CMakeLists.txt   -> ggml/src/CMakeLists.txt
+    # cmake/FindSIMD.cmake -> ggml/cmake/FindSIMD.cmake
     #
     # src/ggml.c              -> ggml/src/ggml.c
     # src/ggml-aarch64.c      -> ggml/src/ggml-aarch64.c
@@ -112,6 +112,7 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
     # src/ggml-cann/*         -> ggml/src/ggml-cann/
     # src/ggml-cann.cpp       -> ggml/src/ggml-cann.cpp
     # src/ggml-common.h       -> ggml/src/ggml-common.h
+    # src/ggml-cpu-impl.h     -> ggml/src/ggml-cpu-impl.h
     # src/ggml-cuda/*         -> ggml/src/ggml-cuda/
     # src/ggml-cuda.cu        -> ggml/src/ggml-cuda.cu
     # src/ggml-impl.h         -> ggml/src/ggml-impl.h
@@ -137,10 +138,10 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
     # include/ggml-sycl.h    -> ggml/include/ggml-sycl.h
     # include/ggml-vulkan.h  -> ggml/include/ggml-vulkan.h
     #
-    # examples/common.h                   -> examples/common.h
-    # examples/common.cpp                 -> examples/common.cpp
-    # examples/common-ggml.h              -> examples/common-ggml.h
-    # examples/common-ggml.cpp            -> examples/common-ggml.cpp
+    # examples/common.h        -> examples/common.h
+    # examples/common.cpp      -> examples/common.cpp
+    # examples/common-ggml.h   -> examples/common-ggml.h
+    # examples/common-ggml.cpp -> examples/common-ggml.cpp
     #
     # LICENSE                     -> LICENSE
     # ggml/scripts/gen-authors.sh -> scripts/gen-authors.sh
@@ -159,6 +160,7 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
         -e 's/(^[[:space:]]|[ab]\/)src\/ggml-cann\//\1ggml\/src\/ggml-cann\//g' \
         -e 's/(^[[:space:]]|[ab]\/)src\/ggml-cann\.cpp/\1ggml\/src\/ggml-cann.cpp/g' \
         -e 's/(^[[:space:]]|[ab]\/)src\/ggml-common\.h/\1ggml\/src\/ggml-common.h/g' \
+        -e 's/(^[[:space:]]|[ab]\/)src\/ggml-cpu-impl\.h/\1ggml\/src\/ggml-cpu-impl.h/g' \
         -e 's/(^[[:space:]]|[ab]\/)src\/ggml-cuda\//\1ggml\/src\/ggml-cuda\//g' \
         -e 's/(^[[:space:]]|[ab]\/)src\/ggml-cuda\.cu/\1ggml\/src\/ggml-cuda.cu/g' \
         -e 's/(^[[:space:]]|[ab]\/)src\/ggml-impl\.h/\1ggml\/src\/ggml-impl.h/g' \
