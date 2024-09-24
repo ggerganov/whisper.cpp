@@ -75,7 +75,7 @@ git clone https://github.com/ggerganov/whisper.cpp.git
 Then, download one of the Whisper [models](models/README.md) converted in [`ggml` format](#ggml-format). For example:
 
 ```bash
-bash ./models/download-ggml-model.sh base.en
+sh ./models/download-ggml-model.sh base.en
 ```
 
 Now build the [main](examples/main) example and transcribe an audio file like this:
@@ -146,7 +146,7 @@ options:
   -ng,       --no-gpu            [false  ] disable GPU
 
 
-bash ./models/download-ggml-model.sh base.en
+sh ./models/download-ggml-model.sh base.en
 Downloading ggml model base.en ...
 ggml-base.en.bin               100%[========================>] 141.11M  6.34MB/s    in 24s
 Done! Model 'base.en' saved in 'models/ggml-base.en.bin'
