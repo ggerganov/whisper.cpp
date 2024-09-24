@@ -127,8 +127,10 @@ endif (WHISPER_SDL2)
     add_subdirectory(quantize)
     set_target_properties(quantize PROPERTIES FOLDER "examples")
 if (WHISPER_SDL2)
-    add_subdirectory(talk)
-    set_target_properties(talk PROPERTIES FOLDER "examples")
+    # TODO: disabled until update
+    #       https://github.com/ggerganov/whisper.cpp/issues/1818
+    #add_subdirectory(talk)
+    #set_target_properties(talk PROPERTIES FOLDER "examples")
     add_subdirectory(talk-llama)
     set_target_properties(talk-llama PROPERTIES FOLDER "examples")
     add_subdirectory(lsp)

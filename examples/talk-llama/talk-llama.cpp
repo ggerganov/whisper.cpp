@@ -314,7 +314,6 @@ int main(int argc, char ** argv) {
 
     // tune these to your liking
     lcparams.n_ctx      = 2048;
-    lcparams.seed       = 1;
     lcparams.n_threads  = params.n_threads;
     lcparams.flash_attn = params.flash_attn;
 
@@ -401,6 +400,26 @@ int main(int argc, char ** argv) {
     prompt_llama = ::replace(prompt_llama, "{4}", chat_symb);
 
     llama_batch batch = llama_batch_init(llama_n_ctx(ctx_llama), 0, 1);
+
+    // init sampler
+    const float top_k = 5;
+    const float top_p = 0.80f;
+    const float temp  = 0.30f;
+
+    const int seed = 0;
+
+    auto sparams = llama_sampler_chain_default_params();
+
+    llama_sampler * smpl = llama_sampler_chain_init(sparams);
+
+    if (temp > 0.0f) {
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_k(top_k));
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_p(top_p, 1));
+        llama_sampler_chain_add(smpl, llama_sampler_init_temp (temp));
+        llama_sampler_chain_add(smpl, llama_sampler_init_dist (seed));
+    } else {
+        llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
+    }
 
     // init session
     std::string path_session = params.path_session;
@@ -700,54 +719,13 @@ int main(int argc, char ** argv) {
 
                     {
                         // out of user input, sample next token
-                        const float top_k          = 5;
-                        const float top_p          = 0.80f;
-                        const float temp           = 0.30f;
-                        const float repeat_penalty = 1.1764f;
-
-                        const int repeat_last_n    = 256;
 
                         if (!path_session.empty() && need_to_save_session) {
                             need_to_save_session = false;
                             llama_state_save_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.size());
                         }
 
-                        llama_token id = 0;
-
-                        {
-                            auto logits = llama_get_logits(ctx_llama);
-                            auto n_vocab = llama_n_vocab(model_llama);
-
-                            logits[llama_token_eos(model_llama)] = 0;
-
-                            std::vector<llama_token_data> candidates;
-                            candidates.reserve(n_vocab);
-                            for (llama_token token_id = 0; token_id < n_vocab; token_id++) {
-                                candidates.emplace_back(llama_token_data{token_id, logits[token_id], 0.0f});
-                            }
-
-                            llama_token_data_array candidates_p = { candidates.data(), candidates.size(), false };
-
-                            // apply repeat penalty
-                            const float nl_logit = logits[llama_token_nl(model_llama)];
-
-                            llama_sample_repetition_penalties(ctx_llama, &candidates_p,
-                                    embd_inp.data() + std::max(0, n_past - repeat_last_n),
-                                    repeat_last_n, repeat_penalty, 0.0, 0.0f);
-
-                            logits[llama_token_nl(model_llama)] = nl_logit;
-
-                            if (temp <= 0) {
-                                // Greedy sampling
-                                id = llama_sample_token_greedy(ctx_llama, &candidates_p);
-                            } else {
-                                // Temperature sampling
-                                llama_sample_top_k(ctx_llama, &candidates_p, top_k, 1);
-                                llama_sample_top_p(ctx_llama, &candidates_p, top_p, 1);
-                                llama_sample_temp (ctx_llama, &candidates_p, temp);
-                                id = llama_sample_token(ctx_llama, &candidates_p);
-                            }
-                        }
+                        const llama_token id = llama_sampler_sample(smpl, ctx_llama, -1);
 
                         if (id != llama_token_eos(model_llama)) {
                             // add it to the context
@@ -797,8 +775,14 @@ int main(int argc, char ** argv) {
     whisper_print_timings(ctx_wsp);
     whisper_free(ctx_wsp);
 
-    llama_print_timings(ctx_llama);
+    llama_perf_sampler_print(smpl);
+    llama_perf_context_print(ctx_llama);
+
+    llama_sampler_free(smpl);
+    llama_batch_free(batch);
     llama_free(ctx_llama);
+
+    llama_backend_free();
 
     return 0;
 }
