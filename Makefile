@@ -141,8 +141,8 @@ else
 		command \
 		stream \
 		lsp \
-		talk \
 		talk-llama
+	# talk (TODO: disalbed)
 endif
 
 default: $(BUILD_TARGETS)
