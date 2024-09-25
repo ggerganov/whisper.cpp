@@ -219,6 +219,8 @@ void check_ffmpeg_availibility() {
 bool convert_to_wav(const std::string & temp_filename, std::string & error_resp) {
     std::ostringstream cmd_stream;
     std::string converted_filename_temp = temp_filename + "_temp.wav";
+    // Remove possible leftover ffmpeg temp file from a previous failed conversion
+    remove(converted_filename_temp.c_str());
     cmd_stream << "ffmpeg -i \"" << temp_filename << "\" -ar 16000 -ac 1 -c:a pcm_s16le \"" << converted_filename_temp << "\" 2>&1";
     std::string cmd = cmd_stream.str();
 
