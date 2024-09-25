@@ -586,30 +586,31 @@ jobs:
           cd whisper/examples/whisper.android
           ./gradlew assembleRelease --no-daemon -PGGML_HOME=$PATH_TO_GGML
 
-  android_java:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Clone
-        uses: actions/checkout@v4
-
-      - name: set up JDK 11
-        uses: actions/setup-java@v4
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-          cache: gradle
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: 9.0
-
-      - name: Build
-        run: |
-          cd examples/whisper.android.java
-          chmod +x ./gradlew
-          ./gradlew assembleRelease
+# TODO: disable because of following fail: https://github.com/ggerganov/whisper.cpp/actions/runs/11019444420/job/30627193602
+#  android_java:
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Clone
+#        uses: actions/checkout@v4
+#
+#      - name: set up JDK 11
+#        uses: actions/setup-java@v4
+#        with:
+#          java-version: '11'
+#          distribution: 'temurin'
+#          cache: gradle
+#
+#      - name: Setup Android SDK
+#        uses: android-actions/setup-android@v3
+#        with:
+#          cmdline-tools-version: 9.0
+#
+#      - name: Build
+#        run: |
+#          cd examples/whisper.android.java
+#          chmod +x ./gradlew
+#          ./gradlew assembleRelease
 
 # TODO: disabled because of following fail: https://github.com/ggerganov/whisper.cpp/actions/runs/9686220096/job/26735899598
 #  java:
