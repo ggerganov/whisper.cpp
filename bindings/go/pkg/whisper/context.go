@@ -289,6 +289,10 @@ func (context *context) IsLANG(t Token, lang string) bool {
 	}
 }
 
+func (context *context) GetDetectedLanguage() string {
+       return whisper.Whisper_lang_str(context.model.ctx.Whisper_full_lang_id())
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE METHODS
 

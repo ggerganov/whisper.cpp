@@ -37,10 +37,12 @@ type Model interface {
 
 // Context is the speech recognition context.
 type Context interface {
-	SetLanguage(string) error // Set the language to use for speech recognition, use "auto" for auto detect language.
-	SetTranslate(bool)        // Set translate flag
-	IsMultilingual() bool     // Return true if the model is multilingual.
-	Language() string         // Get language
+	SetLanguage(string) error    // Set the language to use for speech recognition, use "auto" for auto detect language.
+	SetTranslate(bool)           // Set translate flag
+	IsMultilingual() bool        // Return true if the model is multilingual.
+	Language() string            // Get language
+	GetDetectedLanguage() string // Get auto detected language
+
 
 	SetOffset(time.Duration)        // Set offset
 	SetDuration(time.Duration)      // Set duration
