@@ -841,6 +841,7 @@ endif
 
 ifdef WHISPER_FFMPEG
 OBJ_COMMON += examples/ffmpeg-transcode.o
+override CXXFLAGS := $(CXXFLAGS) -DWHISPER_FFMPEG
 override LDFLAGS  := $(LDFLAGS) -lavutil -lavformat -lavcodec -lswscale -lswresample
 endif
 
