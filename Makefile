@@ -839,6 +839,11 @@ override CXXFLAGS := $(CXXFLAGS) -DWHISPER_USE_CURL
 override LDFLAGS  := $(LDFLAGS) -lcurl
 endif
 
+ifdef WHISPER_FFMPEG
+OBJ_COMMON += examples/ffmpeg-transcode.o
+override LDFLAGS  := $(LDFLAGS) -lavutil -lavformat -lavcodec -lswscale -lswresample
+endif
+
 #
 # Print build information
 #
