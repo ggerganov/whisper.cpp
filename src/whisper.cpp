@@ -1005,7 +1005,7 @@ static bool whisper_kv_cache_find_slot(
         }
 
         if (n_tested >= n_ctx) {
-            //WHISPER_LOG_ERROR("%s: failed to find a slot for %d tokens\n", __func__, n_tokens);
+            WHISPER_LOG_ERROR("%s: failed to find a slot for %d tokens. n_tested=%d n_ctx=%d cache.head=%d\n", __func__, n_tokens, n_tested, n_ctx, cache.head);
             return false;
         }
     }
@@ -3408,9 +3408,11 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         whisper_mel_init(state->mel, state->backends[0], n_len, n_len, n_mel);
     }
 
-    // at this point, we don't know yet how many decoders will be used, so we overallocate 3x ctx
-    // in theory, there can be a case where this is not enough, but in practice it should always be enough
-    const int factor = 3;
+    // at this point, we don't know yet how many decoders will be used, so we overallocate 3x ctx (default value)
+    // Note: there are cases where 3 is not enough specially when increasing beamsize
+    const int factor =  ctx->params.max_decoders;
+
+    WHISPER_LOG_DEBUG("%s: init self-attn cache: n_ctx: %d factor: %d\n", __func__, factor*ctx->model.hparams.n_text_ctx, factor);
 
     if (!whisper_kv_cache_init(state->kv_self, state->backends[0], ctx->itype,
                 ctx->model.hparams.n_text_state,
@@ -3635,6 +3637,7 @@ struct whisper_context_params whisper_context_default_params() {
             /*.heads            =*/ NULL,
         },
         /*.dtw_mem_size         =*/ 1024*1024*128,
+        /* max_decoders         =*/ 3
     };
     return result;
 }
@@ -3732,6 +3735,7 @@ struct whisper_context * whisper_init_with_params_no_state(struct whisper_model_
     WHISPER_LOG_INFO("%s: flash attn = %d\n", __func__, params.flash_attn);
     WHISPER_LOG_INFO("%s: gpu_device = %d\n", __func__, params.gpu_device);
     WHISPER_LOG_INFO("%s: dtw        = %d\n", __func__, params.dtw_token_timestamps);
+    WHISPER_LOG_INFO("%s: max-decoders = %d\n", __func__, params.max_decoders);
 
     whisper_context * ctx = new whisper_context;
     ctx->params = params;

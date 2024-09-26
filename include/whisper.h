@@ -126,6 +126,8 @@ extern "C" {
         struct whisper_aheads dtw_aheads;
 
         size_t dtw_mem_size; // TODO: remove
+
+        int max_decoders; // to be used to setup text context factor
     };
 
     typedef struct whisper_token_data {
