@@ -3,12 +3,11 @@ BUILD_TARGETS = \
 	main \
 	bench \
 	quantize \
-	server \
-	tests/test-c.o
+	server
 
 # Binaries only useful for tests
 TEST_TARGETS = \
-	tests/test-backend-ops
+	tests/test-c.o
 
 # Deprecation aliases
 ifdef WHISPER_CUBLAS
@@ -1100,11 +1099,6 @@ tests: $(TEST_TARGETS)
 
 tests/test-c.o: tests/test-c.c include/whisper.h
 	$(CC) $(CFLAGS) -c $(filter-out %.h,$^) -o $@
-
-tests/test-backend-ops: tests/test-backend-ops.cpp \
-	$(OBJ_GGML)
-	$(CXX) $(CXXFLAGS) -c $< -o $(call GET_OBJ_FILE, $<)
-	$(CXX) $(CXXFLAGS) $(filter-out %.h $<,$^) $(call GET_OBJ_FILE, $<) -o $@ $(LDFLAGS)
 
 #
 # Audio samples
