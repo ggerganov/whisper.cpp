@@ -235,6 +235,7 @@ make medium
 make large-v1
 make large-v2
 make large-v3
+make large-v3-turbo
 ```
 
 ## Memory usage
