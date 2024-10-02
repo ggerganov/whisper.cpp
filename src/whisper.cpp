@@ -822,6 +822,9 @@ struct whisper_state {
     int32_t n_fail_p = 0; // number of logprob threshold failures
     int32_t n_fail_h = 0; // number of entropy threshold failures
 
+    // number of decoders for which we have constructed the KV cache
+    int32_t kv_self_n_dec = 0;
+
     // unified self-attention KV cache for all decoders
     whisper_kv_cache kv_self;
 
@@ -3408,14 +3411,13 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
         whisper_mel_init(state->mel, state->backends[0], n_len, n_len, n_mel);
     }
 
-    // at this point, we don't know yet how many decoders will be used, so we overallocate 3x ctx
-    // in theory, there can be a case where this is not enough, but in practice it should always be enough
-    const int factor = 3;
-
+    // at this point, we don't know yet how many decoders will be used
+    // later during decoding, if more decoders are used, we will recreate the KV cache respectively
+    state->kv_self_n_dec = 1;
     if (!whisper_kv_cache_init(state->kv_self, state->backends[0], ctx->itype,
                 ctx->model.hparams.n_text_state,
                 ctx->model.hparams.n_text_layer,
-                GGML_PAD(ctx->model.hparams.n_text_ctx, 256)*factor)) {
+                GGML_PAD(ctx->model.hparams.n_text_ctx, 256))) {
         WHISPER_LOG_ERROR("%s: whisper_kv_cache_init() failed for self-attention cache\n", __func__);
         whisper_free_state(state);
         return nullptr;
@@ -5780,13 +5782,34 @@ int whisper_full_with_state(
                 }
                 WHISPER_LOG_DEBUG("\n\n");
 
+                // recreate the KV cache if the number of decoders has changed
+                if (state->kv_self_n_dec < n_decoders_cur) {
+                    WHISPER_LOG_DEBUG("%s: recreating KV cache: n_decoders_cur = %d\n", __func__, n_decoders_cur);
+
+                    whisper_kv_cache_free(state->kv_self);
+
+                    // overallocate to workaround KV cache fragmentation issues
+                    const int factor = n_decoders_cur > 1 ? n_decoders_cur + 2 : 1;
+
+                    if (!whisper_kv_cache_init(state->kv_self, state->backends[0], ctx->itype,
+                                ctx->model.hparams.n_text_state,
+                                ctx->model.hparams.n_text_layer,
+                                GGML_PAD(ctx->model.hparams.n_text_ctx, 256)*factor)) {
+                        WHISPER_LOG_ERROR("%s: whisper_kv_cache_init() failed for self-attention cache\n", __func__);
+                        whisper_free_state(state);
+                        return -7;
+                    }
+
+                    state->kv_self_n_dec = n_decoders_cur;
+                }
+
                 whisper_kv_cache_clear(state->kv_self);
 
                 whisper_batch_prep_legacy(state->batch, prompt.data(), prompt.size(), 0, 0);
 
                 if (!whisper_decode_internal(*ctx, *state, state->batch, params.n_threads, false, params.abort_callback, params.abort_callback_user_data)) {
                     WHISPER_LOG_ERROR("%s: failed to decode\n", __func__);
-                    return -7;
+                    return -8;
                 }
 
                 {
@@ -6086,7 +6109,7 @@ int whisper_full_with_state(
 
                     if (!whisper_decode_internal(*ctx, *state, state->batch, params.n_threads, false, params.abort_callback, params.abort_callback_user_data)) {
                         WHISPER_LOG_ERROR("%s: failed to decode\n", __func__);
-                        return -8;
+                        return -9;
                     }
 
                     const int64_t t_start_sample_us = ggml_time_us();
