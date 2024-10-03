@@ -18,19 +18,6 @@
 // max number of MTLCommandBuffer used to submit a graph for processing
 #define GGML_METAL_MAX_COMMAND_BUFFERS 8
 
-#ifdef GGML_METAL_NDEBUG
-#define GGML_METAL_LOG(...)
-#define GGML_METAL_LOG_INFO(...)
-#define GGML_METAL_LOG_WARN(...)
-#define GGML_METAL_LOG_ERROR(...)
-#else
-#define GGML_METAL_LOG(...)       ggml_metal_log(GGML_LOG_LEVEL_NONE,  __VA_ARGS__)
-#define GGML_METAL_LOG_INFO(...)  ggml_metal_log(GGML_LOG_LEVEL_INFO,  __VA_ARGS__)
-#define GGML_METAL_LOG_WARN(...)  ggml_metal_log(GGML_LOG_LEVEL_WARN,  __VA_ARGS__)
-#define GGML_METAL_LOG_ERROR(...) ggml_metal_log(GGML_LOG_LEVEL_ERROR, __VA_ARGS__)
-#define GGML_METAL_LOG_DEBUG(...) ggml_metal_log(GGML_LOG_LEVEL_DEBUG, __VA_ARGS__)
-#endif
-
 #define UNUSED(x) (void)(x)
 
 struct ggml_metal_kernel {
@@ -230,8 +217,6 @@ struct ggml_backend_metal_context {
     id<MTLDevice>       device;
     id<MTLCommandQueue> queue;
 
-    MTLComputePassDescriptor * edesc;
-
     dispatch_queue_t d_queue;
 
     struct ggml_metal_kernel kernels[GGML_METAL_KERNEL_TYPE_COUNT];
@@ -277,51 +262,19 @@ struct ggml_backend_metal_context {
 @implementation GGMLMetalClass
 @end
 
-static void ggml_metal_default_log_callback(enum ggml_log_level level, const char * msg, void * user_data) {
-    fprintf(stderr, "%s", msg);
-
-    UNUSED(level);
-    UNUSED(user_data);
-}
-
-ggml_log_callback ggml_metal_log_callback = ggml_metal_default_log_callback;
-void * ggml_metal_log_user_data = NULL;
-
-GGML_ATTRIBUTE_FORMAT(2, 3)
-static void ggml_metal_log(enum ggml_log_level level, const char * format, ...){
-    if (ggml_metal_log_callback != NULL) {
-        va_list args;
-        va_start(args, format);
-        char buffer[128];
-        int len = vsnprintf(buffer, 128, format, args);
-        if (len < 128) {
-            ggml_metal_log_callback(level, buffer, ggml_metal_log_user_data);
-        } else {
-            char* buffer2 = malloc(len+1);
-            va_end(args);
-            va_start(args, format);
-            vsnprintf(buffer2, len+1, format, args);
-            buffer2[len] = 0;
-            ggml_metal_log_callback(level, buffer2, ggml_metal_log_user_data);
-            free(buffer2);
-        }
-        va_end(args);
-    }
-}
-
 static void * ggml_metal_host_malloc(size_t n) {
     void * data = NULL;
 
 #if TARGET_OS_OSX
     kern_return_t err = vm_allocate((vm_map_t) mach_task_self(), (void *) &data, n, VM_FLAGS_ANYWHERE);
     if (err != KERN_SUCCESS) {
-        GGML_METAL_LOG_ERROR("%s: error: vm_allocate failed\n", __func__);
+        GGML_LOG_ERROR("%s: error: vm_allocate failed\n", __func__);
         return NULL;
     }
 #else
     const int result = posix_memalign((void **) &data, sysconf(_SC_PAGESIZE), n);
     if (result != 0) {
-        GGML_METAL_LOG_ERROR("%s: error: posix_memalign failed\n", __func__);
+        GGML_LOG_ERROR("%s: error: posix_memalign failed\n", __func__);
         return NULL;
     }
 #endif
@@ -330,27 +283,25 @@ static void * ggml_metal_host_malloc(size_t n) {
 }
 
 static struct ggml_backend_metal_context * ggml_metal_init(void) {
-    GGML_METAL_LOG_INFO("%s: allocating\n", __func__);
+    GGML_LOG_INFO("%s: allocating\n", __func__);
 
 #if TARGET_OS_OSX && !GGML_METAL_NDEBUG
     // Show all the Metal device instances in the system
     NSArray * devices = MTLCopyAllDevices();
     for (id<MTLDevice> device in devices) {
-        GGML_METAL_LOG_INFO("%s: found device: %s\n", __func__, [[device name] UTF8String]);
+        GGML_LOG_INFO("%s: found device: %s\n", __func__, [[device name] UTF8String]);
     }
     [devices release]; // since it was created by a *Copy* C method
 #endif
 
     // Pick and show default Metal device
     id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-    GGML_METAL_LOG_INFO("%s: picking default device: %s\n", __func__, [[device name] UTF8String]);
+    GGML_LOG_INFO("%s: picking default device: %s\n", __func__, [[device name] UTF8String]);
 
     // Configure context
     struct ggml_backend_metal_context * ctx = calloc(1, sizeof(struct ggml_backend_metal_context));
     ctx->device = device;
     ctx->queue  = [ctx->device newCommandQueue];
-    ctx->edesc  = MTLComputePassDescriptor.computePassDescriptor;
-    ctx->edesc.dispatchType = MTLDispatchTypeSerial;
     ctx->d_queue = dispatch_queue_create("ggml-metal", DISPATCH_QUEUE_CONCURRENT);
 
     id<MTLLibrary> metal_library;
@@ -381,28 +332,28 @@ static struct ggml_backend_metal_context * ggml_metal_init(void) {
         if (try_metallib && path_lib != nil) {
             // pre-compiled library found
             NSURL * libURL = [NSURL fileURLWithPath:path_lib];
-            GGML_METAL_LOG_INFO("%s: loading '%s'\n", __func__, [path_lib UTF8String]);
+            GGML_LOG_INFO("%s: loading '%s'\n", __func__, [path_lib UTF8String]);
 
             metal_library = [ctx->device newLibraryWithURL:libURL error:&error];
             if (error) {
-                GGML_METAL_LOG_ERROR("%s: error: %s\n", __func__, [[error description] UTF8String]);
+                GGML_LOG_ERROR("%s: error: %s\n", __func__, [[error description] UTF8String]);
                 return NULL;
             }
         } else {
 #if GGML_METAL_EMBED_LIBRARY
-            GGML_METAL_LOG_INFO("%s: using embedded metal library\n", __func__);
+            GGML_LOG_INFO("%s: using embedded metal library\n", __func__);
 
             extern const char ggml_metallib_start[];
             extern const char ggml_metallib_end[];
 
             NSString * src = [[NSString alloc] initWithBytes:ggml_metallib_start length:(ggml_metallib_end-ggml_metallib_start) encoding:NSUTF8StringEncoding];
 #else
-            GGML_METAL_LOG_INFO("%s: default.metallib not found, loading from source\n", __func__);
+            GGML_LOG_INFO("%s: default.metallib not found, loading from source\n", __func__);
 
             NSString * path_source;
             NSString * path_resource = [[NSProcessInfo processInfo].environment objectForKey:@"GGML_METAL_PATH_RESOURCES"];
 
-            GGML_METAL_LOG_INFO("%s: GGML_METAL_PATH_RESOURCES = %s\n", __func__, path_resource ? [path_resource UTF8String] : "nil");
+            GGML_LOG_INFO("%s: GGML_METAL_PATH_RESOURCES = %s\n", __func__, path_resource ? [path_resource UTF8String] : "nil");
 
             if (path_resource) {
                 path_source = [path_resource stringByAppendingPathComponent:@"ggml-metal.metal"];
@@ -411,15 +362,15 @@ static struct ggml_backend_metal_context * ggml_metal_init(void) {
             }
 
             if (path_source == nil) {
-                GGML_METAL_LOG_WARN("%s: error: could not use bundle path to find ggml-metal.metal, falling back to trying cwd\n", __func__);
+                GGML_LOG_WARN("%s: error: could not use bundle path to find ggml-metal.metal, falling back to trying cwd\n", __func__);
                 path_source = @"ggml-metal.metal";
             }
 
-            GGML_METAL_LOG_INFO("%s: loading '%s'\n", __func__, [path_source UTF8String]);
+            GGML_LOG_INFO("%s: loading '%s'\n", __func__, [path_source UTF8String]);
 
             NSString * src = [NSString stringWithContentsOfFile:path_source encoding:NSUTF8StringEncoding error:&error];
             if (error) {
-                GGML_METAL_LOG_ERROR("%s: error: %s\n", __func__, [[error description] UTF8String]);
+                GGML_LOG_ERROR("%s: error: %s\n", __func__, [[error description] UTF8String]);
                 return NULL;
             }
 #endif // GGML_METAL_EMBED_LIBRARY
@@ -435,7 +386,7 @@ static struct ggml_backend_metal_context * ggml_metal_init(void) {
 
                 metal_library = [ctx->device newLibraryWithSource:src options:options error:&error];
                 if (error) {
-                    GGML_METAL_LOG_ERROR("%s: error: %s\n", __func__, [[error description] UTF8String]);
+                    GGML_LOG_ERROR("%s: error: %s\n", __func__, [[error description] UTF8String]);
                     return NULL;
                 }
             }
@@ -443,7 +394,7 @@ static struct ggml_backend_metal_context * ggml_metal_init(void) {
     }
 
     // print MTL GPU family:
-    GGML_METAL_LOG_INFO("%s: GPU name:   %s\n", __func__, [[ctx->device name] UTF8String]);
+    GGML_LOG_INFO("%s: GPU name:   %s\n", __func__, [[ctx->device name] UTF8String]);
 
     const NSInteger MTLGPUFamilyMetal3 = 5001;
 
@@ -453,21 +404,21 @@ static struct ggml_backend_metal_context * ggml_metal_init(void) {
     {
         for (int i = MTLGPUFamilyApple1 + 20; i >= MTLGPUFamilyApple1; --i) {
             if ([ctx->device supportsFamily:i]) {
-                GGML_METAL_LOG_INFO("%s: GPU family: MTLGPUFamilyApple%d  (%d)\n", __func__, i - (int) MTLGPUFamilyApple1 + 1, i);
+                GGML_LOG_INFO("%s: GPU family: MTLGPUFamilyApple%d  (%d)\n", __func__, i - (int) MTLGPUFamilyApple1 + 1, i);
                 break;
             }
         }
 
         for (int i = MTLGPUFamilyCommon1 + 5; i >= MTLGPUFamilyCommon1; --i) {
             if ([ctx->device supportsFamily:i]) {
-                GGML_METAL_LOG_INFO("%s: GPU family: MTLGPUFamilyCommon%d (%d)\n", __func__, i - (int) MTLGPUFamilyCommon1 + 1, i);
+                GGML_LOG_INFO("%s: GPU family: MTLGPUFamilyCommon%d (%d)\n", __func__, i - (int) MTLGPUFamilyCommon1 + 1, i);
                 break;
             }
         }
 
         for (int i = MTLGPUFamilyMetal3 + 5; i >= MTLGPUFamilyMetal3; --i) {
             if ([ctx->device supportsFamily:i]) {
-                GGML_METAL_LOG_INFO("%s: GPU family: MTLGPUFamilyMetal%d  (%d)\n", __func__, i - (int) MTLGPUFamilyMetal3 + 3, i);
+                GGML_LOG_INFO("%s: GPU family: MTLGPUFamilyMetal%d  (%d)\n", __func__, i - (int) MTLGPUFamilyMetal3 + 3, i);
                 break;
             }
         }
@@ -478,9 +429,9 @@ static struct ggml_backend_metal_context * ggml_metal_init(void) {
 
     ctx->support_simdgroup_mm = [ctx->device supportsFamily:MTLGPUFamilyApple7];
 
-    GGML_METAL_LOG_INFO("%s: simdgroup reduction support   = %s\n",       __func__, ctx->support_simdgroup_reduction ? "true" : "false");
-    GGML_METAL_LOG_INFO("%s: simdgroup matrix mul. support = %s\n",       __func__, ctx->support_simdgroup_mm ? "true" : "false");
-    GGML_METAL_LOG_INFO("%s: hasUnifiedMemory              = %s\n",       __func__, ctx->device.hasUnifiedMemory ? "true" : "false");
+    GGML_LOG_INFO("%s: simdgroup reduction support   = %s\n",       __func__, ctx->support_simdgroup_reduction ? "true" : "false");
+    GGML_LOG_INFO("%s: simdgroup matrix mul. support = %s\n",       __func__, ctx->support_simdgroup_mm ? "true" : "false");
+    GGML_LOG_INFO("%s: hasUnifiedMemory              = %s\n",       __func__, ctx->device.hasUnifiedMemory ? "true" : "false");
 
     ctx->capture_next_compute = false;
     ctx->capture_started = false;
@@ -494,13 +445,13 @@ static struct ggml_backend_metal_context * ggml_metal_init(void) {
 
 #if TARGET_OS_OSX || (TARGET_OS_IOS && __clang_major__ >= 15)
     if (@available(macOS 10.12, iOS 16.0, *)) {
-        GGML_METAL_LOG_INFO("%s: recommendedMaxWorkingSetSize  = %8.2f MB\n", __func__, ctx->device.recommendedMaxWorkingSetSize / 1e6);
+        GGML_LOG_INFO("%s: recommendedMaxWorkingSetSize  = %8.2f MB\n", __func__, ctx->device.recommendedMaxWorkingSetSize / 1e6);
     }
 #elif TARGET_OS_OSX
     if (ctx->device.maxTransferRate != 0) {
-        GGML_METAL_LOG_INFO("%s: maxTransferRate               = %8.2f MB/s\n", __func__, ctx->device.maxTransferRate / 1e6);
+        GGML_LOG_INFO("%s: maxTransferRate               = %8.2f MB/s\n", __func__, ctx->device.maxTransferRate / 1e6);
     } else {
-        GGML_METAL_LOG_INFO("%s: maxTransferRate               = built-in GPU\n", __func__);
+        GGML_LOG_INFO("%s: maxTransferRate               = built-in GPU\n", __func__);
     }
 #endif
 
@@ -513,7 +464,7 @@ static struct ggml_backend_metal_context * ggml_metal_init(void) {
         }
 
         /*
-            GGML_METAL_LOG_INFO("%s: loaded %-40s %16p | th_max = %4d | th_width = %4d\n", __func__, "kernel_"#name, (void *) kernel->pipeline, \
+            GGML_LOG_INFO("%s: loaded %-40s %16p | th_max = %4d | th_width = %4d\n", __func__, "kernel_"#name, (void *) kernel->pipeline, \
                     (int) kernel->pipeline.maxTotalThreadsPerThreadgroup, \
                     (int) kernel->pipeline.threadExecutionWidth); \
         */
@@ -524,12 +475,12 @@ static struct ggml_backend_metal_context * ggml_metal_init(void) {
             kernel->pipeline = [ctx->device newComputePipelineStateWithFunction:metal_function error:&error]; \
             [metal_function release]; \
             if (error) { \
-                GGML_METAL_LOG_ERROR("%s: error: load pipeline error: %s\n", __func__, [[error description] UTF8String]); \
+                GGML_LOG_ERROR("%s: error: load pipeline error: %s\n", __func__, [[error description] UTF8String]); \
                 [metal_library release]; \
                 return NULL; \
             } \
         } else { \
-            GGML_METAL_LOG_WARN("%s: skipping %-40s (not supported)\n", __func__, "kernel_"#name); \
+            GGML_LOG_WARN("%s: skipping %-40s (not supported)\n", __func__, "kernel_"#name); \
         }
 
         // simd_sum and simd_max requires MTLGPUFamilyApple7
@@ -726,7 +677,7 @@ static struct ggml_backend_metal_context * ggml_metal_init(void) {
 }
 
 static void ggml_metal_free(struct ggml_backend_metal_context * ctx) {
-    GGML_METAL_LOG_INFO("%s: deallocating\n", __func__);
+    GGML_LOG_INFO("%s: deallocating\n", __func__);
 
     for (int i = 0; i < GGML_METAL_KERNEL_TYPE_COUNT; ++i) {
         [ctx->kernels[i].pipeline release];
@@ -764,7 +715,7 @@ struct ggml_backend_metal_buffer_context {
 // Metal buffer based on the host memory pointer
 //
 static id<MTLBuffer> ggml_metal_get_buffer(struct ggml_tensor * t, size_t * offs) {
-    //GGML_METAL_LOG_INFO("%s: data tensor '%16s', offs_data = %8ld, offs_eval = %8ld, offs_cach = %8ld\n", __func__, t->name, offs_data, offs_eval, offs_cach);
+    //GGML_LOG_INFO("%s: data tensor '%16s', offs_data = %8ld, offs_eval = %8ld, offs_cach = %8ld\n", __func__, t->name, offs_data, offs_eval, offs_cach);
 
     const int64_t tsize = ggml_nbytes(t);
 
@@ -776,17 +727,17 @@ static id<MTLBuffer> ggml_metal_get_buffer(struct ggml_tensor * t, size_t * offs
     for (int i = 0; i < buf_ctx->n_buffers; ++i) {
         const int64_t ioffs = (int64_t) t->data - (int64_t) buf_ctx->buffers[i].data;
 
-        //GGML_METAL_LOG_INFO("ioffs = %10ld, tsize = %10ld, sum = %10ld, buf_ctx->buffers[%d].size = %10ld\n", ioffs, tsize, ioffs + tsize, i, buf_ctx->buffers[i].size);
+        //GGML_LOG_INFO("ioffs = %10ld, tsize = %10ld, sum = %10ld, buf_ctx->buffers[%d].size = %10ld\n", ioffs, tsize, ioffs + tsize, i, buf_ctx->buffers[i].size);
         if (ioffs >= 0 && ioffs + tsize <= (int64_t) buf_ctx->buffers[i].size) {
             *offs = (size_t) ioffs;
 
-            //GGML_METAL_LOG_INFO("%s: tensor '%16s', offs = %8ld\n", __func__, t->name, *offs);
+            //GGML_LOG_INFO("%s: tensor '%16s', offs = %8ld\n", __func__, t->name, *offs);
 
             return buf_ctx->buffers[i].metal;
         }
     }
 
-    GGML_METAL_LOG_ERROR("%s: error: tensor '%s' buffer is nil\n", __func__, t->name);
+    GGML_LOG_ERROR("%s: error: tensor '%s' buffer is nil\n", __func__, t->name);
 
     return nil;
 }
@@ -918,7 +869,7 @@ static void ggml_metal_encode_node(
 
     struct ggml_tensor * node = ggml_graph_node(gf, idx);
 
-    //GGML_METAL_LOG_INFO("%s: encoding node %3d, op = %8s\n", __func__, idx, ggml_op_name(node->op));
+    //GGML_LOG_INFO("%s: encoding node %3d, op = %8s\n", __func__, idx, ggml_op_name(node->op));
 
     struct ggml_tensor * src0 = node->src[0];
     struct ggml_tensor * src1 = node->src[1];
@@ -944,7 +895,7 @@ static void ggml_metal_encode_node(
     }
 
     if (!ggml_metal_supports_op(ctx, dst)) {
-        GGML_METAL_LOG_ERROR("%s: error: unsupported op '%s'\n", __func__, ggml_op_desc(dst));
+        GGML_LOG_ERROR("%s: error: unsupported op '%s'\n", __func__, ggml_op_desc(dst));
         GGML_ABORT("unsupported op");
     }
 
@@ -1002,17 +953,17 @@ static void ggml_metal_encode_node(
     id<MTLBuffer> id_src2 = src2 ? ggml_metal_get_buffer(src2, &offs_src2) : nil;
     id<MTLBuffer> id_dst  = dst  ? ggml_metal_get_buffer(dst,  &offs_dst)  : nil;
 
-    //GGML_METAL_LOG_INFO("%s: op - %s\n", __func__, ggml_op_name(dst->op));
+    //GGML_LOG_INFO("%s: op - %s\n", __func__, ggml_op_name(dst->op));
     //if (src0) {
-    //    GGML_METAL_LOG_INFO("%s: src0 - %4s [%5lld, %5lld, %5lld], %d, %s\n", __func__, ggml_type_name(src0t), ne00, ne01, ne02,
+    //    GGML_LOG_INFO("%s: src0 - %4s [%5lld, %5lld, %5lld], %d, %s\n", __func__, ggml_type_name(src0t), ne00, ne01, ne02,
     //            ggml_is_contiguous(src0), src0->name);
     //}
     //if (src1) {
-    //    GGML_METAL_LOG_INFO("%s: src1 - %4s [%5lld, %5lld, %5lld], %d, %s\n", __func__, ggml_type_name(src1t), ne10, ne11, ne12,
+    //    GGML_LOG_INFO("%s: src1 - %4s [%5lld, %5lld, %5lld], %d, %s\n", __func__, ggml_type_name(src1t), ne10, ne11, ne12,
     //            ggml_is_contiguous(src1), src1->name);
     //}
     //if (dst) {
-    //    GGML_METAL_LOG_INFO("%s: dst  - %4s [%5lld, %5lld, %5lld], 1, %s\n",  __func__, ggml_type_name(dstt),  ne0,  ne1,  ne2,
+    //    GGML_LOG_INFO("%s: dst  - %4s [%5lld, %5lld, %5lld], 1, %s\n",  __func__, ggml_type_name(dstt),  ne0,  ne1,  ne2,
     //            dst->name);
     //}
 
@@ -1404,7 +1355,7 @@ static void ggml_metal_encode_node(
                 } break;
                 default:
                 {
-                    GGML_METAL_LOG_WARN("%s: node %3d, op = %8s not implemented\n", __func__, idx, ggml_op_name(dst->op));
+                    GGML_LOG_WARN("%s: node %3d, op = %8s not implemented\n", __func__, idx, ggml_op_name(dst->op));
                     GGML_ABORT("fatal error");
                 }
             } break;
@@ -1956,7 +1907,7 @@ static void ggml_metal_encode_node(
                                     } break;
                                 default:
                                     {
-                                        GGML_METAL_LOG_ERROR("Asserting on type %d\n", (int)src0t);
+                                        GGML_LOG_ERROR("Asserting on type %d\n", (int)src0t);
                                         GGML_ABORT("not implemented");
                                     }
                             };
@@ -2252,7 +2203,7 @@ static void ggml_metal_encode_node(
                             } break;
                         default:
                             {
-                                GGML_METAL_LOG_ERROR("Asserting on type %d\n", (int)src2t);
+                                GGML_LOG_ERROR("Asserting on type %d\n", (int)src2t);
                                 GGML_ABORT("not implemented");
                             }
                     };
@@ -2821,8 +2772,8 @@ static void ggml_metal_encode_node(
                                   //case 256: pipeline = ctx->kernels[GGML_METAL_KERNEL_TYPE_FLASH_ATTN_EXT_F16_H256].pipeline; break;
                         default:
                                   {
-                                      GGML_METAL_LOG_ERROR("unsupported size: %lld\n", ne00);
-                                      GGML_METAL_LOG_ERROR("add template specialization for this size\n");
+                                      GGML_LOG_ERROR("unsupported size: %lld\n", ne00);
+                                      GGML_LOG_ERROR("add template specialization for this size\n");
                                       GGML_ABORT("add template specialization for this size");
                                   }
                     }
@@ -2834,8 +2785,8 @@ static void ggml_metal_encode_node(
                                   //case 256: pipeline = ctx->kernels[GGML_METAL_KERNEL_TYPE_FLASH_ATTN_EXT_VEC_F16_H256].pipeline; break;
                         default:
                                   {
-                                      GGML_METAL_LOG_ERROR("unsupported size: %lld\n", ne00);
-                                      GGML_METAL_LOG_ERROR("add template specialization for this size\n");
+                                      GGML_LOG_ERROR("unsupported size: %lld\n", ne00);
+                                      GGML_LOG_ERROR("add template specialization for this size\n");
                                       GGML_ABORT("add template specialization for this size");
                                   }
                     }
@@ -2996,7 +2947,7 @@ static void ggml_metal_encode_node(
             } break;
        default:
             {
-                GGML_METAL_LOG_ERROR("%s: error: node %3d, op = %8s not implemented\n", __func__, idx, ggml_op_name(dst->op));
+                GGML_LOG_ERROR("%s: error: node %3d, op = %8s not implemented\n", __func__, idx, ggml_op_name(dst->op));
                 GGML_ABORT("fatal error");
             }
     }
@@ -3041,7 +2992,7 @@ static enum ggml_status ggml_metal_graph_compute(
 
                 NSError * error = nil;
                 if (![[MTLCaptureManager sharedCaptureManager] startCaptureWithDescriptor:descriptor error:&error]) {
-                    GGML_METAL_LOG_ERROR("%s: error: unable to start capture '%s'\n", __func__, [[error localizedDescription] UTF8String]);
+                    GGML_LOG_ERROR("%s: error: unable to start capture '%s'\n", __func__, [[error localizedDescription] UTF8String]);
                 } else {
                     [ctx->capture_scope beginScope];
                     ctx->capture_started = true;
@@ -3060,7 +3011,7 @@ static enum ggml_status ggml_metal_graph_compute(
             const int n_nodes_per_cb = ctx->n_nodes_per_cb;
 
             id<MTLCommandBuffer> command_buffer  = ctx->command_buffers[cb_idx];
-            id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoderWithDescriptor: ctx->edesc];
+            id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
 
             int node_start = 0;
             int node_end   = n_nodes_0;
@@ -3122,9 +3073,9 @@ static enum ggml_status ggml_metal_graph_compute(
 
             MTLCommandBufferStatus status = [command_buffer status];
             if (status != MTLCommandBufferStatusCompleted) {
-                GGML_METAL_LOG_INFO("%s: command buffer %d failed with status %lu\n", __func__, n_cb, status);
+                GGML_LOG_INFO("%s: command buffer %d failed with status %lu\n", __func__, n_cb, status);
                 if (status == MTLCommandBufferStatusError) {
-                    GGML_METAL_LOG_INFO("error: %s\n", [[command_buffer error].localizedDescription UTF8String]);
+                    GGML_LOG_INFO("error: %s\n", [[command_buffer error].localizedDescription UTF8String]);
                 }
 
                 return GGML_STATUS_FAILED;
@@ -3137,9 +3088,9 @@ static enum ggml_status ggml_metal_graph_compute(
 
             MTLCommandBufferStatus status = [command_buffer status];
             if (status != MTLCommandBufferStatusCompleted) {
-                GGML_METAL_LOG_INFO("%s: command buffer %d failed with status %lu\n", __func__, i, status);
+                GGML_LOG_INFO("%s: command buffer %d failed with status %lu\n", __func__, i, status);
                 if (status == MTLCommandBufferStatusError) {
-                    GGML_METAL_LOG_INFO("error: %s\n", [[command_buffer error].localizedDescription UTF8String]);
+                    GGML_LOG_INFO("error: %s\n", [[command_buffer error].localizedDescription UTF8String]);
                 }
 
                 return GGML_STATUS_FAILED;
@@ -3156,7 +3107,7 @@ static enum ggml_status ggml_metal_graph_compute(
             }
 
             if (ctx->abort_callback && ctx->abort_callback(ctx->abort_callback_data)) {
-                GGML_METAL_LOG_INFO("%s: command buffer %d aborted", __func__, i);
+                GGML_LOG_INFO("%s: command buffer %d aborted", __func__, i);
                 return GGML_STATUS_ABORTED;
             }
 
@@ -3285,17 +3236,17 @@ static void ggml_backend_metal_log_allocated_size(id<MTLDevice> device, size_t s
 #ifndef GGML_METAL_NDEBUG
 #if TARGET_OS_OSX || (TARGET_OS_IOS && __clang_major__ >= 15)
     if (@available(macOS 10.12, iOS 16.0, *)) {
-        GGML_METAL_LOG_DEBUG("%s: allocated buffer, size = %8.2f MiB, (%8.2f / %8.2f)\n",
+        GGML_LOG_DEBUG("%s: allocated buffer, size = %8.2f MiB, (%8.2f / %8.2f)\n",
                 __func__,
                 size_aligned / 1024.0 / 1024.0,
                 device.currentAllocatedSize / 1024.0 / 1024.0,
                 device.recommendedMaxWorkingSetSize / 1024.0 / 1024.0);
 
         if (device.currentAllocatedSize > device.recommendedMaxWorkingSetSize) {
-            GGML_METAL_LOG_WARN("%s: warning: current allocated size is greater than the recommended max working set size\n", __func__);
+            GGML_LOG_WARN("%s: warning: current allocated size is greater than the recommended max working set size\n", __func__);
         }
     } else {
-        GGML_METAL_LOG_INFO("%s: allocated buffer, size = %8.2f MiB, (%8.2f)\n",
+        GGML_LOG_INFO("%s: allocated buffer, size = %8.2f MiB, (%8.2f)\n",
                 __func__,
                 size_aligned / 1024.0 / 1024.0,
                 device.currentAllocatedSize / 1024.0 / 1024.0);
@@ -3337,7 +3288,7 @@ static ggml_backend_buffer_t ggml_backend_metal_buffer_type_alloc_buffer(ggml_ba
     }
 
     if (size_aligned > 0 && (ctx->all_data == NULL || ctx->buffers[0].metal == nil)) {
-        GGML_METAL_LOG_ERROR("%s: error: failed to allocate buffer, size = %8.2f MiB\n", __func__, size_aligned / 1024.0 / 1024.0);
+        GGML_LOG_ERROR("%s: error: failed to allocate buffer, size = %8.2f MiB\n", __func__, size_aligned / 1024.0 / 1024.0);
         free(ctx);
         ggml_backend_metal_free_device();
         return NULL;
@@ -3422,7 +3373,7 @@ ggml_backend_buffer_t ggml_backend_metal_buffer_from_ptr(void * data, size_t siz
             ctx->buffers[ctx->n_buffers].metal = [device newBufferWithBytesNoCopy:data length:size_aligned options:MTLResourceStorageModeShared deallocator:nil];
 
             if (ctx->buffers[ctx->n_buffers].metal == nil) {
-                GGML_METAL_LOG_ERROR("%s: error: failed to allocate buffer, size = %8.2f MiB\n", __func__, size_aligned / 1024.0 / 1024.0);
+                GGML_LOG_ERROR("%s: error: failed to allocate buffer, size = %8.2f MiB\n", __func__, size_aligned / 1024.0 / 1024.0);
                 return false;
             }
         }
@@ -3448,7 +3399,7 @@ ggml_backend_buffer_t ggml_backend_metal_buffer_from_ptr(void * data, size_t siz
                 ctx->buffers[ctx->n_buffers].metal = [device newBufferWithBytesNoCopy:(void *) ((uint8_t *) data + i) length:size_step_aligned options:MTLResourceStorageModeShared deallocator:nil];
 
                 if (ctx->buffers[ctx->n_buffers].metal == nil) {
-                    GGML_METAL_LOG_ERROR("%s: error: failed to allocate buffer, size = %8.2f MiB\n", __func__, size_step_aligned / 1024.0 / 1024.0);
+                    GGML_LOG_ERROR("%s: error: failed to allocate buffer, size = %8.2f MiB\n", __func__, size_step_aligned / 1024.0 / 1024.0);
                     return false;
                 }
             }
@@ -3456,7 +3407,7 @@ ggml_backend_buffer_t ggml_backend_metal_buffer_from_ptr(void * data, size_t siz
             ggml_backend_metal_log_allocated_size(device, size_step_aligned);
 
             if (i + size_step < size) {
-                GGML_METAL_LOG_INFO("\n");
+                GGML_LOG_INFO("\n");
             }
 
             ++ctx->n_buffers;
@@ -3513,7 +3464,7 @@ static void ggml_backend_metal_set_n_cb(ggml_backend_t backend, int n_cb) {
         ctx->n_cb = MIN(n_cb, GGML_METAL_MAX_COMMAND_BUFFERS);
 
         if (ctx->n_cb > 2) {
-            GGML_METAL_LOG_WARN("%s: n_cb = %d, using n_cb > 2 is not recommended and can degrade the performance in some cases\n", __func__, n_cb);
+            GGML_LOG_WARN("%s: n_cb = %d, using n_cb > 2 is not recommended and can degrade the performance in some cases\n", __func__, n_cb);
         }
     }
 
@@ -3543,11 +3494,6 @@ static struct ggml_backend_i ggml_backend_metal_i = {
     /* .event_wait              = */ NULL,
 };
 
-void ggml_backend_metal_log_set_callback(ggml_log_callback log_callback, void * user_data) {
-    ggml_metal_log_callback  = log_callback;
-    ggml_metal_log_user_data = user_data;
-}
-
 static ggml_guid_t ggml_backend_metal_guid(void) {
     static ggml_guid guid = { 0x81, 0xa1, 0x8b, 0x1e, 0x71, 0xec, 0x79, 0xed, 0x2b, 0x85, 0xdc, 0x8a, 0x61, 0x98, 0x30, 0xe6 };
     return &guid;
@@ -3556,7 +3502,7 @@ static ggml_guid_t ggml_backend_metal_guid(void) {
 ggml_backend_t ggml_backend_metal_init(void) {
     struct ggml_backend_metal_context * ctx = ggml_metal_init();
     if (ctx == NULL) {
-        GGML_METAL_LOG_ERROR("%s: error: failed to allocate context\n", __func__);
+        GGML_LOG_ERROR("%s: error: failed to allocate context\n", __func__);
         return NULL;
     }
 
