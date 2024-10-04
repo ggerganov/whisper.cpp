@@ -163,7 +163,6 @@ static void whisper_log_callback_default(ggml_log_level level, const char * text
         } \
     } while (0)
 
-//#define WHISPER_USE_FLASH_FF
 #define WHISPER_MAX_DECODERS 8
 #define WHISPER_MAX_NODES 4096
 
@@ -2104,9 +2103,7 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
 
             struct ggml_tensor * Q =
                 ggml_permute(ctx0,
-                        ggml_cpy(ctx0,
-                            Qcur,
-                            ggml_new_tensor_3d(ctx0, GGML_TYPE_F32, n_state_head, n_head, n_ctx)),
+                        ggml_reshape_3d(ctx0, Qcur, n_state_head, n_head, n_ctx),
                         0, 2, 1, 3);
 
             if (wctx.params.flash_attn) {
@@ -2133,9 +2130,9 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
             } else {
                 struct ggml_tensor * K =
                     ggml_permute(ctx0,
-                            ggml_cpy(ctx0,
-                                Kcur,
-                                ggml_new_tensor_3d(ctx0, wctx.itype, n_state_head, n_head, n_ctx)),
+                            ggml_cast(ctx0,
+                                ggml_reshape_3d(ctx0, Kcur, n_state_head, n_head, n_ctx),
+                                wctx.itype),
                             0, 2, 1, 3);
 
                 // K * Q
@@ -2144,22 +2141,19 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                 struct ggml_tensor * KQ_soft_max = ggml_soft_max_ext(ctx0, KQ, nullptr, KQscale, 0.0f);
 
                 struct ggml_tensor * V =
-                    ggml_cpy(ctx0,
+                    ggml_cast(ctx0,
                             ggml_permute(ctx0,
                                 ggml_reshape_3d(ctx0,
                                     Vcur,
                                     n_state_head, n_head, n_ctx),
                                 1, 2, 0, 3),
-                            ggml_new_tensor_3d(ctx0, wctx.itype, n_ctx, n_state_head, n_head)
-                            );
+                            wctx.itype);
 
                 struct ggml_tensor * KQV = ggml_mul_mat(ctx0, V, KQ_soft_max);
 
                 struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
 
-                cur = ggml_cpy(ctx0,
-                        KQV_merged,
-                        ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_ctx));
+                cur = ggml_cont_2d(ctx0, KQV_merged, n_state, n_ctx);
             }
         }
 
@@ -2189,11 +2183,6 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                         layer.mlp_ln_b);
             }
 
-#ifdef WHISPER_USE_FLASH_FF
-            cur = ggml_flash_ff(ctx0,
-                    ggml_cpy(ctx0, cur, ggml_new_tensor_2d(ctx0, wstate.itype, n_state, n_ctx)),
-                    layer.mlp_0_w, layer.mlp_0_b, layer.mlp_1_w, layer.mlp_1_b);
-#else
             // fully connected
             cur = ggml_mul_mat(ctx0,
                     layer.mlp_0_w,
@@ -2210,7 +2199,6 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
                     cur);
 
             cur = ggml_add(ctx0, cur, layer.mlp_1_b);
-#endif
         }
 
         inpL = ggml_add(ctx0, cur, inpFF);
@@ -2586,9 +2574,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
                 struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
 
-                cur = ggml_cpy(ctx0,
-                        KQV_merged,
-                        ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_tokens));
+                cur = ggml_cont_2d(ctx0, KQV_merged, n_state, n_tokens);
             }
         }
 
@@ -2695,9 +2681,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
                 struct ggml_tensor * KQV_merged = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
 
-                cur = ggml_cpy(ctx0,
-                        KQV_merged,
-                        ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_state, n_tokens));
+                cur = ggml_cont_2d(ctx0, KQV_merged, n_state, n_tokens);
             }
         }
 
