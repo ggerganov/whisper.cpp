@@ -30,6 +30,7 @@ models=(                                                                        
      "small"    "small-q4_0"    "small-q4_1"    "small-q5_0"    "small-q5_1"    "small-q8_0"                \
     "medium"   "medium-q4_0"   "medium-q4_1"   "medium-q5_0"   "medium-q5_1"   "medium-q8_0"   "medium-dis" \
   "large-v2" "large-v2-q4_0" "large-v2-q4_1" "large-v2-q5_0" "large-v2-q5_1" "large-v2-q8_0" "large-v2-dis" \
+  "large-v3-turbo"                           "large-v3-turbo-q5_0" \
 )
 
 if [ "$encoder_only" -eq 0 ]; then
