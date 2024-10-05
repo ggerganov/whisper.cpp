@@ -1046,6 +1046,8 @@ static void whisper_kv_cache_clear(struct whisper_kv_cache & cache) {
         cache.cells[i].seq_id.clear();
     }
     cache.head = 0;
+
+    ggml_backend_buffer_clear(cache.buffer, 0);
 }
 
 static void whisper_kv_cache_seq_rm(
