@@ -31,10 +31,8 @@
 
 #define WHISPER_SAMPLE_RATE 16000
 #define WHISPER_N_FFT       400
-#define WHISPER_N_FFT_HALF  (WHISPER_N_FFT / 2 + 1)
 #define WHISPER_HOP_LENGTH  160
 #define WHISPER_CHUNK_SIZE  30
-#define WHISPER_N_SAMPLES   (WHISPER_SAMPLE_RATE * WHISPER_CHUNK_SIZE)
 
 #ifdef __cplusplus
 extern "C" {
