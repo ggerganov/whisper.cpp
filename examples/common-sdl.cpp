@@ -128,9 +128,25 @@ bool audio_async::clear() {
 
         m_audio_pos = 0;
         m_audio_len = 0;
+        m_audio_read_cursor = -1;
+        overran_flag = false;
     }
 
     return true;
+}
+
+bool detect_overrun(size_t old_audio_pos,
+                    size_t new_audio_pos,
+                    size_t read_cursor_pos,
+                    size_t buffer_len) {
+  // We expect new_audio_pos to be the offset into the buffer of the
+  // next sample that will be overridden when new audio comes in,
+  // and read_cursor_pos is the offset of the oldest unread sample.
+  int offset = old_audio_pos;
+  int cursor_point = (read_cursor_pos - offset) % buffer_len;
+  int new_point = (new_audio_pos - offset) % buffer_len;
+
+  return new_point > cursor_point;
 }
 
 // callback to be called by SDL
@@ -152,6 +168,7 @@ void audio_async::callback(uint8_t * stream, int len) {
     {
         std::lock_guard<std::mutex> lock(m_mutex);
 
+        size_t prior_audio_pos = m_audio_pos;
         if (m_audio_pos + n_samples > m_audio.size()) {
             const size_t n0 = m_audio.size() - m_audio_pos;
 
@@ -166,7 +183,24 @@ void audio_async::callback(uint8_t * stream, int len) {
             m_audio_pos = (m_audio_pos + n_samples) % m_audio.size();
             m_audio_len = std::min(m_audio_len + n_samples, m_audio.size());
         }
+
+        // m_audio_pos, after the above, is the offset of the first
+        // entry in the samples array that the next callback will
+        // overwrite.  It is OK if the m_audio_read_cursor has the same
+        // value at this point, because the client still has a chance
+	// to read the sample.
+
+        overran_flag = overran_flag || detect_overrun(prior_audio_pos,
+                                          m_audio_pos,
+                                          m_audio_read_cursor,
+                                          m_audio.size());
     }
+}
+
+bool audio_async::overran() {
+  bool result = overran_flag;
+  overran_flag = false;
+  return result;
 }
 
 void audio_async::get(int ms, std::vector<float> & result) {
@@ -206,8 +240,11 @@ void audio_async::get(int ms, std::vector<float> & result) {
 
             memcpy(result.data(), &m_audio[s0], n0 * sizeof(float));
             memcpy(&result[n0], &m_audio[0], (n_samples - n0) * sizeof(float));
+            m_audio_read_cursor = (n_samples - n0) % m_audio.size();
         } else {
             memcpy(result.data(), &m_audio[s0], n_samples * sizeof(float));
+            m_audio_read_cursor =
+              (m_audio_read_cursor + n_samples) % m_audio.size();
         }
     }
 }
