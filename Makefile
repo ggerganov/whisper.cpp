@@ -512,9 +512,6 @@ ifdef GGML_CUDA
 	OBJ_GGML += ggml/src/ggml-cuda.o
 	OBJ_GGML += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/*.cu))
 	OBJ_GGML += $(OBJ_CUDA_TMPL)
-
-	#OBJ_WHISPER += src/whisper-mel-cuda.o
-
 ifdef WHISPER_FATAL_WARNINGS
 	MK_NVCCFLAGS += -Werror all-warnings
 endif # WHISPER_FATAL_WARNINGS
@@ -623,10 +620,6 @@ ggml/src/ggml-cuda.o: \
 	ggml/src/ggml-common.h \
 	$(wildcard ggml/src/ggml-cuda/*.cuh)
 	$(NVCC_COMPILE)
-
-#src/whisper-mel-cuda.o: src/whisper-mel-cuda.cu src/whisper-mel-cuda.hpp
-#	$(NVCC) $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler "$(CUDA_CXXFLAGS)" -c $< -o $@
-
 endif # GGML_CUDA
 
 ifdef GGML_VULKAN
@@ -955,7 +948,6 @@ $(LIB_GGML_S): \
 
 src/whisper.o: \
 	src/whisper.cpp \
-	src/whisper-mel.hpp \
 	include/whisper.h \
 	ggml/include/ggml.h \
 	ggml/include/ggml-alloc.h \

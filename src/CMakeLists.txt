@@ -78,42 +78,12 @@ if (WHISPER_OPENVINO)
     set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
 endif()
 
-#if (GGML_CUDA)
-#    cmake_minimum_required(VERSION 3.18)  # for CMAKE_CUDA_ARCHITECTURES
-#
-#    find_package(CUDAToolkit)
-#    if (CUDAToolkit_FOUND)
-#        message(STATUS "CUDA found")
-#
-#        if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-#            # 52 == lowest CUDA 12 standard
-#            # 60 == f16 CUDA intrinsics
-#            # 61 == integer CUDA intrinsics
-#            # 70 == compute capability at which unrolling a loop in mul_mat_q kernels is faster
-#            set(CMAKE_CUDA_ARCHITECTURES "52;61;70") # lowest CUDA 12 standard + lowest for integer intrinsics
-#        endif()
-#        message(STATUS "Using CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
-#
-#        enable_language(CUDA)
-#    else()
-#        message(WARNING "CUDA not found")
-#    endif()
-#endif()
-
 # whisper
 
 add_library(whisper
             ../include/whisper.h
             whisper.cpp
-            whisper-mel.hpp
             )
-
-# TODO: disabled because it relies on ggml internals that are no longer accessible (ggml-backend-impl.h, ggml-cuda/common.cuh, ..)
-#if (GGML_CUDA)
-#    target_sources(whisper PRIVATE whisper-mel-cuda.cu)
-#
-#    target_link_libraries(whisper PRIVATE CUDA::cufft)
-#endif()
 
 # Set the version numbers
 set_target_properties(whisper PROPERTIES
