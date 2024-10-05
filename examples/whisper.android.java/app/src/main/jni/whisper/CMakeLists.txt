@@ -9,7 +9,7 @@ set(SOURCE_FILES
     ${WHISPER_LIB_DIR}/ggml/src/ggml.c
     ${WHISPER_LIB_DIR}/ggml/src/ggml-aarch64.c
     ${WHISPER_LIB_DIR}/ggml/src/ggml-alloc.c
-    ${WHISPER_LIB_DIR}/ggml/src/ggml-backend.c
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-backend.cpp
     ${WHISPER_LIB_DIR}/ggml/src/ggml-quants.c
     ${WHISPER_LIB_DIR}/src/whisper.cpp
     ${CMAKE_SOURCE_DIR}/jni.c
