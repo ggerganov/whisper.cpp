@@ -34,7 +34,7 @@ let package = Package(
                 "src/whisper.cpp",
                 "ggml/src/ggml-aarch64.c",
                 "ggml/src/ggml-alloc.c",
-                "ggml/src/ggml-backend.c",
+                "ggml/src/ggml-backend.cpp",
                 "ggml/src/ggml-quants.c",
                 "ggml/src/ggml-metal.m"
             ],

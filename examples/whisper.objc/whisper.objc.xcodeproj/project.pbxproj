@@ -22,7 +22,7 @@
 		18627C9B29052CFF00BD2A04 /* ggml-base.en.bin in Resources */ = {isa = PBXBuildFile; fileRef = 18627C9A29052CFF00BD2A04 /* ggml-base.en.bin */; };
 		18A276062C2A98A5001C8D37 /* ggml-metal.metal in Copy Files */ = {isa = PBXBuildFile; fileRef = 1844471D2AB2195F007D6BFE /* ggml-metal.metal */; };
 		18A2760B2C2A9B43001C8D37 /* ggml-metal.metal in Resources */ = {isa = PBXBuildFile; fileRef = 1844471D2AB2195F007D6BFE /* ggml-metal.metal */; };
-		18ABE15A2AF556340044A204 /* ggml-backend.c in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE1572AF556340044A204 /* ggml-backend.c */; };
+		18ABE15A2AF556340044A204 /* ggml-backend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE1572AF556340044A204 /* ggml-backend.cpp */; };
 		18ABE15B2AF556340044A204 /* ggml-quants.c in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE1592AF556340044A204 /* ggml-quants.c */; };
 		7FE3424B2A0C3FA20015A058 /* whisper-encoder-impl.m in Sources */ = {isa = PBXBuildFile; fileRef = 7FE342452A0C3FA20015A058 /* whisper-encoder-impl.m */; };
 		7FE3424C2A0C3FA20015A058 /* whisper-encoder.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7FE342472A0C3FA20015A058 /* whisper-encoder.mm */; };
@@ -73,7 +73,7 @@
 		18ABE1542AF556340044A204 /* ggml-quants.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-quants.h"; path = "../../../ggml/src/ggml-quants.h"; sourceTree = "<group>"; };
 		18ABE1552AF556340044A204 /* ggml-backend.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-backend.h"; path = "../../../ggml/include/ggml-backend.h"; sourceTree = "<group>"; };
 		18ABE1562AF556340044A204 /* ggml-backend-impl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-backend-impl.h"; path = "../../../ggml/src/ggml-backend-impl.h"; sourceTree = "<group>"; };
-		18ABE1572AF556340044A204 /* ggml-backend.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-backend.c"; path = "../../../ggml/src/ggml-backend.c"; sourceTree = "<group>"; };
+		18ABE1572AF556340044A204 /* ggml-backend.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-backend.cpp"; path = "../../../ggml/src/ggml-backend.cpp"; sourceTree = "<group>"; };
 		18ABE1582AF556340044A204 /* ggml-impl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-impl.h"; path = "../../../ggml/src/ggml-impl.h"; sourceTree = "<group>"; };
 		18ABE1592AF556340044A204 /* ggml-quants.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-quants.c"; path = "../../../ggml/src/ggml-quants.c"; sourceTree = "<group>"; };
 		7FE342452A0C3FA20015A058 /* whisper-encoder-impl.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "whisper-encoder-impl.m"; sourceTree = "<group>"; };
@@ -120,7 +120,7 @@
 				18A275FF2C2A9563001C8D37 /* ggml-common.h */,
 				18A275FE2C2A94DE001C8D37 /* ggml-metal.h */,
 				18ABE1562AF556340044A204 /* ggml-backend-impl.h */,
-				18ABE1572AF556340044A204 /* ggml-backend.c */,
+				18ABE1572AF556340044A204 /* ggml-backend.cpp */,
 				18ABE1552AF556340044A204 /* ggml-backend.h */,
 				18ABE1582AF556340044A204 /* ggml-impl.h */,
 				18ABE1592AF556340044A204 /* ggml-quants.c */,
@@ -248,7 +248,7 @@
 				18627C7B29052BDF00BD2A04 /* AppDelegate.m in Sources */,
 				7FE3424D2A0C3FA20015A058 /* whisper-decoder-impl.m in Sources */,
 				1844471A2AB211A2007D6BFE /* ggml-alloc.c in Sources */,
-				18ABE15A2AF556340044A204 /* ggml-backend.c in Sources */,
+				18ABE15A2AF556340044A204 /* ggml-backend.cpp in Sources */,
 				18627C8C29052BE000BD2A04 /* main.m in Sources */,
 				18627C7E29052BDF00BD2A04 /* SceneDelegate.m in Sources */,
 				1844471C2AB21655007D6BFE /* ggml-metal.m in Sources */,
