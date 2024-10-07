@@ -3494,7 +3494,7 @@ struct whisper_state * whisper_init_state(whisper_context * ctx) {
 
 int whisper_ctx_init_openvino_encoder_with_state(
         struct whisper_context * ctx,
-		   struct whisper_sate * state,
+		   struct whisper_state * state,
                     const char * model_path,
                     const char * device,
                     const char * cache_dir) {
