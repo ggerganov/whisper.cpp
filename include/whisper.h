@@ -238,7 +238,6 @@ extern "C" {
     //                     GPU, by caching compiled 'blobs' there.
     //                     Set to nullptr if not used.
     // Returns 0 on success. If OpenVINO is not enabled in build, this simply returns 1.
-	
     WHISPER_API int whisper_ctx_init_openvino_encoder_with_state(
         struct whisper_context * ctx,
 		  struct whisper_state * state,
