@@ -72,6 +72,12 @@ First clone the repository:
 git clone https://github.com/ggerganov/whisper.cpp.git
 ```
 
+Navigate into the directory:
+
+```
+cd whisper.cpp
+```
+
 Then, download one of the Whisper [models](models/README.md) converted in [`ggml` format](#ggml-format). For example:
 
 ```bash
