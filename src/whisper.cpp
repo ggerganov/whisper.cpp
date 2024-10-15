@@ -381,6 +381,7 @@ static const whisper_ahead g_aheads_medium[]    = { {13, 15}, {15, 4}, {15, 15},
 static const whisper_ahead g_aheads_large_v1[]  = { {9, 19}, {11, 2}, {11, 4}, {11, 17}, {22, 7}, {22, 11}, {22, 17}, {23, 2}, {23, 15} };
 static const whisper_ahead g_aheads_large_v2[]  = { {10, 12}, {13, 17}, {16, 11}, {16, 12}, {16, 13}, {17, 15}, {17, 16}, {18, 4}, {18, 11}, {18, 19}, {19, 11}, {21, 2}, {21, 3}, {22, 3}, {22, 9}, {22, 12}, {23, 5}, {23, 7}, {23, 13}, {25, 5}, {26, 1}, {26, 12}, {27, 15} };
 static const whisper_ahead g_aheads_large_v3[]  = { {7, 0}, {10, 17}, {12, 18}, {13, 12}, {16, 1}, {17, 14}, {19, 11}, {21, 4}, {24, 1}, {25, 6} };
+static const whisper_ahead g_aheads_large_v3_turbo[]  = { {2, 4}, {2, 11}, {3, 3}, {3, 6}, {3, 11}, {3, 14} };
 
 static const std::map<whisper_alignment_heads_preset, whisper_aheads> g_aheads {
     { WHISPER_AHEADS_TINY_EN,   {  8, g_aheads_tiny_en   } },
@@ -394,6 +395,7 @@ static const std::map<whisper_alignment_heads_preset, whisper_aheads> g_aheads {
     { WHISPER_AHEADS_LARGE_V1,  {  9, g_aheads_large_v1  } },
     { WHISPER_AHEADS_LARGE_V2,  { 23, g_aheads_large_v2  } },
     { WHISPER_AHEADS_LARGE_V3,  { 10, g_aheads_large_v3  } },
+    { WHISPER_AHEADS_LARGE_V3_TURBO, { 6, g_aheads_large_v3_turbo } },
 };
 
 static std::vector<uint32_t> get_alignment_heads_by_layer(const whisper_context_params & cparams, int il, int32_t n_text_layer, int32_t n_head);
