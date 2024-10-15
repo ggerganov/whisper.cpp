@@ -1,0 +1,32 @@
+---
+../../src:
+- ext/whisper.cpp
+../../include:
+- ext/whisper.h
+../../ggml/src:
+- ext/ggml.c
+- ext/ggml-impl.h
+- ext/ggml-aarch64.h
+- ext/ggml-aarch64.c
+- ext/ggml-alloc.c
+- ext/ggml-backend-impl.h
+- ext/ggml-backend.cpp
+- ext/ggml-common.h
+- ext/ggml-quants.h
+- ext/ggml-quants.c
+- ext/ggml-cpu-impl.h
+../../ggml/include:
+- ext/ggml.h
+- ext/ggml-alloc.h
+- ext/ggml-backend.h
+- ext/ggml-cuda.h
+- ext/ggml-kompute.h
+- ext/ggml-metal.h
+- ext/ggml-sycl.h
+- ext/ggml-vulkan.h
+../../examples:
+- ext/dr_wav.h
+../..:
+- README.md
+- LICENSE
+

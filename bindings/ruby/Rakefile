@@ -1,61 +1,12 @@
 require 'rake/clean'
 require "bundler/gem_tasks"
 require "pathname"
+require "yaml"
 
-SRC = FileList[
-  "ext/whisper.cpp",
-]
-INCLUDE = FileList[
-  "ext/whisper.h",
-]
-GGML_SRC = FileList[
-  "ext/ggml.c",
-  "ext/ggml-impl.h",
-  "ext/ggml-aarch64.h",
-  "ext/ggml-aarch64.c",
-  "ext/ggml-alloc.c",
-  "ext/ggml-backend-impl.h",
-  "ext/ggml-backend.cpp",
-  "ext/ggml-common.h",
-  "ext/ggml-quants.h",
-  "ext/ggml-quants.c",
-  "ext/ggml-cpu-impl.h",
-]
-GGML_INCLUDE = FileList[
-  "ext/ggml.h",
-  "ext/ggml-alloc.h",
-  "ext/ggml-backend.h",
-  "ext/ggml-cuda.h",
-  "ext/ggml-kompute.h",
-  "ext/ggml-metal.h",
-  "ext/ggml-sycl.h",
-  "ext/ggml-vulkan.h",
-]
-EXAMPLES = FileList[
-  "ext/dr_wav.h",
-]
-EXTRA_FILES = FileList[
-  "README.md",
-  "LICENSE",
-]
-SOURCES = SRC + INCLUDE + GGML_SRC + GGML_INCLUDE + EXAMPLES + EXTRA_FILES
-CLEAN.include SOURCES
-
-task build: SOURCES
-
-directory "pkg"
-CLOBBER.include "pkg"
-
-{
-  "src" => SRC,
-  "include" => INCLUDE,
-  "ggml/src" => GGML_SRC,
-  "ggml/include" => GGML_INCLUDE,
-  "examples" => EXAMPLES,
-  "." => EXTRA_FILES,
-}.each do |src_dir, dests|
+extsources = YAML.load_file("extsources.yaml")
+extsources.each_pair do |src_dir, dests|
   dests.each do |dest|
-    src = Pathname("../..")/src_dir/File.basename(dest)
+    src = Pathname(src_dir)/File.basename(dest)
 
     file src
     file dest => src do |t|
@@ -63,3 +14,10 @@ CLOBBER.include "pkg"
     end
   end
 end
+SOURCES = extsources.values.flatten
+CLEAN.include SOURCES
+
+task build: SOURCES
+
+directory "pkg"
+CLOBBER.include "pkg"
