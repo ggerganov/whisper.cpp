@@ -28,6 +28,15 @@ task build: SOURCES + FileList[
 directory "pkg"
 CLOBBER.include "pkg"
 
+TEST_MODEL = "../../models/ggml-medium.en.bin"
+
 Rake::TestTask.new do |t|
   t.test_files = FileList["tests/test_*.rb"]
+end
+task test: TEST_MODEL
+
+file TEST_MODEL do
+  Dir.chdir "../.." do
+    sh "./models/download-ggml-model.sh base.en"
+  end
 end
