@@ -1,3 +1,5 @@
+require "yaml"
+
 Gem::Specification.new do |s|
   s.name    = "whispercpp"
   s.authors = ["Georgi Gerganov", "Todd A. Fisher"]
@@ -7,10 +9,8 @@ Gem::Specification.new do |s|
   s.email   = 'todd.fisher@gmail.com'
   s.extra_rdoc_files = ['LICENSE', 'README.md']
   
-  s.files = ["LICENSE", "README.md", "Rakefile", "ext/extconf.rb", "ext/ggml.c", "ext/ruby_whisper.cpp", "ext/whisper.cpp", "ext/dr_wav.h", "ext/ggml.h", "ext/ruby_whisper.h", "ext/whisper.h"]
+  s.files = `git ls-files . -z`.split("\x0") + YAML.load_file("extsources.yaml").values.flatten
 
-  #### Load-time details
-  s.require_paths = ['lib','ext']
   s.summary = %q{Ruby whisper.cpp bindings}
   s.test_files = ["tests/test_whisper.rb"]
   
