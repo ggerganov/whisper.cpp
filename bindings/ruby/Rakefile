@@ -34,7 +34,11 @@ GGML_INCLUDE = FileList[
 EXAMPLES = FileList[
   "ext/dr_wav.h",
 ]
-SOURCES = SRC + INCLUDE + GGML_SRC + GGML_INCLUDE + EXAMPLES
+EXTRA_FILES = FileList[
+  "README.md",
+  "LICENSE",
+]
+SOURCES = SRC + INCLUDE + GGML_SRC + GGML_INCLUDE + EXAMPLES + EXTRA_FILES
 CLEAN.include SOURCES
 
 task build: SOURCES
@@ -48,6 +52,7 @@ CLOBBER.include "pkg"
   "ggml/src" => GGML_SRC,
   "ggml/include" => GGML_INCLUDE,
   "examples" => EXAMPLES,
+  "." => EXTRA_FILES,
 }.each do |src_dir, dests|
   dests.each do |dest|
     src = Pathname("../..")/src_dir/File.basename(dest)
