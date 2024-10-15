@@ -1,8 +1,4 @@
 TOPDIR = File.expand_path(File.join(File.dirname(__FILE__), '..'))
-EXTDIR = File.join(TOPDIR, 'ext')
-#$LIBDIR = File.join(TOPDIR, 'lib')
-#$:.unshift(LIBDIR)
-$:.unshift(EXTDIR)
 
 require 'whisper'
 require 'test/unit'

@@ -29,11 +29,22 @@ directory "pkg"
 CLOBBER.include "pkg"
 
 TEST_MODEL = "../../models/ggml-base.en.bin"
+LIB_FILE = "lib/whisper.bundle"
+
+directory "lib"
+task LIB_FILE => SOURCES + ["lib"] do |t|
+  Dir.chdir "ext" do
+    sh "ruby extconf.rb"
+    sh "make"
+  end
+  cp "ext/whisper.bundle", t.name
+end
+CLEAN.include LIB_FILE
 
 Rake::TestTask.new do |t|
   t.test_files = FileList["tests/test_*.rb"]
 end
-task test: TEST_MODEL
+task test: [TEST_MODEL, LIB_FILE]
 
 file TEST_MODEL do
   Dir.chdir "../.." do
