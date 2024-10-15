@@ -17,7 +17,12 @@ end
 SOURCES = extsources.values.flatten
 CLEAN.include SOURCES
 
-task build: SOURCES
+task build: SOURCES + FileList[
+                        "ext/extconf.rb",
+                        "ext/ruby_whisper.h",
+                        "ext/ruby_whisper.cpp",
+                        "whispercpp.gemspec",
+                      ]
 
 directory "pkg"
 CLOBBER.include "pkg"
