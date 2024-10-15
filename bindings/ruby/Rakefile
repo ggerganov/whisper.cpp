@@ -38,7 +38,7 @@ task LIB_FILE => SOURCES + ["lib"] do |t|
     sh "ruby extconf.rb"
     sh "make"
   end
-  cp "ext/#{LIB_NAME}", t.name
+  mv "ext/#{LIB_NAME}", t.name
 end
 CLEAN.include LIB_FILE
 
