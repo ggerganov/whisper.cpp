@@ -2,6 +2,7 @@ require 'rake/clean'
 require "bundler/gem_tasks"
 require "pathname"
 require "yaml"
+require "rake/testtask"
 
 extsources = YAML.load_file("extsources.yaml")
 extsources.each_pair do |src_dir, dests|
@@ -26,3 +27,7 @@ task build: SOURCES + FileList[
 
 directory "pkg"
 CLOBBER.include "pkg"
+
+Rake::TestTask.new do |t|
+  t.test_files = FileList["tests/test_*.rb"]
+end
