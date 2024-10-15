@@ -1,0 +1,65 @@
+name: Bindings Tests (Ruby)
+on:
+  push:
+    paths:
+      - bindings/ruby/**
+      - src/whisper.cpp
+      - include/whisper.h
+      - ggml/src/ggml.c
+      - ggml/src/ggml-impl.h
+      - ggml/src/ggml-aarch64.h
+      - ggml/src/ggml-aarch64.c
+      - ggml/src/ggml-alloc.c
+      - ggml/src/ggml-backend-impl.h
+      - ggml/src/ggml-backend.cpp
+      - ggml/src/ggml-common.h
+      - ggml/src/ggml-quants.h
+      - ggml/src/ggml-quants.c
+      - ggml/src/ggml-cpu-impl.h
+      - ggml/include/ggml.h
+      - ggml/include/ggml-alloc.h
+      - ggml/include/ggml-backend.h
+      - ggml/include/ggml-cuda.h
+      - ggml/include/ggml-kompute.h
+      - ggml/include/ggml-metal.h
+      - ggml/include/ggml-sycl.h
+      - ggml/include/ggml-vulkan.h
+      - examples/dr_wav.h
+  pull_request:
+    paths:
+      - bindings/ruby/**
+      - src/whisper.cpp
+      - include/whisper.h
+      - ggml/src/ggml.c
+      - ggml/src/ggml-impl.h
+      - ggml/src/ggml-aarch64.h
+      - ggml/src/ggml-aarch64.c
+      - ggml/src/ggml-alloc.c
+      - ggml/src/ggml-backend-impl.h
+      - ggml/src/ggml-backend.cpp
+      - ggml/src/ggml-common.h
+      - ggml/src/ggml-quants.h
+      - ggml/src/ggml-quants.c
+      - ggml/src/ggml-cpu-impl.h
+      - ggml/include/ggml.h
+      - ggml/include/ggml-alloc.h
+      - ggml/include/ggml-backend.h
+      - ggml/include/ggml-cuda.h
+      - ggml/include/ggml-kompute.h
+      - ggml/include/ggml-metal.h
+      - ggml/include/ggml-sycl.h
+      - ggml/include/ggml-vulkan.h
+      - examples/dr_wav.h
+
+jobs:
+  ubuntu-latest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bindings/ruby
+    steps:
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+      - uses: actions/checkout@v4
+      - run: rake test
