@@ -29,7 +29,8 @@ directory "pkg"
 CLOBBER.include "pkg"
 
 TEST_MODEL = "../../models/ggml-base.en.bin"
-LIB_FILE = "lib/whisper.bundle"
+LIB_NAME = "whisper".ext(RbConfig::CONFIG["DLEXT"])
+LIB_FILE = File.join("lib", LIB_NAME)
 
 directory "lib"
 task LIB_FILE => SOURCES + ["lib"] do |t|
@@ -37,7 +38,7 @@ task LIB_FILE => SOURCES + ["lib"] do |t|
     sh "ruby extconf.rb"
     sh "make"
   end
-  cp "ext/whisper.bundle", t.name
+  cp "ext/#{LIB_NAME}", t.name
 end
 CLEAN.include LIB_FILE
 

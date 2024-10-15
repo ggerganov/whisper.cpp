@@ -20,7 +20,9 @@ ggml-quants.c
 ggml-quants.h
 ggml-sycl.h
 ggml-vulkan.h
-whisper.bundle
 whisper.cpp
 whisper.h
 dr_wav.h
+whisper.bundle
+whisper.so
+whisper.dll
