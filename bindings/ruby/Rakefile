@@ -1,12 +1,60 @@
 require 'rake/clean'
-  require 'rubygems/package'
+require "bundler/gem_tasks"
+require "pathname"
 
-desc 'Build gem'
-task :package do
-  spec_source = File.read File.join(File.dirname(__FILE__),'whispercpp.gemspec')
-  spec = nil
-  # see: http://gist.github.com/16215
-  Thread.new { spec = eval("#{spec_source}") }.join
-  spec.validate
-  Gem::Package.build(spec)
+SRC = FileList[
+  "ext/whisper.cpp",
+]
+INCLUDE = FileList[
+  "ext/whisper.h",
+]
+GGML_SRC = FileList[
+  "ext/ggml.c",
+  "ext/ggml-impl.h",
+  "ext/ggml-aarch64.h",
+  "ext/ggml-aarch64.c",
+  "ext/ggml-alloc.c",
+  "ext/ggml-backend-impl.h",
+  "ext/ggml-backend.cpp",
+  "ext/ggml-common.h",
+  "ext/ggml-quants.h",
+  "ext/ggml-quants.c",
+  "ext/ggml-cpu-impl.h",
+]
+GGML_INCLUDE = FileList[
+  "ext/ggml.h",
+  "ext/ggml-alloc.h",
+  "ext/ggml-backend.h",
+  "ext/ggml-cuda.h",
+  "ext/ggml-kompute.h",
+  "ext/ggml-metal.h",
+  "ext/ggml-sycl.h",
+  "ext/ggml-vulkan.h",
+]
+EXAMPLES = FileList[
+  "ext/dr_wav.h",
+]
+SOURCES = SRC + INCLUDE + GGML_SRC + GGML_INCLUDE + EXAMPLES
+CLEAN.include SOURCES
+
+task build: SOURCES
+
+directory "pkg"
+CLOBBER.include "pkg"
+
+{
+  "src" => SRC,
+  "include" => INCLUDE,
+  "ggml/src" => GGML_SRC,
+  "ggml/include" => GGML_INCLUDE,
+  "examples" => EXAMPLES,
+}.each do |src_dir, dests|
+  dests.each do |dest|
+    src = Pathname("../..")/src_dir/File.basename(dest)
+
+    file src
+    file dest => src do |t|
+      cp t.source, t.name
+    end
+  end
 end
