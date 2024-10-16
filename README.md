@@ -12,17 +12,17 @@ Stable: [v1.7.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.7.1) /
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
 - Plain C/C++ implementation without dependencies
-- Apple Silicon first-class citizen - optimized via ARM NEON, Accelerate framework, Metal and [Core ML](https://github.com/ggerganov/whisper.cpp#core-ml-support)
+- Apple Silicon first-class citizen - optimized via ARM NEON, Accelerate framework, Metal and [Core ML](#core-ml-support)
 - AVX intrinsics support for x86 architectures
 - VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
-- [4-bit and 5-bit integer quantization support](https://github.com/ggerganov/whisper.cpp#quantization)
+- [4-bit and 5-bit integer quantization support](#quantization)
 - Zero memory allocations at runtime
 - Vulkan support
 - Support for CPU-only inference
-- [Efficient GPU support for NVIDIA](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
-- [OpenVINO Support](https://github.com/ggerganov/whisper.cpp#openvino-support)
-- [Ascend NPU Support](https://github.com/ggerganov/whisper.cpp#ascend-npu-support)
+- [Efficient GPU support for NVIDIA](#nvidia-gpu-support)
+- [OpenVINO Support](#openvino-support)
+- [Ascend NPU Support](#ascend-npu-support)
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/include/whisper.h)
 
 Supported platforms:
