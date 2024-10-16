@@ -1,12 +1,55 @@
 require 'rake/clean'
-  require 'rubygems/package'
+require "bundler/gem_tasks"
+require "pathname"
+require "yaml"
+require "rake/testtask"
 
-desc 'Build gem'
-task :package do
-  spec_source = File.read File.join(File.dirname(__FILE__),'whispercpp.gemspec')
-  spec = nil
-  # see: http://gist.github.com/16215
-  Thread.new { spec = eval("#{spec_source}") }.join
-  spec.validate
-  Gem::Package.build(spec)
+extsources = YAML.load_file("extsources.yaml")
+extsources.each_pair do |src_dir, dests|
+  dests.each do |dest|
+    src = Pathname(src_dir)/File.basename(dest)
+
+    file src
+    file dest => src do |t|
+      cp t.source, t.name
+    end
+  end
+end
+SOURCES = extsources.values.flatten
+CLEAN.include SOURCES
+CLEAN.include FileList["ext/*.o", "ext/whisper.so", "ext/whisper.bundle", "ext/whisper.dll"]
+
+task build: SOURCES + FileList[
+                        "ext/extconf.rb",
+                        "ext/ruby_whisper.h",
+                        "ext/ruby_whisper.cpp",
+                        "whispercpp.gemspec",
+                      ]
+
+directory "pkg"
+CLOBBER.include "pkg"
+
+TEST_MODEL = "../../models/ggml-base.en.bin"
+LIB_NAME = "whisper".ext(RbConfig::CONFIG["DLEXT"])
+LIB_FILE = File.join("lib", LIB_NAME)
+
+directory "lib"
+task LIB_FILE => SOURCES + ["lib"] do |t|
+  Dir.chdir "ext" do
+    sh "ruby extconf.rb"
+    sh "make"
+  end
+  mv "ext/#{LIB_NAME}", t.name
+end
+CLEAN.include LIB_FILE
+
+Rake::TestTask.new do |t|
+  t.test_files = FileList["tests/test_*.rb"]
+end
+task test: [TEST_MODEL, LIB_FILE]
+
+file TEST_MODEL do
+  Dir.chdir "../.." do
+    sh "./models/download-ggml-model.sh base.en"
+  end
 end
