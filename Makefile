@@ -134,6 +134,10 @@ ifdef GGML_RPC
 	BUILD_TARGETS += rpc-server
 endif
 
+ifdef GGML_VULKAN
+	BUILD_TARGETS += vulkan-shaders-gen
+endif
+
 ifeq ($(shell sdl2-config --cflags --libs 2>/dev/null),)
 else
 	BUILD_TARGETS += \
@@ -624,8 +628,8 @@ endif # GGML_CUDA
 
 ifdef GGML_VULKAN
 	MK_CPPFLAGS += -DGGML_USE_VULKAN
-	MK_LDFLAGS  += -lvulkan
-	OBJ_GGML    += ggml/src/ggml-vulkan.o
+	MK_LDFLAGS  += $(shell pkg-config --libs vulkan)
+	OBJ_GGML    += ggml/src/ggml-vulkan.o ggml/src/ggml-vulkan-shaders.o
 
 ifdef GGML_VULKAN_CHECK_RESULTS
 	MK_CPPFLAGS  += -DGGML_VULKAN_CHECK_RESULTS
@@ -639,6 +643,10 @@ ifdef GGML_VULKAN_MEMORY_DEBUG
 	MK_CPPFLAGS  += -DGGML_VULKAN_MEMORY_DEBUG
 endif
 
+ifdef GGML_VULKAN_PERF
+	MK_CPPFLAGS  += -DGGML_VULKAN_PERF
+endif
+
 ifdef GGML_VULKAN_VALIDATE
 	MK_CPPFLAGS  += -DGGML_VULKAN_VALIDATE
 endif
@@ -647,10 +655,28 @@ ifdef GGML_VULKAN_RUN_TESTS
 	MK_CPPFLAGS  += -DGGML_VULKAN_RUN_TESTS
 endif
 
-ggml/src/ggml-vulkan.o: \
-	ggml/src/ggml-vulkan.cpp \
-	ggml/include/ggml-vulkan.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+GLSLC_CMD  = glslc
+_ggml_vk_genshaders_cmd = $(shell pwd)/vulkan-shaders-gen
+_ggml_vk_header = ggml/src/ggml-vulkan-shaders.hpp
+_ggml_vk_source = ggml/src/ggml-vulkan-shaders.cpp
+_ggml_vk_input_dir = ggml/src/vulkan-shaders
+_ggml_vk_shader_deps = $(echo $(_ggml_vk_input_dir)/*.comp)
+
+ggml/src/ggml-vulkan.o: ggml/src/ggml-vulkan.cpp ggml/include/ggml-vulkan.h $(_ggml_vk_header) $(_ggml_vk_source)
+	$(CXX) $(CXXFLAGS) $(shell pkg-config --cflags vulkan) -c $< -o $@
+
+$(_ggml_vk_header): $(_ggml_vk_source)
+
+$(_ggml_vk_source): $(_ggml_vk_shader_deps) vulkan-shaders-gen
+	$(_ggml_vk_genshaders_cmd) \
+		--glslc      $(GLSLC_CMD) \
+		--input-dir  $(_ggml_vk_input_dir) \
+		--target-hpp $(_ggml_vk_header) \
+		--target-cpp $(_ggml_vk_source)
+
+vulkan-shaders-gen: ggml/src/vulkan-shaders/vulkan-shaders-gen.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $(LDFLAGS) ggml/src/vulkan-shaders/vulkan-shaders-gen.cpp
+
 endif # GGML_VULKAN
 
 ifdef GGML_HIPBLAS
