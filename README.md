@@ -100,7 +100,7 @@ make -j
 For a quick demo, simply run `make base.en`:
 
 ```text
-$ make base.en -j
+$ make -j base.en
 
 cc  -I.              -O3 -std=c11   -pthread -DGGML_USE_ACCELERATE   -c ggml.c -o ggml.o
 c++ -I. -I./examples -O3 -std=c++11 -pthread -c whisper.cpp -o whisper.o
@@ -224,7 +224,7 @@ ffmpeg -i input.mp3 -ar 16000 -ac 1 -c:a pcm_s16le output.wav
 If you want some extra audio samples to play with, simply run:
 
 ```
-make samples -j
+make -j samples
 ```
 
 This will download a few more audio files from Wikipedia and convert them to 16-bit WAV format via `ffmpeg`.
@@ -232,18 +232,18 @@ This will download a few more audio files from Wikipedia and convert them to 16-
 You can download and run the other models as follows:
 
 ```
-make tiny.en -j
-make tiny -j
-make base.en -j
-make base -j
-make small.en -j
-make small -j
-make medium.en -j
-make medium -j
-make large-v1 -j
-make large-v2 -j
-make large-v3 -j
-make large-v3-turbo -j
+make -j tiny.en
+make -j tiny
+make -j base.en
+make -j base
+make -j small.en
+make -j small
+make -j medium.en
+make -j medium
+make -j large-v1
+make -j large-v2
+make -j large-v3
+make -j large-v3-turbo
 ```
 
 ## Memory usage
@@ -265,7 +265,7 @@ Here are the steps for creating and using a quantized model:
 
 ```bash
 # quantize a model with Q5_0 method
-make quantize -j
+make -j quantize
 ./quantize models/ggml-base.en.bin models/ggml-base.en-q5_0.bin q5_0
 
 # run the examples as usual, specifying the quantized model file
