@@ -18,6 +18,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Mixed F16 / F32 precision
 - [4-bit and 5-bit integer quantization support](https://github.com/ggerganov/whisper.cpp#quantization)
 - Zero memory allocations at runtime
+- Vulkan support
 - Support for CPU-only inference
 - [Efficient GPU support for NVIDIA](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
 - [OpenVINO Support](https://github.com/ggerganov/whisper.cpp#openvino-support)
@@ -427,6 +428,16 @@ Now build `whisper.cpp` with CUDA support:
 ```
 make clean
 GGML_CUDA=1 make -j
+```
+
+## Vulkan GPU support
+Cross-vendor solution which allows you to accelerate workload on your GPU.
+First, make sure your graphics card driver provides support for Vulkan API.
+
+Now build `whisper.cpp` with Vulkan support:
+```
+make clean
+make GGML_VULKAN=1
 ```
 
 ## BLAS CPU support via OpenBLAS
