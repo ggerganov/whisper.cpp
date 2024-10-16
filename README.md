@@ -89,7 +89,7 @@ Now build the [main](examples/main) example and transcribe an audio file like th
 
 ```bash
 # build the main example
-make
+make -j
 
 # transcribe an audio file
 ./main -f samples/jfk.wav
@@ -100,7 +100,7 @@ make
 For a quick demo, simply run `make base.en`:
 
 ```text
-$ make base.en
+$ make base.en -j
 
 cc  -I.              -O3 -std=c11   -pthread -DGGML_USE_ACCELERATE   -c ggml.c -o ggml.o
 c++ -I. -I./examples -O3 -std=c++11 -pthread -c whisper.cpp -o whisper.o
@@ -224,7 +224,7 @@ ffmpeg -i input.mp3 -ar 16000 -ac 1 -c:a pcm_s16le output.wav
 If you want some extra audio samples to play with, simply run:
 
 ```
-make samples
+make samples -j
 ```
 
 This will download a few more audio files from Wikipedia and convert them to 16-bit WAV format via `ffmpeg`.
@@ -232,18 +232,18 @@ This will download a few more audio files from Wikipedia and convert them to 16-
 You can download and run the other models as follows:
 
 ```
-make tiny.en
-make tiny
-make base.en
-make base
-make small.en
-make small
-make medium.en
-make medium
-make large-v1
-make large-v2
-make large-v3
-make large-v3-turbo
+make tiny.en -j
+make tiny -j
+make base.en -j
+make base -j
+make small.en -j
+make small -j
+make medium.en -j
+make medium -j
+make large-v1 -j
+make large-v2 -j
+make large-v3 -j
+make large-v3-turbo -j
 ```
 
 ## Memory usage
@@ -265,7 +265,7 @@ Here are the steps for creating and using a quantized model:
 
 ```bash
 # quantize a model with Q5_0 method
-make quantize
+make quantize -j
 ./quantize models/ggml-base.en.bin models/ggml-base.en-q5_0.bin q5_0
 
 # run the examples as usual, specifying the quantized model file
@@ -437,7 +437,7 @@ First, make sure your graphics card driver provides support for Vulkan API.
 Now build `whisper.cpp` with Vulkan support:
 ```
 make clean
-make GGML_VULKAN=1
+make GGML_VULKAN=1 -j
 ```
 
 ## BLAS CPU support via OpenBLAS
@@ -636,7 +636,7 @@ The [stream](examples/stream) tool samples the audio every half a second and run
 More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
 ```bash
-make stream
+make stream -j
 ./stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
 ```
 
