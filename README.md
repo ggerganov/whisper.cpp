@@ -434,6 +434,7 @@ GGML_CUDA=1 make -j
 Cross-vendor solution which allows you to accelerate workload on your GPU.
 First, make sure your graphics card driver provides support for Vulkan API.
 
+Now build whisper.cpp with Vulkan support:
 ```
 make clean
 make GGML_VULKAN=1
