@@ -18,7 +18,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Mixed F16 / F32 precision
 - [4-bit and 5-bit integer quantization support](#quantization)
 - Zero memory allocations at runtime
-- Vulkan support
+- [Vulkan support](#vulkan-gpu-support)
 - Support for CPU-only inference
 - [Efficient GPU support for NVIDIA](#nvidia-gpu-support)
 - [OpenVINO Support](#openvino-support)
