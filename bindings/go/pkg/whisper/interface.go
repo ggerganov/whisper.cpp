@@ -16,6 +16,10 @@ type SegmentCallback func(Segment)
 // processing. It is called during the Process function
 type ProgressCallback func(int)
 
+// EncoderBeginCallback is the callback function for checking if we want to
+// continue processing. It is called during the Process function
+type EncoderBeginCallback func() bool
+
 // Model is the interface to a whisper model. Create a new model with the
 // function whisper.New(string)
 type Model interface {
@@ -31,12 +35,14 @@ type Model interface {
 	Languages() []string
 }
 
-// Context is the speach recognition context.
+// Context is the speech recognition context.
 type Context interface {
-	SetLanguage(string) error // Set the language to use for speech recognition, use "auto" for auto detect language.
-	SetTranslate(bool)        // Set translate flag
-	IsMultilingual() bool     // Return true if the model is multilingual.
-	Language() string         // Get language
+	SetLanguage(string) error    // Set the language to use for speech recognition, use "auto" for auto detect language.
+	SetTranslate(bool)           // Set translate flag
+	IsMultilingual() bool        // Return true if the model is multilingual.
+	Language() string            // Get language
+	GetDetectedLanguage() string // Get auto detected language
+
 
 	SetOffset(time.Duration)          // Set offset
 	SetDuration(time.Duration)        // Set duration
@@ -58,7 +64,7 @@ type Context interface {
 	// Process mono audio data and return any errors.
 	// If defined, newly generated segments are passed to the
 	// callback function during processing.
-	Process([]float32, SegmentCallback, ProgressCallback) error
+	Process([]float32, EncoderBeginCallback, SegmentCallback, ProgressCallback) error
 
 	// After process is called, return segments until the end of the stream
 	// is reached, when io.EOF is returned.
