@@ -127,6 +127,29 @@ class TestWhisper < Test::Unit::TestCase
     }
   end
 
+  def test_new_segment_callback_lambda
+    counter = 0
+    @params.new_segment_callback = ->(text, start_time, end_time, index) {
+      assert_kind_of String, text
+      assert_kind_of Integer, start_time
+      assert_kind_of Integer, end_time
+      assert_same index, counter
+      counter += 1
+    }
+    whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+    jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
+    whisper.transcribe(jfk, @params)
+  end
+
+  def test_new_segment_callback_proc
+    @params.new_segment_callback = proc {|text| # proc checks arguments loosly
+      assert_kind_of String, text
+    }
+    whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+    jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
+    whisper.transcribe(jfk, @params)
+  end
+
   def test_build
     Tempfile.create do |file|
       assert system("gem", "build", "whispercpp.gemspec", "--output", file.to_path.shellescape, exception: true)
