@@ -210,10 +210,6 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
   if (!NIL_P(rwp->new_segment_callback)) {
     rwp->params.new_segment_callback = [](struct whisper_context * ctx, struct whisper_state * state, int n_new, void * user_data) {
       VALUE callback = *(VALUE *)user_data;
-      if (NIL_P(callback)){
-        return;
-      }
-
       int n_segments = whisper_full_n_segments_from_state(state);
       for (int i = n_new; i > 0; --i) {
         const int i_segment = n_segments - i;
