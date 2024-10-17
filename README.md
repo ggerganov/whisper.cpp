@@ -12,17 +12,17 @@ Stable: [v1.7.1](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.7.1) /
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
 - Plain C/C++ implementation without dependencies
-- Apple Silicon first-class citizen - optimized via ARM NEON, Accelerate framework, Metal and [Core ML](https://github.com/ggerganov/whisper.cpp#core-ml-support)
+- Apple Silicon first-class citizen - optimized via ARM NEON, Accelerate framework, Metal and [Core ML](#core-ml-support)
 - AVX intrinsics support for x86 architectures
 - VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
-- [4-bit and 5-bit integer quantization support](https://github.com/ggerganov/whisper.cpp#quantization)
+- [4-bit and 5-bit integer quantization support](#quantization)
 - Zero memory allocations at runtime
-- Vulkan support
+- [Vulkan support](#vulkan-gpu-support)
 - Support for CPU-only inference
-- [Efficient GPU support for NVIDIA](https://github.com/ggerganov/whisper.cpp#nvidia-gpu-support-via-cublas)
-- [OpenVINO Support](https://github.com/ggerganov/whisper.cpp#openvino-support)
-- [Ascend NPU Support](https://github.com/ggerganov/whisper.cpp#ascend-npu-support)
+- [Efficient GPU support for NVIDIA](#nvidia-gpu-support)
+- [OpenVINO Support](#openvino-support)
+- [Ascend NPU Support](#ascend-npu-support)
 - [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/include/whisper.h)
 
 Supported platforms:
@@ -89,7 +89,7 @@ Now build the [main](examples/main) example and transcribe an audio file like th
 
 ```bash
 # build the main example
-make
+make -j
 
 # transcribe an audio file
 ./main -f samples/jfk.wav
@@ -100,7 +100,7 @@ make
 For a quick demo, simply run `make base.en`:
 
 ```text
-$ make base.en
+$ make -j base.en
 
 cc  -I.              -O3 -std=c11   -pthread -DGGML_USE_ACCELERATE   -c ggml.c -o ggml.o
 c++ -I. -I./examples -O3 -std=c++11 -pthread -c whisper.cpp -o whisper.o
@@ -224,7 +224,7 @@ ffmpeg -i input.mp3 -ar 16000 -ac 1 -c:a pcm_s16le output.wav
 If you want some extra audio samples to play with, simply run:
 
 ```
-make samples
+make -j samples
 ```
 
 This will download a few more audio files from Wikipedia and convert them to 16-bit WAV format via `ffmpeg`.
@@ -232,18 +232,18 @@ This will download a few more audio files from Wikipedia and convert them to 16-
 You can download and run the other models as follows:
 
 ```
-make tiny.en
-make tiny
-make base.en
-make base
-make small.en
-make small
-make medium.en
-make medium
-make large-v1
-make large-v2
-make large-v3
-make large-v3-turbo
+make -j tiny.en
+make -j tiny
+make -j base.en
+make -j base
+make -j small.en
+make -j small
+make -j medium.en
+make -j medium
+make -j large-v1
+make -j large-v2
+make -j large-v3
+make -j large-v3-turbo
 ```
 
 ## Memory usage
@@ -265,7 +265,7 @@ Here are the steps for creating and using a quantized model:
 
 ```bash
 # quantize a model with Q5_0 method
-make quantize
+make -j quantize
 ./quantize models/ggml-base.en.bin models/ggml-base.en-q5_0.bin q5_0
 
 # run the examples as usual, specifying the quantized model file
@@ -437,7 +437,7 @@ First, make sure your graphics card driver provides support for Vulkan API.
 Now build `whisper.cpp` with Vulkan support:
 ```
 make clean
-make GGML_VULKAN=1
+make GGML_VULKAN=1 -j
 ```
 
 ## BLAS CPU support via OpenBLAS
@@ -636,7 +636,7 @@ The [stream](examples/stream) tool samples the audio every half a second and run
 More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
 ```bash
-make stream
+make stream -j
 ./stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
 ```
 
