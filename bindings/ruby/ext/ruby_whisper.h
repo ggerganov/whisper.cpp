@@ -10,6 +10,7 @@ typedef struct {
 typedef struct {
   struct whisper_full_params params;
   bool diarize;
+  VALUE new_segment_callback;
 } ruby_whisper_params;
 
 #endif
