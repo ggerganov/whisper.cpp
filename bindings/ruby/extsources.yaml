@@ -33,5 +33,4 @@
 ../../examples:
 - ext/dr_wav.h
 ../..:
-- README.md
 - LICENSE
