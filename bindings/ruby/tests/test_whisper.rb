@@ -159,14 +159,23 @@ class TestWhisper < Test::Unit::TestCase
 
   def test_lang_id
     assert_equal 0, Whisper.lang_id("en")
+    assert_raise ArgumentError do
+      Whisper.lang_id("non existing language")
+    end
   end
 
   def test_lang_str
     assert_equal "en", Whisper.lang_str(0)
+    assert_raise IndexError do
+      Whisper.lang_str(Whisper.lang_max_id + 1)
+    end
   end
 
   def test_lang_str_full
     assert_equal "english", Whisper.lang_str_full(0)
+    assert_raise IndexError do
+      Whisper.lang_str_full(Whisper.lang_max_id + 1)
+    end
   end
 
   def test_build
