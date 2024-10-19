@@ -147,6 +147,10 @@ class TestWhisper < Test::Unit::TestCase
     def test_full_n_segments
       assert_equal 1, whisper.full_n_segments
     end
+
+    def test_full_lang_id
+      assert_equal 0, whisper.full_lang_id
+    end
   end
 
   def test_lang_max_id
