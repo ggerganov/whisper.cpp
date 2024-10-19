@@ -116,38 +116,38 @@ class TestWhisper < Test::Unit::TestCase
     assert !@params.split_on_word
   end
 
-  sub_test_case "#transcribe" do
-    def setup
-      @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
-      @params  = Whisper::Params.new
-      @params.print_timestamps = false
-      @jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
-    end
+  def test_whisper
+    @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+    params  = Whisper::Params.new
+    params.print_timestamps = false
 
-    def test_whisper
-      @whisper.transcribe(@jfk, @params) {|text|
-        assert_match /ask not what your country can do for you, ask what you can do for your country/, text
-      }
-    end
+    jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
+    @whisper.transcribe(jfk, params) {|text|
+      assert_match /ask not what your country can do for you, ask what you can do for your country/, text
+    }
+  end
 
-    def test_new_segment_callback_lambda
-      counter = 0
-      @params.new_segment_callback = ->(text, start_time, end_time, index) {
-        assert_kind_of String, text
-        assert_kind_of Integer, start_time
-        assert_kind_of Integer, end_time
-        assert_same index, counter
-        counter += 1
-      }
-      @whisper.transcribe(@jfk, @params)
-    end
+  def test_new_segment_callback_lambda
+    counter = 0
+    @params.new_segment_callback = ->(text, start_time, end_time, index) {
+      assert_kind_of String, text
+      assert_kind_of Integer, start_time
+      assert_kind_of Integer, end_time
+      assert_same index, counter
+      counter += 1
+    }
+    whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+    jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
+    whisper.transcribe(jfk, @params)
+  end
 
-    def test_new_segment_callback_proc
-      @params.new_segment_callback = proc {|text| # proc checks arguments loosly
-        assert_kind_of String, text
-      }
-      @whisper.transcribe(@jfk, @params)
-    end
+  def test_new_segment_callback_proc
+    @params.new_segment_callback = proc {|text| # proc checks arguments loosly
+      assert_kind_of String, text
+    }
+    whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+    jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
+    whisper.transcribe(jfk, @params)
   end
 
   def test_build
