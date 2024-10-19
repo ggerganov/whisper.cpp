@@ -262,6 +262,12 @@ static VALUE ruby_whisper_full_n_segments(VALUE self) {
   return INT2NUM(whisper_full_n_segments(rw->context));
 }
 
+static VALUE ruby_whisper_full_lang_id(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_full_lang_id(rw->context));
+}
+
 /*
  * params.language = "auto" | "en", etc...
  */
@@ -426,6 +432,7 @@ void Init_whisper() {
 
   rb_define_method(cContext, "transcribe", ruby_whisper_transcribe, -1);
   rb_define_method(cContext, "full_n_segments", ruby_whisper_full_n_segments, 0);
+  rb_define_method(cContext, "full_lang_id", ruby_whisper_full_lang_id, 0);
 
   rb_define_alloc_func(cParams, ruby_whisper_params_allocate);
 
