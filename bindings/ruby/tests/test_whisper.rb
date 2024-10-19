@@ -151,6 +151,25 @@ class TestWhisper < Test::Unit::TestCase
     def test_full_lang_id
       assert_equal 0, whisper.full_lang_id
     end
+
+    def test_full_get_segment_t0
+      assert_equal 0, whisper.full_get_segment_t0(0)
+      assert_raise IndexError do
+        whisper.full_get_segment_t0(whisper.full_n_segments)
+      end
+      assert_raise IndexError do
+        whisper.full_get_segment_t0(-1)
+      end
+    end
+
+    def test_full_get_segment_t1
+      t1 = whisper.full_get_segment_t1(0)
+      assert_kind_of Integer, t1
+      assert t1 > 0
+      assert_raise IndexError do
+        whisper.full_get_segment_t1(whisper.full_n_segments)
+      end
+    end
   end
 
   def test_lang_max_id
