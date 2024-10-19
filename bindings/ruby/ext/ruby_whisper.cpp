@@ -315,6 +315,14 @@ static VALUE ruby_whisper_full_get_segment_speaker_turn_next(VALUE self, VALUE i
   return speaker_turn_next ? Qtrue : Qfalse;
 }
 
+static VALUE ruby_whisper_full_get_segment_text(VALUE self, VALUE i_segment) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  const int c_i_segment = ruby_whisper_full_check_segment_index(rw, i_segment);
+  const char * text = whisper_full_get_segment_text(rw->context, c_i_segment);
+  return rb_str_new2(text);
+}
+
 /*
  * params.language = "auto" | "en", etc...
  */
@@ -483,6 +491,7 @@ void Init_whisper() {
   rb_define_method(cContext, "full_get_segment_t0", ruby_whisper_full_get_segment_t0, 1);
   rb_define_method(cContext, "full_get_segment_t1", ruby_whisper_full_get_segment_t1, 1);
   rb_define_method(cContext, "full_get_segment_speaker_turn_next", ruby_whisper_full_get_segment_speaker_turn_next, 1);
+  rb_define_method(cContext, "full_get_segment_text", ruby_whisper_full_get_segment_text, 1);
 
   rb_define_alloc_func(cParams, ruby_whisper_params_allocate);
 
