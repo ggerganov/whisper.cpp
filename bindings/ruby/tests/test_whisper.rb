@@ -149,6 +149,22 @@ class TestWhisper < Test::Unit::TestCase
     end
   end
 
+  def test_lang_max_id
+    assert_kind_of Integer, Whisper.lang_max_id
+  end
+
+  def test_lang_id
+    assert_equal 0, Whisper.lang_id("en")
+  end
+
+  def test_lang_str
+    assert_equal "en", Whisper.lang_str(0)
+  end
+
+  def test_lang_str_full
+    assert_equal "english", Whisper.lang_str_full(0)
+  end
+
   def test_build
     Tempfile.create do |file|
       assert system("gem", "build", "whispercpp.gemspec", "--output", file.to_path.shellescape, exception: true)
