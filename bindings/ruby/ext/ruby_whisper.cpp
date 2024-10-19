@@ -283,6 +283,30 @@ static VALUE ruby_whisper_full_lang_id(VALUE self) {
   return INT2NUM(whisper_full_lang_id(rw->context));
 }
 
+static int ruby_whisper_full_check_segment_index(const ruby_whisper * rw, const VALUE i_segment) {
+  const int c_i_segment = NUM2INT(i_segment);
+  if (c_i_segment < 0 || c_i_segment >= whisper_full_n_segments(rw->context)) {
+    rb_raise(rb_eIndexError, "segment index %d out of range", c_i_segment);
+  }
+  return c_i_segment;
+}
+
+static VALUE ruby_whisper_full_get_segment_t0(VALUE self, VALUE i_segment) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  const int c_i_segment = ruby_whisper_full_check_segment_index(rw, i_segment);
+  const int64_t t0 = whisper_full_get_segment_t0(rw->context, c_i_segment);
+  return INT2NUM(t0);
+}
+
+static VALUE ruby_whisper_full_get_segment_t1(VALUE self, VALUE i_segment) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  const int c_i_segment = ruby_whisper_full_check_segment_index(rw, i_segment);
+  const int64_t t1 = whisper_full_get_segment_t1(rw->context, c_i_segment);
+  return INT2NUM(t1);
+}
+
 /*
  * params.language = "auto" | "en", etc...
  */
@@ -448,6 +472,8 @@ void Init_whisper() {
   rb_define_method(cContext, "transcribe", ruby_whisper_transcribe, -1);
   rb_define_method(cContext, "full_n_segments", ruby_whisper_full_n_segments, 0);
   rb_define_method(cContext, "full_lang_id", ruby_whisper_full_lang_id, 0);
+  rb_define_method(cContext, "full_get_segment_t0", ruby_whisper_full_get_segment_t0, 1);
+  rb_define_method(cContext, "full_get_segment_t1", ruby_whisper_full_get_segment_t1, 1);
 
   rb_define_alloc_func(cParams, ruby_whisper_params_allocate);
 
