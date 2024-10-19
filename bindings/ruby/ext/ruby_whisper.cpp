@@ -36,6 +36,22 @@ VALUE mWhisper;
 VALUE cContext;
 VALUE cParams;
 
+static VALUE ruby_whisper_s_lang_max_id(VALUE self) {
+  return INT2NUM(whisper_lang_max_id());
+}
+
+static VALUE ruby_whisper_s_lang_id(VALUE self, VALUE lang) {
+  return INT2NUM(whisper_lang_id(StringValueCStr(lang)));
+}
+
+static VALUE ruby_whisper_s_lang_str(VALUE self, VALUE id) {
+  return rb_str_new2(whisper_lang_str(NUM2INT(id)));
+}
+
+static VALUE ruby_whisper_s_lang_str_full(VALUE self, VALUE id) {
+  return rb_str_new2(whisper_lang_str_full(NUM2INT(id)));
+}
+
 static void ruby_whisper_free(ruby_whisper *rw) {
   if (rw->context) {
     whisper_free(rw->context);
@@ -399,6 +415,11 @@ void Init_whisper() {
   mWhisper = rb_define_module("Whisper");
   cContext = rb_define_class_under(mWhisper, "Context", rb_cObject);
   cParams  = rb_define_class_under(mWhisper, "Params", rb_cObject);
+
+  rb_define_singleton_method(mWhisper, "lang_max_id", ruby_whisper_s_lang_max_id, 0);
+  rb_define_singleton_method(mWhisper, "lang_id", ruby_whisper_s_lang_id, 1);
+  rb_define_singleton_method(mWhisper, "lang_str", ruby_whisper_s_lang_str, 1);
+  rb_define_singleton_method(mWhisper, "lang_str_full", ruby_whisper_s_lang_str_full, 1);
 
   rb_define_alloc_func(cContext, ruby_whisper_allocate);
   rb_define_method(cContext, "initialize", ruby_whisper_initialize, -1);
