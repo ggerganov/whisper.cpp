@@ -174,6 +174,10 @@ class TestWhisper < Test::Unit::TestCase
     def test_full_get_segment_speaker_turn_next
       assert_false whisper.full_get_segment_speaker_turn_next(0)
     end
+
+    def test_full_get_segment_text
+      assert_match /ask not what your country can do for you, ask what you can do for your country/, whisper.full_get_segment_text(0)
+    end
   end
 
   def test_lang_max_id
