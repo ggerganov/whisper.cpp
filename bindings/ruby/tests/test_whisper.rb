@@ -170,6 +170,10 @@ class TestWhisper < Test::Unit::TestCase
         whisper.full_get_segment_t1(whisper.full_n_segments)
       end
     end
+
+    def test_full_get_segment_speaker_turn_next
+      assert_false whisper.full_get_segment_speaker_turn_next(0)
+    end
   end
 
   def test_lang_max_id
