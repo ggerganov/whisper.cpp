@@ -41,15 +41,30 @@ static VALUE ruby_whisper_s_lang_max_id(VALUE self) {
 }
 
 static VALUE ruby_whisper_s_lang_id(VALUE self, VALUE lang) {
-  return INT2NUM(whisper_lang_id(StringValueCStr(lang)));
+  const char * lang_str = StringValueCStr(lang);
+  const int id = whisper_lang_id(lang_str);
+  if (-1 == id) {
+    rb_raise(rb_eArgError, "language not found: %s", lang_str);
+  }
+  return INT2NUM(id);
 }
 
 static VALUE ruby_whisper_s_lang_str(VALUE self, VALUE id) {
-  return rb_str_new2(whisper_lang_str(NUM2INT(id)));
+  const int lang_id = NUM2INT(id);
+  const char * str = whisper_lang_str(lang_id);
+  if (nullptr == str) {
+    rb_raise(rb_eIndexError, "id %d outside of language id", lang_id);
+  }
+  return rb_str_new2(str);
 }
 
 static VALUE ruby_whisper_s_lang_str_full(VALUE self, VALUE id) {
-  return rb_str_new2(whisper_lang_str_full(NUM2INT(id)));
+  const int lang_id = NUM2INT(id);
+  const char * str_full = whisper_lang_str_full(lang_id);
+  if (nullptr == str_full) {
+    rb_raise(rb_eIndexError, "id %d outside of language id", lang_id);
+  }
+  return rb_str_new2(str_full);
 }
 
 static void ruby_whisper_free(ruby_whisper *rw) {
