@@ -127,6 +127,28 @@ class TestWhisper < Test::Unit::TestCase
     }
   end
 
+  sub_test_case "After transcription" do
+    class << self
+      attr_reader :whisper
+
+      def startup
+        @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+        params = Whisper::Params.new
+        params.print_timestamps = false
+        jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
+        @whisper.transcribe(jfk, params)
+      end
+    end
+
+    def whisper
+      self.class.whisper
+    end
+
+    def test_full_n_segments
+      assert_equal 1, whisper.full_n_segments
+    end
+  end
+
   def test_build
     Tempfile.create do |file|
       assert system("gem", "build", "whispercpp.gemspec", "--output", file.to_path.shellescape, exception: true)
