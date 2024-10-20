@@ -102,9 +102,14 @@ static VALUE ruby_whisper_allocate(VALUE klass) {
 
 static VALUE ruby_whisper_params_allocate(VALUE klass) {
   ruby_whisper_params *rwp;
+  ruby_whisper_callback_user_data *new_segment_callback_user_data;
   rwp = ALLOC(ruby_whisper_params);
   rwp->params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-  rwp->new_segment_callback = Qnil;
+  new_segment_callback_user_data = ALLOC(ruby_whisper_callback_user_data);
+  new_segment_callback_user_data->context = nullptr;
+  new_segment_callback_user_data->user_data = Qnil;
+  new_segment_callback_user_data->callback = Qnil;
+  rwp->new_segment_callback_user_data = new_segment_callback_user_data;
   return Data_Wrap_Struct(klass, rb_whisper_params_mark, rb_whisper_params_free, rwp);
 }
 
@@ -238,19 +243,16 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
     rwp->params.encoder_begin_callback_user_data = &is_aborted;
   }
 
-  if (!NIL_P(rwp->new_segment_callback)) {
+  if (!NIL_P(rwp->new_segment_callback_user_data->callback)) {
     rwp->params.new_segment_callback = [](struct whisper_context * ctx, struct whisper_state * state, int n_new, void * user_data) {
-      ruby_whisper *rw;;
-      VALUE context = *(VALUE *)user_data;
-      Data_Get_Struct(context, ruby_whisper, rw);
-      VALUE callback = rw->new_segment_callback;
+      const ruby_whisper_callback_user_data *container = (ruby_whisper_callback_user_data *)user_data;
 
-      // Currently, doesn't support state and user_data because
+      // Currently, doesn't support state because
       // those require to resolve GC-related problems.
-      rb_funcall(callback, rb_intern("call"), 4, context, Qnil, INT2NUM(n_new), Qnil);
+      rb_funcall(container->callback, rb_intern("call"), 4, *container->context, Qnil, INT2NUM(n_new), container->user_data);
     };
-    rw->new_segment_callback = rwp->new_segment_callback;
-    rwp->params.new_segment_callback_user_data = &self;
+    rwp->new_segment_callback_user_data->context = &self;
+    rwp->params.new_segment_callback_user_data = rwp->new_segment_callback_user_data;
   }
 
   if (whisper_full_parallel(rw->context, rwp->params, pcmf32.data(), pcmf32.size(), 1) != 0) {
@@ -467,7 +469,7 @@ static VALUE ruby_whisper_params_set_max_text_tokens(VALUE self, VALUE value) {
 static VALUE ruby_whisper_params_set_new_segment_callback(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
-  rwp->new_segment_callback = value;
+  rwp->new_segment_callback_user_data->callback = value;
   return value;
 }
 
