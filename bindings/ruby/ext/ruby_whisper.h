@@ -5,6 +5,7 @@
 
 typedef struct {
   struct whisper_context *context;
+  VALUE new_segment_callback;
 } ruby_whisper;
 
 typedef struct {

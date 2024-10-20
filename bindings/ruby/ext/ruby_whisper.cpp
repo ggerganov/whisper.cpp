@@ -240,18 +240,17 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
 
   if (!NIL_P(rwp->new_segment_callback)) {
     rwp->params.new_segment_callback = [](struct whisper_context * ctx, struct whisper_state * state, int n_new, void * user_data) {
-      VALUE callback = *(VALUE *)user_data;
-      int n_segments = whisper_full_n_segments_from_state(state);
-      for (int i = n_new; i > 0; --i) {
-        const int i_segment = n_segments - i;
-        const char * text = whisper_full_get_segment_text_from_state(state, i_segment);
-        // Multiplying 10 shouldn't cause overflow because to_timestamp() in whisper.cpp does it
-        const int64_t t0 = whisper_full_get_segment_t0_from_state(state, i_segment) * 10;
-        const int64_t t1 = whisper_full_get_segment_t1_from_state(state, i_segment) * 10;
-        rb_funcall(callback, rb_intern("call"), 4, rb_str_new2(text), INT2NUM(t0), INT2NUM(t1), INT2FIX(i_segment));
-      }
+      ruby_whisper *rw;;
+      VALUE context = *(VALUE *)user_data;
+      Data_Get_Struct(context, ruby_whisper, rw);
+      VALUE callback = rw->new_segment_callback;
+
+      // Currently, doesn't support state and user_data because
+      // those require to resolve GC-related problems.
+      rb_funcall(callback, rb_intern("call"), 4, context, Qnil, INT2NUM(n_new), Qnil);
     };
-    rwp->params.new_segment_callback_user_data = &rwp->new_segment_callback;
+    rw->new_segment_callback = rwp->new_segment_callback;
+    rwp->params.new_segment_callback_user_data = &self;
   }
 
   if (whisper_full_parallel(rw->context, rwp->params, pcmf32.data(), pcmf32.size(), 1) != 0) {
