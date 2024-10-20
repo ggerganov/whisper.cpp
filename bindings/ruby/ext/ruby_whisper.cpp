@@ -472,6 +472,12 @@ static VALUE ruby_whisper_params_set_new_segment_callback(VALUE self, VALUE valu
   rwp->new_segment_callback_user_data->callback = value;
   return value;
 }
+static VALUE ruby_whisper_params_set_new_segment_callback_user_data(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->new_segment_callback_user_data->user_data = value;
+  return value;
+}
 
 void Init_whisper() {
   mWhisper = rb_define_module("Whisper");
@@ -532,6 +538,7 @@ void Init_whisper() {
   rb_define_method(cParams, "max_text_tokens=", ruby_whisper_params_set_max_text_tokens, 1);
 
   rb_define_method(cParams, "new_segment_callback=", ruby_whisper_params_set_new_segment_callback, 1);
+  rb_define_method(cParams, "new_segment_callback_user_data=", ruby_whisper_params_set_new_segment_callback_user_data, 1);
 }
 #ifdef __cplusplus
 }
