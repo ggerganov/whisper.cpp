@@ -86,9 +86,12 @@ void rb_whisper_free(ruby_whisper *rw) {
 }
 
 void rb_whisper_params_mark(ruby_whisper_params *rwp) {
+  rb_gc_mark(rwp->new_segment_callback_user_data->user_data);
+  rb_gc_mark(rwp->new_segment_callback_user_data->callback);
 }
 
 void rb_whisper_params_free(ruby_whisper_params *rwp) {
+  // How to free user_data and callback only when not referred to by others?
   ruby_whisper_params_free(rwp);
   free(rwp);
 }
@@ -110,6 +113,7 @@ static VALUE ruby_whisper_params_allocate(VALUE klass) {
   new_segment_callback_user_data->user_data = Qnil;
   new_segment_callback_user_data->callback = Qnil;
   rwp->new_segment_callback_user_data = new_segment_callback_user_data;
+
   return Data_Wrap_Struct(klass, rb_whisper_params_mark, rb_whisper_params_free, rwp);
 }
 
