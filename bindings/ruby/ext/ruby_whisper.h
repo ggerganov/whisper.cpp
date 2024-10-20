@@ -7,7 +7,7 @@ typedef struct {
   VALUE *context;
   VALUE user_data;
   VALUE callback;
-} ruby_whisper_callback_user_data;
+} ruby_whisper_callback_container;
 
 typedef struct {
   struct whisper_context *context;
@@ -16,7 +16,7 @@ typedef struct {
 typedef struct {
   struct whisper_full_params params;
   bool diarize;
-  ruby_whisper_callback_user_data *new_segment_callback_user_data;
+  ruby_whisper_callback_container *new_segment_callback_container;
 } ruby_whisper_params;
 
 #endif

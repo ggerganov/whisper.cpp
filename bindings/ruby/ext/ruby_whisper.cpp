@@ -86,8 +86,8 @@ void rb_whisper_free(ruby_whisper *rw) {
 }
 
 void rb_whisper_params_mark(ruby_whisper_params *rwp) {
-  rb_gc_mark(rwp->new_segment_callback_user_data->user_data);
-  rb_gc_mark(rwp->new_segment_callback_user_data->callback);
+  rb_gc_mark(rwp->new_segment_callback_container->user_data);
+  rb_gc_mark(rwp->new_segment_callback_container->callback);
 }
 
 void rb_whisper_params_free(ruby_whisper_params *rwp) {
@@ -105,14 +105,14 @@ static VALUE ruby_whisper_allocate(VALUE klass) {
 
 static VALUE ruby_whisper_params_allocate(VALUE klass) {
   ruby_whisper_params *rwp;
-  ruby_whisper_callback_user_data *new_segment_callback_user_data;
+  ruby_whisper_callback_container *new_segment_callback_container;
   rwp = ALLOC(ruby_whisper_params);
   rwp->params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-  new_segment_callback_user_data = ALLOC(ruby_whisper_callback_user_data);
-  new_segment_callback_user_data->context = nullptr;
-  new_segment_callback_user_data->user_data = Qnil;
-  new_segment_callback_user_data->callback = Qnil;
-  rwp->new_segment_callback_user_data = new_segment_callback_user_data;
+  new_segment_callback_container = ALLOC(ruby_whisper_callback_container);
+  new_segment_callback_container->context = nullptr;
+  new_segment_callback_container->user_data = Qnil;
+  new_segment_callback_container->callback = Qnil;
+  rwp->new_segment_callback_container = new_segment_callback_container;
 
   return Data_Wrap_Struct(klass, rb_whisper_params_mark, rb_whisper_params_free, rwp);
 }
@@ -247,16 +247,16 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
     rwp->params.encoder_begin_callback_user_data = &is_aborted;
   }
 
-  if (!NIL_P(rwp->new_segment_callback_user_data->callback)) {
+  if (!NIL_P(rwp->new_segment_callback_container->callback)) {
     rwp->params.new_segment_callback = [](struct whisper_context * ctx, struct whisper_state * state, int n_new, void * user_data) {
-      const ruby_whisper_callback_user_data *container = (ruby_whisper_callback_user_data *)user_data;
+      const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
 
       // Currently, doesn't support state because
       // those require to resolve GC-related problems.
       rb_funcall(container->callback, rb_intern("call"), 4, *container->context, Qnil, INT2NUM(n_new), container->user_data);
     };
-    rwp->new_segment_callback_user_data->context = &self;
-    rwp->params.new_segment_callback_user_data = rwp->new_segment_callback_user_data;
+    rwp->new_segment_callback_container->context = &self;
+    rwp->params.new_segment_callback_user_data = rwp->new_segment_callback_container;
   }
 
   if (whisper_full_parallel(rw->context, rwp->params, pcmf32.data(), pcmf32.size(), 1) != 0) {
@@ -473,13 +473,13 @@ static VALUE ruby_whisper_params_set_max_text_tokens(VALUE self, VALUE value) {
 static VALUE ruby_whisper_params_set_new_segment_callback(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
-  rwp->new_segment_callback_user_data->callback = value;
+  rwp->new_segment_callback_container->callback = value;
   return value;
 }
 static VALUE ruby_whisper_params_set_new_segment_callback_user_data(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
-  rwp->new_segment_callback_user_data->user_data = value;
+  rwp->new_segment_callback_container->user_data = value;
   return value;
 }
 
