@@ -127,6 +127,56 @@ class TestWhisper < Test::Unit::TestCase
     }
   end
 
+  def test_new_segment_callback
+    whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+
+    @params.new_segment_callback = ->(context, state, n_new, user_data) {
+      assert_kind_of Integer, n_new
+      assert n_new > 0
+      assert_same whisper, context
+
+      n_segments = context.full_n_segments
+      n_new.times do |i|
+        i_segment = n_segments - 1 + i
+        start_time = context.full_get_segment_t0(i_segment) * 10
+        end_time = context.full_get_segment_t1(i_segment) * 10
+        text = context.full_get_segment_text(i_segment)
+
+        assert_kind_of Integer, start_time
+        assert start_time >= 0
+        assert_kind_of Integer, end_time
+        assert end_time > 0
+        assert_match /ask not what your country can do for you, ask what you can do for your country/, text if i_segment == 0
+      end
+    }
+
+    jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
+    whisper.transcribe(jfk, @params)
+  end
+
+  def test_new_segment_callback_closure
+    whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+
+    search_word = "what"
+    @params.new_segment_callback = ->(context, state, n_new, user_data) {
+      n_segments = context.full_n_segments
+      n_new.times do |i|
+        i_segment = n_segments - 1 + i
+        text = context.full_get_segment_text(i_segment)
+        if text.include?(search_word)
+          t0 = context.full_get_segment_t0(i_segment)
+          t1 = context.full_get_segment_t1(i_segment)
+          raise "search word '#{search_word}' found at between #{t0} and #{t1}"
+        end
+      end
+    }
+
+    jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
+    assert_raise RuntimeError do
+      whisper.transcribe(jfk, @params)
+    end
+  end
+
   sub_test_case "After transcription" do
     class << self
       attr_reader :whisper
