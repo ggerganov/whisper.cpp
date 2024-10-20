@@ -7,7 +7,7 @@ class TestPackage < Test::Unit::TestCase
   def test_build
     Tempfile.create do |file|
       assert system("gem", "build", "whispercpp.gemspec", "--output", file.to_path.shellescape, exception: true)
-      assert_path_exist file.to_path
+      assert file.size > 0
     end
   end
 
