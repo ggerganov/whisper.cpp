@@ -53,4 +53,14 @@ class TestCallback < Test::Unit::TestCase
       @whisper.transcribe(@audio, @params)
     end
   end
+
+  def test_new_segment_callback_user_data
+    udata = Object.new
+    @params.new_segment_callback_user_data = udata
+    @params.new_segment_callback = ->(context, state, n_new, user_data) {
+      assert_same udata, user_data
+    }
+
+    @whisper.transcribe(@audio, @params)
+  end
 end
