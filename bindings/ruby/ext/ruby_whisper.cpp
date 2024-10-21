@@ -73,6 +73,7 @@ static void ruby_whisper_free(ruby_whisper *rw) {
     rw->context = NULL;
   }
 }
+
 static void ruby_whisper_params_free(ruby_whisper_params *rwp) {
 }
 
@@ -103,17 +104,20 @@ static VALUE ruby_whisper_allocate(VALUE klass) {
   return Data_Wrap_Struct(klass, rb_whisper_mark, rb_whisper_free, rw);
 }
 
+static ruby_whisper_callback_container * rb_whisper_callback_container_allocate() {
+  ruby_whisper_callback_container *container;
+  container = ALLOC(ruby_whisper_callback_container);
+  container->context = nullptr;
+  container->user_data = Qnil;
+  container->callback = Qnil;
+  return container;
+}
+
 static VALUE ruby_whisper_params_allocate(VALUE klass) {
   ruby_whisper_params *rwp;
-  ruby_whisper_callback_container *new_segment_callback_container;
   rwp = ALLOC(ruby_whisper_params);
   rwp->params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-  new_segment_callback_container = ALLOC(ruby_whisper_callback_container);
-  new_segment_callback_container->context = nullptr;
-  new_segment_callback_container->user_data = Qnil;
-  new_segment_callback_container->callback = Qnil;
-  rwp->new_segment_callback_container = new_segment_callback_container;
-
+  rwp->new_segment_callback_container = rb_whisper_callback_container_allocate();
   return Data_Wrap_Struct(klass, rb_whisper_params_mark, rb_whisper_params_free, rwp);
 }
 
