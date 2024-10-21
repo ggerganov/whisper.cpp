@@ -483,6 +483,88 @@ static VALUE ruby_whisper_params_set_new_segment_callback_user_data(VALUE self, 
   return value;
 }
 
+// High level API
+
+typedef struct {
+  VALUE context;
+  int index;
+} ruby_whisper_segment;
+
+VALUE cSegment;
+
+static void rb_whisper_segment_mark(ruby_whisper_segment *rws) {
+  rb_gc_mark(rws->context);
+}
+
+static VALUE ruby_whisper_segment_allocate(VALUE klass) {
+  ruby_whisper_segment *rws;
+  rws = ALLOC(ruby_whisper_segment);
+  return Data_Wrap_Struct(klass, rb_whisper_segment_mark, RUBY_DEFAULT_FREE, rws);
+}
+
+static VALUE rb_whisper_segment_initialize(VALUE context, int index) {
+  ruby_whisper_segment *rws;
+  const VALUE segment = ruby_whisper_segment_allocate(cSegment);
+  Data_Get_Struct(segment, ruby_whisper_segment, rws);
+  rws->context = context;
+  rws->index = index;
+  return segment;
+};
+
+static VALUE ruby_whisper_each_segment(VALUE self) {
+  if (!rb_block_given_p()) {
+    const VALUE method_name = rb_funcall(self, rb_intern("__method__"), 0);
+    return rb_funcall(self, rb_intern("to_enum"), 1, method_name);
+  }
+
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+
+  const int n_segments = whisper_full_n_segments(rw->context);
+  for (int i = 0; i < n_segments; ++i) {
+    rb_yield(rb_whisper_segment_initialize(self, i));
+  }
+
+  return self;
+}
+
+static VALUE ruby_whisper_segment_get_start_time(VALUE self) {
+  ruby_whisper_segment *rws;
+  Data_Get_Struct(self, ruby_whisper_segment, rws);
+  ruby_whisper *rw;
+  Data_Get_Struct(rws->context, ruby_whisper, rw);
+  const int64_t t0 = whisper_full_get_segment_t0(rw->context, rws->index);
+  // able to multiply 10 without overflow because to_timestamp() in whisper.cpp does it
+  return INT2NUM(t0 * 10);
+}
+
+static VALUE ruby_whisper_segment_get_end_time(VALUE self) {
+  ruby_whisper_segment *rws;
+  Data_Get_Struct(self, ruby_whisper_segment, rws);
+  ruby_whisper *rw;
+  Data_Get_Struct(rws->context, ruby_whisper, rw);
+  const int64_t t1 = whisper_full_get_segment_t1(rw->context, rws->index);
+  // able to multiply 10 without overflow because to_timestamp() in whisper.cpp does it
+  return INT2NUM(t1 * 10);
+}
+
+static VALUE ruby_whisper_segment_get_speaker_turn_next(VALUE self) {
+  ruby_whisper_segment *rws;
+  Data_Get_Struct(self, ruby_whisper_segment, rws);
+  ruby_whisper *rw;
+  Data_Get_Struct(rws->context, ruby_whisper, rw);
+  return whisper_full_get_segment_speaker_turn_next(rw->context, rws->index) ? Qtrue : Qfalse;
+}
+
+static VALUE ruby_whisper_segment_get_text(VALUE self) {
+  ruby_whisper_segment *rws;
+  Data_Get_Struct(self, ruby_whisper_segment, rws);
+  ruby_whisper *rw;
+  Data_Get_Struct(rws->context, ruby_whisper, rw);
+  const char * text = whisper_full_get_segment_text(rw->context, rws->index);
+  return rb_str_new2(text);
+}
+
 void Init_whisper() {
   mWhisper = rb_define_module("Whisper");
   cContext = rb_define_class_under(mWhisper, "Context", rb_cObject);
@@ -543,6 +625,16 @@ void Init_whisper() {
 
   rb_define_method(cParams, "new_segment_callback=", ruby_whisper_params_set_new_segment_callback, 1);
   rb_define_method(cParams, "new_segment_callback_user_data=", ruby_whisper_params_set_new_segment_callback_user_data, 1);
+
+  // High leve
+  cSegment  = rb_define_class_under(mWhisper, "Segment", rb_cObject);
+
+  rb_define_alloc_func(cSegment, ruby_whisper_segment_allocate);
+  rb_define_method(cContext, "each_segment", ruby_whisper_each_segment, 0);
+  rb_define_method(cSegment, "start_time", ruby_whisper_segment_get_start_time, 0);
+  rb_define_method(cSegment, "end_time", ruby_whisper_segment_get_end_time, 0);
+  rb_define_method(cSegment, "speaker_next_turn?", ruby_whisper_segment_get_speaker_turn_next, 0);
+  rb_define_method(cSegment, "text", ruby_whisper_segment_get_text, 0);
 }
 #ifdef __cplusplus
 }
