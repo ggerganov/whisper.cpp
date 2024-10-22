@@ -7,6 +7,7 @@ typedef struct {
   VALUE *context;
   VALUE user_data;
   VALUE callback;
+  VALUE callbacks;
 } ruby_whisper_callback_container;
 
 typedef struct {
