@@ -5,17 +5,16 @@ require "yaml"
 require "rake/testtask"
 
 extsources = YAML.load_file("extsources.yaml")
-extsources.each_pair do |src_dir, dests|
-  dests.each do |dest|
-    src = Pathname(src_dir)/File.basename(dest)
-
-    file src
-    file dest => src do |t|
-      cp t.source, t.name
-    end
+SOURCES = FileList[]
+extsources.each do |src|
+  basename = src.pathmap("%f")
+  dest = basename == "LICENSE" ? basename : basename.pathmap("ext/%f")
+  file src
+  file dest => src do |t|
+    cp t.source, t.name
   end
+  SOURCES.include dest
 end
-SOURCES = extsources.values.flatten
 CLEAN.include SOURCES
 CLEAN.include FileList[
                 "ext/*.o",
