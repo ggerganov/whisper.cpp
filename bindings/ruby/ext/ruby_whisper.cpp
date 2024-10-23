@@ -36,6 +36,11 @@ VALUE mWhisper;
 VALUE cContext;
 VALUE cParams;
 
+static ID id_to_s;
+static ID id_call;
+static ID id___method__;
+static ID id_to_enum;
+
 static VALUE ruby_whisper_s_lang_max_id(VALUE self) {
   return INT2NUM(whisper_lang_max_id());
 }
@@ -131,7 +136,7 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   rb_scan_args(argc, argv, "01", &whisper_model_file_path);
   Data_Get_Struct(self, ruby_whisper, rw);
 
-  if (!rb_respond_to(whisper_model_file_path, rb_intern("to_s"))) {
+  if (!rb_respond_to(whisper_model_file_path, id_to_s)) {
     rb_raise(rb_eRuntimeError, "Expected file path to model to initialize Whisper::Context");
   }
   rw->context = whisper_init_from_file_with_params(StringValueCStr(whisper_model_file_path), whisper_context_default_params());
@@ -158,7 +163,7 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
   Data_Get_Struct(self, ruby_whisper, rw);
   Data_Get_Struct(params, ruby_whisper_params, rwp);
 
-  if (!rb_respond_to(wave_file_path, rb_intern("to_s"))) {
+  if (!rb_respond_to(wave_file_path, id_to_s)) {
     rb_raise(rb_eRuntimeError, "Expected file path to wave file");
   }
 
@@ -263,7 +268,7 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
       // Currently, doesn't support state because
       // those require to resolve GC-related problems.
       if (!NIL_P(container->callback)) {
-        rb_funcall(container->callback, rb_intern("call"), 4, *container->context, Qnil, INT2NUM(n_new), container->user_data);
+        rb_funcall(container->callback, id_call, 4, *container->context, Qnil, INT2NUM(n_new), container->user_data);
       }
       const long callbacks_len = RARRAY_LEN(container->callbacks);
       if (0 == callbacks_len) {
@@ -275,7 +280,7 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
         VALUE segment = rb_whisper_segment_initialize(*container->context, i_segment);
         for (int j = 0; j < callbacks_len; j++) {
           VALUE cb = rb_ary_entry(container->callbacks, j);
-          rb_funcall(cb, rb_intern("call"), 1, segment);
+          rb_funcall(cb, id_call, 1, segment);
         }
       }
     };
@@ -293,7 +298,7 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
     const char * text = whisper_full_get_segment_text(rw->context, i);
     output = rb_str_concat(output, rb_str_new2(text));
   }
-  VALUE idCall = rb_intern("call");
+  VALUE idCall = id_call;
   if (blk != Qnil) {
     rb_funcall(blk, idCall, 1, output);
   }
@@ -537,8 +542,8 @@ static VALUE rb_whisper_segment_initialize(VALUE context, int index) {
 
 static VALUE ruby_whisper_each_segment(VALUE self) {
   if (!rb_block_given_p()) {
-    const VALUE method_name = rb_funcall(self, rb_intern("__method__"), 0);
-    return rb_funcall(self, rb_intern("to_enum"), 1, method_name);
+    const VALUE method_name = rb_funcall(self, id___method__, 0);
+    return rb_funcall(self, id_to_enum, 1, method_name);
   }
 
   ruby_whisper *rw;
@@ -598,6 +603,11 @@ static VALUE ruby_whisper_segment_get_text(VALUE self) {
 }
 
 void Init_whisper() {
+  id_to_s = rb_intern("to_s");
+  id_call = rb_intern("call");
+  id___method__ = rb_intern("__method__");
+  id_to_enum = rb_intern("to_enum");
+
   mWhisper = rb_define_module("Whisper");
   cContext = rb_define_class_under(mWhisper, "Context", rb_cObject);
   cParams  = rb_define_class_under(mWhisper, "Params", rb_cObject);
