@@ -7019,7 +7019,7 @@ static void whisper_exp_compute_token_level_timestamps(
                         k++;
                     }
                     tokens[j].t1 = sample_to_timestamp(k);
-                    if (j < ns - 1 && tokens[j].t1 > tokens[j + 1].t0) {
+                    if (j < n - 1 && tokens[j].t1 > tokens[j + 1].t0) {
                         tokens[j].t1 = tokens[j + 1].t0;
                     } else {
                         s1 = k;
