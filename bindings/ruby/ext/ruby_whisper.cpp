@@ -41,10 +41,18 @@ static ID id_call;
 static ID id___method__;
 static ID id_to_enum;
 
+/*
+ * call-seq:
+ *   lang_max_id -> Integer
+ */
 static VALUE ruby_whisper_s_lang_max_id(VALUE self) {
   return INT2NUM(whisper_lang_max_id());
 }
 
+/*
+ * call-seq:
+ *   lang_id(lang_name) -> Integer
+ */
 static VALUE ruby_whisper_s_lang_id(VALUE self, VALUE lang) {
   const char * lang_str = StringValueCStr(lang);
   const int id = whisper_lang_id(lang_str);
@@ -54,6 +62,10 @@ static VALUE ruby_whisper_s_lang_id(VALUE self, VALUE lang) {
   return INT2NUM(id);
 }
 
+/*
+ * call-seq:
+ *   lang_str(lang_id) -> String
+ */
 static VALUE ruby_whisper_s_lang_str(VALUE self, VALUE id) {
   const int lang_id = NUM2INT(id);
   const char * str = whisper_lang_str(lang_id);
@@ -63,6 +75,10 @@ static VALUE ruby_whisper_s_lang_str(VALUE self, VALUE id) {
   return rb_str_new2(str);
 }
 
+/*
+ * call-seq:
+ *   lang_str(lang_id) -> String
+ */
 static VALUE ruby_whisper_s_lang_str_full(VALUE self, VALUE id) {
   const int lang_id = NUM2INT(id);
   const char * str_full = whisper_lang_str_full(lang_id);
@@ -128,6 +144,10 @@ static VALUE ruby_whisper_params_allocate(VALUE klass) {
   return Data_Wrap_Struct(klass, rb_whisper_params_mark, rb_whisper_params_free, rwp);
 }
 
+/*
+ * call-seq:
+ *   new("path/to/model.bin") -> Whisper::Context
+ */
 static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   ruby_whisper *rw;
   VALUE whisper_model_file_path;
@@ -153,6 +173,14 @@ static VALUE rb_whisper_segment_initialize(VALUE context, int index);
  * transcribe a single file
  * can emit to a block results
  *
+ *   params = Whisper::Params.new
+ *   params.duration = 60_000
+ *   whisper.transcribe "path/to/audio.wav", params do |text|
+ *     puts text
+ *   end
+ *
+ * call-seq:
+ *   transcribe(path_to_audio, params) {|text| ...}
  **/
 static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
   ruby_whisper *rw;
@@ -305,12 +333,24 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
   return self;
 }
 
+/*
+ * Number of segments.
+ *
+ * call-seq:
+ *   full_n_segments -> Integer
+ */
 static VALUE ruby_whisper_full_n_segments(VALUE self) {
   ruby_whisper *rw;
   Data_Get_Struct(self, ruby_whisper, rw);
   return INT2NUM(whisper_full_n_segments(rw->context));
 }
 
+/*
+ * Language ID, which can be converted to string by Whisper.lang_str and Whisper.lang_str_full.
+ *
+ * call-seq:
+ *   full_lang_id -> Integer
+ */
 static VALUE ruby_whisper_full_lang_id(VALUE self) {
   ruby_whisper *rw;
   Data_Get_Struct(self, ruby_whisper, rw);
@@ -325,6 +365,14 @@ static int ruby_whisper_full_check_segment_index(const ruby_whisper * rw, const 
   return c_i_segment;
 }
 
+/*
+ * Start time of a segment indexed by +segment_index+ in centiseconds (10 times milliseconds).
+ *
+ *   full_get_segment_t0(3) # => 1668 (16680 ms)
+ *
+ * call-seq:
+ *   full_get_segment_t0(segment_index) -> Integer
+ */
 static VALUE ruby_whisper_full_get_segment_t0(VALUE self, VALUE i_segment) {
   ruby_whisper *rw;
   Data_Get_Struct(self, ruby_whisper, rw);
@@ -333,6 +381,14 @@ static VALUE ruby_whisper_full_get_segment_t0(VALUE self, VALUE i_segment) {
   return INT2NUM(t0);
 }
 
+/*
+ * End time of a segment indexed by +segment_index+ in centiseconds (10 times milliseconds).
+ *
+ *   full_get_segment_t1(3) # => 1668 (16680 ms)
+ *
+ * call-seq:
+ *   full_get_segment_t1(segment_index) -> Integer
+ */
 static VALUE ruby_whisper_full_get_segment_t1(VALUE self, VALUE i_segment) {
   ruby_whisper *rw;
   Data_Get_Struct(self, ruby_whisper, rw);
@@ -341,6 +397,14 @@ static VALUE ruby_whisper_full_get_segment_t1(VALUE self, VALUE i_segment) {
   return INT2NUM(t1);
 }
 
+/*
+ * Whether the next segment indexed by +segment_index+ is predicated as a speaker turn.
+ *
+ *   full_get_segment_speacker_turn_next(3) # => true
+ *
+ * call-seq:
+ *   full_get_segment_speacker_turn_next(segment_index) -> bool
+ */
 static VALUE ruby_whisper_full_get_segment_speaker_turn_next(VALUE self, VALUE i_segment) {
   ruby_whisper *rw;
   Data_Get_Struct(self, ruby_whisper, rw);
@@ -349,6 +413,14 @@ static VALUE ruby_whisper_full_get_segment_speaker_turn_next(VALUE self, VALUE i
   return speaker_turn_next ? Qtrue : Qfalse;
 }
 
+/*
+ * Text of a segment indexed by +segment_index+.
+ *
+ *   full_get_segment_text(3) # => "ask not what your country can do for you, ..."
+ *
+ * call-seq:
+ *   full_get_segment_text(segment_index) -> String
+ */
 static VALUE ruby_whisper_full_get_segment_text(VALUE self, VALUE i_segment) {
   ruby_whisper *rw;
   Data_Get_Struct(self, ruby_whisper, rw);
@@ -359,6 +431,9 @@ static VALUE ruby_whisper_full_get_segment_text(VALUE self, VALUE i_segment) {
 
 /*
  * params.language = "auto" | "en", etc...
+ *
+ * call-seq:
+ *   language = lang_name -> lang_name
  */
 static VALUE ruby_whisper_params_set_language(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
@@ -370,6 +445,10 @@ static VALUE ruby_whisper_params_set_language(VALUE self, VALUE value) {
   }
   return value;
 }
+/*
+ * call-seq:
+ *   language -> String
+ */
 static VALUE ruby_whisper_params_get_language(VALUE self) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
@@ -379,72 +458,185 @@ static VALUE ruby_whisper_params_get_language(VALUE self) {
     return rb_str_new2("auto");
   }
 }
+/*
+ * call-seq:
+ *   translate = do_translate -> do_translate
+ */
 static VALUE ruby_whisper_params_set_translate(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, translate, value)
 }
+/*
+ * call-seq:
+ *   translate -> bool
+ */
 static VALUE ruby_whisper_params_get_translate(VALUE self) {
   BOOL_PARAMS_GETTER(self, translate)
 }
+/*
+ * call-seq:
+ *   no_context = dont_use_context -> dont_use_context
+ */
 static VALUE ruby_whisper_params_set_no_context(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, no_context, value)
 }
+/*
+ * If true, does not use past transcription (if any) as initial prompt for the decoder.
+ *
+ * call-seq:
+ *   no_context -> bool
+ */
 static VALUE ruby_whisper_params_get_no_context(VALUE self) {
   BOOL_PARAMS_GETTER(self, no_context)
 }
+/*
+ * call-seq:
+ *   single_segment = force_single -> force_single
+ */
 static VALUE ruby_whisper_params_set_single_segment(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, single_segment, value)
 }
+/*
+ * If true, forces single segment output (useful for streaming).
+ *
+ * call-seq:
+ *   single_segment -> bool
+ */
 static VALUE ruby_whisper_params_get_single_segment(VALUE self) {
   BOOL_PARAMS_GETTER(self, single_segment)
 }
+/*
+ * call-seq:
+ *   print_special = force_print -> force_print
+ */
 static VALUE ruby_whisper_params_set_print_special(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, print_special, value)
 }
+/*
+ * If true, prints special tokens (e.g. <SOT>, <EOT>, <BEG>, etc.).
+ *
+ * call-seq:
+ *   print_special -> bool
+ */
 static VALUE ruby_whisper_params_get_print_special(VALUE self) {
   BOOL_PARAMS_GETTER(self, print_special)
 }
+/*
+ * call-seq:
+ *   print_progress = force_print -> force_print
+ */
 static VALUE ruby_whisper_params_set_print_progress(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, print_progress, value)
 }
+/*
+ * If true, prints progress information.
+ *
+ * call-seq:
+ *   print_progress -> bool
+ */
 static VALUE ruby_whisper_params_get_print_progress(VALUE self) {
   BOOL_PARAMS_GETTER(self, print_progress)
 }
+/*
+ * call-seq:
+ *   print_realtime = force_print -> force_print
+ */
 static VALUE ruby_whisper_params_set_print_realtime(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, print_realtime, value)
 }
+/*
+ * If true, prints results from within whisper.cpp. (avoid it, use callback instead)
+ * call-seq:
+ *   print_realtime -> bool
+ */
 static VALUE ruby_whisper_params_get_print_realtime(VALUE self) {
   BOOL_PARAMS_GETTER(self, print_realtime)
 }
+/*
+ * call-seq:
+ *   print_timestamps = force_print -> force_print
+ */
 static VALUE ruby_whisper_params_set_print_timestamps(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, print_timestamps, value)
 }
+/*
+ * If true, prints timestamps for each text segment when printing realtime.
+ *
+ * call-seq:
+ *   print_timestamps -> bool
+ */
 static VALUE ruby_whisper_params_get_print_timestamps(VALUE self) {
   BOOL_PARAMS_GETTER(self, print_timestamps)
 }
+/*
+ * call-seq:
+ *   suppress_blank = force_suppress -> force_suppress
+ */
 static VALUE ruby_whisper_params_set_suppress_blank(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, suppress_blank, value)
 }
+/*
+ * If true, suppresses blank outputs.
+ *
+ * call-seq:
+ *   suppress_blank -> bool
+ */
 static VALUE ruby_whisper_params_get_suppress_blank(VALUE self) {
   BOOL_PARAMS_GETTER(self, suppress_blank)
 }
+/*
+ * call-seq:
+ *   suppress_non_speech_tokens = force_suppress -> force_suppress
+ */
 static VALUE ruby_whisper_params_set_suppress_non_speech_tokens(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, suppress_non_speech_tokens, value)
 }
+/*
+ * If true, suppresses non-speech-tokens.
+ *
+ * call-seq:
+ *   suppress_non_speech_tokens -> bool
+ */
 static VALUE ruby_whisper_params_get_suppress_non_speech_tokens(VALUE self) {
   BOOL_PARAMS_GETTER(self, suppress_non_speech_tokens)
 }
+/*
+ * If true, enables token-level timestamps.
+ *
+ * call-seq:
+ *   token_timestamps -> bool
+ */
 static VALUE ruby_whisper_params_get_token_timestamps(VALUE self) {
   BOOL_PARAMS_GETTER(self, token_timestamps)
 }
+/*
+ * call-seq:
+ *   token_timestamps = force_timestamps -> force_timestamps
+ */
 static VALUE ruby_whisper_params_set_token_timestamps(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, token_timestamps, value)
 }
+/*
+ * If true, split on word rather than on token (when used with max_len).
+ *
+ * call-seq:
+ *   translate -> bool
+ */
 static VALUE ruby_whisper_params_get_split_on_word(VALUE self) {
   BOOL_PARAMS_GETTER(self, split_on_word)
 }
+/*
+ * call-seq:
+ *   split_on_word = force_split -> force_split
+ */
 static VALUE ruby_whisper_params_set_split_on_word(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, split_on_word, value)
 }
+/*
+ * If true, enables diarization.
+ *
+ * call-seq:
+ *   diarize -> bool
+ */
 static VALUE ruby_whisper_params_get_diarize(VALUE self) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
@@ -454,6 +646,10 @@ static VALUE ruby_whisper_params_get_diarize(VALUE self) {
     return Qfalse;
   }
 }
+/*
+ * call-seq:
+ *   diarize = force_diarize -> force_diarize
+ */
 static VALUE ruby_whisper_params_set_diarize(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
@@ -465,22 +661,42 @@ static VALUE ruby_whisper_params_set_diarize(VALUE self, VALUE value) {
   return value;
 }
 
+/*
+ * Start offset in ms.
+ *
+ * call-seq:
+ *   offset -> Integer
+ */
 static VALUE ruby_whisper_params_get_offset(VALUE self) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
   return INT2NUM(rwp->params.offset_ms);
 }
+/*
+ * call-seq:
+ *   offset = offset_ms -> offset_ms
+ */
 static VALUE ruby_whisper_params_set_offset(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
   rwp->params.offset_ms = NUM2INT(value);
   return value;
 }
+/*
+ * Audio duration to process in ms.
+ *
+ * call-seq:
+ *   duration -> Integer
+ */
 static VALUE ruby_whisper_params_get_duration(VALUE self) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
   return INT2NUM(rwp->params.duration_ms);
 }
+/*
+ * call-seq:
+ *   duration = duration_ms -> duration_ms
+ */
 static VALUE ruby_whisper_params_set_duration(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
@@ -488,23 +704,49 @@ static VALUE ruby_whisper_params_set_duration(VALUE self, VALUE value) {
   return value;
 }
 
+/*
+ * Max tokens to use from past text as prompt for the decoder.
+ *
+ * call-seq:
+ *   max_text_tokens -> Integer
+ */
 static VALUE ruby_whisper_params_get_max_text_tokens(VALUE self) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
   return INT2NUM(rwp->params.n_max_text_ctx);
 }
+/*
+ * call-seq:
+ *   max_text_tokens = n_tokens -> n_tokens
+ */
 static VALUE ruby_whisper_params_set_max_text_tokens(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
   rwp->params.n_max_text_ctx = NUM2INT(value);
   return value;
 }
+/*
+ * Sets new segment callback, called for every newly generated text segment.
+ *
+ *   params.new_segment_callback = ->(context, _, n_new, user_data) {
+ *     # ...
+ *   }
+ *
+ * call-seq:
+ *   new_segment_callback = callback -> callback
+ */
 static VALUE ruby_whisper_params_set_new_segment_callback(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
   rwp->new_segment_callback_container->callback = value;
   return value;
 }
+/*
+ * Sets user data passed to the last argument of new segment callback.
+ *
+ * call-seq:
+ *   new_segment_callback_user_data = user_data -> use_data
+ */
 static VALUE ruby_whisper_params_set_new_segment_callback_user_data(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
@@ -540,6 +782,24 @@ static VALUE rb_whisper_segment_initialize(VALUE context, int index) {
   return segment;
 };
 
+/*
+ * Yields each Whisper::Segment:
+ *
+ *   whisper.transcribe("path/to/audio.wav", params)
+ *   whisper.each_segment do |segment|
+ *     puts segment.text
+ *   end
+ *
+ * Returns an Enumerator if no block given:
+ *
+ *   whisper.transcribe("path/to/audio.wav", params)
+ *   enum = whisper.each_segment
+ *   enum.to_a # => [#<Whisper::Segment>, ...]
+ *
+ * call-seq:
+ *   each_segment {|segment| ... }
+ *   each_segment -> Enumerator
+ */
 static VALUE ruby_whisper_each_segment(VALUE self) {
   if (!rb_block_given_p()) {
     const VALUE method_name = rb_funcall(self, id___method__, 0);
@@ -557,6 +817,16 @@ static VALUE ruby_whisper_each_segment(VALUE self) {
   return self;
 }
 
+/*
+ * Hook called on new segment. Yields each Whisper::Segment.
+ *
+ *   whisper.on_new_segment do |segment|
+ *     # ...
+ *   end
+ *
+ * call-seq:
+ *   on_new_segment {|segment| ... }
+ */
 static VALUE ruby_whisper_params_on_new_segment(VALUE self) {
   ruby_whisper_params *rws;
   Data_Get_Struct(self, ruby_whisper_params, rws);
@@ -565,6 +835,12 @@ static VALUE ruby_whisper_params_on_new_segment(VALUE self) {
   return Qnil;
 }
 
+/*
+ * Start time in milliseconds.
+ *
+ * call-seq:
+ *   start_time -> Integer
+ */
 static VALUE ruby_whisper_segment_get_start_time(VALUE self) {
   ruby_whisper_segment *rws;
   Data_Get_Struct(self, ruby_whisper_segment, rws);
@@ -575,6 +851,12 @@ static VALUE ruby_whisper_segment_get_start_time(VALUE self) {
   return INT2NUM(t0 * 10);
 }
 
+/*
+ * End time in milliseconds.
+ *
+ * call-seq:
+ *   end_time -> Integer
+ */
 static VALUE ruby_whisper_segment_get_end_time(VALUE self) {
   ruby_whisper_segment *rws;
   Data_Get_Struct(self, ruby_whisper_segment, rws);
@@ -585,6 +867,12 @@ static VALUE ruby_whisper_segment_get_end_time(VALUE self) {
   return INT2NUM(t1 * 10);
 }
 
+/*
+ * Whether the next segment is predicted as a speaker turn.
+ *
+ * call-seq:
+ *   speaker_turn_next? -> bool
+ */
 static VALUE ruby_whisper_segment_get_speaker_turn_next(VALUE self) {
   ruby_whisper_segment *rws;
   Data_Get_Struct(self, ruby_whisper_segment, rws);
@@ -593,6 +881,10 @@ static VALUE ruby_whisper_segment_get_speaker_turn_next(VALUE self) {
   return whisper_full_get_segment_speaker_turn_next(rw->context, rws->index) ? Qtrue : Qfalse;
 }
 
+/*
+ * call-seq:
+ *   text -> String
+ */
 static VALUE ruby_whisper_segment_get_text(VALUE self) {
   ruby_whisper_segment *rws;
   Data_Get_Struct(self, ruby_whisper_segment, rws);
