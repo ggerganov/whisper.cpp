@@ -65,6 +65,20 @@ class TestSegment < Test::Unit::TestCase
     assert_match /ask not what your country can do for you, ask what you can do for your country/, seg.text
   end
 
+  def test_on_new_segment_twice
+    params = Whisper::Params.new
+    seg = nil
+    params.on_new_segment do |segment|
+      seg = segment
+      return
+    end
+    params.on_new_segment do |segment|
+      assert_same seg, segment
+      return
+    end
+    whisper.transcribe(File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav'), params)
+  end
+
   private
 
   def whisper
