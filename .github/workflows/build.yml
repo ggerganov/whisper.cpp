@@ -278,6 +278,7 @@ jobs:
             mingw-w64-${{matrix.env}}-cmake
             mingw-w64-${{matrix.env}}-SDL2
             mingw-w64-${{matrix.env}}-openblas
+            mingw-w64-${{matrix.env}}-pkgconf
 
       - name: Build using make
         shell: msys2 {0}
