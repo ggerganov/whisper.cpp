@@ -15,6 +15,9 @@
 - ext/ggml-quants.h
 - ext/ggml-quants.c
 - ext/ggml-cpu-impl.h
+- ext/ggml-metal.m
+- ext/ggml-metal.metal
+- ext/ggml-blas.cpp
 ../../ggml/include:
 - ext/ggml.h
 - ext/ggml-alloc.h
@@ -24,9 +27,11 @@
 - ext/ggml-metal.h
 - ext/ggml-sycl.h
 - ext/ggml-vulkan.h
+- ext/ggml-blas.h
+../../scripts:
+- ext/get-flags.mk
 ../../examples:
 - ext/dr_wav.h
 ../..:
 - README.md
 - LICENSE
-
