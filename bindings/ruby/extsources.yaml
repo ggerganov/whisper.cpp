@@ -1,37 +1,29 @@
 ---
-../../src:
-- ext/whisper.cpp
-../../include:
-- ext/whisper.h
-../../ggml/src:
-- ext/ggml.c
-- ext/ggml-impl.h
-- ext/ggml-aarch64.h
-- ext/ggml-aarch64.c
-- ext/ggml-alloc.c
-- ext/ggml-backend-impl.h
-- ext/ggml-backend.cpp
-- ext/ggml-common.h
-- ext/ggml-quants.h
-- ext/ggml-quants.c
-- ext/ggml-cpu-impl.h
-- ext/ggml-metal.m
-- ext/ggml-metal.metal
-- ext/ggml-blas.cpp
-../../ggml/include:
-- ext/ggml.h
-- ext/ggml-alloc.h
-- ext/ggml-backend.h
-- ext/ggml-cuda.h
-- ext/ggml-kompute.h
-- ext/ggml-metal.h
-- ext/ggml-sycl.h
-- ext/ggml-vulkan.h
-- ext/ggml-blas.h
-../../scripts:
-- ext/get-flags.mk
-../../examples:
-- ext/dr_wav.h
-../..:
-- README.md
-- LICENSE
+- ../../src/whisper.cpp
+- ../../include/whisper.h
+- ../../ggml/src/ggml.c
+- ../../ggml/src/ggml-impl.h
+- ../../ggml/src/ggml-aarch64.h
+- ../../ggml/src/ggml-aarch64.c
+- ../../ggml/src/ggml-alloc.c
+- ../../ggml/src/ggml-backend-impl.h
+- ../../ggml/src/ggml-backend.cpp
+- ../../ggml/src/ggml-common.h
+- ../../ggml/src/ggml-quants.h
+- ../../ggml/src/ggml-quants.c
+- ../../ggml/src/ggml-cpu-impl.h
+- ../../ggml/src/ggml-metal.m
+- ../../ggml/src/ggml-metal.metal
+- ../../ggml/src/ggml-blas.cpp
+- ../../ggml/include/ggml.h
+- ../../ggml/include/ggml-alloc.h
+- ../../ggml/include/ggml-backend.h
+- ../../ggml/include/ggml-cuda.h
+- ../../ggml/include/ggml-kompute.h
+- ../../ggml/include/ggml-metal.h
+- ../../ggml/include/ggml-sycl.h
+- ../../ggml/include/ggml-vulkan.h
+- ../../ggml/include/ggml-blas.h
+- ../../scripts/get-flags.mk
+- ../../examples/dr_wav.h
+- ../../LICENSE

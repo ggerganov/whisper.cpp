@@ -11,6 +11,10 @@ ggml-backend.c
 ggml-backend.h
 ggml-common.h
 ggml-cpu-impl.h
+ggml-metal.m
+ggml-metal.metal
+ggml-metal-embed.metal
+ggml-blas.cpp
 ggml-cuda.h
 ggml-impl.h
 ggml-kompute.h
@@ -20,9 +24,12 @@ ggml-quants.c
 ggml-quants.h
 ggml-sycl.h
 ggml-vulkan.h
+ggml-blas.h
+get-flags.mk
 whisper.cpp
 whisper.h
 dr_wav.h
+depend
 whisper.bundle
 whisper.so
 whisper.dll

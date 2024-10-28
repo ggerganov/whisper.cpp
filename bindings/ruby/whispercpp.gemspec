@@ -9,7 +9,15 @@ Gem::Specification.new do |s|
   s.email   = 'todd.fisher@gmail.com'
   s.extra_rdoc_files = ['LICENSE', 'README.md']
   
-  s.files = `git ls-files . -z`.split("\x0") + YAML.load_file("extsources.yaml").values.flatten
+  s.files = `git ls-files . -z`.split("\x0") +
+              YAML.load_file("extsources.yaml").collect {|file|
+                basename = File.basename(file)
+                if s.extra_rdoc_files.include?(basename)
+                  basename
+                else
+                  File.join("ext", basename)
+                end
+              }
 
   s.summary = %q{Ruby whisper.cpp bindings}
   s.test_files = ["tests/test_whisper.rb"]
