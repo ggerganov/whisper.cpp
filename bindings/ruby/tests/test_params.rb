@@ -1,3 +1,4 @@
+require 'test/unit'
 require 'whisper'
 
 class TestParams < Test::Unit::TestCase
@@ -108,5 +109,47 @@ class TestParams < Test::Unit::TestCase
     assert @params.split_on_word
     @params.split_on_word = false
     assert !@params.split_on_word
+  end
+
+  def test_initial_prompt
+    assert_nil @params.initial_prompt
+    @params.initial_prompt = "You are a polite person."
+    assert_equal "You are a polite person.", @params.initial_prompt
+  end
+
+  def test_temperature
+    assert_equal 0.0, @params.temperature
+    @params.temperature = 0.5
+    assert_equal 0.5, @params.temperature
+  end
+
+  def test_max_initial_ts
+    assert_equal 1.0, @params.max_initial_ts
+    @params.max_initial_ts = 600.0
+    assert_equal 600.0, @params.max_initial_ts
+  end
+
+  def test_length_penalty
+    assert_equal -1.0, @params.length_penalty
+    @params.length_penalty = 0.5
+    assert_equal 0.5, @params.length_penalty
+  end
+
+  def test_temperature_inc
+    assert_in_delta 0.2, @params.temperature_inc
+    @params.temperature_inc = 0.5
+    assert_in_delta 0.5, @params.temperature_inc
+  end
+
+  def test_entropy_thold
+    assert_in_delta 2.4, @params.entropy_thold
+    @params.entropy_thold = 3.0
+    assert_in_delta 3.0, @params.entropy_thold
+  end
+
+  def test_logprob_thold
+    assert_in_delta -1.0, @params.logprob_thold
+    @params.logprob_thold = -0.5
+    assert_in_delta -0.5, @params.logprob_thold
   end
 end
