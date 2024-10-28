@@ -31,6 +31,7 @@ params.duration = 60_000
 params.max_text_tokens = 300
 params.translate = true
 params.print_timestamps = false
+params.prompt = "Initial prompt here."
 
 whisper.transcribe("path/to/audio.wav", params) do |whole_text|
   puts whole_text
