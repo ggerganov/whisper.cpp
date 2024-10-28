@@ -5,6 +5,7 @@ class TestCallback < Test::Unit::TestCase
   TOPDIR = File.expand_path(File.join(File.dirname(__FILE__), '..'))
 
   def setup
+    GC.start
     @params = Whisper::Params.new
     @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
     @audio = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
@@ -72,5 +73,91 @@ class TestCallback < Test::Unit::TestCase
     GC.start
 
     assert_same @whisper, @whisper.transcribe(@audio, @params)
+  end
+
+  def test_progress_callback
+    first = nil
+    last = nil
+    @params.progress_callback = ->(context, state, progress, user_data) {
+      assert_kind_of Integer, progress
+      assert 0 <= progress && progress <= 100
+      assert_same @whisper, context
+      first = progress if first.nil?
+      last = progress
+    }
+    @whisper.transcribe(@audio, @params)
+    assert_equal 0, first
+    assert_equal 100, last
+  end
+
+  def test_progress_callback_user_data
+    udata = Object.new
+    @params.progress_callback_user_data = udata
+    @params.progress_callback = ->(context, state, n_new, user_data) {
+      assert_same udata, user_data
+    }
+
+    @whisper.transcribe(@audio, @params)
+  end
+
+  def test_on_progress
+    first = nil
+    last = nil
+    @params.on_progress do |progress|
+      assert_kind_of Integer, progress
+      assert 0 <= progress && progress <= 100
+      first = progress if first.nil?
+      last = progress
+    end
+    @whisper.transcribe(@audio, @params)
+    assert_equal 0, first
+    assert_equal 100, last
+  end
+
+  def test_abort_callback
+    i = 0
+    @params.abort_callback = ->(user_data) {
+      assert_nil user_data
+      i += 1
+      return false
+    }
+    @whisper.transcribe(@audio, @params)
+    assert i > 0
+  end
+
+  def test_abort_callback_abort
+    i = 0
+    @params.abort_callback = ->(user_data) {
+      i += 1
+      return i == 3
+    }
+    @whisper.transcribe(@audio, @params)
+    assert_equal 3, i
+  end
+
+  def test_abort_callback_user_data
+    udata = Object.new
+    @params.abort_callback_user_data = udata
+    yielded = nil
+    @params.abort_callback = ->(user_data) {
+      yielded = user_data
+    }
+    @whisper.transcribe(@audio, @params)
+    assert_same udata, yielded
+  end
+
+  def test_abort_on
+    do_abort = false
+    aborted_from_callback = false
+    @params.on_new_segment do |segment|
+      do_abort = true if segment.text.match? /ask/
+    end
+    i = 0
+    @params.abort_on do
+      i += 1
+      do_abort
+    end
+    @whisper.transcribe(@audio, @params)
+    assert i > 0
   end
 end
