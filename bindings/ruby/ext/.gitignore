@@ -13,6 +13,7 @@ ggml-common.h
 ggml-cpu-impl.h
 ggml-metal.m
 ggml-metal.metal
+ggml-metal-embed.metal
 ggml-blas.cpp
 ggml-cuda.h
 ggml-impl.h
@@ -28,6 +29,7 @@ get-flags.mk
 whisper.cpp
 whisper.h
 dr_wav.h
+depend
 whisper.bundle
 whisper.so
 whisper.dll
