@@ -632,6 +632,30 @@ static VALUE ruby_whisper_params_set_split_on_word(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, split_on_word, value)
 }
 /*
+ * Tokens to provide to the whisper decoder as initial prompt
+ * these are prepended to any existing text context from a previous call
+ * use whisper_tokenize() to convert text to tokens.
+ * Maximum of whisper_n_text_ctx()/2 tokens are used (typically 224).
+ *
+ * call-seq:
+ *   initial_prompt -> String
+ */
+static VALUE ruby_whisper_params_get_initial_prompt(VALUE self) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return rwp->params.initial_prompt == nullptr ? Qnil : rb_str_new2(rwp->params.initial_prompt);
+}
+/*
+ * call-seq:
+ *   initial_prompt = prompt -> prompt
+ */
+static VALUE ruby_whisper_params_set_initial_prompt(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->params.initial_prompt = StringValueCStr(value);
+  return value;
+}
+/*
  * If true, enables diarization.
  *
  * call-seq:
@@ -723,6 +747,124 @@ static VALUE ruby_whisper_params_set_max_text_tokens(VALUE self, VALUE value) {
   ruby_whisper_params *rwp;
   Data_Get_Struct(self, ruby_whisper_params, rwp);
   rwp->params.n_max_text_ctx = NUM2INT(value);
+  return value;
+}
+/*
+ * call-seq:
+ *   temperature -> Float
+ */
+static VALUE ruby_whisper_params_get_temperature(VALUE self) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return DBL2NUM(rwp->params.temperature);
+}
+/*
+ * call-seq:
+ *   temperature = temp -> temp
+ */
+static VALUE ruby_whisper_params_set_temperature(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->params.temperature = RFLOAT_VALUE(value);
+  return value;
+}
+/*
+ * See https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/decoding.py#L97
+ *
+ * call-seq:
+ *   max_initial_ts -> Flaot
+ */
+static VALUE ruby_whisper_params_get_max_initial_ts(VALUE self) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return DBL2NUM(rwp->params.max_initial_ts);
+}
+/*
+ * call-seq:
+ *   max_initial_ts = timestamp -> timestamp
+ */
+static VALUE ruby_whisper_params_set_max_initial_ts(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->params.max_initial_ts = RFLOAT_VALUE(value);
+  return value;
+}
+/*
+ * call-seq:
+ *   length_penalty -> Float
+ */
+static VALUE ruby_whisper_params_get_length_penalty(VALUE self) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return DBL2NUM(rwp->params.length_penalty);
+}
+/*
+ * call-seq:
+ *   length_penalty = penalty -> penalty
+ */
+static VALUE ruby_whisper_params_set_length_penalty(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->params.length_penalty = RFLOAT_VALUE(value);
+  return value;
+}
+/*
+ * call-seq:
+ *   temperature_inc -> Float
+ */
+static VALUE ruby_whisper_params_get_temperature_inc(VALUE self) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return DBL2NUM(rwp->params.temperature_inc);
+}
+/*
+ * call-seq:
+ *   temperature_inc = inc -> inc
+ */
+static VALUE ruby_whisper_params_set_temperature_inc(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->params.temperature_inc = RFLOAT_VALUE(value);
+  return value;
+}
+/*
+ * Similar to OpenAI's "compression_ratio_threshold"
+ *
+ * call-seq:
+ *   entropy_thold -> Float
+ */
+static VALUE ruby_whisper_params_get_entropy_thold(VALUE self) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return DBL2NUM(rwp->params.entropy_thold);
+}
+/*
+ * call-seq:
+ *   entropy_thold = threshold -> threshold
+ */
+static VALUE ruby_whisper_params_set_entropy_thold(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->params.entropy_thold = RFLOAT_VALUE(value);
+  return value;
+}
+/*
+ * call-seq:
+ *   logprob_thold -> Float
+ */
+static VALUE ruby_whisper_params_get_logprob_thold(VALUE self) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return DBL2NUM(rwp->params.logprob_thold);
+}
+/*
+ * call-seq:
+ *   logprob_thold = threshold -> threshold
+ */
+static VALUE ruby_whisper_params_set_logprob_thold(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->params.logprob_thold = RFLOAT_VALUE(value);
   return value;
 }
 /*
@@ -946,6 +1088,8 @@ void Init_whisper() {
   rb_define_method(cParams, "token_timestamps=", ruby_whisper_params_set_token_timestamps, 1);
   rb_define_method(cParams, "split_on_word", ruby_whisper_params_get_split_on_word, 0);
   rb_define_method(cParams, "split_on_word=", ruby_whisper_params_set_split_on_word, 1);
+  rb_define_method(cParams, "initial_prompt", ruby_whisper_params_get_initial_prompt, 0);
+  rb_define_method(cParams, "initial_prompt=", ruby_whisper_params_set_initial_prompt, 1);
   rb_define_method(cParams, "diarize", ruby_whisper_params_get_diarize, 0);
   rb_define_method(cParams, "diarize=", ruby_whisper_params_set_diarize, 1);
 
@@ -956,6 +1100,18 @@ void Init_whisper() {
 
   rb_define_method(cParams, "max_text_tokens", ruby_whisper_params_get_max_text_tokens, 0);
   rb_define_method(cParams, "max_text_tokens=", ruby_whisper_params_set_max_text_tokens, 1);
+  rb_define_method(cParams, "temperature", ruby_whisper_params_get_temperature, 0);
+  rb_define_method(cParams, "temperature=", ruby_whisper_params_set_temperature, 1);
+  rb_define_method(cParams, "max_initial_ts", ruby_whisper_params_get_max_initial_ts, 0);
+  rb_define_method(cParams, "max_initial_ts=", ruby_whisper_params_set_max_initial_ts, 1);
+  rb_define_method(cParams, "length_penalty", ruby_whisper_params_get_length_penalty, 0);
+  rb_define_method(cParams, "length_penalty=", ruby_whisper_params_set_length_penalty, 1);
+  rb_define_method(cParams, "temperature_inc", ruby_whisper_params_get_temperature_inc, 0);
+  rb_define_method(cParams, "temperature_inc=", ruby_whisper_params_set_temperature_inc, 1);
+  rb_define_method(cParams, "entropy_thold", ruby_whisper_params_get_entropy_thold, 0);
+  rb_define_method(cParams, "entropy_thold=", ruby_whisper_params_set_entropy_thold, 1);
+  rb_define_method(cParams, "logprob_thold", ruby_whisper_params_get_logprob_thold, 0);
+  rb_define_method(cParams, "logprob_thold=", ruby_whisper_params_set_logprob_thold, 1);
 
   rb_define_method(cParams, "new_segment_callback=", ruby_whisper_params_set_new_segment_callback, 1);
   rb_define_method(cParams, "new_segment_callback_user_data=", ruby_whisper_params_set_new_segment_callback_user_data, 1);
