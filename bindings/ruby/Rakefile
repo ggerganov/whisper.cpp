@@ -17,7 +17,12 @@ extsources.each_pair do |src_dir, dests|
 end
 SOURCES = extsources.values.flatten
 CLEAN.include SOURCES
-CLEAN.include FileList["ext/*.o", "ext/whisper.so", "ext/whisper.bundle", "ext/whisper.dll"]
+CLEAN.include FileList[
+                "ext/*.o",
+                "ext/*.metal",
+                "ext/whisper.{so,bundle,dll}",
+                "ext/depend"
+              ]
 
 task build: SOURCES + FileList[
                         "ext/extconf.rb",
