@@ -6198,7 +6198,7 @@ int whisper_full_with_state(
                                     n_new = whisper_wrap_segment(*ctx, *state, params.max_len, params.split_on_word);
                                 }
                             }
-                            if (params.new_segment_callback) {
+                            if (params.new_segment_callback && !ctx->params.dtw_token_timestamps) {
                                 params.new_segment_callback(ctx, state, n_new, params.new_segment_callback_user_data);
                             }
                         }
@@ -6243,7 +6243,7 @@ int whisper_full_with_state(
                             n_new = whisper_wrap_segment(*ctx, *state, params.max_len, params.split_on_word);
                         }
                     }
-                    if (params.new_segment_callback) {
+                    if (params.new_segment_callback && !ctx->params.dtw_token_timestamps) {
                         params.new_segment_callback(ctx, state, n_new, params.new_segment_callback_user_data);
                     }
                 }
@@ -6257,6 +6257,11 @@ int whisper_full_with_state(
                     const int n_frames = std::min(std::min(WHISPER_CHUNK_SIZE * 100, seek_delta), seek_end - seek);
                     whisper_exp_compute_token_level_timestamps_dtw(
                             ctx, state, params, result_all.size() - n_segments, n_segments, seek, n_frames, 7, params.n_threads);
+                    if (params.new_segment_callback) {
+                        for (int seg = (int) result_all.size() - n_segments; seg < n_segments; seg++) {
+                            params.new_segment_callback(ctx, state, seg, params.new_segment_callback_user_data);
+                        }
+                    }
                 }
             }
 
