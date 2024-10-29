@@ -85,7 +85,7 @@ option(GGML_SANITIZE_ADDRESS   "ggml: enable address sanitizer"   OFF)
 option(GGML_SANITIZE_UNDEFINED "ggml: enable undefined sanitizer" OFF)
 
 # instruction set specific
-if (GGML_NATIVE OR NOT GGML_NATIVE_DEFAULT)
+if (NOT MSVC AND (GGML_NATIVE OR NOT GGML_NATIVE_DEFAULT))
     set(INS_ENB OFF)
 else()
     set(INS_ENB ON)
