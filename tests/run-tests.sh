@@ -120,7 +120,7 @@ function run_lang() {
 
 run_lang "en" "${urls_en[@]}"
 
-if [[ $model != *.en ]]; then
+if [[ $model != *.en* ]]; then
     run_lang "es" "${urls_es[@]}"
     run_lang "it" "${urls_it[@]}"
     run_lang "pt" "${urls_pt[@]}"
