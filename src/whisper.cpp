@@ -6252,7 +6252,7 @@ int whisper_full_with_state(
             // FIXME: will timestamp offsets be correct?
             // [EXPERIMENTAL] Token-level timestamps with DTW
             {
-                const auto n_segments = state->result_all.size() - n_segments_before;
+                const int n_segments = state->result_all.size() - n_segments_before;
                 if (ctx->params.dtw_token_timestamps && n_segments) {
                     const int n_frames = std::min(std::min(WHISPER_CHUNK_SIZE * 100, seek_delta), seek_end - seek);
                     whisper_exp_compute_token_level_timestamps_dtw(
