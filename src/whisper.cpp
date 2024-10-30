@@ -699,9 +699,9 @@ struct whisper_kv_cache {
     struct ggml_tensor * k;
     struct ggml_tensor * v;
 
-    struct ggml_context * ctx = nullptr;
-
     ggml_backend_buffer_t buffer = nullptr;
+
+    std::vector<uint8_t> ctx_buf;
 };
 
 struct whisper_model {
@@ -941,9 +941,11 @@ static bool whisper_kv_cache_init(
     const int64_t n_mem      = n_text_layer*n_ctx;
     const int64_t n_elements = n_text_state*n_mem;
 
+    cache.ctx_buf.resize(2*ggml_tensor_overhead());
+
     struct ggml_init_params params = {
-        /*.mem_size   =*/ 2*ggml_tensor_overhead(),
-        /*.mem_buffer =*/ nullptr,
+        /*.mem_size   =*/ cache.ctx_buf.size(),
+        /*.mem_buffer =*/ cache.ctx_buf.data(),
         /*.no_alloc   =*/ true,
     };
 
@@ -953,17 +955,17 @@ static bool whisper_kv_cache_init(
     cache.cells.clear();
     cache.cells.resize(n_ctx);
 
-    cache.ctx = ggml_init(params);
+    struct ggml_context * ctx = ggml_init(params);
 
-    if (!cache.ctx) {
+    if (!ctx) {
         WHISPER_LOG_ERROR("%s: failed to allocate memory for the kv cache context\n", __func__);
         return false;
     }
 
-    cache.k = ggml_new_tensor_1d(cache.ctx, wtype, n_elements);
-    cache.v = ggml_new_tensor_1d(cache.ctx, wtype, n_elements);
+    cache.k = ggml_new_tensor_1d(ctx, wtype, n_elements);
+    cache.v = ggml_new_tensor_1d(ctx, wtype, n_elements);
 
-    cache.buffer = ggml_backend_alloc_ctx_tensors(cache.ctx, backend);
+    cache.buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
     if (!cache.buffer) {
         WHISPER_LOG_ERROR("%s: failed to allocate memory for the kv cache\n", __func__);
         return false;
@@ -971,13 +973,13 @@ static bool whisper_kv_cache_init(
 
     ggml_backend_buffer_clear(cache.buffer, 0);
 
+    ggml_free(ctx);
+
     return true;
 }
 
 static void whisper_kv_cache_free(struct whisper_kv_cache & cache) {
-    ggml_free(cache.ctx);
     ggml_backend_buffer_free(cache.buffer);
-    cache.ctx = nullptr;
 }
 
 static bool whisper_kv_cache_find_slot(
@@ -2002,7 +2004,7 @@ static struct ggml_cgraph * whisper_build_graph_encoder(
 
     auto & kv_pad = wstate.kv_pad;
 
-    WHISPER_ASSERT(!!kv_pad.ctx);
+    WHISPER_ASSERT(!!kv_pad.buffer);
 
     const int n_ctx_pad = GGML_PAD(n_ctx, 256);
 
@@ -2416,7 +2418,7 @@ static struct ggml_cgraph * whisper_build_graph_decoder(
 
     auto & kv_self = wstate.kv_self;
 
-    WHISPER_ASSERT(!!kv_self.ctx);
+    WHISPER_ASSERT(!!kv_self.buffer);
 
     const int n_ctx   = kv_self.size;
     const int n_state = hparams.n_text_state;
