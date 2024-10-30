@@ -3999,7 +3999,9 @@ static struct ggml_object * ggml_new_object(struct ggml_context * ctx, enum ggml
     if (cur_end + size_needed + GGML_OBJECT_SIZE > ctx->mem_size) {
         GGML_LOG_WARN("%s: not enough space in the context's memory pool (needed %zu, available %zu)\n",
                 __func__, cur_end + size_needed + GGML_OBJECT_SIZE, ctx->mem_size);
-        assert(false);
+#ifndef NDEBUG
+        GGML_ABORT("not enough space in the context's memory pool");
+#endif
         return NULL;
     }
 
