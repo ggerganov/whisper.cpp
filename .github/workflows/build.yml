@@ -3,6 +3,7 @@ on: [push, pull_request]
 
 env:
   ubuntu_image: "ubuntu:22.04"
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
 jobs:
   ubuntu-latest:
@@ -308,7 +309,7 @@ jobs:
       - name: Build using CMake w/ OpenBLAS
         shell: msys2 {0}
         run: |
-            cmake -B build -DGGML_OPENBLAS=ON
+            cmake -B build -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS
             cmake --build build --config ${{ matrix.build }} -j $(nproc)
 
   windows:
@@ -382,10 +383,8 @@ jobs:
         sdl2: [ON]
         include:
           - arch: Win32
-            obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x86.zip
             s2arc: x86
           - arch: x64
-            obzip: https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.25/OpenBLAS-0.3.25-x64.zip
             s2arc: x64
           - sdl2: ON
             s2ver: 2.28.5
@@ -394,17 +393,21 @@ jobs:
       - name: Clone
         uses: actions/checkout@v4
 
+      - name: Export GitHub Actions cache environment variables
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
-      - name: Fetch OpenBLAS
+      - name: Install OpenBLAS and pkgconfiglite
         if: matrix.blas == 'ON'
         run: |
-          C:/msys64/usr/bin/wget.exe -qO blas.zip ${{ matrix.obzip }}
-          7z x blas.zip -oblas -y
-          copy blas/include/cblas.h .
-          copy blas/include/openblas_config.h .
-          echo "OPENBLAS_PATH=$env:GITHUB_WORKSPACE/blas" >> $env:GITHUB_ENV
+          vcpkg install --triplet=${{ matrix.s2arc }}-windows openblas
+          choco install pkgconfiglite
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
@@ -416,9 +419,10 @@ jobs:
       - name: Configure
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-          -DGGML_OPENBLAS=${{ matrix.blas }}
-          -DCMAKE_LIBRARY_PATH="$env:OPENBLAS_PATH/lib"
+          -DGGML_BLAS=${{ matrix.blas }}
+          -DGGML_BLAS_VENDOR=OpenBLAS
           -DWHISPER_SDL2=${{ matrix.sdl2 }}
 
       - name: Build
@@ -426,9 +430,9 @@ jobs:
           cd ./build
           msbuild ALL_BUILD.vcxproj -t:build -p:configuration=${{ matrix.build }} -p:platform=${{ matrix.arch }}
 
-      - name: Copy libopenblas.dll
+      - name: Copy openblas.dll
         if: matrix.blas == 'ON'
-        run: copy "$env:OPENBLAS_PATH/bin/libopenblas.dll" build/bin/${{ matrix.build }}
+        run: copy "C:/vcpkg/packages/openblas_${{ matrix.s2arc }}-windows/bin/openblas.dll" build/bin/${{ matrix.build }}
 
       - name: Copy SDL2.dll
         if: matrix.sdl2 == 'ON'
