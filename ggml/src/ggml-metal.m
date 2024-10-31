@@ -3129,7 +3129,7 @@ static enum ggml_status ggml_metal_graph_compute(
 
 // default buffer
 static id<MTLDevice> g_backend_device = nil;
-static int g_backend_device_ref_count = 0;
+static int g_backend_device_ref_count = 0; // TODO: make thread-safe
 
 static id<MTLDevice> ggml_backend_metal_get_device(void) {
     if (g_backend_device == nil) {
