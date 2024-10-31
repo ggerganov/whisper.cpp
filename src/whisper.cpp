@@ -3667,6 +3667,9 @@ struct whisper_context * whisper_init_with_params_no_state(struct whisper_model_
     WHISPER_LOG_INFO("%s: gpu_device = %d\n", __func__, params.gpu_device);
     WHISPER_LOG_INFO("%s: dtw        = %d\n", __func__, params.dtw_token_timestamps);
 
+    // TODO: temporary call to force backend registry initialization
+    WHISPER_LOG_INFO("%s: backends   = %zu\n", __func__, ggml_backend_reg_count());
+
     whisper_context * ctx = new whisper_context;
     ctx->params = params;
 
