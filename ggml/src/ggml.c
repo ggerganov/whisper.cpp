@@ -3836,11 +3836,7 @@ struct ggml_context * ggml_init(struct ggml_init_params params) {
 
     ggml_critical_section_end();
 
-    struct ggml_context * ctx = GGML_ALIGNED_MALLOC(sizeof(struct ggml_context));
-    if (ctx == NULL) {
-        GGML_LOG_ERROR("%s: failed to allocate ggml_context\n", __func__);
-        return NULL;
-    }
+    struct ggml_context * ctx = GGML_MALLOC(sizeof(struct ggml_context));
 
     // allow to call ggml_init with 0 size
     if (params.mem_size == 0) {
@@ -3892,7 +3888,7 @@ void ggml_free(struct ggml_context * ctx) {
         GGML_ALIGNED_FREE(ctx->mem_buffer);
     }
 
-    GGML_ALIGNED_FREE(ctx);
+    GGML_FREE(ctx);
 }
 
 size_t ggml_used_mem(const struct ggml_context * ctx) {
