@@ -183,8 +183,8 @@ endif
 # keep standard at C11 and C++11
 MK_CPPFLAGS  = -Iggml/include -Iggml/src -Iinclude -Isrc -Iexamples
 MK_CFLAGS    = -std=c11   -fPIC
-MK_CXXFLAGS  = -std=c++11 -fPIC
-MK_NVCCFLAGS = -std=c++11
+MK_CXXFLAGS  = -std=c++14 -fPIC
+MK_NVCCFLAGS = -std=c++14
 
 ifndef WHISPER_NO_CCACHE
 CCACHE := $(shell which ccache)
