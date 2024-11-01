@@ -33,7 +33,9 @@
 #include <memory>
 
 #include <future>
-
+#include <pthread.h> // Include for pthread_sigmask and sigwait
+#include <chrono>    // For timestamps
+#include <iomanip>   // For timestamp formatting
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267)
@@ -126,6 +128,16 @@ namespace {
     #endif
   }
 
+  std::string current_timestamp() {
+      auto now = std::chrono::system_clock::now();
+      auto itt = std::chrono::system_clock::to_time_t(now);
+      auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+      std::ostringstream ss;
+      ss << std::put_time(std::localtime(&itt), "%Y-%m-%d %H:%M:%S")
+         << '.' << std::setfill('0') << std::setw(3) << ms.count();
+      return ss.str();
+  }
+
   struct whisper_instance {
       int id; // Unique identifier for the instance
       std::unique_ptr<whisper_context, decltype(&whisper_free)> ctx;
@@ -139,30 +151,37 @@ namespace {
   class whisper_pool {
   public:
       whisper_pool(const whisper_params& params, int num_instances) {
-          printf("Initializing whisper pool with %d instances\n", num_instances);
+          printf("[%s] Initializing whisper pool with %d instances\n", current_timestamp().c_str(), num_instances);
 
           for (int i = 0; i < num_instances; ++i) {
               auto instance = init_whisper(params, i); // Pass the instance ID
               if (instance) {
                   instances.emplace_back(std::move(instance));
               } else {
-                  fprintf(stderr, "Failed to initialize instance %d\n", i);
+                  fprintf(stderr, "[%s] Failed to initialize instance %d\n", current_timestamp().c_str(), i);
               }
           }
 
-          printf("Successfully initialized %zu instances\n", instances.size());
+          printf("[%s] Successfully initialized %zu instances\n", current_timestamp().c_str(), instances.size());
       }
 
       std::shared_ptr<whisper_instance> get_instance() {
           std::unique_lock<std::mutex> lock(mutex);
           condition.wait(lock, [this] {
               return std::any_of(instances.begin(), instances.end(),
-                                 [](const std::shared_ptr<whisper_instance>& inst) { return !inst->in_use.load(); });
+                                 [](const std::shared_ptr<whisper_instance>& inst) { return !inst->in_use.load(); })
+                     || exit_flag.load();
           });
+
+          if (exit_flag.load()) {
+              return nullptr;
+          }
 
           for (auto& inst : instances) {
               if (!inst->in_use.exchange(true)) {
-                  printf("Instance %d acquired\n", inst->id); // Log acquisition
+                  std::ostringstream ss;
+                  ss << std::this_thread::get_id();
+                  printf("[%s] [Thread %s] Instance %d acquired\n", current_timestamp().c_str(), ss.str().c_str(), inst->id);
                   return inst;
               }
           }
@@ -172,37 +191,46 @@ namespace {
 
 
       void release_instance(std::shared_ptr<whisper_instance> instance) {
-          printf("Instance %d released\n", instance->id); // Log release
+          std::ostringstream ss;
+          ss << std::this_thread::get_id();
+          printf("[%s] [Thread %s] Instance %d released\n", current_timestamp().c_str(), ss.str().c_str(), instance->id);
           instance->in_use.store(false);
           condition.notify_one();
       }
 
-    private: std::vector < std::shared_ptr < whisper_instance >> instances;
-    std::mutex mutex;
-    std::condition_variable condition;
-
-    std::shared_ptr < whisper_instance > init_whisper(const whisper_params & params, int id) {
-      whisper_context_params cparams = whisper_context_default_params();
-      #if defined(WHISPER_CUDA)
-      cparams.use_gpu = true;
-      #elif defined(__APPLE__)
-      cparams.use_gpu = true;
-      // Metal-specific parameters could be set here if whisper.cpp adds them
-      #else
-      cparams.use_gpu = false;
-      #endif
-      cparams.flash_attn = params.flash_attn;
-
-      whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
-      if (ctx == nullptr) {
-        fprintf(stderr, "Error: Failed to initialize whisper context for instance %d\n", id);
-        return nullptr;
+      void shutdown() {
+          exit_flag.store(true);
+          condition.notify_all();
       }
 
-      //whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
+    private:
+      std::vector < std::shared_ptr < whisper_instance >> instances;
+      std::mutex mutex;
+      std::condition_variable condition;
+      std::atomic<bool> exit_flag{false};
 
-      return std::make_shared<whisper_instance>(id, ctx);
-    }
+      std::shared_ptr < whisper_instance > init_whisper(const whisper_params & params, int id) {
+        whisper_context_params cparams = whisper_context_default_params();
+        #if defined(WHISPER_CUDA)
+        cparams.use_gpu = true;
+        #elif defined(__APPLE__)
+        cparams.use_gpu = true;
+        // Metal-specific parameters could be set here if whisper.cpp adds them
+        #else
+        cparams.use_gpu = false;
+        #endif
+        cparams.flash_attn = params.flash_attn;
+
+        whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
+        if (ctx == nullptr) {
+          fprintf(stderr, "[%s] Error: Failed to initialize whisper context for instance %d\n", current_timestamp().c_str(), id);
+          return nullptr;
+        }
+
+        //whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
+
+        return std::make_shared<whisper_instance>(id, ctx);
+      }
   };
 
   struct server_task {
@@ -214,86 +242,43 @@ namespace {
   };
 
   class server_queue {
-    public: void post(std::shared_ptr < server_task > task) {
-      std::lock_guard < std::mutex > lock(mutex);
-      tasks.push(task);
-      condition.notify_one();
-    }
+    public:
+      void post(std::shared_ptr < server_task > task) {
+        std::lock_guard < std::mutex > lock(mutex);
+        tasks.push(task);
+        condition.notify_one();
+      }
 
-    std::shared_ptr<server_task> receive() {
-        std::unique_lock<std::mutex> lock(mutex);
-        condition.wait(lock, [this] {
-            return !tasks.empty();
-        });
-        auto task = tasks.front();
-        tasks.pop();
-        return task;
-    }
-
-    bool empty() {
-      std::lock_guard < std::mutex > lock(mutex);
-      return tasks.empty();
-    }
-
-    private: std::queue < std::shared_ptr < server_task >> tasks;
-    std::mutex mutex;
-    std::condition_variable condition;
-  };
-
-  class MyThreadPool {
-    public: MyThreadPool(size_t num_threads): stop(false) {
-      for (size_t i = 0; i < num_threads; ++i) {
-        workers.emplace_back([this] {
-          while (true) {
-            std:: function < void() > task;
-            {
-              std::unique_lock < std::mutex > lock(queue_mutex);
-              condition.wait(lock, [this] {
-                return stop || !tasks.empty();
-              });
-              if (stop && tasks.empty()) return;
-              task = std::move(tasks.front());
+      std::shared_ptr<server_task> receive() {
+          std::unique_lock<std::mutex> lock(mutex);
+          condition.wait(lock, [this] {
+              return !tasks.empty() || exit_flag.load();
+          });
+          if (!tasks.empty()) {
+              auto task = tasks.front();
               tasks.pop();
-            }
-            task();
+              return task;
+          } else {
+              return nullptr;
           }
-        });
       }
-    }
 
-    template < class F >
-    void enqueue(F && f) {
-      {
-        std::unique_lock < std::mutex > lock(queue_mutex);
-        tasks.emplace(std::forward < F > (f));
+      bool empty() {
+        std::lock_guard < std::mutex > lock(mutex);
+        return tasks.empty();
       }
-      condition.notify_one();
-    }
 
-    ~MyThreadPool() {
-      {
-        std::unique_lock < std::mutex > lock(queue_mutex);
-        stop = true;
+      void shutdown() {
+          exit_flag.store(true);
+          condition.notify_all();
       }
-      condition.notify_all();
-      for (std::thread & worker: workers) {
-        worker.join();
-      }
-    }
 
-    private: std::vector < std::thread > workers;
-    std::queue < std:: function < void() >> tasks;
-    std::mutex queue_mutex;
-    std::condition_variable condition;
-    bool stop;
+    private:
+      std::queue < std::shared_ptr < server_task >> tasks;
+      std::mutex mutex;
+      std::condition_variable condition;
+      std::atomic<bool> exit_flag{false};
   };
-
-  std::atomic < int > server_state(0);
-  std::atomic < bool > running(true);
-
-  void signal_handler(int signal) {
-    running = false;
-  }
 
   bool parse_params(int argc, char ** argv, whisper_params & params, server_params & sparams) {
     for (int i = 1; i < argc; i++) {
@@ -392,11 +377,19 @@ int main(int argc, char ** argv) {
     return 1;
   }
 
-  std::signal(SIGINT, signal_handler);
-  std::signal(SIGTERM, signal_handler);
+  // Block SIGINT and SIGTERM in all threads
+  sigset_t signal_set;
+  sigemptyset(&signal_set);
+  sigaddset(&signal_set, SIGINT);
+  sigaddset(&signal_set, SIGTERM);
+
+  if (pthread_sigmask(SIG_BLOCK, &signal_set, nullptr) != 0) {
+      perror("pthread_sigmask");
+      return 1;
+  }
 
   int num_instances = calculate_num_instances(params);
-  std::unique_ptr < whisper_pool > pool = std::make_unique < whisper_pool > (params, num_instances);
+  std::unique_ptr<whisper_pool> pool = std::make_unique<whisper_pool>(params, num_instances);
 
   Server svr;
   svr.set_default_headers({
@@ -414,22 +407,47 @@ int main(int argc, char ** argv) {
     }
   });
 
-  MyThreadPool thread_pool(std::max(1, static_cast < int > (std::thread::hardware_concurrency()) - 1));
   server_queue task_queue;
 
   std::vector<std::thread> worker_threads;
      int num_worker_threads = num_instances; // or adjust as needed
      for (int i = 0; i < num_worker_threads; ++i) {
          worker_threads.emplace_back([&]() {
-             while (running) {
+             std::ostringstream ss;
+             ss << std::this_thread::get_id();
+             std::string thread_id = ss.str();
+
+             while (true) {
                  auto task = task_queue.receive();
+                 if (!task) {
+                     // Shutdown signal received and no tasks
+                     break;
+                 }
+
                  auto instance = pool->get_instance();
                  if (instance) {
-                     printf("Processing task %d using instance %d\n", task->id, instance->id);
-                     std::string result = process_audio(instance->ctx.get(), task->params, task->pcmf32, task->pcmf32s);
-                     task->result_promise.set_value(result);
+                     printf("[%s] [Thread %s] Processing task %d using instance %d\n", current_timestamp().c_str(), thread_id.c_str(), task->id, instance->id);
+
+                     // Record start time
+                     auto start_time = std::chrono::steady_clock::now();
+
+                     try {
+                         std::string result = process_audio(instance->ctx.get(), task->params, task->pcmf32, task->pcmf32s);
+                         task->result_promise.set_value(result);
+                     } catch (const std::exception& e) {
+                         fprintf(stderr, "[%s] [Thread %s] Error processing task %d: %s\n", current_timestamp().c_str(), thread_id.c_str(), task->id, e.what());
+                         task->result_promise.set_value(std::string("{\"error\":\"") + e.what() + "\"}");
+                     }
+
+                     // Record end time
+                     auto end_time = std::chrono::steady_clock::now();
+                     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+                     printf("[%s] [Thread %s] Task %d completed in %lld ms\n", current_timestamp().c_str(), thread_id.c_str(), task->id, duration);
+
                      pool->release_instance(instance);
+
                  } else {
+                     // If we cannot get an instance, set an error
                      task->result_promise.set_value("{\"error\":\"no available instances\"}");
                  }
              }
@@ -479,24 +497,6 @@ int main(int argc, char ** argv) {
   });
 
 
-  svr.Post(sparams.request_path + "/load", [ & ](const Request & req, Response & res) {
-    thread_pool.enqueue([ & , req]() {
-      if (!req.has_file("model")) {
-        res.set_content("{\"error\":\"no model file\"}", "application/json");
-        return;
-      }
-
-      auto model_file = req.get_file_value("model");
-      params.model = model_file.filename;
-
-      // Reinitialize the whisper pool with the new model
-      int new_num_instances = calculate_num_instances(params);
-      pool = std::make_unique < whisper_pool > (params, new_num_instances);
-
-      res.set_content("{\"status\":\"model loaded\", \"instances\":" + std::to_string(new_num_instances) + "}", "application/json");
-    });
-  });
-
   svr.set_exception_handler([](const Request & , Response & res, std::exception_ptr ep) {
     try {
       std::rethrow_exception(ep);
@@ -513,37 +513,55 @@ int main(int argc, char ** argv) {
   svr.set_write_timeout(sparams.write_timeout);
 
   if (!svr.bind_to_port(sparams.hostname, sparams.port)) {
-    fprintf(stderr, "couldn't bind to server socket: hostname=%s port=%d\n",
-      sparams.hostname.c_str(), sparams.port);
+    fprintf(stderr, "[%s] couldn't bind to server socket: hostname=%s port=%d\n",
+      current_timestamp().c_str(), sparams.hostname.c_str(), sparams.port);
     return 1;
   }
 
   svr.set_base_dir(sparams.public_path);
 
-  printf("whisper server listening at http://%s:%d with %d model instances (%s)\n",
-    sparams.hostname.c_str(), sparams.port, num_instances,
+  printf("[%s] whisper server listening at http://%s:%d with %d model instances (%s)\n",
+    current_timestamp().c_str(), sparams.hostname.c_str(), sparams.port, num_instances,
     #if defined(WHISPER_CUDA)
     "CUDA enabled"
     #elif defined(__APPLE__)
     "Metal enabled"
-    #else "CPU only"
+    #else
+    "CPU only"
     #endif
   );
 
-  std::thread server_thread([ & svr]() {
-    svr.listen_after_bind();
+  // Start signal handling thread
+  std::thread signal_thread([&svr, &task_queue, &pool, &signal_set]() {
+      int sig;
+      if (sigwait(&signal_set, &sig) == 0) {
+          printf("[%s] Signal received: %d\n", current_timestamp().c_str(), sig);
+          svr.stop();
+          task_queue.shutdown();
+          pool->shutdown();
+      } else {
+          perror("sigwait");
+      }
   });
 
-  while (running) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  // Start server in main thread
+  if (!svr.listen_after_bind()) {
+    fprintf(stderr, "[%s] Error starting server\n", current_timestamp().c_str());
+    return 1;
   }
 
-  svr.stop();
-  server_thread.join();
+  // Server has stopped
+  printf("[%s] Server has stopped.\n", current_timestamp().c_str());
+
+  // Join signal thread
+  signal_thread.join();
+
   // Join all worker threads
-     for (auto& worker : worker_threads) {
-         worker.join();
-     }
+  for (auto& worker : worker_threads) {
+      worker.join();
+  }
+
+  printf("[%s] Server shut down gracefully.\n", current_timestamp().c_str());
 
   return 0;
 }
