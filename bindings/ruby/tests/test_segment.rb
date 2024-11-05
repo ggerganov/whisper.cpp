@@ -1,18 +1,14 @@
-require "test/unit"
-require "whisper"
+require_relative "helper"
 
-class TestSegment < Test::Unit::TestCase
-  TOPDIR = File.expand_path(File.join(File.dirname(__FILE__), '..'))
-
+class TestSegment < TestBase
   class << self
     attr_reader :whisper
 
     def startup
-      @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+      @whisper = Whisper::Context.new(TestBase::MODEL)
       params = Whisper::Params.new
       params.print_timestamps = false
-      jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
-      @whisper.transcribe(jfk, params)
+      @whisper.transcribe(TestBase::AUDIO, params)
     end
   end
 
@@ -60,7 +56,7 @@ class TestSegment < Test::Unit::TestCase
       end
       index += 1
     end
-    whisper.transcribe(File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav'), params)
+    whisper.transcribe(AUDIO, params)
     assert_equal 0, seg.start_time
     assert_match /ask not what your country can do for you, ask what you can do for your country/, seg.text
   end
@@ -76,7 +72,7 @@ class TestSegment < Test::Unit::TestCase
       assert_same seg, segment
       return
     end
-    whisper.transcribe(File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav'), params)
+    whisper.transcribe(AUDIO, params)
   end
 
   private

@@ -1,20 +1,16 @@
-require 'whisper'
-require 'test/unit'
+require_relative "helper"
 
-class TestWhisper < Test::Unit::TestCase
-  TOPDIR = File.expand_path(File.join(File.dirname(__FILE__), '..'))
-
+class TestWhisper < TestBase
   def setup
     @params  = Whisper::Params.new
   end
 
   def test_whisper
-    @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+    @whisper = Whisper::Context.new(MODEL)
     params  = Whisper::Params.new
     params.print_timestamps = false
 
-    jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
-    @whisper.transcribe(jfk, params) {|text|
+    @whisper.transcribe(AUDIO, params) {|text|
       assert_match /ask not what your country can do for you, ask what you can do for your country/, text
     }
   end
@@ -24,11 +20,10 @@ class TestWhisper < Test::Unit::TestCase
       attr_reader :whisper
 
       def startup
-        @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
+        @whisper = Whisper::Context.new(TestBase::MODEL)
         params = Whisper::Params.new
         params.print_timestamps = false
-        jfk = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
-        @whisper.transcribe(jfk, params)
+        @whisper.transcribe(TestBase::AUDIO, params)
       end
     end
 
