@@ -390,6 +390,126 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
 }
 
 /*
+ * call-seq:
+ *   model_n_vocab -> Integer
+ */
+VALUE ruby_whisper_model_n_vocab(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_vocab(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_audio_ctx -> Integer
+ */
+VALUE ruby_whisper_model_n_audio_ctx(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_ctx(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_audio_state -> Integer
+ */
+VALUE ruby_whisper_model_n_audio_state(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_state(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_audio_head -> Integer
+ */
+VALUE ruby_whisper_model_n_audio_head(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_head(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_audio_layer -> Integer
+ */
+VALUE ruby_whisper_model_n_audio_layer(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_layer(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_text_ctx -> Integer
+ */
+VALUE ruby_whisper_model_n_text_ctx(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_ctx(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_text_state -> Integer
+ */
+VALUE ruby_whisper_model_n_text_state(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_state(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_text_head -> Integer
+ */
+VALUE ruby_whisper_model_n_text_head(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_head(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_text_layer -> Integer
+ */
+VALUE ruby_whisper_model_n_text_layer(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_layer(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_mels -> Integer
+ */
+VALUE ruby_whisper_model_n_mels(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_mels(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_ftype -> Integer
+ */
+VALUE ruby_whisper_model_ftype(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_ftype(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_type -> String
+ */
+VALUE ruby_whisper_model_type(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return rb_str_new2(whisper_model_type_readable(rw->context));
+}
+
+/*
  * Number of segments.
  *
  * call-seq:
@@ -1207,6 +1327,18 @@ void Init_whisper() {
   rb_define_method(cContext, "initialize", ruby_whisper_initialize, -1);
 
   rb_define_method(cContext, "transcribe", ruby_whisper_transcribe, -1);
+  rb_define_method(cContext, "model_n_vocab", ruby_whisper_model_n_vocab, 0);
+  rb_define_method(cContext, "model_n_audio_ctx", ruby_whisper_model_n_audio_ctx, 0);
+  rb_define_method(cContext, "model_n_audio_state", ruby_whisper_model_n_audio_state, 0);
+  rb_define_method(cContext, "model_n_audio_head", ruby_whisper_model_n_audio_head, 0);
+  rb_define_method(cContext, "model_n_audio_layer", ruby_whisper_model_n_audio_layer, 0);
+  rb_define_method(cContext, "model_n_text_ctx", ruby_whisper_model_n_text_ctx, 0);
+  rb_define_method(cContext, "model_n_text_state", ruby_whisper_model_n_text_state, 0);
+  rb_define_method(cContext, "model_n_text_head", ruby_whisper_model_n_text_head, 0);
+  rb_define_method(cContext, "model_n_text_layer", ruby_whisper_model_n_text_layer, 0);
+  rb_define_method(cContext, "model_n_mels", ruby_whisper_model_n_mels, 0);
+  rb_define_method(cContext, "model_ftype", ruby_whisper_model_ftype, 0);
+  rb_define_method(cContext, "model_type", ruby_whisper_model_type, 0);
   rb_define_method(cContext, "full_n_segments", ruby_whisper_full_n_segments, 0);
   rb_define_method(cContext, "full_lang_id", ruby_whisper_full_lang_id, 0);
   rb_define_method(cContext, "full_get_segment_t0", ruby_whisper_full_get_segment_t0, 1);
