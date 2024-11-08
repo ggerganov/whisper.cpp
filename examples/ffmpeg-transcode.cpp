@@ -204,8 +204,6 @@ static int decode_audio(struct audio_buffer *audio_buf, s16 **data, int *size)
     const size_t errbuffsize = 1024;
     char errbuff[errbuffsize];
 
-    av_register_all(); // from avformat. Still a must-have call for ffmpeg v3! (can be skipped for later versions)
-
     fmt_ctx = avformat_alloc_context();
     avio_ctx_buffer = (u8*)av_malloc(AVIO_CTX_BUF_SZ);
     LOG("Creating an avio context: AVIO_CTX_BUF_SZ=%d\n", AVIO_CTX_BUF_SZ);
