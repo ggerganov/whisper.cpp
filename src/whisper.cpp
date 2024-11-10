@@ -4186,6 +4186,30 @@ whisper_token whisper_token_transcribe(struct whisper_context * ctx) {
     return ctx->vocab.token_transcribe;
 }
 
+struct whisper_timings whisper_get_timings(struct whisper_context * ctx) {
+    if (ctx->state == nullptr) {
+        return whisper_timings {
+            .sample_ms = 0,
+            .encode_ms = 0,
+            .decode_ms = 0,
+            .batchd_ms = 0,
+            .prompt_ms = 0,
+        };
+    }
+    const int32_t n_sample = std::max(1, ctx->state->n_sample);
+    const int32_t n_encode = std::max(1, ctx->state->n_encode);
+    const int32_t n_decode = std::max(1, ctx->state->n_decode);
+    const int32_t n_batchd = std::max(1, ctx->state->n_batchd);
+    const int32_t n_prompt = std::max(1, ctx->state->n_prompt);
+    return whisper_timings {
+        .sample_ms = 1e-3f * ctx->state->t_sample_us / n_sample,
+        .encode_ms = 1e-3f * ctx->state->t_encode_us / n_encode,
+        .decode_ms = 1e-3f * ctx->state->t_decode_us / n_decode,
+        .batchd_ms = 1e-3f * ctx->state->t_batchd_us / n_batchd,
+        .prompt_ms = 1e-3f * ctx->state->t_prompt_us / n_prompt,
+    };
+}
+
 void whisper_print_timings(struct whisper_context * ctx) {
     const int64_t t_end_us = ggml_time_us();
 
