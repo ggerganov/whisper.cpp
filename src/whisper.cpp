@@ -7391,6 +7391,7 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
 void whisper_log_set(ggml_log_callback log_callback, void * user_data) {
     g_state.log_callback = log_callback ? log_callback : whisper_log_callback_default;
     g_state.log_callback_user_data = user_data;
+    ggml_log_set(g_state.log_callback, g_state.log_callback_user_data);
 }
 
 GGML_ATTRIBUTE_FORMAT(2, 3)
