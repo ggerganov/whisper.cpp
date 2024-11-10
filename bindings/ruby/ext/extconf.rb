@@ -2,6 +2,9 @@ require 'mkmf'
 
 # need to use c++ compiler flags
 $CXXFLAGS << ' -std=c++11'
+
+$LDFLAGS << ' -lstdc++'
+
 # Set to true when building binary gems
 if enable_config('static-stdlib', false)
   $LDFLAGS << ' -static-libgcc -static-libstdc++'
