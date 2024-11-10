@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import AVFoundation
 
+
 @MainActor
 class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
     @Published var isModelLoaded = false
@@ -14,7 +15,7 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
     private var recordedFile: URL? = nil
     private var audioPlayer: AVAudioPlayer?
     
-    private var modelUrl: URL? {
+    private var builtInModelUrl: URL? {
         Bundle.main.url(forResource: "ggml-base.en", withExtension: "bin", subdirectory: "models")
     }
     
@@ -28,23 +29,51 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
     
     override init() {
         super.init()
+        loadModel()
+    }
+    
+    func loadModel(path: URL? = nil, log: Bool = true) {
         do {
-            try loadModel()
+            whisperContext = nil
+            if (log) { messageLog += "Loading model...\n" }
+            let modelUrl = path ?? builtInModelUrl
+            if let modelUrl {
+                whisperContext = try WhisperContext.createContext(path: modelUrl.path())
+                if (log) { messageLog += "Loaded model \(modelUrl.lastPathComponent)\n" }
+            } else {
+                if (log) { messageLog += "Could not locate model\n" }
+            }
             canTranscribe = true
         } catch {
             print(error.localizedDescription)
-            messageLog += "\(error.localizedDescription)\n"
+            if (log) { messageLog += "\(error.localizedDescription)\n" }
         }
     }
-    
-    private func loadModel() throws {
-        messageLog += "Loading model...\n"
-        if let modelUrl {
-            whisperContext = try WhisperContext.createContext(path: modelUrl.path())
-            messageLog += "Loaded model \(modelUrl.lastPathComponent)\n"
-        } else {
-            messageLog += "Could not locate model\n"
+
+    func benchCurrentModel() async {
+        if whisperContext == nil {
+            messageLog += "Cannot bench without loaded model\n"
+            return
         }
+        messageLog += "Benchmarking current model\n"
+        let result = await whisperContext?.bench_full(modelName: "<current>")
+        if (result != nil) { messageLog += result! + "\n" }
+    }
+
+    func bench(models: [Model]) async {
+        messageLog += "Benchmarking models\n"
+        messageLog += "| CPU | OS | Config | Model | Th | FA | Enc. | Dec. | Bch5 | PP | Commit |\n"
+        messageLog += "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+        for model in models {
+            loadModel(path: model.fileURL, log: false)
+            if whisperContext == nil {
+                messageLog += "Cannot bench without loaded model\n"
+                break
+            }
+            let result = await whisperContext?.bench_full(modelName: model.name)
+            if (result != nil) { messageLog += result! + "\n" }
+        }
+        messageLog += "Benchmarking completed\n"
     }
     
     func transcribeSample() async {
