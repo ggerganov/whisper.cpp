@@ -119,7 +119,7 @@ actor WhisperContext {
         whisper_print_timings(context)
 
         let system_info = self.system_info()
-        let timings: whisper_timings = whisper_get_timings(context)
+        let timings: whisper_timings = whisper_get_timings(context).pointee
         let encode_ms = String(format: "%.2f", timings.encode_ms)
         let decode_ms = String(format: "%.2f", timings.decode_ms)
         let batchd_ms = String(format: "%.2f", timings.batchd_ms)

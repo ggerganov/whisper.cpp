@@ -430,7 +430,7 @@ extern "C" {
         float batchd_ms;
         float prompt_ms;
     };
-    WHISPER_API struct whisper_timings whisper_get_timings(struct whisper_context * ctx);
+    WHISPER_API struct whisper_timings * whisper_get_timings(struct whisper_context * ctx);
     WHISPER_API void whisper_print_timings(struct whisper_context * ctx);
     WHISPER_API void whisper_reset_timings(struct whisper_context * ctx);
 
