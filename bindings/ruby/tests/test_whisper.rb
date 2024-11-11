@@ -1,4 +1,8 @@
 require_relative "helper"
+require "stringio"
+
+# Exists to detect memory-related bug
+Whisper.log_set ->(level, buffer, user_data) {}, nil
 
 class TestWhisper < TestBase
   def setup
@@ -90,5 +94,33 @@ class TestWhisper < TestBase
     assert_raise IndexError do
       Whisper.lang_str_full(Whisper.lang_max_id + 1)
     end
+  end
+
+  def test_log_set
+    user_data = Object.new
+    logs = []
+    log_callback = ->(level, buffer, udata) {
+      logs << [level, buffer, udata]
+    }
+    Whisper.log_set log_callback, user_data
+    Whisper::Context.new(MODEL)
+
+    assert logs.length > 30
+    logs.each do |log|
+      assert_same user_data, log[2]
+    end
+  end
+
+  def test_log_suppress
+    stderr = $stderr
+    Whisper.log_set ->(level, buffer, user_data) {
+      # do nothing
+    }, nil
+    dev = StringIO.new("")
+    $stderr = dev
+    Whisper::Context.new(MODEL)
+    assert_empty dev.string
+  ensure
+    $stderr = stderr
   end
 end
