@@ -3,6 +3,9 @@
 #include "whisper.h"
 #include "httplib.h"
 #include "json.hpp"
+#include "thread_pool.h"
+#include "whisper_context.h"
+#include "whisper_params.h"
 
 #include <cmath>
 #include <fstream>
@@ -19,80 +22,13 @@
 
 using namespace httplib;
 using json = nlohmann::ordered_json;
+using namespace whisper;
 
 namespace {
 
-// output formats
-const std::string json_format   = "json";
-const std::string text_format   = "text";
-const std::string srt_format    = "srt";
-const std::string vjson_format  = "verbose_json";
-const std::string vtt_format    = "vtt";
+    std::unique_ptr<WhisperContextPool::Instance> instance;
 
-struct server_params
-{
-    std::string hostname = "127.0.0.1";
-    std::string public_path = "examples/server/public";
-    std::string request_path = "";
-    std::string inference_path = "/inference";
-
-    int32_t port          = 8080;
-    int32_t read_timeout  = 600;
-    int32_t write_timeout = 600;
-
-    bool ffmpeg_converter = false;
-};
-
-struct whisper_params {
-    int32_t n_threads     = std::min(4, (int32_t) std::thread::hardware_concurrency());
-    int32_t n_processors  = 1;
-    int32_t offset_t_ms   = 0;
-    int32_t offset_n      = 0;
-    int32_t duration_ms   = 0;
-    int32_t progress_step = 5;
-    int32_t max_context   = -1;
-    int32_t max_len       = 0;
-    int32_t best_of       = 2;
-    int32_t beam_size     = -1;
-    int32_t audio_ctx     = 0;
-
-    float word_thold      =  0.01f;
-    float entropy_thold   =  2.40f;
-    float logprob_thold   = -1.00f;
-    float temperature     =  0.00f;
-    float temperature_inc =  0.20f;
-
-    bool debug_mode      = false;
-    bool translate       = false;
-    bool detect_language = false;
-    bool diarize         = false;
-    bool tinydiarize     = false;
-    bool split_on_word   = false;
-    bool no_fallback     = false;
-    bool print_special   = false;
-    bool print_colors    = false;
-    bool print_realtime  = false;
-    bool print_progress  = false;
-    bool no_timestamps   = false;
-    bool use_gpu         = true;
-    bool flash_attn      = false;
-
-    std::string language        = "en";
-    std::string prompt          = "";
-    std::string font_path       = "/System/Library/Fonts/Supplemental/Courier New Bold.ttf";
-    std::string model           = "models/ggml-base.en.bin";
-
-    std::string response_format     = json_format;
-
-    // [TDRZ] speaker turn string
-    std::string tdrz_speaker_turn = " [SPEAKER_TURN]"; // TODO: set from command line
-
-    std::string openvino_encode_device = "CPU";
-
-    std::string dtw = "";
-};
-
-void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params, const server_params& sparams) {
+void whisper_print_usage(int /*argc*/, char ** argv, const whisper::params & params, const whisper::server_params & sparams) {
     fprintf(stderr, "\n");
     fprintf(stderr, "usage: %s [options] \n", argv[0]);
     fprintf(stderr, "\n");
@@ -134,11 +70,15 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  --public PATH,                 [%-7s] Path to the public folder\n", sparams.public_path.c_str());
     fprintf(stderr, "  --request-path PATH,           [%-7s] Request path for all requests\n", sparams.request_path.c_str());
     fprintf(stderr, "  --inference-path PATH,         [%-7s] Inference path for all requests\n", sparams.inference_path.c_str());
-    fprintf(stderr, "  --convert,                     [%-7s] Convert audio to WAV, requires ffmpeg on the server", sparams.ffmpeg_converter ? "true" : "false");
+    fprintf(stderr, "  --convert,                     [%-7s] Convert audio to WAV, requires ffmpeg on the server\n", sparams.ffmpeg_converter ? "true" : "false");
+    fprintf(stderr, "  -i N,      --instances N       [%-7d] Number of whisper instances to run\n", sparams.num_instances);
+    fprintf(stderr, "  -ht N,     --http-threads N    [%-7d] Number of HTTP worker threads\n", sparams.http_threads);
+    fprintf(stderr, "  -pt N,     --process-timeout N,           [%-7d] Timeout in seconds for processing a request\n", sparams.process_timeout);
+    fprintf(stderr, "  --max-upload-size N,           [%-7zu] Maximum file upload size in bytes\n", sparams.max_upload_size);
     fprintf(stderr, "\n");
 }
 
-bool whisper_params_parse(int argc, char ** argv, whisper_params & params, server_params & sparams) {
+bool params_parse(int argc, char ** argv, whisper::params & params, whisper::server_params & sparams) {
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
 
@@ -186,6 +126,9 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
         else if (                  arg == "--request-path")    { sparams.request_path = argv[++i]; }
         else if (                  arg == "--inference-path")  { sparams.inference_path = argv[++i]; }
         else if (                  arg == "--convert")         { sparams.ffmpeg_converter     = true; }
+        else if (arg == "-pt"   || arg == "--process-timeout") { sparams.process_timeout = std::stoi(argv[++i]); }
+        else if (arg == "-i"    || arg == "--instances")      { sparams.num_instances = std::stoi(argv[++i]); }
+        else if (arg == "-ht"   || arg == "--http-threads")   { sparams.http_threads = std::stoi(argv[++i]); }
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
             whisper_print_usage(argc, argv, params, sparams);
@@ -197,7 +140,7 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
 }
 
 struct whisper_print_user_data {
-    const whisper_params * params;
+    const whisper::params * params;
 
     const std::vector<std::vector<float>> * pcmf32s;
     int progress_prev;
@@ -352,7 +295,7 @@ void whisper_print_segment_callback(struct whisper_context * ctx, struct whisper
     }
 }
 
-std::string output_str(struct whisper_context * ctx, const whisper_params & params, std::vector<std::vector<float>> pcmf32s) {
+std::string output_str(struct whisper_context * ctx, const whisper::params & params, std::vector<std::vector<float>> pcmf32s) {
     std::stringstream result;
     const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
@@ -378,7 +321,7 @@ bool parse_str_to_bool(const std::string & s) {
     return false;
 }
 
-void get_req_parameters(const Request & req, whisper_params & params)
+void get_req_parameters(const Request & req, whisper::params & params)
 {
     if (req.has_file("offset_t"))
     {
@@ -474,15 +417,15 @@ void get_req_parameters(const Request & req, whisper_params & params)
     }
 }
 
-}  // namespace
+}  // namespacesp
 
 int main(int argc, char ** argv) {
-    whisper_params params;
-    server_params sparams;
+    whisper::params params;
+    whisper::server_params sparams;
 
     std::mutex whisper_mutex;
 
-    if (whisper_params_parse(argc, argv, params, sparams) == false) {
+    if (params_parse(argc, argv, params, sparams) == false) {
         whisper_print_usage(argc, argv, params, sparams);
         return 1;
     }
@@ -552,20 +495,45 @@ int main(int argc, char ** argv) {
         }
     }
 
-    struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
-
-    if (ctx == nullptr) {
-        fprintf(stderr, "error: failed to initialize whisper context\n");
-        return 3;
+    // Initialize the context pool
+    std::unique_ptr<WhisperContextPool> whisper_pool;
+    try {
+        whisper_pool = std::unique_ptr<WhisperContextPool>(new WhisperContextPool(
+            sparams.num_instances,
+            params.model,
+            cparams
+        ));
+    } catch (const std::exception& e) {
+        fprintf(stderr, "Failed to initialize whisper contexts: %s\n", e.what());
+        return 1;
     }
 
-    // initialize openvino encoder. this has no effect on whisper.cpp builds that don't have OpenVINO configured
-    whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
+    // Initialize thread pool for processing requests
+    CustomThreadPool thread_pool(sparams.num_instances);
 
+    // Configure the server
     Server svr;
+    svr.new_task_queue = [&sparams] { return new httplib::ThreadPool(sparams.http_threads); };
     svr.set_default_headers({{"Server", "whisper.cpp"},
                              {"Access-Control-Allow-Origin", "*"},
                              {"Access-Control-Allow-Headers", "content-type, authorization"}});
+    // Set payload size limit
+    svr.set_payload_max_length(sparams.max_upload_size);
+
+    // Setup signal handling for graceful shutdown
+    std::atomic<bool> should_exit{false};
+
+#ifdef _WIN32
+    signal(SIGINT, [](int) { should_exit.store(true); });
+    signal(SIGTERM, [](int) { should_exit.store(true); });
+#else
+    struct sigaction sa;
+    sa.sa_handler = SIG_DFL;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+#endif
 
     std::string const default_content = R"(
     <html>
@@ -639,7 +607,7 @@ int main(int argc, char ** argv) {
     )";
 
     // store default params so we can reset after each inference request
-    whisper_params default_params = params;
+    whisper::params default_params = params;
 
     // this is only called if no index.html is found in the public --path
     svr.Get(sparams.request_path + "/", [&default_content](const Request &, Response &res){
@@ -651,8 +619,13 @@ int main(int argc, char ** argv) {
     });
 
     svr.Post(sparams.request_path + sparams.inference_path, [&](const Request &req, Response &res){
-        // acquire whisper model mutex lock
-        std::lock_guard<std::mutex> lock(whisper_mutex);
+        // get available whisper instance from pool
+        auto instance = whisper_pool->get_instance();
+        if (!instance) {
+            const std::string error_resp = "{\"error\":\"no available whisper instances\"}";
+            res.set_content(error_resp, "application/json");
+            return;
+        }
 
         // first check user requested fields of the request
         if (!req.has_file("file"))
@@ -665,290 +638,301 @@ int main(int argc, char ** argv) {
         auto audio_file = req.get_file_value("file");
 
         // check non-required fields
-        get_req_parameters(req, params);
+        get_req_parameters(req, instance->params);
 
         std::string filename{audio_file.filename};
         printf("Received request: %s\n", filename.c_str());
 
-        // audio arrays
-        std::vector<float> pcmf32;               // mono-channel F32 PCM
-        std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
+        // Enqueue the processing task with timeout
+        auto future = thread_pool.enqueue([&]() {
+            // audio arrays
+            std::vector<float> pcmf32;               // mono-channel F32 PCM
+            std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
-        if (sparams.ffmpeg_converter) {
-            // if file is not wav, convert to wav
-            // write to temporary file
-            const std::string temp_filename_base = std::tmpnam(nullptr);
-            const std::string temp_filename = temp_filename_base + ".wav";
-            std::ofstream temp_file{temp_filename, std::ios::binary};
-            temp_file << audio_file.content;
-            temp_file.close();
+            if (sparams.ffmpeg_converter) {
+                // if file is not wav, convert to wav
+                // write to temporary file
+                const std::string temp_filename_base = std::tmpnam(nullptr);
+                const std::string temp_filename = temp_filename_base + ".wav";
+                std::ofstream temp_file{temp_filename, std::ios::binary};
+                temp_file << audio_file.content;
+                temp_file.close();
 
-            std::string error_resp = "{\"error\":\"Failed to execute ffmpeg command.\"}";
-            const bool is_converted = convert_to_wav(temp_filename, error_resp);
-            if (!is_converted) {
-                res.set_content(error_resp, "application/json");
-                return;
-            }
+                std::string error_resp = "{\"error\":\"Failed to execute ffmpeg command.\"}";
+                const bool is_converted = convert_to_wav(temp_filename, error_resp);
+                if (!is_converted) {
+                    res.set_content(error_resp, "application/json");
+                    return;
+                }
 
-            // read wav content into pcmf32
-            if (!::read_wav(temp_filename, pcmf32, pcmf32s, params.diarize))
-            {
-                fprintf(stderr, "error: failed to read WAV file '%s'\n", temp_filename.c_str());
-                const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
-                res.set_content(error_resp, "application/json");
+                // read wav content into pcmf32
+                if (!::read_wav(temp_filename, pcmf32, pcmf32s, instance->params.diarize))
+                {
+                    fprintf(stderr, "error: failed to read WAV file '%s'\n", temp_filename.c_str());
+                    const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
+                    res.set_content(error_resp, "application/json");
+                    std::remove(temp_filename.c_str());
+                    return;
+                }
+                // remove temp file
                 std::remove(temp_filename.c_str());
-                return;
-            }
-            // remove temp file
-            std::remove(temp_filename.c_str());
-        } else {
-            if (!::read_wav(audio_file.content, pcmf32, pcmf32s, params.diarize))
-            {
-                fprintf(stderr, "error: failed to read WAV file\n");
-                const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
-                res.set_content(error_resp, "application/json");
-                return;
-            }
-        }
-
-
-        printf("Successfully loaded %s\n", filename.c_str());
-
-        // print system information
-        {
-            fprintf(stderr, "\n");
-            fprintf(stderr, "system_info: n_threads = %d / %d | %s\n",
-                    params.n_threads*params.n_processors, std::thread::hardware_concurrency(), whisper_print_system_info());
-        }
-
-        // print some info about the processing
-        {
-            fprintf(stderr, "\n");
-            if (!whisper_is_multilingual(ctx)) {
-                if (params.language != "en" || params.translate) {
-                    params.language = "en";
-                    params.translate = false;
-                    fprintf(stderr, "%s: WARNING: model is not multilingual, ignoring language and translation options\n", __func__);
-                }
-            }
-            if (params.detect_language) {
-                params.language = "auto";
-            }
-            fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, lang = %s, task = %s, %stimestamps = %d ...\n",
-                    __func__, filename.c_str(), int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE,
-                    params.n_threads, params.n_processors,
-                    params.language.c_str(),
-                    params.translate ? "translate" : "transcribe",
-                    params.tinydiarize ? "tdrz = 1, " : "",
-                    params.no_timestamps ? 0 : 1);
-
-            fprintf(stderr, "\n");
-        }
-
-        // run the inference
-        {
-            printf("Running whisper.cpp inference on %s\n", filename.c_str());
-            whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-
-            wparams.strategy = params.beam_size > 1 ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY;
-
-            wparams.print_realtime   = false;
-            wparams.print_progress   = params.print_progress;
-            wparams.print_timestamps = !params.no_timestamps;
-            wparams.print_special    = params.print_special;
-            wparams.translate        = params.translate;
-            wparams.language         = params.language.c_str();
-            wparams.detect_language  = params.detect_language;
-            wparams.n_threads        = params.n_threads;
-            wparams.n_max_text_ctx   = params.max_context >= 0 ? params.max_context : wparams.n_max_text_ctx;
-            wparams.offset_ms        = params.offset_t_ms;
-            wparams.duration_ms      = params.duration_ms;
-
-            wparams.thold_pt         = params.word_thold;
-            wparams.max_len          = params.max_len == 0 ? 60 : params.max_len;
-            wparams.split_on_word    = params.split_on_word;
-            wparams.audio_ctx        = params.audio_ctx;
-
-            wparams.debug_mode       = params.debug_mode;
-
-            wparams.tdrz_enable      = params.tinydiarize; // [TDRZ]
-
-            wparams.initial_prompt   = params.prompt.c_str();
-
-            wparams.greedy.best_of        = params.best_of;
-            wparams.beam_search.beam_size = params.beam_size;
-
-            wparams.temperature      = params.temperature;
-            wparams.temperature_inc  = params.temperature_inc;
-            wparams.entropy_thold    = params.entropy_thold;
-            wparams.logprob_thold    = params.logprob_thold;
-
-            wparams.no_timestamps    = params.no_timestamps;
-            wparams.token_timestamps = !params.no_timestamps && params.response_format == vjson_format;
-
-            whisper_print_user_data user_data = { &params, &pcmf32s, 0 };
-
-            // this callback is called on each new segment
-            if (params.print_realtime) {
-                wparams.new_segment_callback           = whisper_print_segment_callback;
-                wparams.new_segment_callback_user_data = &user_data;
-            }
-
-            if (wparams.print_progress) {
-                wparams.progress_callback           = whisper_print_progress_callback;
-                wparams.progress_callback_user_data = &user_data;
-            }
-
-            // examples for abort mechanism
-            // in examples below, we do not abort the processing, but we could if the flag is set to true
-
-            // the callback is called before every encoder run - if it returns false, the processing is aborted
-            {
-                static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
-
-                wparams.encoder_begin_callback = [](struct whisper_context * /*ctx*/, struct whisper_state * /*state*/, void * user_data) {
-                    bool is_aborted = *(bool*)user_data;
-                    return !is_aborted;
-                };
-                wparams.encoder_begin_callback_user_data = &is_aborted;
-            }
-
-            // the callback is called before every computation - if it returns true, the computation is aborted
-            {
-                static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
-
-                wparams.abort_callback = [](void * user_data) {
-                    bool is_aborted = *(bool*)user_data;
-                    return is_aborted;
-                };
-                wparams.abort_callback_user_data = &is_aborted;
-            }
-
-            if (whisper_full_parallel(ctx, wparams, pcmf32.data(), pcmf32.size(), params.n_processors) != 0) {
-                fprintf(stderr, "%s: failed to process audio\n", argv[0]);
-                const std::string error_resp = "{\"error\":\"failed to process audio\"}";
-                res.set_content(error_resp, "application/json");
-                return;
-            }
-        }
-
-        // return results to user
-        if (params.response_format == text_format)
-        {
-            std::string results = output_str(ctx, params, pcmf32s);
-            res.set_content(results.c_str(), "text/html; charset=utf-8");
-        }
-        else if (params.response_format == srt_format)
-        {
-            std::stringstream ss;
-            const int n_segments = whisper_full_n_segments(ctx);
-            for (int i = 0; i < n_segments; ++i) {
-                const char * text = whisper_full_get_segment_text(ctx, i);
-                const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-                std::string speaker = "";
-
-                if (params.diarize && pcmf32s.size() == 2)
+            } else {
+                if (!::read_wav(audio_file.content, pcmf32, pcmf32s, instance->params.diarize))
                 {
-                    speaker = estimate_diarization_speaker(pcmf32s, t0, t1);
+                    fprintf(stderr, "error: failed to read WAV file\n");
+                    const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
+                    res.set_content(error_resp, "application/json");
+                    return;
                 }
-
-                ss << i + 1 + params.offset_n << "\n";
-                ss << to_timestamp(t0, true) << " --> " << to_timestamp(t1, true) << "\n";
-                ss << speaker << text << "\n\n";
             }
-            res.set_content(ss.str(), "application/x-subrip");
-        } else if (params.response_format == vtt_format) {
-            std::stringstream ss;
 
-            ss << "WEBVTT\n\n";
+            printf("Successfully loaded %s\n", filename.c_str());
 
-            const int n_segments = whisper_full_n_segments(ctx);
-            for (int i = 0; i < n_segments; ++i) {
-                const char * text = whisper_full_get_segment_text(ctx, i);
-                const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-                const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
-                std::string speaker = "";
-
-                if (params.diarize && pcmf32s.size() == 2)
-                {
-                    speaker = estimate_diarization_speaker(pcmf32s, t0, t1, true);
-                    speaker.insert(0, "<v Speaker");
-                    speaker.append(">");
-                }
-
-                ss << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
-                ss << speaker << text << "\n\n";
-            }
-            res.set_content(ss.str(), "text/vtt");
-        } else if (params.response_format == vjson_format) {
-            /* try to match openai/whisper's Python format */
-            std::string results = output_str(ctx, params, pcmf32s);
-            json jres = json{
-                {"task", params.translate ? "translate" : "transcribe"},
-                {"language", whisper_lang_str_full(whisper_full_lang_id(ctx))},
-                {"duration", float(pcmf32.size())/WHISPER_SAMPLE_RATE},
-                {"text", results},
-                {"segments", json::array()}
-            };
-            const int n_segments = whisper_full_n_segments(ctx);
-            for (int i = 0; i < n_segments; ++i)
+            // print system information
             {
-                json segment = json{
-                    {"id", i},
-                    {"text", whisper_full_get_segment_text(ctx, i)},
-                };
+                fprintf(stderr, "\n");
+                fprintf(stderr, "system_info: n_threads = %d / %d | %s\n",
+                        instance->params.n_threads*instance->params.n_processors, std::thread::hardware_concurrency(), whisper_print_system_info());
+            }
 
-                if (!params.no_timestamps) {
-                    segment["start"] = whisper_full_get_segment_t0(ctx, i) * 0.01;
-                    segment["end"] = whisper_full_get_segment_t1(ctx, i) * 0.01;
+            // print some info about the processing
+            {
+                fprintf(stderr, "\n");
+                if (!whisper_is_multilingual(instance->ctx)) {
+                    if (instance->params.language != "en" || instance->params.translate) {
+                        instance->params.language = "en";
+                        instance->params.translate = false;
+                        fprintf(stderr, "%s: WARNING: model is not multilingual, ignoring language and translation options\n", __func__);
+                    }
+                }
+                if (instance->params.detect_language) {
+                    instance->params.language = "auto";
+                }
+                fprintf(stderr, "%s: processing '%s' (%d samples, %.1f sec), %d threads, %d processors, lang = %s, task = %s, %stimestamps = %d ...\n",
+                        __func__, filename.c_str(), int(pcmf32.size()), float(pcmf32.size())/WHISPER_SAMPLE_RATE,
+                        instance->params.n_threads, instance->params.n_processors,
+                        instance->params.language.c_str(),
+                        instance->params.translate ? "translate" : "transcribe",
+                        instance->params.tinydiarize ? "tdrz = 1, " : "",
+                        instance->params.no_timestamps ? 0 : 1);
+
+                fprintf(stderr, "\n");
+            }
+
+            // run the inference
+            {
+                printf("Running whisper.cpp inference on %s\n", filename.c_str());
+                whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+
+                wparams.strategy = instance->params.beam_size > 1 ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY;
+
+                wparams.print_realtime   = false;
+                wparams.print_progress   = instance->params.print_progress;
+                wparams.print_timestamps = !instance->params.no_timestamps;
+                wparams.print_special    = instance->params.print_special;
+                wparams.translate        = instance->params.translate;
+                wparams.language         = instance->params.language.c_str();
+                wparams.detect_language  = instance->params.detect_language;
+                wparams.n_threads        = instance->params.n_threads;
+                wparams.n_max_text_ctx   = instance->params.max_context >= 0 ? instance->params.max_context : wparams.n_max_text_ctx;
+                wparams.offset_ms        = instance->params.offset_t_ms;
+                wparams.duration_ms      = instance->params.duration_ms;
+
+                wparams.thold_pt         = instance->params.word_thold;
+                wparams.max_len          = instance->params.max_len == 0 ? 60 : instance->params.max_len;
+                wparams.split_on_word    = instance->params.split_on_word;
+                wparams.audio_ctx        = instance->params.audio_ctx;
+
+                wparams.debug_mode       = instance->params.debug_mode;
+
+                wparams.tdrz_enable      = instance->params.tinydiarize; // [TDRZ]
+
+                wparams.initial_prompt   = instance->params.prompt.c_str();
+
+                wparams.greedy.best_of        = instance->params.best_of;
+                wparams.beam_search.beam_size = instance->params.beam_size;
+
+                wparams.temperature      = instance->params.temperature;
+                wparams.temperature_inc  = instance->params.temperature_inc;
+                wparams.entropy_thold    = instance->params.entropy_thold;
+                wparams.logprob_thold    = instance->params.logprob_thold;
+
+                wparams.no_timestamps    = instance->params.no_timestamps;
+                wparams.token_timestamps = !instance->params.no_timestamps && instance->params.response_format == whisper::vjson_format;
+
+                whisper_print_user_data user_data = { &instance->params, &pcmf32s, 0 };
+
+                // this callback is called on each new segment
+                if (instance->params.print_realtime) {
+                    wparams.new_segment_callback           = whisper_print_segment_callback;
+                    wparams.new_segment_callback_user_data = &user_data;
                 }
 
-                float total_logprob = 0;
-                const int n_tokens = whisper_full_n_tokens(ctx, i);
-                for (int j = 0; j < n_tokens; ++j) {
-                    whisper_token_data token = whisper_full_get_token_data(ctx, i, j);
-                    if (token.id >= whisper_token_eot(ctx)) {
-                        continue;
+                if (wparams.print_progress) {
+                    wparams.progress_callback           = whisper_print_progress_callback;
+                    wparams.progress_callback_user_data = &user_data;
+                }
+
+                // examples for abort mechanism
+                // in examples below, we do not abort the processing, but we could if the flag is set to true
+
+                // the callback is called before every encoder run - if it returns false, the processing is aborted
+                {
+                    static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
+
+                    wparams.encoder_begin_callback = [](struct whisper_context * /*ctx*/, struct whisper_state * /*state*/, void * user_data) {
+                        bool is_aborted = *(bool*)user_data;
+                        return !is_aborted;
+                    };
+                    wparams.encoder_begin_callback_user_data = &is_aborted;
+                }
+
+                // the callback is called before every computation - if it returns true, the computation is aborted
+                {
+                    static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
+
+                    wparams.abort_callback = [](void * user_data) {
+                        bool is_aborted = *(bool*)user_data;
+                        return is_aborted;
+                    };
+                    wparams.abort_callback_user_data = &is_aborted;
+                }
+
+                if (whisper_full_parallel(instance->ctx, wparams, pcmf32.data(), pcmf32.size(), instance->params.n_processors) != 0) {
+                    fprintf(stderr, "%s: failed to process audio\n", argv[0]);
+                    const std::string error_resp = "{\"error\":\"failed to process audio\"}";
+                    res.set_content(error_resp, "application/json");
+                    return;
+                }
+            }
+
+            // return results to user
+            if (instance->params.response_format == text_format)
+            {
+                std::string results = output_str(instance->ctx, instance->params, pcmf32s);
+                res.set_content(results.c_str(), "text/html; charset=utf-8");
+            }
+            else if (instance->params.response_format == srt_format)
+            {
+                std::stringstream ss;
+                const int n_segments = whisper_full_n_segments(instance->ctx);
+                for (int i = 0; i < n_segments; ++i) {
+                    const char * text = whisper_full_get_segment_text(instance->ctx, i);
+                    const int64_t t0 = whisper_full_get_segment_t0(instance->ctx, i);
+                    const int64_t t1 = whisper_full_get_segment_t1(instance->ctx, i);
+                    std::string speaker = "";
+
+                    if (instance->params.diarize && pcmf32s.size() == 2)
+                    {
+                        speaker = estimate_diarization_speaker(pcmf32s, t0, t1);
                     }
 
-                    segment["tokens"].push_back(token.id);
-                    json word = json{{"word", whisper_full_get_token_text(ctx, i, j)}};
-                    if (!params.no_timestamps) {
-                        word["start"] = token.t0 * 0.01;
-                        word["end"] = token.t1 * 0.01;
-                        word["t_dtw"] = token.t_dtw;
-                    }
-                    word["probability"] = token.p;
-                    total_logprob += token.plog;
-                    segment["words"].push_back(word);
+                    ss << i + 1 + instance->params.offset_n << "\n";
+                    ss << to_timestamp(t0, true) << " --> " << to_timestamp(t1, true) << "\n";
+                    ss << speaker << text << "\n\n";
                 }
+                res.set_content(ss.str(), "application/x-subrip");
+            } else if (instance->params.response_format == vtt_format) {
+                std::stringstream ss;
 
-                segment["temperature"] = params.temperature;
-                segment["avg_logprob"] = total_logprob / n_tokens;
+                ss << "WEBVTT\n\n";
 
-                // TODO compression_ratio and no_speech_prob are not implemented yet
-                // segment["compression_ratio"] = 0;
-                // segment["no_speech_prob"] = 0;
+                const int n_segments = whisper_full_n_segments(instance->ctx);
+                for (int i = 0; i < n_segments; ++i) {
+                    const char * text = whisper_full_get_segment_text(instance->ctx, i);
+                    const int64_t t0 = whisper_full_get_segment_t0(instance->ctx, i);
+                    const int64_t t1 = whisper_full_get_segment_t1(instance->ctx, i);
+                    std::string speaker = "";
 
-                jres["segments"].push_back(segment);
+                    if (instance->params.diarize && pcmf32s.size() == 2)
+                    {
+                        speaker = estimate_diarization_speaker(pcmf32s, t0, t1, true);
+                        speaker.insert(0, "<v Speaker");
+                        speaker.append(">");
+                    }
+
+                    ss << to_timestamp(t0) << " --> " << to_timestamp(t1) << "\n";
+                    ss << speaker << text << "\n\n";
+                }
+                res.set_content(ss.str(), "text/vtt");
+            } else if (instance->params.response_format == vjson_format) {
+                /* try to match openai/whisper's Python format */
+                std::string results = output_str(instance->ctx, instance->params, pcmf32s);
+                json jres = json{
+                    {"task", instance->params.translate ? "translate" : "transcribe"},
+                    {"language", whisper_lang_str_full(whisper_full_lang_id(instance->ctx))},
+                    {"duration", float(pcmf32.size())/WHISPER_SAMPLE_RATE},
+                    {"text", results},
+                    {"segments", json::array()}
+                };
+                const int n_segments = whisper_full_n_segments(instance->ctx);
+                for (int i = 0; i < n_segments; ++i)
+                {
+                    json segment = json{
+                        {"id", i},
+                        {"text", whisper_full_get_segment_text(instance->ctx, i)},
+                    };
+
+                    if (!instance->params.no_timestamps) {
+                        segment["start"] = whisper_full_get_segment_t0(instance->ctx, i) * 0.01;
+                        segment["end"] = whisper_full_get_segment_t1(instance->ctx, i) * 0.01;
+                    }
+
+                    float total_logprob = 0;
+                    const int n_tokens = whisper_full_n_tokens(instance->ctx, i);
+                    for (int j = 0; j < n_tokens; ++j) {
+                        whisper_token_data token = whisper_full_get_token_data(instance->ctx, i, j);
+                        if (token.id >= whisper_token_eot(instance->ctx)) {
+                            continue;
+                        }
+
+                        segment["tokens"].push_back(token.id);
+                        json word = json{{"word", whisper_full_get_token_text(instance->ctx, i, j)}};
+                        if (!instance->params.no_timestamps) {
+                            word["start"] = token.t0 * 0.01;
+                            word["end"] = token.t1 * 0.01;
+                            word["t_dtw"] = token.t_dtw;
+                        }
+                        word["probability"] = token.p;
+                        total_logprob += token.plog;
+                        segment["words"].push_back(word);
+                    }
+
+                    segment["temperature"] = instance->params.temperature;
+                    segment["avg_logprob"] = total_logprob / n_tokens;
+
+                    // TODO compression_ratio and no_speech_prob are not implemented yet
+                    // segment["compression_ratio"] = 0;
+                    // segment["no_speech_prob"] = 0;
+
+                    jres["segments"].push_back(segment);
+                }
+                res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
+                                "application/json");
             }
-            res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
-                            "application/json");
-        }
-        // TODO add more output formats
-        else
-        {
-            std::string results = output_str(ctx, params, pcmf32s);
-            json jres = json{
-                {"text", results}
-            };
-            res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
-                            "application/json");
-        }
+            // TODO add more output formats
+            else
+            {
+                std::string results = output_str(instance->ctx, instance->params, pcmf32s);
+                json jres = json{
+                    {"text", results}
+                };
+                res.set_content(jres.dump(-1, ' ', false, json::error_handler_t::replace),
+                                "application/json");
+            }
 
-        // reset params to their defaults
-        params = default_params;
+            // reset params to their defaults
+            instance->params = instance->default_params;
+        });
+
+        // Wait for the task to complete with timeout
+        auto status = future.wait_for(std::chrono::seconds(sparams.process_timeout));
+        if (status != std::future_status::ready) {
+            const std::string error_resp = "{\"error\":\"processing timeout\"}";
+            res.set_content(error_resp, "application/json");
+            return;
+        }
+        future.get();
     });
     svr.Post(sparams.request_path + "/load", [&](const Request &req, Response &res){
         std::lock_guard<std::mutex> lock(whisper_mutex);
@@ -969,19 +953,19 @@ int main(int argc, char ** argv) {
         }
 
         // clean up
-        whisper_free(ctx);
+        whisper_free(instance->ctx);
 
         // whisper init
-        ctx = whisper_init_from_file_with_params(model.c_str(), cparams);
+        instance->ctx = whisper_init_from_file_with_params(model.c_str(), cparams);
 
         // TODO perhaps load prior model here instead of exit
-        if (ctx == nullptr) {
+        if (instance->ctx == nullptr) {
             fprintf(stderr, "error: model init  failed, no model loaded must exit\n");
             exit(1);
         }
 
         // initialize openvino encoder. this has no effect on whisper.cpp builds that don't have OpenVINO configured
-        whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
+        whisper_ctx_init_openvino_encoder(instance->ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
 
         const std::string success = "Load was successful!";
         res.set_content(success, "application/text");
@@ -1029,13 +1013,27 @@ int main(int argc, char ** argv) {
     // to make it ctrl+clickable:
     printf("\nwhisper server listening at http://%s:%d\n\n", sparams.hostname.c_str(), sparams.port);
 
-    if (!svr.listen_after_bind())
-    {
-        return 1;
+    // Start server in a separate thread
+    std::thread server_thread([&svr]() { svr.listen_after_bind(); });
+
+    // Wait for shutdown signal
+    while (!should_exit) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    whisper_print_timings(ctx);
-    whisper_free(ctx);
+    printf("\nReceived shutdown signal, stopping server...\n");
+
+    // Stop the server
+    svr.stop();
+    
+    // Wait for server thread to finish
+    server_thread.join();
+
+    // Cleanup
+    thread_pool.shutdown();
+    whisper_pool.reset();
+
+    printf("Server shutdown complete\n");
 
     return 0;
 }

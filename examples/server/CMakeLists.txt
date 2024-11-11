@@ -1,5 +1,5 @@
 set(TARGET server)
-add_executable(${TARGET} server.cpp httplib.h)
+add_executable(${TARGET} server.cpp httplib.h thread_pool.h whisper_context.h whisper_params.h)
 
 include(DefaultTargetOptions)
 
