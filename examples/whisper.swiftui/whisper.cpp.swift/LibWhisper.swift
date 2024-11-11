@@ -119,8 +119,8 @@ actor WhisperContext {
 
         whisper_print_timings(context)
 
-        let deviceModel = UIDevice.current.model
-        let systemName = UIDevice.current.systemName
+        let deviceModel = await UIDevice.current.model
+        let systemName = await UIDevice.current.systemName
         let systemInfo = self.systemInfo()
         let timings: whisper_timings = whisper_get_timings(context).pointee
         let encodeMs = String(format: "%.2f", timings.encode_ms)
