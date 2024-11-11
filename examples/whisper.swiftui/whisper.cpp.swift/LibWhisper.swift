@@ -55,7 +55,7 @@ actor WhisperContext {
         return transcription
     }
 
-    func system_info() -> String {
+    private func systemInfo() -> String {
         var info = ""
         if (ggml_cpu_has_neon() != 0) { info += "NEON " }
         if (ggml_cpu_has_metal() != 0) { info += "METAL " }
@@ -63,7 +63,7 @@ actor WhisperContext {
         return String(info.dropLast())
     }
 
-    func bench_full(modelName: String) async -> String {
+    func benchFull(modelName: String) async -> String {
         let n_threads = Int32(min(4, cpuCount())) // Default in whisper.cpp
         
         let n_mels = whisper_model_n_mels(context)
@@ -118,7 +118,7 @@ actor WhisperContext {
 
         whisper_print_timings(context)
 
-        let system_info = self.system_info()
+        let system_info = self.systemInfo()
         let timings: whisper_timings = whisper_get_timings(context).pointee
         let encode_ms = String(format: "%.2f", timings.encode_ms)
         let decode_ms = String(format: "%.2f", timings.decode_ms)

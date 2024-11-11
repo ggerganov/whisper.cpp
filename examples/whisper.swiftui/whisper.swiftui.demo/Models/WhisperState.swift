@@ -2,7 +2,6 @@ import Foundation
 import SwiftUI
 import AVFoundation
 
-
 @MainActor
 class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
     @Published var isModelLoaded = false
@@ -56,7 +55,7 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             return
         }
         messageLog += "Benchmarking current model\n"
-        let result = await whisperContext?.bench_full(modelName: "<current>")
+        let result = await whisperContext?.benchFull(modelName: "<current>")
         if (result != nil) { messageLog += result! + "\n" }
     }
 
@@ -70,7 +69,7 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 messageLog += "Cannot bench without loaded model\n"
                 break
             }
-            let result = await whisperContext?.bench_full(modelName: model.name)
+            let result = await whisperContext?.benchFull(modelName: model.name)
             if (result != nil) { messageLog += result! + "\n" }
         }
         messageLog += "Benchmarking completed\n"
