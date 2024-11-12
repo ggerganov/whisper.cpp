@@ -56,6 +56,14 @@ actor WhisperContext {
         return transcription
     }
 
+    static func benchMemcpy(nThreads: Int32) async -> String {
+        return String.init(cString: whisper_bench_memcpy_str(nThreads))
+    }
+
+    static func benchGgmlMulMat(nThreads: Int32) async -> String {
+        return String.init(cString: whisper_bench_ggml_mul_mat_str(nThreads))
+    }
+
     private func systemInfo() -> String {
         var info = ""
         if (ggml_cpu_has_neon() != 0) { info += "NEON " }
@@ -64,9 +72,7 @@ actor WhisperContext {
         return String(info.dropLast())
     }
 
-    func benchFull(modelName: String) async -> String {
-        let nThreads = Int32(min(4, cpuCount())) // Default in whisper.cpp
-        
+    func benchFull(modelName: String, nThreads: Int32) async -> String {
         let nMels = whisper_model_n_mels(context)
         if (whisper_set_mel(context, nil, 0, nMels) != 0) {
             return "error: failed to set mel"

@@ -54,13 +54,21 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
             messageLog += "Cannot bench without loaded model\n"
             return
         }
-        messageLog += "Benchmarking current model\n"
-        let result = await whisperContext?.benchFull(modelName: "<current>")
+        messageLog += "Running benchmark for loaded model\n"
+        let result = await whisperContext?.benchFull(modelName: "<current>", nThreads: Int32(min(4, cpuCount())))
         if (result != nil) { messageLog += result! + "\n" }
     }
 
     func bench(models: [Model]) async {
-        messageLog += "Benchmarking models\n"
+        let nThreads = Int32(min(4, cpuCount()))
+
+//        messageLog += "Running memcpy benchmark\n"
+//        messageLog += await WhisperContext.benchMemcpy(nThreads: nThreads) + "\n"
+//
+//        messageLog += "Running ggml_mul_mat benchmark with \(nThreads) threads\n"
+//        messageLog += await WhisperContext.benchGgmlMulMat(nThreads: nThreads) + "\n"
+
+        messageLog += "Running benchmark for all downloaded models\n"
         messageLog += "| CPU | OS | Config | Model | Th | FA | Enc. | Dec. | Bch5 | PP | Commit |\n"
         messageLog += "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
         for model in models {
@@ -69,7 +77,7 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
                 messageLog += "Cannot bench without loaded model\n"
                 break
             }
-            let result = await whisperContext?.benchFull(modelName: model.name)
+            let result = await whisperContext?.benchFull(modelName: model.name, nThreads: nThreads)
             if (result != nil) { messageLog += result! + "\n" }
         }
         messageLog += "Benchmarking completed\n"
@@ -187,4 +195,9 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
     private func onDidFinishRecording() {
         isRecording = false
     }
+}
+
+
+fileprivate func cpuCount() -> Int {
+    ProcessInfo.processInfo.processorCount
 }
