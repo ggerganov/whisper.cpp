@@ -113,7 +113,7 @@ You can see model information:
 whisper = Whisper::Context.new("path/to/model.bin")
 model = whisper.model
 
-model.n_vocab # 51864
+model.n_vocab # => 51864
 model.n_audio_ctx # => 1500
 model.n_audio_state # => 512
 model.n_audio_head # => 8
@@ -134,17 +134,17 @@ You can set log callback:
 prefix = "[MyApp] "
 log_callback = ->(level, buffer, user_data) {
   case level
-  when Whisper::LOG_LEVEL::NONE
+  when Whisper::LOG_LEVEL_NONE
     puts "#{user_data}none: #{buffer}"
-  when Whisper::LOG_LEVEL::INFO
+  when Whisper::LOG_LEVEL_INFO
     puts "#{user_data}info: #{buffer}"
-  when Whisper::LOG_LEVEL::WARN
+  when Whisper::LOG_LEVEL_WARN
     puts "#{user_data}warn: #{buffer}"
-  when Whisper::LOG_LEVEL::ERROR
+  when Whisper::LOG_LEVEL_ERROR
     puts "#{user_data}error: #{buffer}"
-  when Whisper::LOG_LEVEL::DEBUG
+  when Whisper::LOG_LEVEL_DEBUG
     puts "#{user_data}debug: #{buffer}"
-  when Whisper::LOG_LEVEL::CONT
+  when Whisper::LOG_LEVEL_CONT
     puts "#{user_data}same to previous: #{buffer}"
   end
 }
