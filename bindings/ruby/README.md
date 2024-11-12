@@ -107,5 +107,28 @@ whisper.transcribe("path/to/audio.wav", params)
 
 ```
 
+You can set log callback:
+
+```ruby
+prefix = "[MyApp] "
+log_callback = ->(level, buffer, user_data) {
+  case level
+  when Whisper::LOG_LEVEL::NONE
+    puts "#{user_data}none: #{buffer}"
+  when Whisper::LOG_LEVEL::INFO
+    puts "#{user_data}info: #{buffer}"
+  when Whisper::LOG_LEVEL::WARN
+    puts "#{user_data}warn: #{buffer}"
+  when Whisper::LOG_LEVEL::ERROR
+    puts "#{user_data}error: #{buffer}"
+  when Whisper::LOG_LEVEL::DEBUG
+    puts "#{user_data}debug: #{buffer}"
+  when Whisper::LOG_LEVEL::CONT
+    puts "#{user_data}same to previous: #{buffer}"
+  end
+}
+Whisper.log_set log_callback, prefix
+```
+
 [whisper.cpp]: https://github.com/ggerganov/whisper.cpp
 [models]: https://github.com/ggerganov/whisper.cpp/tree/master/models
