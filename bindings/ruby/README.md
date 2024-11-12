@@ -107,6 +107,27 @@ whisper.transcribe("path/to/audio.wav", params)
 
 ```
 
+You can see model information:
+
+```ruby
+whisper = Whisper::Context.new("path/to/model.bin")
+model = whisper.model
+
+model.n_vocab # 51864
+model.n_audio_ctx # => 1500
+model.n_audio_state # => 512
+model.n_audio_head # => 8
+model.n_audio_layer # => 6
+model.n_text_ctx # => 448
+model.n_text_state # => 512
+model.n_text_head # => 8
+model.n_text_layer # => 6
+model.n_mels # => 80
+model.ftype # => 1
+model.type # => "base"
+
+```
+
 You can set log callback:
 
 ```ruby
