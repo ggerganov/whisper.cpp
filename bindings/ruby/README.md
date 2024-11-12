@@ -130,5 +130,19 @@ log_callback = ->(level, buffer, user_data) {
 Whisper.log_set log_callback, prefix
 ```
 
+Using this feature, you are also able to suppress log:
+
+```ruby
+Whisper.log_set ->(level, buffer, user_data) {
+  # do nothing
+}, nil
+Whisper::Context.new(MODEL)
+```
+
+License
+-------
+
+The same to [whisper.cpp][].
+
 [whisper.cpp]: https://github.com/ggerganov/whisper.cpp
 [models]: https://github.com/ggerganov/whisper.cpp/tree/master/models
