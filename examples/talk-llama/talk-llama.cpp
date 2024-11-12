@@ -66,6 +66,7 @@ struct whisper_params {
     bool verbose_prompt = false;
     bool use_gpu        = true;
     bool flash_attn     = false;
+    bool inf = false;
 
     std::string person      = "Georgi";
     std::string bot_name    = "LLaMA";
@@ -105,6 +106,7 @@ static bool whisper_params_parse(int argc, char ** argv, whisper_params & params
         else if (arg == "-vp"  || arg == "--verbose-prompt") { params.verbose_prompt = true; }
         else if (arg == "-ng"  || arg == "--no-gpu")         { params.use_gpu        = false; }
         else if (arg == "-fa"  || arg == "--flash-attn")     { params.flash_attn     = true; }
+        else if (arg == "-inf" || arg == "--infinite")       { params.inf            = true; }
         else if (arg == "-p"   || arg == "--person")         { params.person         = argv[++i]; }
         else if (arg == "-bn"   || arg == "--bot-name")      { params.bot_name       = argv[++i]; }
         else if (arg == "--session")                         { params.path_session   = argv[++i]; }
@@ -165,6 +167,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  --prompt-file FNAME        [%-7s] file with custom prompt to start dialog\n",     "");
     fprintf(stderr, "  --session FNAME                   file to cache model state in (may be large!) (default: none)\n");
     fprintf(stderr, "  -f FNAME, --file FNAME     [%-7s] text output file name\n",                       params.fname_out.c_str());
+    fprintf(stderr, "  -inf, --infinite-text      [%-7s] infinite text\n",                               params.flash_attn ? "true" : "false");
     fprintf(stderr, "\n");
 }
 
@@ -647,12 +650,23 @@ int main(int argc, char ** argv) {
                     // predict
                     if (embd.size() > 0) {
                         if (n_past + (int) embd.size() > n_ctx) {
-                            n_past = n_keep;
+                            //n_past = n_keep;
+                            if ((params.inf == true)  && (n_past + (int) embd.size() >= n_ctx - (int)10) && (n_past != n_keep)) { //checks if infinite context is enabled and if the total number of tokens processed so far  + the suze of embd is greater than the context size
+                                //std::cout<<"\nCache will be adjusted\n";
+                                //std::cout << "Number of tokens already processed (n_past): " << n_past << "\n";
+                                //std::cout << "Number of tokens in n_keep: " << (int) n_keep << "\n";
+                                const int n_left = n_past - n_keep; //the number of tokens beyond the ones we want to keep
+                                const int n_discard = n_left; //we decide to discard half of the tokens beyond the ones we want to keep
+                                //std::cout << "Number of tokens to discard: " << n_discard << "\n";
+                                llama_kv_cache_seq_rm(ctx_llama, 0, n_keep            , n_keep + n_discard); //the number of tokens beyond the on
+                                llama_kv_cache_seq_add(ctx_llama, 0, n_keep + n_discard, n_past, -n_discard); // this function is adjusting the cache by 
 
+                                n_past -= n_discard;
+                                continue;
                             // insert n_left/2 tokens at the start of embd from last_n_tokens
-                            embd.insert(embd.begin(), embd_inp.begin() + embd_inp.size() - n_prev, embd_inp.end());
+                            //embd.insert(embd.begin(), embd_inp.begin() + embd_inp.size() - n_prev, embd_inp.end());
                             // stop saving session if we run out of context
-                            path_session = "";
+                            //path_session = "";
                             //printf("\n---\n");
                             //printf("resetting: '");
                             //for (int i = 0; i < (int) embd.size(); i++) {
