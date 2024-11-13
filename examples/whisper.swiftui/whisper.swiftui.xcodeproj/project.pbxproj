@@ -17,6 +17,8 @@
 		0AAC5D9F29539CD0003032C3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0AAC5D9E29539CD0003032C3 /* Assets.xcassets */; };
 		0AAC5DCE2953A05C003032C3 /* WhisperState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5DCD2953A05C003032C3 /* WhisperState.swift */; };
 		0AAC5DD12953A394003032C3 /* LibWhisper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5DD02953A394003032C3 /* LibWhisper.swift */; };
+		7F79E0EE2CE0A78000ACD7BF /* DownloadButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F79E0ED2CE0A78000ACD7BF /* DownloadButton.swift */; };
+		7F79E0F02CE0C6F700ACD7BF /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F79E0EF2CE0C6F700ACD7BF /* Model.swift */; };
 		E3F92DC52AFA8E3800A6A9D4 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = E3F92DC42AFA8E3800A6A9D4 /* whisper */; };
 /* End PBXBuildFile section */
 
@@ -33,6 +35,8 @@
 		0AAC5DA029539CD0003032C3 /* WhisperCppDemo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WhisperCppDemo.entitlements; sourceTree = "<group>"; };
 		0AAC5DCD2953A05C003032C3 /* WhisperState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperState.swift; sourceTree = "<group>"; };
 		0AAC5DD02953A394003032C3 /* LibWhisper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibWhisper.swift; sourceTree = "<group>"; };
+		7F79E0ED2CE0A78000ACD7BF /* DownloadButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadButton.swift; sourceTree = "<group>"; };
+		7F79E0EF2CE0C6F700ACD7BF /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		E3F92DC22AFA8DD800A6A9D4 /* whisper.cpp */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = whisper.cpp; path = ../..; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -52,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				0AAC5DCD2953A05C003032C3 /* WhisperState.swift */,
+				7F79E0EF2CE0C6F700ACD7BF /* Model.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -119,6 +124,7 @@
 			isa = PBXGroup;
 			children = (
 				0AAC5D9C29539CCF003032C3 /* ContentView.swift */,
+				7F79E0ED2CE0A78000ACD7BF /* DownloadButton.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -220,7 +226,9 @@
 				0AAC5DCE2953A05C003032C3 /* WhisperState.swift in Sources */,
 				0AAC5DD12953A394003032C3 /* LibWhisper.swift in Sources */,
 				0AA7514C2953B569001EE061 /* RiffWaveUtils.swift in Sources */,
+				7F79E0EE2CE0A78000ACD7BF /* DownloadButton.swift in Sources */,
 				0AA7514E2953D958001EE061 /* Recorder.swift in Sources */,
+				7F79E0F02CE0C6F700ACD7BF /* Model.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
