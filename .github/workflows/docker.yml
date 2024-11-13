@@ -45,7 +45,7 @@ jobs:
         with:
           context: .
           push: true
-          platforms: ${{ matrix.config.platforms }}
+          platforms: ${{ matrix.config.platform }}
           tags: "ghcr.io/${{ github.repository }}:${{ matrix.config.tag }}-${{ env.COMMIT_SHA }}"
           file: ${{ matrix.config.dockerfile }}
 
@@ -54,6 +54,6 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name == 'push' }}
-          platforms: ${{ matrix.config.platforms }}
+          platforms: ${{ matrix.config.platform }}
           tags: "ghcr.io/${{ github.repository }}:${{ matrix.config.tag }}"
           file: ${{ matrix.config.dockerfile }}
