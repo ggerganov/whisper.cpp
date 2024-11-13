@@ -1,7 +1,6 @@
-require 'test/unit'
-require 'whisper'
+require_relative "helper"
 
-class TestParams < Test::Unit::TestCase
+class TestParams < TestBase
   def setup
     @params  = Whisper::Params.new
   end

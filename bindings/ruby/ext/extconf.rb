@@ -2,6 +2,9 @@ require 'mkmf'
 
 # need to use c++ compiler flags
 $CXXFLAGS << ' -std=c++11'
+
+$LDFLAGS << ' -lstdc++'
+
 # Set to true when building binary gems
 if enable_config('static-stdlib', false)
   $LDFLAGS << ' -static-libgcc -static-libstdc++'
@@ -10,34 +13,6 @@ end
 if enable_config('march-tune-native', false)
   $CFLAGS << ' -march=native -mtune=native'
   $CXXFLAGS << ' -march=native -mtune=native'
-end
-
-def with_disabling_unsupported_files
-  disabled_files = []
-
-  unless $GGML_METAL
-    disabled_files << 'ggml-metal.h' << 'ggml-metal.m'
-  end
-
-  unless $GGML_METAL_EMBED_LIBRARY
-    disabled_files << 'ggml-metal.metal'
-  end
-
-  unless $OBJ_ALL&.include? 'ggml-blas.o'
-    disabled_files << 'ggml-blas.h' << 'ggml-blas.cpp'
-  end
-
-  disabled_files.filter! {|file| File.exist? file}
-
-  disabled_files.each do |file|
-    File.rename file, "#{file}.disabled"
-  end
-
-  yield
-
-  disabled_files.each do |file|
-    File.rename "#{file}.disabled", file
-  end
 end
 
 if ENV['WHISPER_METAL']
@@ -66,10 +41,10 @@ $MK_CXXFLAGS = '-std=c++11 -fPIC'
 $MK_NVCCFLAGS = '-std=c++11'
 $MK_LDFLAGS = ''
 
-$OBJ_GGML = ''
-$OBJ_WHISPER = ''
-$OBJ_COMMON = ''
-$OBJ_SDL = ''
+$OBJ_GGML = []
+$OBJ_WHISPER = []
+$OBJ_COMMON = []
+$OBJ_SDL = []
 
 $MK_CPPFLAGS << ' -D_XOPEN_SOURCE=600'
 
@@ -152,7 +127,7 @@ unless ENV['GGML_NO_ACCELERATE']
     $MK_CPPFLAGS << ' -DACCELERATE_NEW_LAPACK'
     $MK_CPPFLAGS << ' -DACCELERATE_LAPACK_ILP64'
     $MK_LDFLAGS  << ' -framework Accelerate'
-    $OBJ_GGML    << ' ggml-blas.o'
+    $OBJ_GGML    << 'ggml-blas.o'
   end
 end
 
@@ -160,20 +135,20 @@ if ENV['GGML_OPENBLAS']
   $MK_CPPFLAGS << " -DGGML_USE_BLAS #{`pkg-config --cflags-only-I openblas`.chomp}"
   $MK_CFLAGS   << " #{`pkg-config --cflags-only-other openblas)`.chomp}"
   $MK_LDFLAGS  << " #{`pkg-config --libs openblas`}"
-  $OBJ_GGML    << ' ggml-blas.o'
+  $OBJ_GGML    << 'ggml-blas.o'
 end
 
 if ENV['GGML_OPENBLAS64']
   $MK_CPPFLAGS << " -DGGML_USE_BLAS #{`pkg-config --cflags-only-I openblas64`.chomp}"
   $MK_CFLAGS   << " #{`pkg-config --cflags-only-other openblas64)`.chomp}"
   $MK_LDFLAGS  << " #{`pkg-config --libs openblas64`}"
-  $OBJ_GGML    << ' ggml-blas.o'
+  $OBJ_GGML    << 'ggml-blas.o'
 end
 
 if $GGML_METAL
   $MK_CPPFLAGS << ' -DGGML_USE_METAL'
   $MK_LDFLAGS  << ' -framework Foundation -framework Metal -framework MetalKit'
-  $OBJ_GGML    << ' ggml-metal.o'
+  $OBJ_GGML    << 'ggml-metal.o'
 
   if ENV['GGML_METAL_NDEBUG']
     $MK_CPPFLAGS << ' -DGGML_METAL_NDEBUG'
@@ -181,21 +156,22 @@ if $GGML_METAL
 
   if $GGML_METAL_EMBED_LIBRARY
     $MK_CPPFLAGS << ' -DGGML_METAL_EMBED_LIBRARY'
-    $OBJ_GGML    << ' ggml-metal-embed.o'
+    $OBJ_GGML    << 'ggml-metal-embed.o'
   end
 end
 
 $OBJ_GGML <<
-  ' ggml.o' <<
-  ' ggml-alloc.o' <<
-  ' ggml-backend.o' <<
-  ' ggml-quants.o' <<
-  ' ggml-aarch64.o'
+  'ggml.o' <<
+  'ggml-alloc.o' <<
+  'ggml-backend.o' <<
+  'ggml-quants.o' <<
+  'ggml-aarch64.o'
 
 $OBJ_WHISPER <<
-  ' whisper.o'
+  'whisper.o'
 
-$OBJ_ALL = "#{$OBJ_GGML} #{$OBJ_WHISPER} #{$OBJ_COMMON} #{$OBJ_SDL}"
+$objs = $OBJ_GGML + $OBJ_WHISPER + $OBJ_COMMON + $OBJ_SDL
+$objs << "ruby_whisper.o"
 
 $CPPFLAGS  = "#{$MK_CPPFLAGS} #{$CPPFLAGS}"
 $CFLAGS    = "#{$CPPFLAGS} #{$MK_CFLAGS} #{$GF_CFLAGS} #{$CFLAGS}"
@@ -204,26 +180,13 @@ $CXXFLAGS  = "#{$BASE_CXXFLAGS} #{$HOST_CXXFLAGS} #{$GF_CXXFLAGS} #{$CPPFLAGS}"
 $NVCCFLAGS = "#{$MK_NVCCFLAGS} #{$NVCCFLAGS}"
 $LDFLAGS   = "#{$MK_LDFLAGS} #{$LDFLAGS}"
 
-if $GGML_METAL_EMBED_LIBRARY
-  File.write 'depend', "$(OBJS): $(OBJS) ggml-metal-embed.o\n"
-end
-
-with_disabling_unsupported_files do
-
-  create_makefile('whisper')
-
-end
+create_makefile('whisper')
 
 File.open 'Makefile', 'a' do |file|
   file.puts 'include get-flags.mk'
 
   if $GGML_METAL
     if $GGML_METAL_EMBED_LIBRARY
-      # mkmf determines object files to compile dependent on existing *.{c,cpp,m} files
-      # but ggml-metal-embed.c doesn't exist on creating Makefile.
-      file.puts "objs := $(OBJS)"
-      file.puts "OBJS = $(objs) 'ggml-metal-embed.o'"
-
       file.puts 'include metal-embed.mk'
     end
   end
