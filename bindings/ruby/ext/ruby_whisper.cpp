@@ -41,6 +41,8 @@ static ID id_call;
 static ID id___method__;
 static ID id_to_enum;
 
+static bool is_log_callback_finalized = false;
+
 /*
  * call-seq:
  *   lang_max_id -> Integer
@@ -86,6 +88,39 @@ static VALUE ruby_whisper_s_lang_str_full(VALUE self, VALUE id) {
     rb_raise(rb_eIndexError, "id %d outside of language id", lang_id);
   }
   return rb_str_new2(str_full);
+}
+
+static VALUE ruby_whisper_s_finalize_log_callback(VALUE self, VALUE id) {
+  is_log_callback_finalized = true;
+  return Qnil;
+}
+
+/*
+ * call-seq:
+ *   log_set ->(level, buffer, user_data) { ... }, user_data -> nil
+ */
+static VALUE ruby_whisper_s_log_set(VALUE self, VALUE log_callback, VALUE user_data) {
+  VALUE old_callback = rb_iv_get(self, "@log_callback");
+  if (!NIL_P(old_callback)) {
+    rb_undefine_finalizer(old_callback);
+  }
+
+  rb_iv_set(self, "@log_callback", log_callback);
+  rb_iv_set(self, "@user_data", user_data);
+
+  VALUE finalize_log_callback = rb_funcall(mWhisper, rb_intern("method"), 1, rb_str_new2("finalize_log_callback"));
+  rb_define_finalizer(log_callback, finalize_log_callback);
+
+  whisper_log_set([](ggml_log_level level, const char * buffer, void * user_data) {
+    if (is_log_callback_finalized) {
+      return;
+    }
+    VALUE log_callback = rb_iv_get(mWhisper, "@log_callback");
+    VALUE udata = rb_iv_get(mWhisper, "@user_data");
+    rb_funcall(log_callback, id_call, 3, INT2NUM(level), rb_str_new2(buffer), udata);
+  }, nullptr);
+
+  return Qnil;
 }
 
 static void ruby_whisper_free(ruby_whisper *rw) {
@@ -387,6 +422,126 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
     rb_funcall(blk, idCall, 1, output);
   }
   return self;
+}
+
+/*
+ * call-seq:
+ *   model_n_vocab -> Integer
+ */
+VALUE ruby_whisper_model_n_vocab(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_vocab(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_audio_ctx -> Integer
+ */
+VALUE ruby_whisper_model_n_audio_ctx(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_ctx(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_audio_state -> Integer
+ */
+VALUE ruby_whisper_model_n_audio_state(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_state(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_audio_head -> Integer
+ */
+VALUE ruby_whisper_model_n_audio_head(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_head(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_audio_layer -> Integer
+ */
+VALUE ruby_whisper_model_n_audio_layer(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_layer(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_text_ctx -> Integer
+ */
+VALUE ruby_whisper_model_n_text_ctx(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_ctx(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_text_state -> Integer
+ */
+VALUE ruby_whisper_model_n_text_state(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_state(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_text_head -> Integer
+ */
+VALUE ruby_whisper_model_n_text_head(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_head(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_text_layer -> Integer
+ */
+VALUE ruby_whisper_model_n_text_layer(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_layer(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_n_mels -> Integer
+ */
+VALUE ruby_whisper_model_n_mels(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_mels(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_ftype -> Integer
+ */
+VALUE ruby_whisper_model_ftype(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return INT2NUM(whisper_model_ftype(rw->context));
+}
+
+/*
+ * call-seq:
+ *   model_type -> String
+ */
+VALUE ruby_whisper_model_type(VALUE self) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  return rb_str_new2(whisper_model_type_readable(rw->context));
 }
 
 /*
@@ -1015,7 +1170,12 @@ typedef struct {
   int index;
 } ruby_whisper_segment;
 
+typedef struct {
+  VALUE context;
+} ruby_whisper_model;
+
 VALUE cSegment;
+VALUE cModel;
 
 static void rb_whisper_segment_mark(ruby_whisper_segment *rws) {
   rb_gc_mark(rws->context);
@@ -1188,6 +1348,176 @@ static VALUE ruby_whisper_segment_get_text(VALUE self) {
   return rb_str_new2(text);
 }
 
+static void rb_whisper_model_mark(ruby_whisper_model *rwm) {
+  rb_gc_mark(rwm->context);
+}
+
+static VALUE ruby_whisper_model_allocate(VALUE klass) {
+  ruby_whisper_model *rwm;
+  rwm = ALLOC(ruby_whisper_model);
+  return Data_Wrap_Struct(klass, rb_whisper_model_mark, RUBY_DEFAULT_FREE, rwm);
+}
+
+static VALUE rb_whisper_model_initialize(VALUE context) {
+  ruby_whisper_model *rwm;
+  const VALUE model = ruby_whisper_model_allocate(cModel);
+  Data_Get_Struct(model, ruby_whisper_model, rwm);
+  rwm->context = context;
+  return model;
+};
+
+/*
+ * call-seq:
+ *   model -> Whisper::Model
+ */
+static VALUE ruby_whisper_get_model(VALUE self) {
+  return rb_whisper_model_initialize(self);
+}
+
+/*
+ * call-seq:
+ *   n_vocab -> Integer
+ */
+static VALUE ruby_whisper_c_model_n_vocab(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_vocab(rw->context));
+}
+
+/*
+ * call-seq:
+ *   n_audio_ctx -> Integer
+ */
+static VALUE ruby_whisper_c_model_n_audio_ctx(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_ctx(rw->context));
+}
+
+/*
+ * call-seq:
+ *   n_audio_state -> Integer
+ */
+static VALUE ruby_whisper_c_model_n_audio_state(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_state(rw->context));
+}
+
+/*
+ * call-seq:
+ *   n_audio_head -> Integer
+ */
+static VALUE ruby_whisper_c_model_n_audio_head(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_head(rw->context));
+}
+
+/*
+ * call-seq:
+ *   n_audio_layer -> Integer
+ */
+static VALUE ruby_whisper_c_model_n_audio_layer(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_audio_layer(rw->context));
+}
+
+/*
+ * call-seq:
+ *   n_text_ctx -> Integer
+ */
+static VALUE ruby_whisper_c_model_n_text_ctx(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_ctx(rw->context));
+}
+
+/*
+ * call-seq:
+ *   n_text_state -> Integer
+ */
+static VALUE ruby_whisper_c_model_n_text_state(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_state(rw->context));
+}
+
+/*
+ * call-seq:
+ *   n_text_head -> Integer
+ */
+static VALUE ruby_whisper_c_model_n_text_head(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_head(rw->context));
+}
+
+/*
+ * call-seq:
+ *   n_text_layer -> Integer
+ */
+static VALUE ruby_whisper_c_model_n_text_layer(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_text_layer(rw->context));
+}
+
+/*
+ * call-seq:
+ *   n_mels -> Integer
+ */
+static VALUE ruby_whisper_c_model_n_mels(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_n_mels(rw->context));
+}
+
+/*
+ * call-seq:
+ *   ftype -> Integer
+ */
+static VALUE ruby_whisper_c_model_ftype(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return INT2NUM(whisper_model_ftype(rw->context));
+}
+
+/*
+ * call-seq:
+ *   type -> String
+ */
+static VALUE ruby_whisper_c_model_type(VALUE self) {
+  ruby_whisper_model *rwm;
+  Data_Get_Struct(self, ruby_whisper_model, rwm);
+  ruby_whisper *rw;
+  Data_Get_Struct(rwm->context, ruby_whisper, rw);
+  return rb_str_new2(whisper_model_type_readable(rw->context));
+}
+
 void Init_whisper() {
   id_to_s = rb_intern("to_s");
   id_call = rb_intern("call");
@@ -1198,15 +1528,36 @@ void Init_whisper() {
   cContext = rb_define_class_under(mWhisper, "Context", rb_cObject);
   cParams  = rb_define_class_under(mWhisper, "Params", rb_cObject);
 
+  rb_define_const(mWhisper, "LOG_LEVEL_NONE", INT2NUM(GGML_LOG_LEVEL_NONE));
+  rb_define_const(mWhisper, "LOG_LEVEL_INFO", INT2NUM(GGML_LOG_LEVEL_INFO));
+  rb_define_const(mWhisper, "LOG_LEVEL_WARN", INT2NUM(GGML_LOG_LEVEL_WARN));
+  rb_define_const(mWhisper, "LOG_LEVEL_ERROR", INT2NUM(GGML_LOG_LEVEL_ERROR));
+  rb_define_const(mWhisper, "LOG_LEVEL_DEBUG", INT2NUM(GGML_LOG_LEVEL_DEBUG));
+  rb_define_const(mWhisper, "LOG_LEVEL_CONT", INT2NUM(GGML_LOG_LEVEL_CONT));
+
   rb_define_singleton_method(mWhisper, "lang_max_id", ruby_whisper_s_lang_max_id, 0);
   rb_define_singleton_method(mWhisper, "lang_id", ruby_whisper_s_lang_id, 1);
   rb_define_singleton_method(mWhisper, "lang_str", ruby_whisper_s_lang_str, 1);
   rb_define_singleton_method(mWhisper, "lang_str_full", ruby_whisper_s_lang_str_full, 1);
+  rb_define_singleton_method(mWhisper, "log_set", ruby_whisper_s_log_set, 2);
+  rb_define_singleton_method(mWhisper, "finalize_log_callback", ruby_whisper_s_finalize_log_callback, 1);
 
   rb_define_alloc_func(cContext, ruby_whisper_allocate);
   rb_define_method(cContext, "initialize", ruby_whisper_initialize, -1);
 
   rb_define_method(cContext, "transcribe", ruby_whisper_transcribe, -1);
+  rb_define_method(cContext, "model_n_vocab", ruby_whisper_model_n_vocab, 0);
+  rb_define_method(cContext, "model_n_audio_ctx", ruby_whisper_model_n_audio_ctx, 0);
+  rb_define_method(cContext, "model_n_audio_state", ruby_whisper_model_n_audio_state, 0);
+  rb_define_method(cContext, "model_n_audio_head", ruby_whisper_model_n_audio_head, 0);
+  rb_define_method(cContext, "model_n_audio_layer", ruby_whisper_model_n_audio_layer, 0);
+  rb_define_method(cContext, "model_n_text_ctx", ruby_whisper_model_n_text_ctx, 0);
+  rb_define_method(cContext, "model_n_text_state", ruby_whisper_model_n_text_state, 0);
+  rb_define_method(cContext, "model_n_text_head", ruby_whisper_model_n_text_head, 0);
+  rb_define_method(cContext, "model_n_text_layer", ruby_whisper_model_n_text_layer, 0);
+  rb_define_method(cContext, "model_n_mels", ruby_whisper_model_n_mels, 0);
+  rb_define_method(cContext, "model_ftype", ruby_whisper_model_ftype, 0);
+  rb_define_method(cContext, "model_type", ruby_whisper_model_type, 0);
   rb_define_method(cContext, "full_n_segments", ruby_whisper_full_n_segments, 0);
   rb_define_method(cContext, "full_lang_id", ruby_whisper_full_lang_id, 0);
   rb_define_method(cContext, "full_get_segment_t0", ruby_whisper_full_get_segment_t0, 1);
@@ -1284,6 +1635,22 @@ void Init_whisper() {
   rb_define_method(cSegment, "end_time", ruby_whisper_segment_get_end_time, 0);
   rb_define_method(cSegment, "speaker_next_turn?", ruby_whisper_segment_get_speaker_turn_next, 0);
   rb_define_method(cSegment, "text", ruby_whisper_segment_get_text, 0);
+
+  cModel = rb_define_class_under(mWhisper, "Model", rb_cObject);
+  rb_define_alloc_func(cModel, ruby_whisper_model_allocate);
+  rb_define_method(cContext, "model", ruby_whisper_get_model, 0);
+  rb_define_method(cModel, "n_vocab", ruby_whisper_c_model_n_vocab, 0);
+  rb_define_method(cModel, "n_audio_ctx", ruby_whisper_c_model_n_audio_ctx, 0);
+  rb_define_method(cModel, "n_audio_state", ruby_whisper_c_model_n_audio_state, 0);
+  rb_define_method(cModel, "n_audio_head", ruby_whisper_c_model_n_audio_head, 0);
+  rb_define_method(cModel, "n_audio_layer", ruby_whisper_c_model_n_audio_layer, 0);
+  rb_define_method(cModel, "n_text_ctx", ruby_whisper_c_model_n_text_ctx, 0);
+  rb_define_method(cModel, "n_text_state", ruby_whisper_c_model_n_text_state, 0);
+  rb_define_method(cModel, "n_text_head", ruby_whisper_c_model_n_text_head, 0);
+  rb_define_method(cModel, "n_text_layer", ruby_whisper_c_model_n_text_layer, 0);
+  rb_define_method(cModel, "n_mels", ruby_whisper_c_model_n_mels, 0);
+  rb_define_method(cModel, "ftype", ruby_whisper_c_model_ftype, 0);
+  rb_define_method(cModel, "type", ruby_whisper_c_model_type, 0);
 }
 #ifdef __cplusplus
 }

@@ -107,5 +107,63 @@ whisper.transcribe("path/to/audio.wav", params)
 
 ```
 
+You can see model information:
+
+```ruby
+whisper = Whisper::Context.new("path/to/model.bin")
+model = whisper.model
+
+model.n_vocab # => 51864
+model.n_audio_ctx # => 1500
+model.n_audio_state # => 512
+model.n_audio_head # => 8
+model.n_audio_layer # => 6
+model.n_text_ctx # => 448
+model.n_text_state # => 512
+model.n_text_head # => 8
+model.n_text_layer # => 6
+model.n_mels # => 80
+model.ftype # => 1
+model.type # => "base"
+
+```
+
+You can set log callback:
+
+```ruby
+prefix = "[MyApp] "
+log_callback = ->(level, buffer, user_data) {
+  case level
+  when Whisper::LOG_LEVEL_NONE
+    puts "#{user_data}none: #{buffer}"
+  when Whisper::LOG_LEVEL_INFO
+    puts "#{user_data}info: #{buffer}"
+  when Whisper::LOG_LEVEL_WARN
+    puts "#{user_data}warn: #{buffer}"
+  when Whisper::LOG_LEVEL_ERROR
+    puts "#{user_data}error: #{buffer}"
+  when Whisper::LOG_LEVEL_DEBUG
+    puts "#{user_data}debug: #{buffer}"
+  when Whisper::LOG_LEVEL_CONT
+    puts "#{user_data}same to previous: #{buffer}"
+  end
+}
+Whisper.log_set log_callback, prefix
+```
+
+Using this feature, you are also able to suppress log:
+
+```ruby
+Whisper.log_set ->(level, buffer, user_data) {
+  # do nothing
+}, nil
+Whisper::Context.new(MODEL)
+```
+
+License
+-------
+
+The same to [whisper.cpp][].
+
 [whisper.cpp]: https://github.com/ggerganov/whisper.cpp
 [models]: https://github.com/ggerganov/whisper.cpp/tree/master/models
