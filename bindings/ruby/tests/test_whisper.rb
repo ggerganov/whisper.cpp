@@ -124,4 +124,48 @@ class TestWhisper < TestBase
   ensure
     $stderr = stderr
   end
+
+  sub_test_case "full" do
+    def setup
+      super
+      @whisper = Whisper::Context.new(MODEL)
+      @samples = File.read(AUDIO, nil, 78).unpack("s<*").collect {|i| i.to_f / 2**15}
+    end
+
+    def test_full
+      @whisper.full(@params, @samples, @samples.length)
+
+      assert_equal 1, @whisper.full_n_segments
+      assert_match /ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text
+    end
+
+    def test_full_without_length
+      @whisper.full(@params, @samples)
+
+      assert_equal 1, @whisper.full_n_segments
+      assert_match /ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text
+    end
+
+    def test_full_enumerator
+      samples = @samples.each
+      @whisper.full(@params, samples, @samples.length)
+
+      assert_equal 1, @whisper.full_n_segments
+      assert_match /ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text
+    end
+
+    def test_full_enumerator_without_length
+      samples = @samples.each
+      assert_raise ArgumentError do
+        @whisper.full(@params, samples)
+      end
+    end
+
+    def test_full_enumerator_with_too_large_length
+      samples = @samples.each.take(10).to_enum
+      assert_raise StopIteration do
+        @whisper.full(@params, samples, 11)
+      end
+    end
+  end
 end
