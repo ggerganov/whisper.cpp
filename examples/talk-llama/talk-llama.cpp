@@ -659,7 +659,7 @@ int main(int argc, char ** argv) {
                 while (true) {
                     // predict
                     if (embd.size() > 0) {
-                        if (params.infinite_inference && (n_past + (int) embd.size() > n_ctx)) {
+                        if (params.infinite_inference && (n_past + (int) embd.size() > n_ctx) && n_past != n_keep) {
                             std::cout<<"\nInfinite context enabled\n";
                             const int n_left = n_past - n_keep; //the number of tokens beyond the ones we want to keep
                             const int n_discard = n_left/2; //we decide to discard half of the tokens beyond the ones we want to keep
