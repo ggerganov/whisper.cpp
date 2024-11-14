@@ -548,6 +548,7 @@ VALUE ruby_whisper_model_type(VALUE self) {
 /*
  * call-seq:
  *   full(params, samples, n_samples) -> nil
+ *   full(params, samples) -> nil
  *
  * @todo Accept MemoryView as +samples+
  */
