@@ -160,6 +160,23 @@ Whisper.log_set ->(level, buffer, user_data) {
 Whisper::Context.new(MODEL)
 ```
 
+You can also call `Whisper::Context#full` with a Ruby array as samples. Although `#transcribe` with audio file path is recommended because it extracts PCM samples in C++ and is fast, `#full` give you flexibility.
+
+```ruby
+require "whisper"
+require "wavefile"
+
+reader = WaveFile::Reader.new("path/to/audio.wav", WaveFile::Format.new(:mono, :float, 16000))
+samples = reader.enum_for(:each_buffer).map(&:samples).flatten
+
+whisper = Whisper::Context.new("path/to/model.bin")
+whisper.full(Whisper::Params.new, samples)
+whisper.each_segment do |segment|
+  puts segment.text
+end
+```
+
+
 License
 -------
 
