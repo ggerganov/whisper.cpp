@@ -35,6 +35,7 @@ extern "C" {
 VALUE mWhisper;
 VALUE cContext;
 VALUE cParams;
+VALUE eError;
 
 static ID id_to_s;
 static ID id_call;
@@ -542,6 +543,63 @@ VALUE ruby_whisper_model_type(VALUE self) {
   ruby_whisper *rw;
   Data_Get_Struct(self, ruby_whisper, rw);
   return rb_str_new2(whisper_model_type_readable(rw->context));
+}
+
+/*
+ * call-seq:
+ *   full(params, samples, n_samples) -> nil
+ *
+ * @todo Accept MemoryView as +samples+
+ */
+VALUE ruby_whisper_full(int argc, VALUE *argv, VALUE self) {
+  if (argc < 2 || argc > 3) {
+    rb_raise(rb_eArgError, "wrong number of arguments (given %d, expected 2..3)", argc);
+  }
+
+  ruby_whisper *rw;
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  VALUE params = argv[0];
+  Data_Get_Struct(params, ruby_whisper_params, rwp);
+  VALUE samples = argv[1];
+  int n_samples;
+  if (argc == 3) {
+    n_samples = NUM2INT(argv[2]);
+    if (TYPE(samples) == T_ARRAY) {
+      if (RARRAY_LEN(samples) < n_samples) {
+        rb_raise(rb_eArgError, "samples length %ld is less than n_samples %d", RARRAY_LEN(samples), n_samples);
+      }
+    }
+    // Should check when samples.respond_to?(:length)?
+  } else {
+    if (TYPE(samples) == T_ARRAY) {
+      n_samples = RARRAY_LEN(samples);
+    } else if (rb_respond_to(samples, rb_intern("length"))) { // TODO: rb_intern("length") in init
+      n_samples = NUM2INT(rb_funcall(samples, rb_intern("length"), 0));
+    } else {
+      rb_raise(rb_eArgError, "samples must respond to :length when n_samples is not given");
+    }
+  }
+  float * c_samples = (float *)malloc(n_samples * sizeof(float));
+  if (TYPE(samples) == T_ARRAY) {
+    for (int i = 0; i < n_samples; i++) {
+      c_samples[i] = RFLOAT_VALUE(rb_ary_entry(samples, i));
+    }
+  } else {
+    // FIXME: use rb_block_call
+    VALUE iter = rb_funcall(samples, id_to_enum, 1, rb_str_new2("each"));
+    for (int i = 0; i < n_samples; i++) {
+      // TODO: check if iter is exhausted and raise ArgumentError
+      VALUE sample = rb_funcall(iter, rb_intern("next"), 0);
+      c_samples[i] = RFLOAT_VALUE(sample);
+    }
+  }
+  const int result = whisper_full(rw->context, rwp->params, c_samples, n_samples);
+  if (0 == result) {
+    return Qnil;
+  } else {
+    rb_exc_raise(rb_funcall(eError, rb_intern("new"), 1, result));
+  }
 }
 
 /*
@@ -1518,6 +1576,46 @@ static VALUE ruby_whisper_c_model_type(VALUE self) {
   return rb_str_new2(whisper_model_type_readable(rw->context));
 }
 
+static VALUE ruby_whisper_error_initialize(VALUE self, VALUE code) {
+  const int c_code = NUM2INT(code);
+  char *raw_message;
+  switch (c_code) {
+  case -2:
+    raw_message = "failed to compute log mel spectrogram";
+    break;
+  case -3:
+    raw_message = "failed to auto-detect language";
+    break;
+  case -4:
+    raw_message = "too many decoders requested";
+    break;
+  case -5:
+    raw_message = "audio_ctx is larger than the maximum allowed";
+    break;
+  case -6:
+    raw_message = "failed to encode";
+    break;
+  case -7:
+    raw_message = "whisper_kv_cache_init() failed for self-attention cache";
+    break;
+  case -8:
+    raw_message = "failed to decode";
+    break;
+  case -9:
+    raw_message = "failed to decode";
+    break;
+  default:
+    raw_message = "unknown error";
+    break;
+  }
+  const VALUE message = rb_str_new2(raw_message);
+  rb_call_super(1, &message);
+  rb_iv_set(self, "@code", code);
+
+  return self;
+}
+
+
 void Init_whisper() {
   id_to_s = rb_intern("to_s");
   id_call = rb_intern("call");
@@ -1527,6 +1625,7 @@ void Init_whisper() {
   mWhisper = rb_define_module("Whisper");
   cContext = rb_define_class_under(mWhisper, "Context", rb_cObject);
   cParams  = rb_define_class_under(mWhisper, "Params", rb_cObject);
+  eError   = rb_define_class_under(mWhisper, "Error", rb_eStandardError);
 
   rb_define_const(mWhisper, "LOG_LEVEL_NONE", INT2NUM(GGML_LOG_LEVEL_NONE));
   rb_define_const(mWhisper, "LOG_LEVEL_INFO", INT2NUM(GGML_LOG_LEVEL_INFO));
@@ -1564,6 +1663,7 @@ void Init_whisper() {
   rb_define_method(cContext, "full_get_segment_t1", ruby_whisper_full_get_segment_t1, 1);
   rb_define_method(cContext, "full_get_segment_speaker_turn_next", ruby_whisper_full_get_segment_speaker_turn_next, 1);
   rb_define_method(cContext, "full_get_segment_text", ruby_whisper_full_get_segment_text, 1);
+  rb_define_method(cContext, "full", ruby_whisper_full, -1);
 
   rb_define_alloc_func(cParams, ruby_whisper_params_allocate);
 
@@ -1622,6 +1722,9 @@ void Init_whisper() {
   rb_define_method(cParams, "progress_callback_user_data=", ruby_whisper_params_set_progress_callback_user_data, 1);
   rb_define_method(cParams, "abort_callback=", ruby_whisper_params_set_abort_callback, 1);
   rb_define_method(cParams, "abort_callback_user_data=", ruby_whisper_params_set_abort_callback_user_data, 1);
+
+  rb_define_attr(eError, "code", true, false);
+  rb_define_method(eError, "initialize", ruby_whisper_error_initialize, 1);
 
   // High leve
   cSegment  = rb_define_class_under(mWhisper, "Segment", rb_cObject);
