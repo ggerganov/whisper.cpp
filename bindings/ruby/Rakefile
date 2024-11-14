@@ -23,29 +23,38 @@ CLEAN.include FileList[
                 "ext/depend"
               ]
 
-task build: SOURCES + FileList[
-                        "ext/extconf.rb",
-                        "ext/ruby_whisper.h",
-                        "ext/ruby_whisper.cpp",
-                        "whispercpp.gemspec",
-                      ]
+task build: FileList[
+       "ext/Makefile",
+       "ext/ruby_whisper.h",
+       "ext/ruby_whisper.cpp",
+       "whispercpp.gemspec",
+     ]
 
 directory "pkg"
 CLOBBER.include "pkg"
 
 TEST_MODEL = "../../models/ggml-base.en.bin"
 LIB_NAME = "whisper".ext(RbConfig::CONFIG["DLEXT"])
+SO_FILE = File.join("ext", LIB_NAME)
 LIB_FILE = File.join("lib", LIB_NAME)
 
-directory "lib"
-task LIB_FILE => SOURCES + ["lib"] do |t|
+file "ext/Makefile" => ["ext/extconf.rb", "ext/ruby_whisper.h", "ext/ruby_whisper.cpp"] + SOURCES do |t|
   Dir.chdir "ext" do
-    sh "ruby extconf.rb"
+    ruby "extconf.rb"
+  end
+end
+
+file SO_FILE => "ext/Makefile" do |t|
+  Dir.chdir "ext" do
     sh "make"
   end
-  mv "ext/#{LIB_NAME}", t.name
 end
 CLEAN.include LIB_FILE
+
+directory "lib"
+file LIB_FILE => [SO_FILE, "lib"] do |t|
+  copy t.source, t.name
+end
 
 Rake::TestTask.new do |t|
   t.test_files = FileList["tests/test_*.rb"]
