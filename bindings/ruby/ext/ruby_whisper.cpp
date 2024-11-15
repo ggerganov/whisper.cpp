@@ -546,6 +546,10 @@ VALUE ruby_whisper_model_type(VALUE self) {
 }
 
 /*
+ * Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text
+ * Not thread safe for same context
+ * Uses the specified decoding strategy to obtain the text.
+ *
  * call-seq:
  *   full(params, samples, n_samples) -> nil
  *   full(params, samples) -> nil
