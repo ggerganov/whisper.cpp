@@ -162,6 +162,7 @@ end
 
 $OBJ_GGML <<
   'ggml.o' <<
+  'ggml-cpu.o' <<
   'ggml-alloc.o' <<
   'ggml-backend.o' <<
   'ggml-quants.o' <<

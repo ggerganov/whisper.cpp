@@ -2,6 +2,7 @@
 - ../../src/whisper.cpp
 - ../../include/whisper.h
 - ../../ggml/src/ggml.c
+- ../../ggml/src/ggml-cpu.c
 - ../../ggml/src/ggml-impl.h
 - ../../ggml/src/ggml-aarch64.h
 - ../../ggml/src/ggml-aarch64.c
@@ -18,6 +19,7 @@
 - ../../ggml/include/ggml.h
 - ../../ggml/include/ggml-alloc.h
 - ../../ggml/include/ggml-backend.h
+- ../../ggml/include/ggml-cpu.h
 - ../../ggml/include/ggml-cuda.h
 - ../../ggml/include/ggml-kompute.h
 - ../../ggml/include/ggml-metal.h

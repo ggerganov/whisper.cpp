@@ -24,6 +24,7 @@
 		18A2760B2C2A9B43001C8D37 /* ggml-metal.metal in Resources */ = {isa = PBXBuildFile; fileRef = 1844471D2AB2195F007D6BFE /* ggml-metal.metal */; };
 		18ABE15A2AF556340044A204 /* ggml-backend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE1572AF556340044A204 /* ggml-backend.cpp */; };
 		18ABE15B2AF556340044A204 /* ggml-quants.c in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE1592AF556340044A204 /* ggml-quants.c */; };
+		18E864A92CE73C1E0094B8B3 /* ggml-cpu.c in Sources */ = {isa = PBXBuildFile; fileRef = 18E864A82CE73C1E0094B8B3 /* ggml-cpu.c */; };
 		7FE3424B2A0C3FA20015A058 /* whisper-encoder-impl.m in Sources */ = {isa = PBXBuildFile; fileRef = 7FE342452A0C3FA20015A058 /* whisper-encoder-impl.m */; };
 		7FE3424C2A0C3FA20015A058 /* whisper-encoder.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7FE342472A0C3FA20015A058 /* whisper-encoder.mm */; };
 		7FE3424D2A0C3FA20015A058 /* whisper-decoder-impl.m in Sources */ = {isa = PBXBuildFile; fileRef = 7FE3424A2A0C3FA20015A058 /* whisper-decoder-impl.m */; };
@@ -76,6 +77,8 @@
 		18ABE1572AF556340044A204 /* ggml-backend.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = "ggml-backend.cpp"; path = "../../../ggml/src/ggml-backend.cpp"; sourceTree = "<group>"; };
 		18ABE1582AF556340044A204 /* ggml-impl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-impl.h"; path = "../../../ggml/src/ggml-impl.h"; sourceTree = "<group>"; };
 		18ABE1592AF556340044A204 /* ggml-quants.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-quants.c"; path = "../../../ggml/src/ggml-quants.c"; sourceTree = "<group>"; };
+		18E864A82CE73C1E0094B8B3 /* ggml-cpu.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "ggml-cpu.c"; path = "../../../ggml/src/ggml-cpu.c"; sourceTree = "<group>"; };
+		18E864AA2CE73C580094B8B3 /* ggml-cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-cpu.h"; path = "../../../ggml/include/ggml-cpu.h"; sourceTree = "<group>"; };
 		7FE342452A0C3FA20015A058 /* whisper-encoder-impl.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "whisper-encoder-impl.m"; sourceTree = "<group>"; };
 		7FE342462A0C3FA20015A058 /* whisper-encoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "whisper-encoder.h"; sourceTree = "<group>"; };
 		7FE342472A0C3FA20015A058 /* whisper-encoder.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = "whisper-encoder.mm"; sourceTree = "<group>"; };
@@ -115,6 +118,8 @@
 		18627C7829052BDF00BD2A04 /* whisper.objc */ = {
 			isa = PBXGroup;
 			children = (
+				18E864AA2CE73C580094B8B3 /* ggml-cpu.h */,
+				18E864A82CE73C1E0094B8B3 /* ggml-cpu.c */,
 				18133C7F2C64E342005CEAAC /* ggml-aarch64.c */,
 				18133C7E2C64E342005CEAAC /* ggml-aarch64.h */,
 				18A275FF2C2A9563001C8D37 /* ggml-common.h */,
@@ -248,6 +253,7 @@
 				18627C7B29052BDF00BD2A04 /* AppDelegate.m in Sources */,
 				7FE3424D2A0C3FA20015A058 /* whisper-decoder-impl.m in Sources */,
 				1844471A2AB211A2007D6BFE /* ggml-alloc.c in Sources */,
+				18E864A92CE73C1E0094B8B3 /* ggml-cpu.c in Sources */,
 				18ABE15A2AF556340044A204 /* ggml-backend.cpp in Sources */,
 				18627C8C29052BE000BD2A04 /* main.m in Sources */,
 				18627C7E29052BDF00BD2A04 /* SceneDelegate.m in Sources */,
