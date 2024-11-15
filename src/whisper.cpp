@@ -4,6 +4,8 @@
 #include "coreml/whisper-encoder.h"
 #endif
 
+#include "ggml-cpu.h"
+
 #ifdef GGML_USE_METAL
 #include "ggml-metal.h"
 #endif
