@@ -1,5 +1,6 @@
 require_relative "helper"
 require "stringio"
+require "etc"
 
 # Exists to detect memory-related bug
 Whisper.log_set ->(level, buffer, user_data) {}, nil
@@ -166,6 +167,42 @@ class TestWhisper < TestBase
       assert_raise StopIteration do
         @whisper.full(@params, samples, 11)
       end
+    end
+
+    def test_full_parallel
+      @whisper.full_parallel(@params, @samples, @samples.length, Etc.nprocessors)
+
+      assert_equal Etc.nprocessors, @whisper.full_n_segments
+      text = @whisper.each_segment.collect(&:text).join
+      assert_match /ask what you can do/i, text
+      assert_match /for your country/i, text
+    end
+
+    def test_full_parallel_without_length_and_n_processors
+      @whisper.full_parallel(@params, @samples)
+
+      assert_equal 1, @whisper.full_n_segments
+      text = @whisper.each_segment.collect(&:text).join
+      assert_match /ask what you can do/i, text
+      assert_match /for your country/i, text
+    end
+
+    def test_full_parallel_without_length
+      @whisper.full_parallel(@params, @samples, nil, Etc.nprocessors)
+
+      assert_equal Etc.nprocessors, @whisper.full_n_segments
+      text = @whisper.each_segment.collect(&:text).join
+      assert_match /ask what you can do/i, text
+      assert_match /for your country/i, text
+    end
+
+    def test_full_parallel_without_n_processors
+      @whisper.full_parallel(@params, @samples, @samples.length)
+
+      assert_equal 1, @whisper.full_n_segments
+      text = @whisper.each_segment.collect(&:text).join
+      assert_match /ask what you can do/i, text
+      assert_match /for your country/i, text
     end
   end
 end
