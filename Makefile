@@ -801,6 +801,7 @@ endif
 
 OBJ_GGML += \
 	ggml/src/ggml.o \
+	ggml/src/ggml-cpu.o \
 	ggml/src/ggml-alloc.o \
 	ggml/src/ggml-backend.o \
 	ggml/src/ggml-quants.o \
@@ -914,6 +915,12 @@ endif
 ggml/src/ggml.o: \
 	ggml/src/ggml.c \
 	ggml/include/ggml.h
+	$(CC)  $(CFLAGS)   -c $< -o $@
+
+ggml/src/ggml-cpu.o: \
+	ggml/src/ggml-cpu.c \
+	ggml/include/ggml.h \
+	ggml/src/ggml-common.h
 	$(CC)  $(CFLAGS)   -c $< -o $@
 
 ggml/src/ggml-alloc.o: \
