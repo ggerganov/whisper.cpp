@@ -608,6 +608,82 @@ VALUE ruby_whisper_full(int argc, VALUE *argv, VALUE self) {
 }
 
 /*
+ * Split the input audio in chunks and process each chunk separately using whisper_full_with_state()
+ * Result is stored in the default state of the context
+ * Not thread safe if executed in parallel on the same context.
+ * It seems this approach can offer some speedup in some cases.
+ * However, the transcription accuracy can be worse at the beginning and end of each chunk.
+ *
+ * call-seq:
+ *   full_parallel(params, samples) -> nil
+ *   full_parallel(params, samples, n_samples) -> nil
+ *   full_parallel(params, samples, n_samples, n_processors) -> nil
+ *   full_parallel(params, samples, nil, n_processors) -> nil
+ */
+static VALUE ruby_whisper_full_parallel(int argc, VALUE *argv,VALUE self) {
+  if (argc < 2 || argc > 4) {
+    rb_raise(rb_eArgError, "wrong number of arguments (given %d, expected 2..3)", argc);
+  }
+
+  ruby_whisper *rw;
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  VALUE params = argv[0];
+  Data_Get_Struct(params, ruby_whisper_params, rwp);
+  VALUE samples = argv[1];
+  int n_samples;
+  int n_processors;
+  switch (argc) {
+  case 2:
+    n_processors = 1;
+    break;
+  case 3:
+    n_processors = 1;
+    break;
+  case 4:
+    n_processors = NUM2INT(argv[3]);
+    break;
+  }
+  if (argc >= 3 && !NIL_P(argv[2])) {
+    n_samples = NUM2INT(argv[2]);
+    if (TYPE(samples) == T_ARRAY) {
+      if (RARRAY_LEN(samples) < n_samples) {
+        rb_raise(rb_eArgError, "samples length %ld is less than n_samples %d", RARRAY_LEN(samples), n_samples);
+      }
+    }
+    // Should check when samples.respond_to?(:length)?
+  } else {
+    if (TYPE(samples) == T_ARRAY) {
+      n_samples = RARRAY_LEN(samples);
+    } else if (rb_respond_to(samples, rb_intern("length"))) { // TODO: rb_intern("length") in init
+      n_samples = NUM2INT(rb_funcall(samples, rb_intern("length"), 0));
+    } else {
+      rb_raise(rb_eArgError, "samples must respond to :length when n_samples is not given");
+    }
+  }
+  float * c_samples = (float *)malloc(n_samples * sizeof(float));
+  if (TYPE(samples) == T_ARRAY) {
+    for (int i = 0; i < n_samples; i++) {
+      c_samples[i] = RFLOAT_VALUE(rb_ary_entry(samples, i));
+    }
+  } else {
+    // FIXME: use rb_block_call
+    VALUE iter = rb_funcall(samples, id_to_enum, 1, rb_str_new2("each"));
+    for (int i = 0; i < n_samples; i++) {
+      // TODO: check if iter is exhausted and raise ArgumentError
+      VALUE sample = rb_funcall(iter, rb_intern("next"), 0);
+      c_samples[i] = RFLOAT_VALUE(sample);
+    }
+  }
+  const int result = whisper_full_parallel(rw->context, rwp->params, c_samples, n_samples, n_processors);
+  if (0 == result) {
+    return Qnil;
+  } else {
+    rb_exc_raise(rb_funcall(eError, rb_intern("new"), 1, result));
+  }
+}
+
+/*
  * Number of segments.
  *
  * call-seq:
@@ -1669,6 +1745,7 @@ void Init_whisper() {
   rb_define_method(cContext, "full_get_segment_speaker_turn_next", ruby_whisper_full_get_segment_speaker_turn_next, 1);
   rb_define_method(cContext, "full_get_segment_text", ruby_whisper_full_get_segment_text, 1);
   rb_define_method(cContext, "full", ruby_whisper_full, -1);
+  rb_define_method(cContext, "full_parallel", ruby_whisper_full_parallel, -1);
 
   rb_define_alloc_func(cParams, ruby_whisper_params_allocate);
 
