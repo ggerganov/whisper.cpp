@@ -15,7 +15,7 @@ cp -rpv ../ggml/src/ggml-cuda/*      ./ggml/src/ggml-cuda/
 cp -rpv ../ggml/src/ggml-sycl/*      ./ggml/src/ggml-sycl/
 cp -rpv ../ggml/src/vulkan-shaders/* ./ggml/src/vulkan-shaders/
 
-cp -rpv ../ggml/include/ggml*.h ./include/
+cp -rpv ../ggml/include/ggml*.h ./ggml/include/
 
 cp -rpv ../ggml/examples/common.h        ./examples/common.h
 cp -rpv ../ggml/examples/common.cpp      ./examples/common.cpp
