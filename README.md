@@ -16,7 +16,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - AVX intrinsics support for x86 architectures
 - VSX intrinsics support for POWER architectures
 - Mixed F16 / F32 precision
-- [4-bit and 5-bit integer quantization support](#quantization)
+- [Integer quantization support](#quantization)
 - Zero memory allocations at runtime
 - [Vulkan support](#vulkan-gpu-support)
 - Support for CPU-only inference
