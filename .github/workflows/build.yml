@@ -564,12 +564,6 @@ jobs:
         with:
           path: whisper
 
-      - name: Clone
-        uses: actions/checkout@v4
-        with:
-          repository: ggerganov/ggml
-          path: ggml
-
       - name: Install Java
         uses: actions/setup-java@v4
         with:
@@ -588,7 +582,7 @@ jobs:
         run: |
           export PATH_TO_GGML=$PWD/ggml
           cd whisper/examples/whisper.android
-          ./gradlew assembleRelease --no-daemon -PGGML_HOME=$PATH_TO_GGML
+          ./gradlew assembleRelease --no-daemon
 
 # TODO: disable because of following fail: https://github.com/ggerganov/whisper.cpp/actions/runs/11019444420/job/30627193602
 #  android_java:
