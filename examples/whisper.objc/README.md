@@ -36,6 +36,12 @@ If you want to enable Core ML support, you can add the `-DWHISPER_USE_COREML -DW
 
 Then follow the [`Core ML support` section of readme](../../README.md#core-ml-support) for convert the model.
 
+After generating the model, I dragged it to the xcode project, and added it as a reference to the original file. Note: You also need to have the original (.bin model) model in the project as both are laoded. 
+This works as is for using the default model - base.en. For using other models, you need to change the model name to the correct one in `ViewController.m` -
+```
+NSString *modelPath = [[NSBundle mainBundle] pathForResource:@"ggml-base.en" ofType:@"bin"];
+```
+
 In this project, it also added `-O3 -DNDEBUG` to `Other C Flags`, but adding flags to app proj is not ideal in real world (applies to all C/C++ files), consider splitting xcodeproj in workspace in your own project.
 
 ## Metal
