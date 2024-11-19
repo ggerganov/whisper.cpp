@@ -1,5 +1,6 @@
 *.o
 *.a
+*.d
 .cache/
 .coreml/
 .test/
@@ -18,6 +19,9 @@ build-*/
 .build/
 .swiftpm
 *.metallib
+
+ggml-metal-embed.metal
+ggml-metal-embed.metal.tmp
 
 /main
 /stream

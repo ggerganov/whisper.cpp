@@ -67,8 +67,6 @@ actor WhisperContext {
     private func systemInfo() -> String {
         var info = ""
         if (ggml_cpu_has_neon() != 0) { info += "NEON " }
-        if (ggml_cpu_has_metal() != 0) { info += "METAL " }
-        if (ggml_cpu_has_blas() != 0) { info += "BLAS " }
         return String(info.dropLast())
     }
 
