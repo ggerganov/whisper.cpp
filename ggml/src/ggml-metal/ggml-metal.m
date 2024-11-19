@@ -3651,7 +3651,7 @@ static enum ggml_status ggml_metal_graph_compute(
         dispatch_apply(n_cb, ctx->d_queue, ctx->encode_async);
 
         // wait for completion and check status of each command buffer
-        // needed to detect if the device ran out-of-memory for example (ggml/1881)
+        // needed to detect if the device ran out-of-memory for example (#1881)
         {
             id<MTLCommandBuffer> command_buffer = ctx->command_buffers[n_cb];
             [command_buffer waitUntilCompleted];

@@ -225,6 +225,7 @@ set(GGML_PUBLIC_HEADERS
     include/ggml-cann.h
     include/ggml-cuda.h
     include/ggml-kompute.h
+    include/ggml-opt.h
     include/ggml-metal.h
     include/ggml-rpc.h
     include/ggml-sycl.h
@@ -241,7 +242,7 @@ install(TARGETS ggml-base LIBRARY)
 if (GGML_METAL)
     # FIXME: does this need to be installed with GGML_METAL_EMBED_LIBRARY?
     install(
-        FILES ggml/src/ggml-metal/ggml-metal.metal
+        FILES src/ggml-metal/ggml-metal.metal
         PERMISSIONS
             OWNER_READ
             OWNER_WRITE
