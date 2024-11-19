@@ -25,6 +25,11 @@
 		18ABE15A2AF556340044A204 /* ggml-backend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE1572AF556340044A204 /* ggml-backend.cpp */; };
 		18ABE15B2AF556340044A204 /* ggml-quants.c in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE1592AF556340044A204 /* ggml-quants.c */; };
 		18E864A92CE73C1E0094B8B3 /* ggml-cpu.c in Sources */ = {isa = PBXBuildFile; fileRef = 18E864A82CE73C1E0094B8B3 /* ggml-cpu.c */; };
+		18F8C0BC2CEDF4DC00CAD607 /* ggml-threading.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0BB2CEDF4DC00CAD607 /* ggml-threading.cpp */; };
+		18F8C0BE2CEDF50700CAD607 /* ggml-cpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0BD2CEDF50700CAD607 /* ggml-cpu.cpp */; };
+		18F8C0C42CEDF52700CAD607 /* ggml-cpu-aarch64.c in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0C02CEDF52700CAD607 /* ggml-cpu-aarch64.c */; };
+		18F8C0C52CEDF52700CAD607 /* ggml-cpu-quants.c in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0C32CEDF52700CAD607 /* ggml-cpu-quants.c */; };
+		18F8C0C72CEDF7AB00CAD607 /* ggml-backend-reg.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0C62CEDF7AB00CAD607 /* ggml-backend-reg.cpp */; };
 		7FE3424B2A0C3FA20015A058 /* whisper-encoder-impl.m in Sources */ = {isa = PBXBuildFile; fileRef = 7FE342452A0C3FA20015A058 /* whisper-encoder-impl.m */; };
 		7FE3424C2A0C3FA20015A058 /* whisper-encoder.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7FE342472A0C3FA20015A058 /* whisper-encoder.mm */; };
 		7FE3424D2A0C3FA20015A058 /* whisper-decoder-impl.m in Sources */ = {isa = PBXBuildFile; fileRef = 7FE3424A2A0C3FA20015A058 /* whisper-decoder-impl.m */; };
@@ -50,8 +55,8 @@
 		18133C7F2C64E342005CEAAC /* ggml-aarch64.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-aarch64.c"; path = "../../../ggml/src/ggml-aarch64.c"; sourceTree = "<group>"; };
 		184447182AB211A2007D6BFE /* ggml-alloc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-alloc.c"; path = "../../../ggml/src/ggml-alloc.c"; sourceTree = "<group>"; };
 		184447192AB211A2007D6BFE /* ggml-alloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-alloc.h"; path = "../../../ggml/include/ggml-alloc.h"; sourceTree = "<group>"; };
-		1844471B2AB21655007D6BFE /* ggml-metal.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "ggml-metal.m"; path = "../../../ggml/src/ggml-metal.m"; sourceTree = "<group>"; };
-		1844471D2AB2195F007D6BFE /* ggml-metal.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; name = "ggml-metal.metal"; path = "../../../ggml/src/ggml-metal.metal"; sourceTree = "<group>"; };
+		1844471B2AB21655007D6BFE /* ggml-metal.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "ggml-metal.m"; path = "../../../ggml/src/ggml-metal/ggml-metal.m"; sourceTree = "<group>"; };
+		1844471D2AB2195F007D6BFE /* ggml-metal.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; name = "ggml-metal.metal"; path = "../../../ggml/src/ggml-metal/ggml-metal.metal"; sourceTree = "<group>"; };
 		18627C7629052BDF00BD2A04 /* whisper.objc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = whisper.objc.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		18627C7929052BDF00BD2A04 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		18627C7A29052BDF00BD2A04 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -77,8 +82,17 @@
 		18ABE1572AF556340044A204 /* ggml-backend.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = "ggml-backend.cpp"; path = "../../../ggml/src/ggml-backend.cpp"; sourceTree = "<group>"; };
 		18ABE1582AF556340044A204 /* ggml-impl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-impl.h"; path = "../../../ggml/src/ggml-impl.h"; sourceTree = "<group>"; };
 		18ABE1592AF556340044A204 /* ggml-quants.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-quants.c"; path = "../../../ggml/src/ggml-quants.c"; sourceTree = "<group>"; };
-		18E864A82CE73C1E0094B8B3 /* ggml-cpu.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "ggml-cpu.c"; path = "../../../ggml/src/ggml-cpu.c"; sourceTree = "<group>"; };
+		18E864A82CE73C1E0094B8B3 /* ggml-cpu.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "ggml-cpu.c"; path = "../../../ggml/src/ggml-cpu/ggml-cpu.c"; sourceTree = "<group>"; };
 		18E864AA2CE73C580094B8B3 /* ggml-cpu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-cpu.h"; path = "../../../ggml/include/ggml-cpu.h"; sourceTree = "<group>"; };
+		18F8C0BA2CEDF4DC00CAD607 /* ggml-threading.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-threading.h"; path = "../../../ggml/src/ggml-threading.h"; sourceTree = "<group>"; };
+		18F8C0BB2CEDF4DC00CAD607 /* ggml-threading.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "ggml-threading.cpp"; path = "../../../ggml/src/ggml-threading.cpp"; sourceTree = "<group>"; };
+		18F8C0BD2CEDF50700CAD607 /* ggml-cpu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "ggml-cpu.cpp"; path = "../../../ggml/src/ggml-cpu/ggml-cpu.cpp"; sourceTree = "<group>"; };
+		18F8C0BF2CEDF52700CAD607 /* ggml-cpu-aarch64.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-cpu-aarch64.h"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-aarch64.h"; sourceTree = "<group>"; };
+		18F8C0C02CEDF52700CAD607 /* ggml-cpu-aarch64.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "ggml-cpu-aarch64.c"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-aarch64.c"; sourceTree = "<group>"; };
+		18F8C0C12CEDF52700CAD607 /* ggml-cpu-impl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-cpu-impl.h"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-impl.h"; sourceTree = "<group>"; };
+		18F8C0C22CEDF52700CAD607 /* ggml-cpu-quants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-cpu-quants.h"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-quants.h"; sourceTree = "<group>"; };
+		18F8C0C32CEDF52700CAD607 /* ggml-cpu-quants.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "ggml-cpu-quants.c"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-quants.c"; sourceTree = "<group>"; };
+		18F8C0C62CEDF7AB00CAD607 /* ggml-backend-reg.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "ggml-backend-reg.cpp"; path = "../../../ggml/src/ggml-backend-reg.cpp"; sourceTree = "<group>"; };
 		7FE342452A0C3FA20015A058 /* whisper-encoder-impl.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "whisper-encoder-impl.m"; sourceTree = "<group>"; };
 		7FE342462A0C3FA20015A058 /* whisper-encoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "whisper-encoder.h"; sourceTree = "<group>"; };
 		7FE342472A0C3FA20015A058 /* whisper-encoder.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = "whisper-encoder.mm"; sourceTree = "<group>"; };
@@ -118,6 +132,15 @@
 		18627C7829052BDF00BD2A04 /* whisper.objc */ = {
 			isa = PBXGroup;
 			children = (
+				18F8C0C62CEDF7AB00CAD607 /* ggml-backend-reg.cpp */,
+				18F8C0BF2CEDF52700CAD607 /* ggml-cpu-aarch64.h */,
+				18F8C0C02CEDF52700CAD607 /* ggml-cpu-aarch64.c */,
+				18F8C0C12CEDF52700CAD607 /* ggml-cpu-impl.h */,
+				18F8C0C22CEDF52700CAD607 /* ggml-cpu-quants.h */,
+				18F8C0C32CEDF52700CAD607 /* ggml-cpu-quants.c */,
+				18F8C0BD2CEDF50700CAD607 /* ggml-cpu.cpp */,
+				18F8C0BA2CEDF4DC00CAD607 /* ggml-threading.h */,
+				18F8C0BB2CEDF4DC00CAD607 /* ggml-threading.cpp */,
 				18E864AA2CE73C580094B8B3 /* ggml-cpu.h */,
 				18E864A82CE73C1E0094B8B3 /* ggml-cpu.c */,
 				18133C7F2C64E342005CEAAC /* ggml-aarch64.c */,
@@ -252,11 +275,16 @@
 				18627C9629052C5800BD2A04 /* ggml.c in Sources */,
 				18627C7B29052BDF00BD2A04 /* AppDelegate.m in Sources */,
 				7FE3424D2A0C3FA20015A058 /* whisper-decoder-impl.m in Sources */,
+				18F8C0C72CEDF7AB00CAD607 /* ggml-backend-reg.cpp in Sources */,
+				18F8C0BE2CEDF50700CAD607 /* ggml-cpu.cpp in Sources */,
 				1844471A2AB211A2007D6BFE /* ggml-alloc.c in Sources */,
+				18F8C0C42CEDF52700CAD607 /* ggml-cpu-aarch64.c in Sources */,
+				18F8C0C52CEDF52700CAD607 /* ggml-cpu-quants.c in Sources */,
 				18E864A92CE73C1E0094B8B3 /* ggml-cpu.c in Sources */,
 				18ABE15A2AF556340044A204 /* ggml-backend.cpp in Sources */,
 				18627C8C29052BE000BD2A04 /* main.m in Sources */,
 				18627C7E29052BDF00BD2A04 /* SceneDelegate.m in Sources */,
+				18F8C0BC2CEDF4DC00CAD607 /* ggml-threading.cpp in Sources */,
 				1844471C2AB21655007D6BFE /* ggml-metal.m in Sources */,
 				7FE3424B2A0C3FA20015A058 /* whisper-encoder-impl.m in Sources */,
 			);
@@ -335,6 +363,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -388,6 +417,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -410,6 +440,7 @@
 				DEVELOPMENT_TEAM = P8JZH34X63;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = ../../../ggml/src/;
 				INFOPLIST_FILE = whisper.objc/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -439,6 +470,7 @@
 				DEVELOPMENT_TEAM = P8JZH34X63;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = ../../../ggml/src/;
 				INFOPLIST_FILE = whisper.objc/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;

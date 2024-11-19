@@ -444,17 +444,17 @@ endif
 else
 	MK_CFLAGS   += -march=rv64gcv -mabi=lp64d
 	MK_CXXFLAGS += -march=rv64gcv -mabi=lp64d
-endif
+endif # RISCV
 
 ifndef GGML_NO_ACCELERATE
 	# Mac OS - include Accelerate framework.
 	# `-framework Accelerate` works both with Apple Silicon and Mac Intel
 	ifeq ($(UNAME_S),Darwin)
-		MK_CPPFLAGS += -DGGML_USE_ACCELERATE -DGGML_USE_BLAS
+		MK_CPPFLAGS += -DGGML_USE_ACCELERATE -DGGML_USE_BLAS -DGGML_BLAS_USE_ACCELERATE
 		MK_CPPFLAGS += -DACCELERATE_NEW_LAPACK
 		MK_CPPFLAGS += -DACCELERATE_LAPACK_ILP64
 		MK_LDFLAGS  += -framework Accelerate
-		OBJ_GGML    += ggml/src/ggml-blas.o
+		OBJ_GGML    += ggml/src/ggml-blas/ggml-blas.o
 	endif
 endif # GGML_NO_ACCELERATE
 
@@ -464,29 +464,38 @@ ifndef GGML_NO_OPENMP
 	MK_CXXFLAGS += -fopenmp
 endif # GGML_NO_OPENMP
 
+ifdef WHISPER_COREML
+	MK_CXXFLAGS += -DWHISPER_USE_COREML
+	LDFLAGS     += -framework Foundation -framework CoreML
+
+ifdef WHISPER_COREML_ALLOW_FALLBACK
+	MK_CXXFLAGS += -DWHISPER_COREML_ALLOW_FALLBACK
+endif
+endif # WHISPER_COREML
+
 ifdef GGML_OPENBLAS
 	MK_CPPFLAGS += -DGGML_USE_BLAS $(shell pkg-config --cflags-only-I openblas)
 	MK_CFLAGS   += $(shell pkg-config --cflags-only-other openblas)
 	MK_LDFLAGS  += $(shell pkg-config --libs openblas)
-	OBJ_GGML    += ggml/src/ggml-blas.o
+	OBJ_GGML    += ggml/src/ggml-blas/ggml-blas.o
 endif # GGML_OPENBLAS
 
 ifdef GGML_OPENBLAS64
 	MK_CPPFLAGS += -DGGML_USE_BLAS $(shell pkg-config --cflags-only-I openblas64)
 	MK_CFLAGS   += $(shell pkg-config --cflags-only-other openblas64)
 	MK_LDFLAGS  += $(shell pkg-config --libs openblas64)
-	OBJ_GGML    += ggml/src/ggml-blas.o
+	OBJ_GGML    += ggml/src/ggml-blas/ggml-blas.o
 endif # GGML_OPENBLAS64
 
 ifdef GGML_BLIS
 	MK_CPPFLAGS += -DGGML_USE_BLAS -I/usr/local/include/blis -I/usr/include/blis
 	MK_LDFLAGS  += -lblis -L/usr/local/lib
-	OBJ_GGML    += ggml/src/ggml-blas.o
+	OBJ_GGML    += ggml/src/ggml-blas/ggml-blas.o
 endif # GGML_BLIS
 
 ifdef GGML_RPC
 	MK_CPPFLAGS += -DGGML_USE_RPC
-	OBJ_GGML    += ggml/src/ggml-rpc.o
+	OBJ_GGML    += ggml/src/ggml-rpc/ggml-rpc.o
 endif # GGML_RPC
 
 OBJ_CUDA_TMPL      = $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/template-instances/fattn-wmma*.cu))
@@ -513,7 +522,7 @@ ifdef GGML_CUDA
 	MK_LDFLAGS   += -lcuda -lcublas -lculibos -lcudart -lcublasLt -lpthread -ldl -lrt -L$(CUDA_PATH)/lib64 -L/usr/lib64 -L$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib -L$(CUDA_PATH)/lib64/stubs -L/usr/lib/wsl/lib
 	MK_NVCCFLAGS += -use_fast_math
 
-	OBJ_GGML += ggml/src/ggml-cuda.o
+	OBJ_GGML += ggml/src/ggml-cuda/ggml-cuda.o
 	OBJ_GGML += $(patsubst %.cu,%.o,$(wildcard ggml/src/ggml-cuda/*.cu))
 	OBJ_GGML += $(OBJ_CUDA_TMPL)
 ifdef WHISPER_FATAL_WARNINGS
@@ -615,11 +624,11 @@ ggml/src/ggml-cuda/%.o: \
 	ggml/src/ggml-cuda/common.cuh
 	$(NVCC_COMPILE)
 
-ggml/src/ggml-cuda.o: \
-	ggml/src/ggml-cuda.cu \
+ggml/src/ggml-cuda/ggml-cuda.o: \
+	ggml/src/ggml-cuda/ggml-cuda.cu \
+	ggml/include/ggml-cuda.h \
 	ggml/include/ggml.h \
 	ggml/include/ggml-backend.h \
-	ggml/include/ggml-cuda.h \
 	ggml/src/ggml-backend-impl.h \
 	ggml/src/ggml-common.h \
 	$(wildcard ggml/src/ggml-cuda/*.cuh)
@@ -742,50 +751,43 @@ endif # GGML_HIPBLAS
 ifdef GGML_METAL
 	MK_CPPFLAGS += -DGGML_USE_METAL
 	MK_LDFLAGS  += -framework Foundation -framework Metal -framework MetalKit
-	OBJ_GGML	+= ggml/src/ggml-metal.o
+	OBJ_GGML	+= ggml/src/ggml-metal/ggml-metal.o
 ifdef GGML_METAL_NDEBUG
 	MK_CPPFLAGS += -DGGML_METAL_NDEBUG
 endif
 
 ifdef GGML_METAL_EMBED_LIBRARY
 	MK_CPPFLAGS += -DGGML_METAL_EMBED_LIBRARY
-	OBJ_GGML    += ggml/src/ggml-metal-embed.o
+	OBJ_GGML    += ggml/src/ggml-metal/ggml-metal-embed.o
 endif
 endif # GGML_METAL
 
-ifdef WHISPER_COREML
-	MK_CXXFLAGS += -DWHISPER_USE_COREML
-	LDFLAGS     += -framework Foundation -framework CoreML
-
-ifdef WHISPER_COREML_ALLOW_FALLBACK
-	MK_CXXFLAGS += -DWHISPER_COREML_ALLOW_FALLBACK
-endif
-endif
-
-# ===
-
 ifdef GGML_METAL
-ggml/src/ggml-metal.o: \
-	ggml/src/ggml-metal.m \
+ggml/src/ggml-metal/ggml-metal.o: \
+	ggml/src/ggml-metal/ggml-metal.m \
+	ggml/src/ggml-metal/ggml-metal-impl.h \
 	ggml/include/ggml-metal.h \
 	ggml/include/ggml.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 ifdef GGML_METAL_EMBED_LIBRARY
-ggml/src/ggml-metal-embed.o: \
-	ggml/src/ggml-metal.metal \
+ggml/src/ggml-metal/ggml-metal-embed.o: \
+	ggml/src/ggml-metal/ggml-metal.metal \
+	ggml/src/ggml-metal/ggml-metal-impl.h \
 	ggml/src/ggml-common.h
 	@echo "Embedding Metal library"
-	@sed -e '/#include "ggml-common.h"/r ggml/src/ggml-common.h' -e '/#include "ggml-common.h"/d' < ggml/src/ggml-metal.metal > ggml/src/ggml-metal-embed.metal
-	$(eval TEMP_ASSEMBLY=$(shell mktemp))
-	@echo ".section __DATA, __ggml_metallib"            >  $(TEMP_ASSEMBLY)
-	@echo ".globl _ggml_metallib_start"                 >> $(TEMP_ASSEMBLY)
-	@echo "_ggml_metallib_start:"                       >> $(TEMP_ASSEMBLY)
-	@echo ".incbin \"ggml/src/ggml-metal-embed.metal\"" >> $(TEMP_ASSEMBLY)
-	@echo ".globl _ggml_metallib_end"                   >> $(TEMP_ASSEMBLY)
-	@echo "_ggml_metallib_end:"                         >> $(TEMP_ASSEMBLY)
-	@$(AS) $(TEMP_ASSEMBLY) -o $@
-	@rm -f ${TEMP_ASSEMBLY}
+	@sed -e '/__embed_ggml-common.h__/r      ggml/src/ggml-common.h'                -e '/__embed_ggml-common.h__/d'      < ggml/src/ggml-metal/ggml-metal.metal           > ggml/src/ggml-metal/ggml-metal-embed.metal.tmp
+	@sed -e '/#include "ggml-metal-impl.h"/r ggml/src/ggml-metal/ggml-metal-impl.h' -e '/#include "ggml-metal-impl.h"/d' < ggml/src/ggml-metal/ggml-metal-embed.metal.tmp > ggml/src/ggml-metal/ggml-metal-embed.metal
+	$(eval TEMP_ASSEMBLY=$(shell mktemp -d))
+	@echo ".section __DATA, __ggml_metallib"                       >  $(TEMP_ASSEMBLY)/ggml-metal-embed.s
+	@echo ".globl _ggml_metallib_start"                            >> $(TEMP_ASSEMBLY)/ggml-metal-embed.s
+	@echo "_ggml_metallib_start:"                                  >> $(TEMP_ASSEMBLY)/ggml-metal-embed.s
+	@echo ".incbin \"ggml/src/ggml-metal/ggml-metal-embed.metal\"" >> $(TEMP_ASSEMBLY)/ggml-metal-embed.s
+	@echo ".globl _ggml_metallib_end"                              >> $(TEMP_ASSEMBLY)/ggml-metal-embed.s
+	@echo "_ggml_metallib_end:"                                    >> $(TEMP_ASSEMBLY)/ggml-metal-embed.s
+	$(CC) $(CFLAGS) -c $(TEMP_ASSEMBLY)/ggml-metal-embed.s -o $@
+	@rm -f ${TEMP_ASSEMBLY}/ggml-metal-embed.s
+	@rmdir ${TEMP_ASSEMBLY}
 endif
 endif # GGML_METAL
 
@@ -801,11 +803,17 @@ endif
 
 OBJ_GGML += \
 	ggml/src/ggml.o \
-	ggml/src/ggml-cpu.o \
+	ggml/src/ggml-aarch64.o \
 	ggml/src/ggml-alloc.o \
 	ggml/src/ggml-backend.o \
+	ggml/src/ggml-backend-reg.o \
+	ggml/src/ggml-opt.o \
 	ggml/src/ggml-quants.o \
-	ggml/src/ggml-aarch64.o
+	ggml/src/ggml-threading.o \
+	ggml/src/ggml-cpu/ggml-cpu.o \
+	ggml/src/ggml-cpu/ggml-cpu-cpp.o \
+	ggml/src/ggml-cpu/ggml-cpu-aarch64.o \
+	ggml/src/ggml-cpu/ggml-cpu-quants.o
 
 OBJ_WHISPER += \
 	src/whisper.o
@@ -910,114 +918,64 @@ endif
 # Build libraries
 #
 
-# ggml
+LIB_GGML   = libggml.so
+LIB_GGML_S = libggml.a
 
-ggml/src/ggml.o: \
-	ggml/src/ggml.c \
-	ggml/include/ggml.h
-	$(CC)  $(CFLAGS)   -c $< -o $@
+LIB_LLAMA   = libllama.so
+LIB_LLAMA_S = libllama.a
 
-ggml/src/ggml-cpu.o: \
-	ggml/src/ggml-cpu.c \
-	ggml/include/ggml.h \
-	ggml/src/ggml-common.h
-	$(CC)  $(CFLAGS)   -c $< -o $@
+LIB_COMMON   = libcommon.so
+LIB_COMMON_S = libcommon.a
 
-ggml/src/ggml-alloc.o: \
-	ggml/src/ggml-alloc.c \
-	ggml/include/ggml.h \
-	ggml/include/ggml-alloc.h
-	$(CC)  $(CFLAGS)   -c $< -o $@
+LIB_COMMON_SDL   = libcommon-sdl.so
+LIB_COMMON_SDL_S = libcommon-sdl.a
 
-ggml/src/ggml-backend.o: \
-	ggml/src/ggml-backend.cpp \
-	ggml/include/ggml.h \
-	ggml/include/ggml-backend.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# Targets
+BUILD_TARGETS += $(LIB_GGML) $(LIB_GGML_S) $(LIB_LLAMA) $(LIB_LLAMA_S) $(LIB_COMMON) $(LIB_COMMON_S)
 
-ggml/src/ggml-quants.o: \
-	ggml/src/ggml-quants.c \
-	ggml/include/ggml.h \
-	ggml/src/ggml-quants.h \
-	ggml/src/ggml-common.h
-	$(CC) $(CFLAGS)    -c $< -o $@
+# Dependency files
+DEP_FILES = $(OBJ_GGML:.o=.d) $(OBJ_LLAMA:.o=.d) $(OBJ_COMMON:.o=.d)
 
-ggml/src/ggml-aarch64.o: \
-	ggml/src/ggml-aarch64.c \
-	ggml/include/ggml.h \
-	ggml/src/ggml-aarch64.h \
-	ggml/src/ggml-common.h
-	$(CC) $(CFLAGS)    -c $< -o $@
+# Default target
+all: $(BUILD_TARGETS)
 
-ggml/src/ggml-blas.o: \
-	ggml/src/ggml-blas.cpp \
-	ggml/include/ggml-blas.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-ifdef GGML_LLAMAFILE
-ggml/src/sgemm.o: \
-	ggml/src/sgemm.cpp \
-	ggml/src/sgemm.h \
-	ggml/include/ggml.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-endif # GGML_LLAMAFILE
-
-ifdef GGML_RPC
-ggml/src/ggml-rpc.o: \
-	ggml/src/ggml-rpc.cpp \
-	ggml/include/ggml-rpc.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-endif # GGML_RPC
-
-$(LIB_GGML): \
-	$(OBJ_GGML)
-	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS)
-
-$(LIB_GGML_S): \
-	$(OBJ_GGML)
-	ar rcs $(LIB_GGML_S) $^
-
-# whisper
-
-src/whisper.o: \
-	src/whisper.cpp \
-	include/whisper.h \
+# Note: need this exception because `ggml-cpu.c` and `ggml-cpu.cpp` both produce the same obj/dep files
+#       g++ -M -I ./ggml/include/ -I ./ggml/src ggml/src/ggml-cpu/ggml-cpu.cpp | grep ggml
+ggml/src/ggml-cpu/ggml-cpu-cpp.o: \
+	ggml/src/ggml-cpu/ggml-cpu.cpp \
+	ggml/include/ggml-backend.h \
 	ggml/include/ggml.h \
 	ggml/include/ggml-alloc.h \
-	ggml/include/ggml-backend.h \
-	ggml/include/ggml-cuda.h \
-	ggml/include/ggml-metal.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	ggml/src/ggml-backend-impl.h \
+	ggml/include/ggml-cpu.h \
+	ggml/src/ggml-impl.h
+	$(CXX) $(CXXFLAGS)   -c $< -o $@
 
-$(LIB_WHISPER): \
-	$(OBJ_WHISPER) \
-	$(LIB_GGML)
+# Rules for building object files
+ggml/%.o: ggml/%.c
+	$(CC) $(CFLAGS) -MMD -c $< -o $@
+
+ggml/%.o: ggml/%.cpp
+	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
+
+src/%.o: src/%.cpp
+	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
+
+examples/%.o: examples/%.cpp
+	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
+
+# Rules for building libraries
+$(LIB_GGML): $(OBJ_GGML)
 	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS)
 
-$(LIB_WHISPER_S): \
-	$(OBJ_WHISPER) \
-	$(OBJ_GGML)
-	ar rcs $(LIB_WHISPER_S) $^
+$(LIB_GGML_S): $(OBJ_GGML)
+	ar rcs $(LIB_GGML_S) $^
 
-# common
-
-examples/common.o: \
-	examples/common.cpp \
-	examples/common.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-examples/common-ggml.o: \
-	examples/common-ggml.cpp \
-	examples/common-ggml.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-$(LIB_COMMON): \
-	$(OBJ_COMMON)
+$(LIB_LLAMA): $(OBJ_LLAMA) $(LIB_GGML)
 	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS)
 
-$(LIB_COMMON_S): \
-	$(OBJ_COMMON)
-	ar rcs $(LIB_COMMON_S) $^
+$(LIB_LLAMA_S): $(OBJ_LLAMA)
+	ar rcs $(LIB_LLAMA_S) $^
 
 # common-sdl
 
@@ -1029,34 +987,21 @@ examples/common-sdl.o: \
 	examples/common-sdl.h
 	$(CXX) $(CXXFLAGS) $(CFLAGS_SDL) -c $< -o $@
 
-$(LIB_COMMON_SDL): \
-	$(OBJ_SDL)
-	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS) $(LDFLAGS_SDL)
+$(LIB_COMMON): $(OBJ_COMMON) $(LIB_LLAMA) $(LIB_GGML)
+	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $^ $(LDFLAGS)
 
-$(LIB_COMMON_SDL_S): \
-	$(OBJ_SDL)
-	ar rcs $(LIB_COMMON_SDL_S) $^
+$(LIB_COMMON_S): $(OBJ_COMMON)
+	ar rcs $(LIB_COMMON_S) $^
 
+# Include dependency files
+-include $(DEP_FILES)
+
+# Clean rule
 clean:
-	rm -vrf *.dot $(BUILD_TARGETS) $(TEST_TARGETS)
-	rm -rvf src/*.o
-	rm -rvf src/coreml/*.o
-	rm -rvf tests/*.o
-	rm -rvf examples/*.o
-	rm -rvf *.a
-	rm -rvf *.dll
-	rm -rvf *.so
-	rm -rvf *.dot
-	rm -rvf ggml/*.a
-	rm -rvf ggml/*.dll
-	rm -rvf ggml/*.so
-	rm -vrf ggml/src/*.o
-	rm -vrf ggml/src/ggml-metal-embed.metal
-	rm -vrf ggml/src/ggml-cuda/*.o
-	rm -vrf ggml/src/ggml-cuda/template-instances/*.o
-	rm -rvf $(BUILD_TARGETS)
-	rm -rvf $(TEST_TARGETS)
-	find examples -type f -name "*.o" -delete
+	rm -vrf $(BUILD_TARGETS) $(TEST_TARGETS)
+	rm -rvf *.a *.dll *.so *.dot
+	find ggml src tests examples -type f -name "*.o" -delete
+	find ggml src tests examples -type f -name "*.d" -delete
 
 #
 # Examples
