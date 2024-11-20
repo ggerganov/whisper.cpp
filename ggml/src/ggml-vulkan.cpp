@@ -2075,7 +2075,7 @@ static void ggml_vk_print_gpu_info(size_t idx) {
 
     std::string device_name = props2.properties.deviceName.data();
     GGML_LOG_DEBUG("ggml_vulkan: %d = %s (%s) | uma: %d | fp16: %d | warp size: %d\n",
-              idx, device_name.c_str(), driver_props.driverName, uma, fp16, subgroup_size);
+              idx, device_name.c_str(), driver_props.driverName.data(), uma, fp16, subgroup_size);
 
     if (props2.properties.deviceType == vk::PhysicalDeviceType::eCpu) {
         std::cerr << "ggml_vulkan: Warning: Device type is CPU. This is probably not the device you want." << std::endl;
