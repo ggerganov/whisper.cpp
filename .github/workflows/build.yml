@@ -313,7 +313,7 @@ jobs:
             cmake --build build --config ${{ matrix.build }} -j $(nproc)
 
   windows:
-    runs-on: windows-latest
+    runs-on: windows-2019
 
     strategy:
       matrix:
@@ -373,7 +373,7 @@ jobs:
           path: build/bin/${{ matrix.build }}
 
   windows-blas:
-    runs-on: windows-latest
+    runs-on: windows-2019
 
     strategy:
       matrix:
