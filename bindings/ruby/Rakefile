@@ -1,20 +1,22 @@
 require 'rake/clean'
 require "bundler/gem_tasks"
-require "pathname"
-require "yaml"
 require "rake/testtask"
+require_relative "extsources"
 
-extsources = YAML.load_file("extsources.yaml")
 SOURCES = FileList[]
-extsources.each do |src|
+
+EXTSOURCES.each do |src|
   basename = src.pathmap("%f")
-  dest = basename == "LICENSE" ? basename : basename.pathmap("ext/%f")
+  dest = basename == "LICENSE" ? basename : src.pathmap("%{../..,ext}p")
+  dir = dest.pathmap("%d")
   file src
-  file dest => src do |t|
+  directory dir
+  file dest => [src, dir] do |t|
     cp t.source, t.name
   end
   SOURCES.include dest
 end
+
 CLEAN.include SOURCES
 CLEAN.include FileList[
                 "ext/*.o",

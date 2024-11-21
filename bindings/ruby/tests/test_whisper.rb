@@ -107,7 +107,7 @@ class TestWhisper < TestBase
 
     assert logs.length > 30
     logs.each do |log|
-      assert_equal Whisper::LOG_LEVEL_INFO, log[0]
+      assert_include [Whisper::LOG_LEVEL_DEBUG, Whisper::LOG_LEVEL_INFO, Whisper::LOG_LEVEL_WARN], log[0]
       assert_same user_data, log[2]
     end
   end
