@@ -20,14 +20,14 @@ Gem::Specification.new do |s|
               }
 
   s.summary = %q{Ruby whisper.cpp bindings}
-  s.test_files = ["tests/test_whisper.rb"]
+  s.test_files = s.files.select {|file| file.start_with? "tests/"}
   
   s.extensions << 'ext/extconf.rb'
   
 
   #### Documentation and testing.
   s.homepage = 'https://github.com/ggerganov/whisper.cpp'
-  s.rdoc_options = ['--main', '../../README.md']
+  s.rdoc_options = ['--main', 'README.md']
 
   
     s.platform = Gem::Platform::RUBY
