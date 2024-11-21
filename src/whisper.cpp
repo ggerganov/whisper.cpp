@@ -3423,13 +3423,15 @@ int whisper_ctx_init_openvino_encoder_with_state(
           struct whisper_state * state,
                     const char * model_path,
                     const char * device,
-                    const char * cache_dir) {
+                    const char * cache_dir,
+                           int   n_threads) {
 #ifndef WHISPER_USE_OPENVINO
     (void)(ctx);
     (void)(state);
     (void)(model_path);
     (void)(device);
     (void)(cache_dir);
+    (void)(n_threads);
 
     return 1;
 #else
@@ -3457,7 +3459,7 @@ int whisper_ctx_init_openvino_encoder_with_state(
     WHISPER_LOG_INFO("%s: loading OpenVINO model from '%s'\n", __func__, path_encoder.c_str());
     WHISPER_LOG_INFO("%s: first run on a device may take a while ...\n", __func__);
 
-    state->ctx_openvino = whisper_openvino_init(path_encoder.c_str(), device, path_cache.c_str());
+    state->ctx_openvino = whisper_openvino_init(path_encoder.c_str(), device, path_cache.c_str(), n_threads);
     if (!state->ctx_openvino) {
         WHISPER_LOG_ERROR("%s: failed to init OpenVINO encoder from '%s'\n", __func__, path_encoder.c_str());
         return 1;
@@ -3473,8 +3475,9 @@ int whisper_ctx_init_openvino_encoder(
         struct whisper_context * ctx,
                     const char * model_path,
                     const char * device,
-                    const char * cache_dir) {
-    return whisper_ctx_init_openvino_encoder_with_state(ctx, ctx->state, model_path, device, cache_dir);
+                    const char * cache_dir,
+                           int   n_threads) {
+    return whisper_ctx_init_openvino_encoder_with_state(ctx, ctx->state, model_path, device, cache_dir, n_threads);
 }
 
 struct whisper_context_params whisper_context_default_params() {
