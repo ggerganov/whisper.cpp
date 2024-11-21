@@ -1,4 +1,6 @@
-EXTSOURCES = `git ls-files -z ../..`.split("\x0").grep(%r{\A\.\./\.\./(?:src|include|ggml).+\.(c|cpp|h|m|metal)\z}) <<
-             "../../examples/dr_wav.h" <<
-             "../../scripts/get-flags.mk" <<
-             "../../LICENSE"
+require "yaml"
+
+sources = `git ls-files -z ../..`.split("\x0")
+paths = YAML.load_file("../../.github/workflows/bindings-ruby.yml")[true]["push"]["paths"]
+paths.delete "bindings/ruby/**"
+EXTSOURCES = (Dir.glob(paths, base: "../..").collect {|path| "../../#{path}"} << "../../LICENSE") & sources
