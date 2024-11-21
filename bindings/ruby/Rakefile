@@ -7,11 +7,7 @@ SOURCES = FileList[]
 
 EXTSOURCES.each do |src|
   basename = src.pathmap("%f")
-  dest = if basename == "LICENSE"
-           basename
-         else
-           src.pathmap("%{../..,ext}p")
-         end
+  dest = basename == "LICENSE" ? basename : src.pathmap("%{../..,ext}p")
   dir = dest.pathmap("%d")
   file src
   directory dir
