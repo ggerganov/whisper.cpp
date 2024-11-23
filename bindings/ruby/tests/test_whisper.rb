@@ -169,8 +169,26 @@ class TestWhisper < TestBase
       end
     end
 
+    def test_full_with_memory_view
+      samples = JFKReader.new(AUDIO)
+      @whisper.full(@params, samples)
+
+      assert_equal 1, @whisper.full_n_segments
+      assert_match /ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text
+    end
+
     def test_full_parallel
       @whisper.full_parallel(@params, @samples, @samples.length, Etc.nprocessors)
+
+      assert_equal Etc.nprocessors, @whisper.full_n_segments
+      text = @whisper.each_segment.collect(&:text).join
+      assert_match /ask what you can do/i, text
+      assert_match /for your country/i, text
+    end
+
+    def test_full_parallel_with_memory_view
+      samples = JFKReader.new(AUDIO)
+      @whisper.full_parallel(@params, samples, nil, Etc.nprocessors)
 
       assert_equal Etc.nprocessors, @whisper.full_n_segments
       text = @whisper.each_segment.collect(&:text).join
