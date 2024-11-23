@@ -1,4 +1,5 @@
 #include <ruby.h>
+#include <ruby/memory_view.h>
 #include "ruby_whisper.h"
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"
@@ -41,6 +42,9 @@ static ID id_to_s;
 static ID id_call;
 static ID id___method__;
 static ID id_to_enum;
+static ID id_length;
+static ID id_next;
+static ID id_new;
 
 static bool is_log_callback_finalized = false;
 
@@ -554,7 +558,7 @@ VALUE ruby_whisper_model_type(VALUE self) {
  *   full(params, samples, n_samples) -> nil
  *   full(params, samples) -> nil
  *
- * @todo Accept MemoryView as +samples+
+ * The second argument +samples+ must be an array of samples, respond to :length, or be a MemoryView of an array of float
  */
 VALUE ruby_whisper_full(int argc, VALUE *argv, VALUE self) {
   if (argc < 2 || argc > 3) {
@@ -568,6 +572,8 @@ VALUE ruby_whisper_full(int argc, VALUE *argv, VALUE self) {
   Data_Get_Struct(params, ruby_whisper_params, rwp);
   VALUE samples = argv[1];
   int n_samples;
+  rb_memory_view_t view;
+  const bool memory_view_available_p = rb_memory_view_available_p(samples);
   if (argc == 3) {
     n_samples = NUM2INT(argv[2]);
     if (TYPE(samples) == T_ARRAY) {
@@ -579,31 +585,41 @@ VALUE ruby_whisper_full(int argc, VALUE *argv, VALUE self) {
   } else {
     if (TYPE(samples) == T_ARRAY) {
       n_samples = RARRAY_LEN(samples);
-    } else if (rb_respond_to(samples, rb_intern("length"))) { // TODO: rb_intern("length") in init
-      n_samples = NUM2INT(rb_funcall(samples, rb_intern("length"), 0));
+    } else if (memory_view_available_p) {
+      if (!rb_memory_view_get(samples, &view, RUBY_MEMORY_VIEW_SIMPLE)) {
+        view.obj = Qnil;
+        rb_raise(rb_eArgError, "unable to get a memory view");
+      }
+      n_samples = view.byte_size / view.item_size;
+    } else if (rb_respond_to(samples, id_length)) {
+      n_samples = NUM2INT(rb_funcall(samples, id_length, 0));
     } else {
-      rb_raise(rb_eArgError, "samples must respond to :length when n_samples is not given");
+      rb_raise(rb_eArgError, "samples must respond to :length or be a MemoryView of an array of flaot when n_samples is not given");
     }
   }
   float * c_samples = (float *)malloc(n_samples * sizeof(float));
-  if (TYPE(samples) == T_ARRAY) {
-    for (int i = 0; i < n_samples; i++) {
-      c_samples[i] = RFLOAT_VALUE(rb_ary_entry(samples, i));
-    }
+  if (memory_view_available_p)  {
+    c_samples = (float *)view.data;
   } else {
-    // FIXME: use rb_block_call
-    VALUE iter = rb_funcall(samples, id_to_enum, 1, rb_str_new2("each"));
-    for (int i = 0; i < n_samples; i++) {
-      // TODO: check if iter is exhausted and raise ArgumentError
-      VALUE sample = rb_funcall(iter, rb_intern("next"), 0);
-      c_samples[i] = RFLOAT_VALUE(sample);
+    if (TYPE(samples) == T_ARRAY) {
+      for (int i = 0; i < n_samples; i++) {
+        c_samples[i] = RFLOAT_VALUE(rb_ary_entry(samples, i));
+      }
+    } else {
+      // TODO: use rb_block_call
+      VALUE iter = rb_funcall(samples, id_to_enum, 1, rb_str_new2("each"));
+      for (int i = 0; i < n_samples; i++) {
+        // TODO: check if iter is exhausted and raise ArgumentError appropriately
+        VALUE sample = rb_funcall(iter, id_next, 0);
+        c_samples[i] = RFLOAT_VALUE(sample);
+      }
     }
   }
   const int result = whisper_full(rw->context, rwp->params, c_samples, n_samples);
   if (0 == result) {
     return Qnil;
   } else {
-    rb_exc_raise(rb_funcall(eError, rb_intern("new"), 1, result));
+    rb_exc_raise(rb_funcall(eError, id_new, 1, result));
   }
 }
 
@@ -633,6 +649,8 @@ static VALUE ruby_whisper_full_parallel(int argc, VALUE *argv,VALUE self) {
   VALUE samples = argv[1];
   int n_samples;
   int n_processors;
+  rb_memory_view_t view;
+  const bool memory_view_available_p = rb_memory_view_available_p(samples);
   switch (argc) {
   case 2:
     n_processors = 1;
@@ -652,34 +670,44 @@ static VALUE ruby_whisper_full_parallel(int argc, VALUE *argv,VALUE self) {
       }
     }
     // Should check when samples.respond_to?(:length)?
+  } else if (memory_view_available_p) {
+    if (!rb_memory_view_get(samples, &view, RUBY_MEMORY_VIEW_SIMPLE)) {
+      view.obj = Qnil;
+      rb_raise(rb_eArgError, "unable to get a memory view");
+    }
+    n_samples = view.byte_size / view.item_size;
   } else {
     if (TYPE(samples) == T_ARRAY) {
       n_samples = RARRAY_LEN(samples);
-    } else if (rb_respond_to(samples, rb_intern("length"))) { // TODO: rb_intern("length") in init
-      n_samples = NUM2INT(rb_funcall(samples, rb_intern("length"), 0));
+    } else if (rb_respond_to(samples, id_length)) {
+      n_samples = NUM2INT(rb_funcall(samples, id_length, 0));
     } else {
-      rb_raise(rb_eArgError, "samples must respond to :length when n_samples is not given");
+      rb_raise(rb_eArgError, "samples must respond to :length or be a MemoryView of an array of flaot when n_samples is not given");
     }
   }
   float * c_samples = (float *)malloc(n_samples * sizeof(float));
-  if (TYPE(samples) == T_ARRAY) {
-    for (int i = 0; i < n_samples; i++) {
-      c_samples[i] = RFLOAT_VALUE(rb_ary_entry(samples, i));
-    }
+  if (memory_view_available_p) {
+    c_samples = (float *)view.data;
   } else {
-    // FIXME: use rb_block_call
-    VALUE iter = rb_funcall(samples, id_to_enum, 1, rb_str_new2("each"));
-    for (int i = 0; i < n_samples; i++) {
-      // TODO: check if iter is exhausted and raise ArgumentError
-      VALUE sample = rb_funcall(iter, rb_intern("next"), 0);
-      c_samples[i] = RFLOAT_VALUE(sample);
+    if (TYPE(samples) == T_ARRAY) {
+      for (int i = 0; i < n_samples; i++) {
+        c_samples[i] = RFLOAT_VALUE(rb_ary_entry(samples, i));
+      }
+    } else {
+      // FIXME: use rb_block_call
+      VALUE iter = rb_funcall(samples, id_to_enum, 1, rb_str_new2("each"));
+      for (int i = 0; i < n_samples; i++) {
+        // TODO: check if iter is exhausted and raise ArgumentError
+        VALUE sample = rb_funcall(iter, id_next, 0);
+        c_samples[i] = RFLOAT_VALUE(sample);
+      }
     }
   }
   const int result = whisper_full_parallel(rw->context, rwp->params, c_samples, n_samples, n_processors);
   if (0 == result) {
     return Qnil;
   } else {
-    rb_exc_raise(rb_funcall(eError, rb_intern("new"), 1, result));
+    rb_exc_raise(rb_funcall(eError, id_new, 1, result));
   }
 }
 
@@ -1702,6 +1730,9 @@ void Init_whisper() {
   id_call = rb_intern("call");
   id___method__ = rb_intern("__method__");
   id_to_enum = rb_intern("to_enum");
+  id_length = rb_intern("length");
+  id_next = rb_intern("next");
+  id_new = rb_intern("new");
 
   mWhisper = rb_define_module("Whisper");
   cContext = rb_define_class_under(mWhisper, "Context", rb_cObject);
