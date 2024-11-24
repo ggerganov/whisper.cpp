@@ -160,7 +160,7 @@ Whisper.log_set ->(level, buffer, user_data) {
 Whisper::Context.new(MODEL)
 ```
 
-You can also call `Whisper::Context#full` with a Ruby array as samples. Although `#transcribe` with audio file path is recommended because it extracts PCM samples in C++ and is fast, `#full` give you flexibility.
+You can also call `Whisper::Context#full` and `#full_parallel` with a Ruby array as samples. Although `#transcribe` with audio file path is recommended because it extracts PCM samples in C++ and is fast, `#full` and `#full_parallel` give you flexibility.
 
 ```ruby
 require "whisper"
@@ -176,6 +176,7 @@ whisper.each_segment do |segment|
 end
 ```
 
+The second argument `samples` may be a MemoryView. If you can prepare audio data as C array and export it as a MemoryView, whispercpp accepts and works with it with zero copy.
 
 License
 -------
