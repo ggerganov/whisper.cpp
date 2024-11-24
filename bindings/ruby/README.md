@@ -176,7 +176,7 @@ whisper.each_segment do |segment|
 end
 ```
 
-The second argument `samples` may be a MemoryView. If you can prepare audio data as C array and export it as a MemoryView, whispercpp accepts and works with it with zero copy.
+The second argument `samples` may be an array, an object with `length` method, or a MemoryView. If you can prepare audio data as C array and export it as a MemoryView, whispercpp accepts and works with it with zero copy.
 
 License
 -------
