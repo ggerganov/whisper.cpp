@@ -558,7 +558,7 @@ VALUE ruby_whisper_model_type(VALUE self) {
  *   full(params, samples, n_samples) -> nil
  *   full(params, samples) -> nil
  *
- * The second argument +samples+ must be an array of samples, respond to :length, or be a MemoryView of an array of float
+ * The second argument +samples+ must be an array of samples, respond to :length, or be a MemoryView of an array of float. It must be 32 bit float PCM audio data.
  */
 VALUE ruby_whisper_full(int argc, VALUE *argv, VALUE self) {
   if (argc < 2 || argc > 3) {
