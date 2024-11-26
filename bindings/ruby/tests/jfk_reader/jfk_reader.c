@@ -19,10 +19,6 @@ jfk_reader_get_memory_view(const VALUE obj, rb_memory_view_t *view, int flags)
   short *samples = (short *)malloc(n_samples * sizeof(short));
   FILE *file = fopen(audio_path_str, "rb");
 
-  fpos_t fsize = { 0 };
-  fseek(file, 0, SEEK_END);
-  fgetpos(file, &fsize);
-
   fseek(file, 78, SEEK_SET);
   fread(samples, sizeof(short), n_samples, file);
   fclose(file);
@@ -72,10 +68,6 @@ read_jfk(int argc, VALUE *argv, VALUE obj)
 
   short samples[n_samples];
   FILE *file = fopen(audio_path_str, "rb");
-
-  fpos_t fsize = { 0 };
-  fseek(file, 0, SEEK_END);
-  fgetpos(file, &fsize);
 
   fseek(file, 78, SEEK_SET);
   fread(samples, sizeof(short), n_samples, file);
