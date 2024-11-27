@@ -439,6 +439,11 @@ Now build `whisper.cpp` with Vulkan support:
 make clean
 make GGML_VULKAN=1 -j
 ```
+with cmake
+```
+cmake -B build -DGGML_VULKAN=1
+cmake --build build -j --config Release
+```
 
 ## BLAS CPU support via OpenBLAS
 
