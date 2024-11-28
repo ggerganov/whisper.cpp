@@ -2,6 +2,9 @@
 //
 
 #include "common-sdl.h"
+
+#include "ggml-backend.h"
+#include "ggml-alloc.h"
 #include "common.h"
 #include "whisper.h"
 #include "gpt-2.h"
@@ -221,10 +224,12 @@ int main(int argc, char ** argv) {
     // init audio
 
     audio_async audio(30*1000);
-    if (!audio.init(params.capture_id, WHISPER_SAMPLE_RATE)) {
+    if (!audio.init(params.capture_id, WHISPER_SAMPLE_RATE))
+    {
         fprintf(stderr, "%s: audio.init() failed!\n", __func__);
         return 1;
     }
+    printf("audio init successful....\n");
 
     audio.resume();
 
@@ -239,6 +244,12 @@ int main(int argc, char ** argv) {
     std::vector<float> pcmf32_prompt;
 
     gpt2_set_prompt(ctx_gpt, "");
+    ggml_gallocr_t allocr = NULL;
+    // allocate the compute buffer
+    {
+        // create a graph allocator with the backend's default buffer type
+        allocr = ggml_gallocr_new(ggml_backend_get_default_buffer_type(ctx_gpt->model.backend));
+    }
 
     const int voice_id = rand()%6;
 
@@ -319,7 +330,7 @@ int main(int argc, char ** argv) {
 
                     std::string prompt = ::replace(::replace(k_prompt, "{0}", params.person), "{1}", prompt_base);
 
-                    text_to_speak = gpt2_gen_text(ctx_gpt, prompt.c_str(), params.max_tokens);
+                    text_to_speak = gpt2_gen_text(ctx_gpt, prompt.c_str(), params.max_tokens, allocr);
                     //text_to_speak = std::regex_replace(text_to_speak, std::regex("[^a-zA-Z0-9\\.,\\?!\\s\\:\\'\\-]"), "");
                     text_to_speak = text_to_speak.substr(0, text_to_speak.find_first_of('\n'));
 
