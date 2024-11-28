@@ -68,3 +68,13 @@ file TEST_MODEL do
     sh "./models/download-ggml-model.sh base.en"
   end
 end
+
+TEST_MEMORY_VIEW = "tests/jfk_reader/jfk_reader.#{RbConfig::CONFIG['DLEXT']}"
+file TEST_MEMORY_VIEW => "tests/jfk_reader/jfk_reader.c" do |t|
+  Dir.chdir "tests/jfk_reader" do
+    ruby "extconf.rb"
+    sh "make"
+  end
+end
+CLEAN.include "tests/jfk_reader/jfk_reader.{o,#{RbConfig::CONFIG['DLEXT']}}"
+task test: TEST_MEMORY_VIEW
