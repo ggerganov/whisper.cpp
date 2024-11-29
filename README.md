@@ -212,7 +212,15 @@ The command downloads the `base.en` model converted to custom `ggml` format and 
 
 For detailed usage instructions, run: `./main -h`
 
-Note that the [main](examples/main) example currently runs only with 16-bit WAV files, so make sure to convert your input before running the tool.
+Note that the [main](examples/main) example currently runs by default with 16-bit WAV files.
+
+Building with `WHISPER_FFMPEG=1` enables ffmpeg support to handle other formats:
+
+```bash
+WHISPER_FFMPEG=1 make main
+```
+
+If you do not want to rebuild it, convert your input before running the tool.
 For example, you can use `ffmpeg` like this:
 
 ```bash
