@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Signature Transcriber</title>
+        <link rel="prefetch" href="live_on_air.png" />
+        <link rel="prefetch" href="on_air_button_on.png" />
+        <style type="text/css">
+            body {
+                background-color: black;
+            }
+            #headerTable tr td {
+                vertical-align: top;
+            }
+            header, label {
+                color: white;
+                font-weight: bold;
+                vertical-align: top;
+                font-family: 'Arial', 'Helvetica', 'sans-serif';
+            }
+            button {
+                padding: 0;
+                border: none;
+                background: none;
+            }
+            #btnOnAir.onAir {
+                content:url("on_air_button_on.png");
+            }
+            #btnOnAir {
+                content:url("on_air_button_off.png");
+            }            
+            #output {
+                color: lightgreen;
+                font-weight: bold;
+                border: 1px solid lime;
+            }
+        </style> 
+    </head>
+    <body >
+        <header>
+            <table id="headerTable" width="100%" padding="0" margin="0" cellspacing="0" height="110" style="border-bottom: 2px solid #53585f">
+                <tr>
+                    <td width="30%"><h1>Audio Transcriber</h1></td>
+                    <td><img id="imgOnAir" src="live_on_air.png" height="100" style="display: none" /></td>
+                </tr>
+            </table>
+        </header>
+        <main>
+            <p />
+            <div>
+                <label>Go Live:</label>
+                <button onClick=connect()
+                ><img id="btnOnAir" /></button>
+            </div>
+            <div id="output" style="display: none"></div>
+        </main>
+        <script>
+            printabletext = /[a-zA-Z0-9]/;
+            isListening = false;
+            btnOnAir = document.getElementById("btnOnAir");
+            imgOnAir = document.getElementById("imgOnAir");
+            divOutput = document.getElementById("output");
+            ws = null;
+
+            function connect() {
+                ctr = 0;
+                if (!isListening) {
+                    ws = new WebSocket(`ws://localhost:8000/ws/mictranscribe`);
+                    ws.onmessage = function (event) {
+                        if (printabletext.test(event.data)) {
+                            if (event.data == '\x1b[2K') {
+                                document.getElementById('tscript'+ctr).outerHTML = '';
+                                return;
+                            }
+                            ctr++;
+                            divOutput.innerHTML += `<span id='tscript${ctr}'><br/>${event.data}</span>`;
+                        }   
+                    }; 
+                    btnOnAir.classList.add('onAir');
+                    imgOnAir.style.display = 'inline';
+                    divOutput.style.display = 'block';
+                    isListening = true;
+                } else {
+                    if (ws)
+                        ws.close();
+                    btnOnAir.classList.remove('onAir');
+                    imgOnAir.style.display = 'none';
+                    divOutput.style.display = 'none';
+                    divOutput.innerHTML = '';
+                    isListening = false;
+                }                
+            }
+        </script>         
+    </body>
+</html>
