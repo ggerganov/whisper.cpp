@@ -21,8 +21,7 @@ CLEAN.include SOURCES
 CLEAN.include FileList[
                 "ext/*.o",
                 "ext/*.metal",
-                "ext/whisper.{so,bundle,dll}",
-                "ext/depend"
+                "ext/whisper.{so,bundle,dll}"
               ]
 
 task build: FileList[
