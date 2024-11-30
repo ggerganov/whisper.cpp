@@ -60,49 +60,9 @@ static const rb_memory_view_entry_t jfk_reader_view_entry = {
   jfk_reader_memory_view_available_p
 };
 
-static VALUE
-read_jfk(int argc, VALUE *argv, VALUE obj)
-{
-  const char *audio_path_str = StringValueCStr(argv[0]);
-  const int n_samples = 176000;
-
-  short samples[n_samples];
-  FILE *file = fopen(audio_path_str, "rb");
-
-  fseek(file, 78, SEEK_SET);
-  fread(samples, sizeof(short), n_samples, file);
-  fclose(file);
-
-  VALUE rb_samples = rb_ary_new2(n_samples);
-  for (int i = 0; i < n_samples; i++) {
-    rb_ary_push(rb_samples, INT2FIX(samples[i]));
-  }
-
-  VALUE rb_data = rb_ary_new2(n_samples);
-  for (int i = 0; i < n_samples; i++) {
-    rb_ary_push(rb_data, DBL2NUM(samples[i]/32768.0));
-  }
-
-  float data[n_samples];
-  for (int i = 0; i < n_samples; i++) {
-    data[i] = samples[i]/32768.0;
-  }
-  void *c_data = (void *)data;
-  VALUE rb_void = rb_enc_str_new((const char *)c_data, sizeof(data), rb_ascii8bit_encoding());
-
-  VALUE rb_result = rb_ary_new3(3, rb_samples, rb_data, rb_void);
-  return rb_result;
-}
-
 void Init_jfk_reader(void)
 {
   VALUE cJFKReader = rb_define_class("JFKReader", rb_cObject);
   rb_memory_view_register(cJFKReader, &jfk_reader_view_entry);
   rb_define_method(cJFKReader, "initialize", jfk_reader_initialize, 1);
-
-
-  rb_define_global_function("read_jfk", read_jfk, -1);
-
-
-
 }
