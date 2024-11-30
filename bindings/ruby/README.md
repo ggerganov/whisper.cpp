@@ -22,7 +22,7 @@ Usage
 ```ruby
 require "whisper"
 
-whisper = Whisper::Context.new("path/to/model.bin")
+whisper = Whisper::Context.new(Whisper::Model["base"])
 
 params = Whisper::Params.new
 params.language = "en"
@@ -41,15 +41,51 @@ end
 
 ### Preparing model ###
 
-Use script to download model file(s):
+Some models are prepared up-front:
 
-```bash
-git clone https://github.com/ggerganov/whisper.cpp.git
-cd whisper.cpp
-sh ./models/download-ggml-model.sh base.en
+```ruby
+base_en = Whisper::Model["base.en"]
+whisper = Whisper::Context.new(base_en)
 ```
 
-There are some types of models. See [models][] page for details.
+At first time you use a model, it is downloaded automatically. After that, downloaded cached file is used. To clear cache, call `#clear_cache`:
+
+```ruby
+Whisper::Model["base"].clear_cache
+```
+
+You can see the list of prepared model names by `Whisper::Model.preconverted_model_names`:
+
+```ruby
+puts Whisper::Model.preconverted_model_names
+# tiny
+# tiny.en
+# tiny-q5_1
+# tiny.en-q5_1
+# tiny-q8_0
+# base
+# base.en
+# base-q5_1
+# base.en-q5_1
+# base-q8_0
+#   :
+#   :
+```
+
+You can also use local model files you prepared:
+
+```ruby
+whisper = Whisper::Context.new("path/to/your/model.bin")
+```
+
+Or, you can download model files:
+
+```ruby
+model_uri = Whisper::Model::URI.new("http://example.net/uri/of/your/model.bin")
+whisper = Whisper::Context.new(model_uri)
+```
+
+See [models][] page for details.
 
 ### Preparing audio file ###
 
@@ -110,7 +146,7 @@ whisper.transcribe("path/to/audio.wav", params)
 You can see model information:
 
 ```ruby
-whisper = Whisper::Context.new("path/to/model.bin")
+whisper = Whisper::Context.new(Whisper::Model["base"])
 model = whisper.model
 
 model.n_vocab # => 51864
@@ -169,7 +205,7 @@ require "wavefile"
 reader = WaveFile::Reader.new("path/to/audio.wav", WaveFile::Format.new(:mono, :float, 16000))
 samples = reader.enum_for(:each_buffer).map(&:samples).flatten
 
-whisper = Whisper::Context.new("path/to/model.bin")
+whisper = Whisper::Context.new(Whisper::Model["base"])
 whisper.full(Whisper::Params.new, samples)
 whisper.each_segment do |segment|
   puts segment.text

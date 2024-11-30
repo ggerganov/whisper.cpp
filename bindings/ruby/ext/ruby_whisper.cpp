@@ -195,7 +195,9 @@ static VALUE ruby_whisper_params_allocate(VALUE klass) {
 
 /*
  * call-seq:
+ *   new(Whisper::Model["base.en"]) -> Whisper::Context
  *   new("path/to/model.bin") -> Whisper::Context
+ *   new(Whisper::Model::URI.new("https://example.net/uri/of/model.bin")) -> Whisper::Context
  */
 static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   ruby_whisper *rw;
