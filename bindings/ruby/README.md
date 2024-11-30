@@ -91,7 +91,10 @@ See [models][] page for details.
 
 Currently, whisper.cpp accepts only 16-bit WAV files.
 
-### API ###
+API
+---
+
+### Segments ###
 
 Once `Whisper::Context#transcribe` called, you can retrieve segments by `#each_segment`:
 
@@ -143,6 +146,8 @@ whisper.transcribe("path/to/audio.wav", params)
 
 ```
 
+### Models ###
+
 You can see model information:
 
 ```ruby
@@ -163,6 +168,8 @@ model.ftype # => 1
 model.type # => "base"
 
 ```
+
+### Logging ###
 
 You can set log callback:
 
@@ -195,6 +202,8 @@ Whisper.log_set ->(level, buffer, user_data) {
 }, nil
 Whisper::Context.new(MODEL)
 ```
+
+### Low-level API to transcribe ###
 
 You can also call `Whisper::Context#full` and `#full_parallel` with a Ruby array as samples. Although `#transcribe` with audio file path is recommended because it extracts PCM samples in C++ and is fast, `#full` and `#full_parallel` give you flexibility.
 
