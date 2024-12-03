@@ -2911,7 +2911,6 @@ static void ggml_metal_encode_node(
             } break;
         case GGML_OP_GROUP_NORM:
             {
-                GGML_ASSERT(ne00 % 4 == 0);
                 GGML_ASSERT(ggml_is_contiguous(src0));
 
                 float eps;
