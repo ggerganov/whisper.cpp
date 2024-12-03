@@ -11,11 +11,8 @@ class Whisper::Model
     end
 
     def to_path
-      path = cache_path
-      return path.to_path if cache_path.exist?
-
       cache
-      path.to_path
+      cache_path.to_path
     end
 
     def clear_cache
@@ -42,14 +39,20 @@ class Whisper::Model
     end
 
     def cache
-      request @uri
+      path = cache_path
+      headers = {}
+      headers["if-modified-since"] = path.mtime.httpdate if path.exist?
+      request @uri, headers
+      path
     end
 
-    def request(uri)
+    def request(uri, headers)
       Net::HTTP.start uri.host, uri.port, use_ssl: uri.scheme == "https" do |http|
-        request = Net::HTTP::Get.new(uri)
+        request = Net::HTTP::Get.new(uri, headers)
         http.request request do |response|
           case response
+          when Net::HTTPNotModified
+            # noop
           when Net::HTTPOK
             download response
           when Net::HTTPRedirection
