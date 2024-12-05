@@ -179,7 +179,7 @@ enum llm_arch {
     LLM_ARCH_COMMAND_R,
     LLM_ARCH_DBRX,
     LLM_ARCH_OLMO,
-    LLM_ARCH_OLMO_1124,
+    LLM_ARCH_OLMO2,
     LLM_ARCH_OLMOE,
     LLM_ARCH_OPENELM,
     LLM_ARCH_ARCTIC,
@@ -233,7 +233,7 @@ static const std::map<llm_arch, const char *> LLM_ARCH_NAMES = {
     { LLM_ARCH_COMMAND_R,       "command-r"    },
     { LLM_ARCH_DBRX,            "dbrx"         },
     { LLM_ARCH_OLMO,            "olmo"         },
-    { LLM_ARCH_OLMO_1124,       "olmo_1124"    },
+    { LLM_ARCH_OLMO2,           "olmo2"        },
     { LLM_ARCH_OLMOE,           "olmoe"        },
     { LLM_ARCH_OPENELM,         "openelm"      },
     { LLM_ARCH_ARCTIC,          "arctic"       },
@@ -1036,6 +1036,8 @@ static const std::map<llm_arch, std::map<llm_tensor, const char *>> LLM_TENSOR_N
             { LLM_TENSOR_OUTPUT_NORM,     "output_norm" },
             { LLM_TENSOR_OUTPUT,          "output" },
             { LLM_TENSOR_ROPE_FREQS,      "rope_freqs" },
+            { LLM_TENSOR_ROPE_FACTORS_LONG,  "rope_factors_long" },
+            { LLM_TENSOR_ROPE_FACTORS_SHORT, "rope_factors_short" },
             { LLM_TENSOR_ATTN_NORM,       "blk.%d.attn_norm" },
             { LLM_TENSOR_ATTN_Q,          "blk.%d.attn_q" },
             { LLM_TENSOR_ATTN_K,          "blk.%d.attn_k" },
@@ -1210,7 +1212,7 @@ static const std::map<llm_arch, std::map<llm_tensor, const char *>> LLM_TENSOR_N
         },
     },
     {
-        LLM_ARCH_OLMO_1124,
+        LLM_ARCH_OLMO2,
         {
             { LLM_TENSOR_TOKEN_EMBD,      "token_embd" },
             { LLM_TENSOR_OUTPUT_NORM,     "output_norm" },
@@ -1549,6 +1551,67 @@ static const std::map<llm_arch, std::map<llm_tensor, const char *>> LLM_TENSOR_N
     },
 };
 
+enum llm_chat_template {
+    LLM_CHAT_TEMPLATE_CHATML,
+    LLM_CHAT_TEMPLATE_LLAMA_2,
+    LLM_CHAT_TEMPLATE_LLAMA_2_SYS,
+    LLM_CHAT_TEMPLATE_LLAMA_2_SYS_BOS,
+    LLM_CHAT_TEMPLATE_LLAMA_2_SYS_STRIP,
+    LLM_CHAT_TEMPLATE_MISTRAL_V1,
+    LLM_CHAT_TEMPLATE_MISTRAL_V3,
+    LLM_CHAT_TEMPLATE_MISTRAL_V3_TEKKEN,
+    LLM_CHAT_TEMPLATE_MISTRAL_V7,
+    LLM_CHAT_TEMPLATE_PHI_3,
+    LLM_CHAT_TEMPLATE_ZEPHYR,
+    LLM_CHAT_TEMPLATE_MONARCH,
+    LLM_CHAT_TEMPLATE_GEMMA,
+    LLM_CHAT_TEMPLATE_ORION,
+    LLM_CHAT_TEMPLATE_OPENCHAT,
+    LLM_CHAT_TEMPLATE_VICUNA,
+    LLM_CHAT_TEMPLATE_VICUNA_ORCA,
+    LLM_CHAT_TEMPLATE_DEEPSEEK,
+    LLM_CHAT_TEMPLATE_DEEPSEEK_2,
+    LLM_CHAT_TEMPLATE_COMMAND_R,
+    LLM_CHAT_TEMPLATE_LLAMA_3,
+    LLM_CHAT_TEMPLATE_CHATGML_3,
+    LLM_CHAT_TEMPLATE_CHATGML_4,
+    LLM_CHAT_TEMPLATE_MINICPM,
+    LLM_CHAT_TEMPLATE_EXAONE_3,
+    LLM_CHAT_TEMPLATE_RWKV_WORLD,
+    LLM_CHAT_TEMPLATE_GRANITE,
+    LLM_CHAT_TEMPLATE_UNKNOWN,
+};
+
+static const std::map<std::string, llm_chat_template> LLM_CHAT_TEMPLATES = {
+    { "chatml",            LLM_CHAT_TEMPLATE_CHATML            },
+    { "llama2",            LLM_CHAT_TEMPLATE_LLAMA_2           },
+    { "llama2-sys",        LLM_CHAT_TEMPLATE_LLAMA_2_SYS       },
+    { "llama2-sys-bos",    LLM_CHAT_TEMPLATE_LLAMA_2_SYS_BOS   },
+    { "llama2-sys-strip",  LLM_CHAT_TEMPLATE_LLAMA_2_SYS_STRIP },
+    { "mistral-v1",        LLM_CHAT_TEMPLATE_MISTRAL_V1        },
+    { "mistral-v3",        LLM_CHAT_TEMPLATE_MISTRAL_V3        },
+    { "mistral-v3-tekken", LLM_CHAT_TEMPLATE_MISTRAL_V3_TEKKEN },
+    { "mistral-v7",        LLM_CHAT_TEMPLATE_MISTRAL_V7        },
+    { "phi3",              LLM_CHAT_TEMPLATE_PHI_3             },
+    { "zephyr",            LLM_CHAT_TEMPLATE_ZEPHYR            },
+    { "monarch",           LLM_CHAT_TEMPLATE_MONARCH           },
+    { "gemma",             LLM_CHAT_TEMPLATE_GEMMA             },
+    { "orion",             LLM_CHAT_TEMPLATE_ORION             },
+    { "openchat",          LLM_CHAT_TEMPLATE_OPENCHAT          },
+    { "vicuna",            LLM_CHAT_TEMPLATE_VICUNA            },
+    { "vicuna-orca",       LLM_CHAT_TEMPLATE_VICUNA_ORCA       },
+    { "deepseek",          LLM_CHAT_TEMPLATE_DEEPSEEK          },
+    { "deepseek2",         LLM_CHAT_TEMPLATE_DEEPSEEK_2        },
+    { "command-r",         LLM_CHAT_TEMPLATE_COMMAND_R         },
+    { "llama3",            LLM_CHAT_TEMPLATE_LLAMA_3           },
+    { "chatglm3",          LLM_CHAT_TEMPLATE_CHATGML_3         },
+    { "chatglm4",          LLM_CHAT_TEMPLATE_CHATGML_4         },
+    { "minicpm",           LLM_CHAT_TEMPLATE_MINICPM           },
+    { "exaone3",           LLM_CHAT_TEMPLATE_EXAONE_3          },
+    { "rwkv-world",        LLM_CHAT_TEMPLATE_RWKV_WORLD        },
+    { "granite",           LLM_CHAT_TEMPLATE_GRANITE           },
+};
+
 static llm_arch llm_arch_from_string(const std::string & name) {
     for (const auto & kv : LLM_ARCH_NAMES) { // NOLINT
         if (kv.second == name) {
@@ -1622,9 +1685,10 @@ struct LLM_TN {
 //
 
 static const std::map<llama_rope_scaling_type, const char *> LLAMA_ROPE_SCALING_TYPES = {
-    { LLAMA_ROPE_SCALING_TYPE_NONE,   "none"   },
-    { LLAMA_ROPE_SCALING_TYPE_LINEAR, "linear" },
-    { LLAMA_ROPE_SCALING_TYPE_YARN,   "yarn"   },
+    { LLAMA_ROPE_SCALING_TYPE_NONE,       "none"       },
+    { LLAMA_ROPE_SCALING_TYPE_LINEAR,     "linear"     },
+    { LLAMA_ROPE_SCALING_TYPE_YARN,       "yarn"       },
+    { LLAMA_ROPE_SCALING_TYPE_LONGROPE,   "longrope"   },
 };
 
 static llama_rope_scaling_type llama_rope_scaling_type_from_string(const std::string & name) {
@@ -2341,6 +2405,7 @@ enum e_model {
     MODEL_16B,
     MODEL_20B,
     MODEL_30B,
+    MODEL_32B,
     MODEL_34B,
     MODEL_35B,
     MODEL_40B,
@@ -4866,7 +4931,9 @@ struct llama_model_loader {
             mappings.reserve(files.size());
             mmaps_used.reserve(files.size());
             for (const auto & file : files) {
-                std::unique_ptr<llama_mmap> mapping(new llama_mmap(file.get(), prefetch ? -1 : 0, ggml_is_numa()));
+                auto * reg = ggml_backend_dev_backend_reg(ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU));
+                auto * is_numa_fn = (decltype(ggml_is_numa) *) ggml_backend_reg_get_proc_address(reg, "ggml_backend_cpu_is_numa");
+                std::unique_ptr<llama_mmap> mapping(new llama_mmap(file.get(), prefetch ? -1 : 0, is_numa_fn()));
                 mmaps_used.emplace_back(mapping->size, 0);
                 if (mlock_mmaps) {
                     std::unique_ptr<llama_mlock> mlock_mmap(new llama_mlock());
@@ -5328,6 +5395,7 @@ static const char * llama_model_type_name(e_model type) {
         case MODEL_16B:           return "16B";
         case MODEL_20B:           return "20B";
         case MODEL_30B:           return "30B";
+        case MODEL_32B:           return "32B";
         case MODEL_34B:           return "34B";
         case MODEL_35B:           return "35B";
         case MODEL_40B:           return "40B";
@@ -5515,8 +5583,12 @@ static void llm_load_hparams(
         case LLM_ARCH_MINICPM:
             {
                 ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS, hparams.f_norm_rms_eps);
+                ml.get_key(LLM_KV_EMBEDDING_SCALE, hparams.f_embedding_scale);
+                ml.get_key(LLM_KV_RESIDUAL_SCALE, hparams.f_residual_scale);
+                ml.get_key(LLM_KV_LOGIT_SCALE, hparams.f_logit_scale);
 
                 switch (hparams.n_layer) {
+                    case 52: model.type = e_model::MODEL_1B; break;
                     case 40: model.type = e_model::MODEL_2B; break;
                     default: model.type = e_model::MODEL_UNKNOWN;
                 }
@@ -5688,7 +5760,10 @@ static void llm_load_hparams(
                     case 24: model.type = hparams.n_embd == 1024 ? e_model::MODEL_0_5B : e_model::MODEL_1B; break;
                     case 28: model.type = hparams.n_embd == 1536 ? e_model::MODEL_1_5B : e_model::MODEL_7B; break;
                     case 32: model.type = e_model::MODEL_7B; break;
+                    case 36: model.type = e_model::MODEL_3B; break;
                     case 40: model.type = hparams.n_head() == 20 ? e_model::MODEL_4B : e_model::MODEL_13B; break;
+                    case 48: model.type = e_model::MODEL_14B; break;
+                    case 64: model.type = e_model::MODEL_32B; break;
                     case 80: model.type = e_model::MODEL_70B; break;
                     default: model.type = e_model::MODEL_UNKNOWN;
                 }
@@ -5898,7 +5973,7 @@ static void llm_load_hparams(
                     default: model.type = e_model::MODEL_UNKNOWN;
                 }
             } break;
-        case LLM_ARCH_OLMO_1124:
+        case LLM_ARCH_OLMO2:
             {
                 ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS, hparams.f_norm_rms_eps);
 
@@ -6997,7 +7072,7 @@ static void llm_load_print_meta(llama_model_loader & ml, llama_model & model) {
         LLAMA_LOG_INFO("%s: n_ff_shexp       = %d\n",     __func__, hparams.n_ff_shexp);
     }
 
-    if (model.arch == LLM_ARCH_GRANITE || model.arch == LLM_ARCH_GRANITE_MOE) {
+    if (model.arch == LLM_ARCH_MINICPM || model.arch == LLM_ARCH_GRANITE || model.arch == LLM_ARCH_GRANITE_MOE) {
         LLAMA_LOG_INFO("%s: f_embedding_scale = %f\n", __func__, hparams.f_embedding_scale);
         LLAMA_LOG_INFO("%s: f_residual_scale  = %f\n", __func__, hparams.f_residual_scale);
         LLAMA_LOG_INFO("%s: f_attention_scale = %f\n", __func__, hparams.f_attention_scale);
@@ -7181,12 +7256,12 @@ static bool weight_buft_supported(const llama_hparams & hparams, ggml_tensor * w
             } break;
         case GGML_OP_ADD:
             {
-                ggml_tensor * a = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, w->ne[0], 512);
+                ggml_tensor * a = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, w->ne[0], w->ne[1], w->ne[2], w->ne[3]);
                 op_tensor = ggml_add(ctx, a, w);
             } break;
         case GGML_OP_MUL:
             {
-                ggml_tensor * a = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, w->ne[0], 512);
+                ggml_tensor * a = ggml_new_tensor_4d(ctx, GGML_TYPE_F32, w->ne[0], w->ne[1], w->ne[2], w->ne[3]);
                 op_tensor = ggml_mul(ctx, a, w);
             } break;
         case GGML_OP_DIV:
@@ -7622,7 +7697,13 @@ static bool llm_load_tensors(
 
                         layer.ffn_norm = create_tensor(tn(LLM_TENSOR_FFN_NORM, "weight", i), {n_embd}, 0);
 
-                        layer.rope_freqs = create_tensor(tn(LLM_TENSOR_ROPE_FREQS, "weight", i), {n_rot/2}, llama_model_loader::TENSOR_NOT_REQUIRED | (i != 0 ? llama_model_loader::TENSOR_DUPLICATED : 0));
+                        if (hparams.rope_scaling_type_train == LLAMA_ROPE_SCALING_TYPE_LONGROPE) {
+                            layer.rope_long  = create_tensor(tn(LLM_TENSOR_ROPE_FACTORS_LONG,  "weight", i), {n_rot/2}, llama_model_loader::TENSOR_NOT_REQUIRED | (i != 0 ? llama_model_loader::TENSOR_DUPLICATED : 0));
+                            layer.rope_short = create_tensor(tn(LLM_TENSOR_ROPE_FACTORS_SHORT, "weight", i), {n_rot/2}, llama_model_loader::TENSOR_NOT_REQUIRED | (i != 0 ? llama_model_loader::TENSOR_DUPLICATED : 0));
+                        }
+                        else {
+                            layer.rope_freqs = create_tensor(tn(LLM_TENSOR_ROPE_FREQS, "weight", i), {n_rot/2}, llama_model_loader::TENSOR_NOT_REQUIRED | (i != 0 ? llama_model_loader::TENSOR_DUPLICATED : 0));
+                        }
 
                         if (n_expert == 0) {
                             layer.ffn_gate = create_tensor(tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd,   n_ff}, 0);
@@ -8591,7 +8672,7 @@ static bool llm_load_tensors(
                         layer.ffn_up   = create_tensor(tn(LLM_TENSOR_FFN_UP,   "weight", i), {n_embd,   n_ff}, 0);
                     }
                 } break;
-            case LLM_ARCH_OLMO_1124:
+            case LLM_ARCH_OLMO2:
                 {
                     model.tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, 0);
 
@@ -9190,7 +9271,7 @@ static bool llm_load_tensors(
         ggml_backend_dev_t dev = ggml_backend_buft_get_device(buft);
         if (!dev) {
             // FIXME: workaround for CPU backend buft having a NULL device
-            dev = ggml_backend_reg_dev_get(ggml_backend_cpu_reg(), 0);
+            dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
         }
         ggml_backend_dev_props props;
         ggml_backend_dev_get_props(dev, &props);
@@ -13429,153 +13510,6 @@ struct llm_build_context {
         return gf;
     }
 
-    // ref: https://arxiv.org/abs/2203.03466
-    //      https://github.com/ggerganov/llama.cpp/issues/5276#issuecomment-1925774738
-    // based on the original build_llama() function
-    struct ggml_cgraph * build_minicpm() {
-        struct ggml_cgraph * gf = ggml_new_graph_custom(ctx0, llama_model_max_nodes(model), false);
-
-        const int64_t n_embd_head = hparams.n_embd_head_v;
-        GGML_ASSERT(n_embd_head == hparams.n_embd_head_k);
-        GGML_ASSERT(n_embd_head == hparams.n_rot);
-
-        const int64_t n_embd = hparams.n_embd;
-        //TODO: if the model varies, these parameters need to be read from the model
-        const int64_t n_embd_base = 256;
-        const float scale_embd  = 12.0f;
-        const float scale_depth = 1.4f;
-
-        struct ggml_tensor * cur;
-        struct ggml_tensor * inpL;
-
-        inpL = llm_build_inp_embd(ctx0, lctx, hparams, ubatch, model.tok_embd, cb);
-
-        // scale the input embeddings
-        inpL = ggml_scale(ctx0, inpL, scale_embd);
-        cb(inpL, "inp_scaled", -1);
-
-        // inp_pos - contains the positions
-        struct ggml_tensor * inp_pos = build_inp_pos();
-
-        // KQ_mask (mask for 1 head, it will be broadcasted to all heads)
-        struct ggml_tensor * KQ_mask = build_inp_KQ_mask();
-
-        for (int il = 0; il < n_layer; ++il) {
-            struct ggml_tensor * inpSA = inpL;
-
-            // norm
-            cur = llm_build_norm(ctx0, inpL, hparams,
-                    model.layers[il].attn_norm, NULL,
-                    LLM_NORM_RMS, cb, il);
-            cb(cur, "attn_norm", il);
-
-            // self-attention
-            {
-                // compute Q and K and RoPE them
-                struct ggml_tensor * Qcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wq, cur);
-                cb(Qcur, "Qcur", il);
-                if (model.layers[il].bq) {
-                    Qcur = ggml_add(ctx0, Qcur, model.layers[il].bq);
-                    cb(Qcur, "Qcur", il);
-                }
-
-                struct ggml_tensor * Kcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wk, cur);
-                cb(Kcur, "Kcur", il);
-                if (model.layers[il].bk) {
-                    Kcur = ggml_add(ctx0, Kcur, model.layers[il].bk);
-                    cb(Kcur, "Kcur", il);
-                }
-
-                struct ggml_tensor * Vcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wv, cur);
-                cb(Vcur, "Vcur", il);
-                if (model.layers[il].bv) {
-                    Vcur = ggml_add(ctx0, Vcur, model.layers[il].bv);
-                    cb(Vcur, "Vcur", il);
-                }
-
-                Qcur = ggml_rope_ext(
-                    ctx0, ggml_reshape_3d(ctx0, Qcur, n_embd_head, n_head,    n_tokens), inp_pos, nullptr,
-                    n_rot, rope_type, n_ctx_orig, freq_base, freq_scale,
-                    ext_factor, attn_factor, beta_fast, beta_slow
-                );
-                cb(Qcur, "Qcur", il);
-
-                Kcur = ggml_rope_ext(
-                    ctx0, ggml_reshape_3d(ctx0, Kcur, n_embd_head, n_head_kv, n_tokens), inp_pos, nullptr,
-                    n_rot, rope_type, n_ctx_orig, freq_base, freq_scale,
-                    ext_factor, attn_factor, beta_fast, beta_slow
-                );
-                cb(Kcur, "Kcur", il);
-
-                cur = llm_build_kv(ctx0, lctx, kv_self, gf,
-                        model.layers[il].wo, model.layers[il].bo,
-                        Kcur, Vcur, Qcur, KQ_mask, n_tokens, kv_head, n_kv, 1.0f/sqrtf(float(n_embd_head)), cb, il);
-            }
-
-            if (il == n_layer - 1) {
-                // skip computing output for unused tokens
-                struct ggml_tensor * inp_out_ids = build_inp_out_ids();
-                cur   = ggml_get_rows(ctx0,   cur, inp_out_ids);
-                inpSA = ggml_get_rows(ctx0, inpSA, inp_out_ids);
-            }
-
-            // scale_res - scale the hidden states for residual connection
-            const float scale_res = scale_depth/sqrtf(float(n_layer));
-            cur = ggml_scale(ctx0, cur, scale_res);
-            cb(cur, "hidden_scaled", -1);
-
-            struct ggml_tensor * ffn_inp = ggml_add(ctx0, cur, inpSA);
-            cb(ffn_inp, "ffn_inp", il);
-
-            // feed-forward network
-            {
-                cur = llm_build_norm(ctx0, ffn_inp, hparams,
-                        model.layers[il].ffn_norm, NULL,
-                        LLM_NORM_RMS, cb, il);
-                cb(cur, "ffn_norm", il);
-
-                cur = llm_build_ffn(ctx0, lctx, cur,
-                        model.layers[il].ffn_up,   NULL, NULL,
-                        model.layers[il].ffn_gate, NULL, NULL,
-                        model.layers[il].ffn_down, NULL, NULL,
-                        NULL,
-                        LLM_FFN_SILU, LLM_FFN_PAR, cb, il);
-                cb(cur, "ffn_out", il);
-            }
-
-            // scale the hidden states for residual connection
-            cur = ggml_scale(ctx0, cur, scale_res);
-            cb(cur, "hidden_scaled_ffn", -1);
-
-            cur = ggml_add(ctx0, cur, ffn_inp);
-            cur = lctx.cvec.apply_to(ctx0, cur, il);
-            cb(cur, "l_out", il);
-
-            // input for next layer
-            inpL = cur;
-        }
-
-        cur = inpL;
-
-        cur = llm_build_norm(ctx0, cur, hparams,
-                model.output_norm, NULL,
-                LLM_NORM_RMS, cb, -1);
-        cb(cur, "result_norm", -1);
-
-        // lm_head scaling
-        const float scale_lmhead = float(n_embd_base)/float(n_embd);
-        cur = ggml_scale(ctx0, cur, scale_lmhead);
-        cb(cur, "lmhead_scaling", -1);
-
-        // lm_head
-        cur = llm_build_lora_mm(lctx, ctx0, model.output, cur);
-        cb(cur, "result_output", -1);
-
-        ggml_build_forward_expand(gf, cur);
-
-        return gf;
-    }
-
     struct ggml_cgraph * build_minicpm3() {
         struct ggml_cgraph * gf = ggml_new_graph_custom(ctx0, llama_model_max_nodes(model), false);
 
@@ -14481,7 +14415,7 @@ struct llm_build_context {
         return gf;
     }
 
-    struct ggml_cgraph * build_olmo_1124() {
+    struct ggml_cgraph * build_olmo2() {
         struct ggml_cgraph * gf = ggml_new_graph_custom(ctx0, llama_model_max_nodes(model), false);
 
         // mutable variable, needed during the last layer of the computation to skip unused tokens
@@ -16674,6 +16608,7 @@ static struct ggml_cgraph * llama_build_graph(
 
     switch (model.arch) {
         case LLM_ARCH_LLAMA:
+        case LLM_ARCH_MINICPM:
         case LLM_ARCH_GRANITE:
         case LLM_ARCH_GRANITE_MOE:
             {
@@ -16757,10 +16692,6 @@ static struct ggml_cgraph * llama_build_graph(
             {
                 result = llm.build_internlm2();
             } break;
-        case LLM_ARCH_MINICPM:
-            {
-                result = llm.build_minicpm();
-            } break;
         case LLM_ARCH_MINICPM3:
             {
                 result = llm.build_minicpm3();
@@ -16797,9 +16728,9 @@ static struct ggml_cgraph * llama_build_graph(
             {
                 result = llm.build_olmo();
             } break;
-        case LLM_ARCH_OLMO_1124:
+        case LLM_ARCH_OLMO2:
             {
-                result = llm.build_olmo_1124();
+                result = llm.build_olmo2();
             } break;
         case LLM_ARCH_OLMOE:
             {
@@ -17443,8 +17374,9 @@ static enum ggml_status llama_graph_compute(
                     int   n_threads,
         ggml_threadpool * threadpool) {
     if (lctx.backend_cpu != nullptr) {
-        ggml_backend_cpu_set_threadpool(lctx.backend_cpu, threadpool);
-        ggml_backend_cpu_set_abort_callback(lctx.backend_cpu, lctx.abort_callback, lctx.abort_callback_data);
+        auto * reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(lctx.backend_cpu));
+        auto * set_threadpool_fn = (decltype(ggml_backend_cpu_set_threadpool) *) ggml_backend_reg_get_proc_address(reg, "ggml_backend_cpu_set_threadpool");
+        set_threadpool_fn(lctx.backend_cpu, threadpool);
     }
 
     // set the number of threads for all the backends
@@ -18211,13 +18143,13 @@ static void llama_kv_cache_defrag_internal(struct llama_context & lctx) {
 static void llama_kv_cache_update_internal(struct llama_context & lctx) {
     bool need_reserve = false;
 
-    // apply K-shift if needed
-    if (lctx.model.hparams.rope_type != LLAMA_ROPE_TYPE_NONE && lctx.kv_self.has_shift) {
+    if (lctx.kv_self.has_shift) {
         if (!llama_kv_cache_can_shift(&lctx)) {
-            GGML_ABORT("Deepseek2 does not support K-shift");
+            GGML_ABORT("The current context does not support K-shift");
         }
 
-        {
+        // apply K-shift if needed
+        if (lctx.model.hparams.rope_type != LLAMA_ROPE_TYPE_NONE) {
             ggml_backend_sched_reset(lctx.sched.get());
 
             ggml_cgraph * gf = llama_build_graph_k_shift(lctx);
@@ -19361,6 +19293,7 @@ void llama_lora_adapter_free(struct llama_lora_adapter * adapter) {
 //
 struct llama_model_params llama_model_default_params() {
     struct llama_model_params result = {
+        /*.devices                     =*/ nullptr,
         /*.n_gpu_layers                =*/ 0,
         /*.split_mode                  =*/ LLAMA_SPLIT_MODE_LAYER,
         /*.main_gpu                    =*/ 0,
@@ -19478,7 +19411,11 @@ void llama_backend_init(void) {
 
 void llama_numa_init(enum ggml_numa_strategy numa) {
     if (numa != GGML_NUMA_STRATEGY_DISABLED) {
-        ggml_numa_init(numa);
+        auto * dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+        GGML_ASSERT(dev && "CPU backend is not loaded");
+        auto * reg = ggml_backend_dev_backend_reg(dev);
+        auto * numa_init_fn = (decltype(ggml_numa_init) *) ggml_backend_reg_get_proc_address(reg, "ggml_backend_cpu_numa_init");
+        numa_init_fn(numa);
     }
 }
 
@@ -19569,19 +19506,24 @@ struct llama_model * llama_load_model_from_file(
     }
 
     // create list of devices to use with this model
-    // currently, we use all available devices
-    // TODO: rework API to give user more control over device selection
-    for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
-        ggml_backend_dev_t dev = ggml_backend_dev_get(i);
-        switch (ggml_backend_dev_type(dev)) {
-            case GGML_BACKEND_DEVICE_TYPE_CPU:
-            case GGML_BACKEND_DEVICE_TYPE_ACCEL:
-                // skip CPU backends since they are handled separately
-                break;
+    if (params.devices) {
+        for (ggml_backend_dev_t * dev = params.devices; *dev; ++dev) {
+            model->devices.push_back(*dev);
+        }
+    } else {
+        // use all available devices
+        for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
+            ggml_backend_dev_t dev = ggml_backend_dev_get(i);
+            switch (ggml_backend_dev_type(dev)) {
+                case GGML_BACKEND_DEVICE_TYPE_CPU:
+                case GGML_BACKEND_DEVICE_TYPE_ACCEL:
+                    // skip CPU backends since they are handled separately
+                    break;
 
-            case GGML_BACKEND_DEVICE_TYPE_GPU:
-                model->devices.push_back(dev);
-                break;
+                case GGML_BACKEND_DEVICE_TYPE_GPU:
+                    model->devices.push_back(dev);
+                    break;
+            }
         }
     }
 
@@ -19752,9 +19694,6 @@ struct llama_context * llama_new_context_with_model(
                 __func__, n_ctx_per_seq, hparams.n_ctx_train);
     }
 
-    ctx->abort_callback      = params.abort_callback;
-    ctx->abort_callback_data = params.abort_callback_data;
-
     ctx->logits_all = params.logits_all;
 
     // build worst-case graph for encoder if a model contains encoder
@@ -19803,7 +19742,7 @@ struct llama_context * llama_new_context_with_model(
         }
 
         // add CPU backend
-        ctx->backend_cpu = ggml_backend_cpu_init();
+        ctx->backend_cpu = ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr);
         if (ctx->backend_cpu == nullptr) {
             LLAMA_LOG_ERROR("%s: failed to initialize CPU backend\n", __func__);
             llama_free(ctx);
@@ -19822,6 +19761,8 @@ struct llama_context * llama_new_context_with_model(
                 }
             }
         }
+
+        llama_set_abort_callback(ctx, params.abort_callback, params.abort_callback_data);
 
         if (!llama_kv_cache_init(ctx->kv_self, ctx, type_k, type_v, kv_size, cparams.offload_kqv)) {
             LLAMA_LOG_ERROR("%s: llama_kv_cache_init() failed for self-attention cache\n", __func__);
@@ -19868,7 +19809,8 @@ struct llama_context * llama_new_context_with_model(
             std::vector<ggml_backend_t> backend_ptrs;
             for (auto & backend : ctx->backends) {
                 auto * buft = ggml_backend_get_default_buffer_type(backend.get());
-                if (ggml_backend_is_cpu(backend.get()) && !model->devices.empty()) {
+                auto backend_type = ggml_backend_dev_type(ggml_backend_get_device(backend.get()));
+                if (backend_type == GGML_BACKEND_DEVICE_TYPE_CPU && !model->devices.empty()) {
                     // use the host buffer of the first device CPU for faster transfer of the intermediate state
                     auto * dev = model->devices[0];
                     auto * host_buft = ggml_backend_dev_host_buffer_type(dev);
@@ -19896,7 +19838,8 @@ struct llama_context * llama_new_context_with_model(
             // pipeline parallelism requires support for async compute and events in all devices
             if (pipeline_parallel) {
                 for (auto & backend : ctx->backends) {
-                    if (ggml_backend_is_cpu(backend.get())) {
+                    auto dev_type = ggml_backend_dev_type(ggml_backend_get_device(backend.get()));
+                    if (dev_type == GGML_BACKEND_DEVICE_TYPE_CPU) {
                         // ignore CPU backend
                         continue;
                     }
@@ -20070,7 +20013,7 @@ enum llama_rope_type llama_rope_type(const struct llama_model * model) {
         case LLM_ARCH_QWEN:
         case LLM_ARCH_QWEN2:
         case LLM_ARCH_QWEN2MOE:
-        case LLM_ARCH_OLMO_1124:
+        case LLM_ARCH_OLMO2:
         case LLM_ARCH_OLMOE:
         case LLM_ARCH_PHI2:
         case LLM_ARCH_PHI3:
@@ -20463,7 +20406,7 @@ void llama_kv_cache_update(struct llama_context * ctx) {
 }
 
 bool llama_kv_cache_can_shift(struct llama_context * ctx) {
-    return ctx->model.arch != LLM_ARCH_DEEPSEEK2; // not supported due to MLA
+    return !ctx->kv_self.recurrent && ctx->model.arch != LLM_ARCH_DEEPSEEK2; // not supported due to MLA
 }
 
 // deprecated
@@ -21450,6 +21393,14 @@ int32_t llama_n_threads_batch(struct llama_context * ctx) {
 void llama_set_abort_callback(struct llama_context * ctx, bool (*abort_callback)(void * data), void * abort_callback_data) {
     ctx->abort_callback      = abort_callback;
     ctx->abort_callback_data = abort_callback_data;
+
+    for (auto & backend : ctx->backends) {
+        auto * reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(backend.get()));
+        auto * set_abort_callback_fn = (ggml_backend_set_abort_callback_t) ggml_backend_reg_get_proc_address(reg, "ggml_backend_set_abort_callback");
+        if (set_abort_callback_fn) {
+            set_abort_callback_fn(backend.get(), ctx->abort_callback, ctx->abort_callback_data);
+        }
+    }
 }
 
 void llama_set_embeddings(struct llama_context * ctx, bool embeddings) {
@@ -21816,18 +21767,109 @@ int32_t llama_detokenize(
 // chat templates
 //
 
+static llm_chat_template llama_chat_detect_template(const std::string & tmpl) {
+    if (LLM_CHAT_TEMPLATES.find(tmpl) != LLM_CHAT_TEMPLATES.end()) {
+        return LLM_CHAT_TEMPLATES.at(tmpl);
+    }
+    auto tmpl_contains = [&tmpl](const char * haystack) -> bool {
+        return tmpl.find(haystack) != std::string::npos;
+    };
+    if (tmpl_contains("<|im_start|>")) {
+        return LLM_CHAT_TEMPLATE_CHATML;
+    } else if (tmpl.find("mistral") == 0 || tmpl_contains("[INST]")) {
+        if (tmpl_contains("[SYSTEM_PROMPT]")) {
+            return LLM_CHAT_TEMPLATE_MISTRAL_V7;
+        } else if (
+            // catches official 'v1' template
+            tmpl_contains("' [INST] ' + system_message")
+            // catches official 'v3' and 'v3-tekken' templates
+            || tmpl_contains("[AVAILABLE_TOOLS]")
+        ) {
+            // Official mistral 'v1', 'v3' and 'v3-tekken' templates
+            // See: https://github.com/mistralai/cookbook/blob/main/concept-deep-dive/tokenization/chat_templates.md
+            // See: https://github.com/mistralai/cookbook/blob/main/concept-deep-dive/tokenization/templates.md
+            if (tmpl_contains(" [INST]")) {
+                return LLM_CHAT_TEMPLATE_MISTRAL_V1;
+            } else if (tmpl_contains("\"[INST]\"")) {
+                return LLM_CHAT_TEMPLATE_MISTRAL_V3_TEKKEN;
+            }
+            return LLM_CHAT_TEMPLATE_MISTRAL_V3;
+        } else {
+            // llama2 template and its variants
+            // [variant] support system message
+            // See: https://huggingface.co/blog/llama2#how-to-prompt-llama-2
+            bool support_system_message = tmpl_contains("<<SYS>>");
+            bool add_bos_inside_history = tmpl_contains("bos_token + '[INST]");
+            bool strip_message = tmpl_contains("content.strip()");
+            if (strip_message) {
+                return LLM_CHAT_TEMPLATE_LLAMA_2_SYS_STRIP;
+            } else if (add_bos_inside_history) {
+                return LLM_CHAT_TEMPLATE_LLAMA_2_SYS_BOS;
+            } else if (support_system_message) {
+                return LLM_CHAT_TEMPLATE_LLAMA_2_SYS;
+            } else {
+                return LLM_CHAT_TEMPLATE_LLAMA_2;
+            }
+        }
+    } else if (tmpl_contains("<|assistant|>") && tmpl_contains("<|end|>")) {
+        return LLM_CHAT_TEMPLATE_PHI_3;
+    } else if (tmpl_contains("<|user|>") && tmpl_contains("<|endoftext|>")) {
+        return LLM_CHAT_TEMPLATE_ZEPHYR;
+    } else if (tmpl_contains("bos_token + message['role']")) {
+        return LLM_CHAT_TEMPLATE_MONARCH;
+    } else if (tmpl_contains("<start_of_turn>")) {
+        return LLM_CHAT_TEMPLATE_GEMMA;
+    } else if (tmpl_contains("'\\n\\nAssistant: ' + eos_token")) {
+        // OrionStarAI/Orion-14B-Chat
+        return LLM_CHAT_TEMPLATE_ORION;
+    } else if (tmpl_contains("GPT4 Correct ")) {
+        // openchat/openchat-3.5-0106
+        return LLM_CHAT_TEMPLATE_OPENCHAT;
+    } else if (tmpl_contains("USER: ") && tmpl_contains("ASSISTANT: ")) {
+        // eachadea/vicuna-13b-1.1 (and Orca variant)
+        if (tmpl_contains("SYSTEM: ")) {
+            return LLM_CHAT_TEMPLATE_VICUNA_ORCA;
+        }
+        return LLM_CHAT_TEMPLATE_VICUNA;
+    } else if (tmpl_contains("### Instruction:") && tmpl_contains("<|EOT|>")) {
+        // deepseek-ai/deepseek-coder-33b-instruct
+        return LLM_CHAT_TEMPLATE_DEEPSEEK;
+    } else if (tmpl_contains("<|START_OF_TURN_TOKEN|>") && tmpl_contains("<|USER_TOKEN|>")) {
+        // CohereForAI/c4ai-command-r-plus
+        return LLM_CHAT_TEMPLATE_COMMAND_R;
+    } else if (tmpl_contains("<|start_header_id|>") && tmpl_contains("<|end_header_id|>")) {
+        return LLM_CHAT_TEMPLATE_LLAMA_3;
+    } else if (tmpl_contains("[gMASK]sop")) {
+        // chatglm3-6b
+        return LLM_CHAT_TEMPLATE_CHATGML_3;
+    } else if (tmpl_contains("[gMASK]<sop>")) {
+        return LLM_CHAT_TEMPLATE_CHATGML_4;
+    } else if (tmpl_contains(LU8("<用户>"))) {
+        // MiniCPM-3B-OpenHermes-2.5-v2-GGUF
+        return LLM_CHAT_TEMPLATE_MINICPM;
+    } else if (tmpl_contains("'Assistant: ' + message['content'] + eos_token")) {
+        return LLM_CHAT_TEMPLATE_DEEPSEEK_2;
+    } else if (tmpl_contains("[|system|]") && tmpl_contains("[|assistant|]") && tmpl_contains("[|endofturn|]")) {
+        // ref: https://huggingface.co/LGAI-EXAONE/EXAONE-3.0-7.8B-Instruct/discussions/8#66bae61b1893d14ee8ed85bb
+        // EXAONE-3.0-7.8B-Instruct
+        return LLM_CHAT_TEMPLATE_EXAONE_3;
+    } else if (tmpl_contains("rwkv-world")) {
+        return LLM_CHAT_TEMPLATE_RWKV_WORLD;
+    } else if (tmpl_contains("<|start_of_role|>")) {
+        return LLM_CHAT_TEMPLATE_GRANITE;
+    }
+    return LLM_CHAT_TEMPLATE_UNKNOWN;
+}
+
 // Simple version of "llama_apply_chat_template" that only works with strings
 // This function uses heuristic checks to determine commonly used template. It is not a jinja parser.
 static int32_t llama_chat_apply_template_internal(
-    const std::string & tmpl,
+    const llm_chat_template tmpl,
     const std::vector<const llama_chat_message *> & chat,
     std::string & dest, bool add_ass) {
     // Taken from the research: https://github.com/ggerganov/llama.cpp/issues/5527
     std::stringstream ss;
-    auto tmpl_contains = [&tmpl](std::string haystack) -> bool {
-        return tmpl.find(haystack) != std::string::npos;
-    };
-    if (tmpl == "chatml" || tmpl_contains("<|im_start|>")) {
+    if (tmpl == LLM_CHAT_TEMPLATE_CHATML) {
         // chatml template
         for (auto message : chat) {
             ss << "<|im_start|>" << message->role << "\n" << message->content << "<|im_end|>\n";
@@ -21835,16 +21877,59 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "<|im_start|>assistant\n";
         }
-    } else if (tmpl == "llama2" || tmpl == "mistral" || tmpl_contains("[INST]")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_MISTRAL_V7) {
+        // Official mistral 'v7' template
+        // See: https://huggingface.co/mistralai/Mistral-Large-Instruct-2411#basic-instruct-template-v7
+        for (auto message : chat) {
+            std::string role(message->role);
+            std::string content(message->content);
+            if (role == "system") {
+                ss << "[SYSTEM_PROMPT] " << content << "[/SYSTEM_PROMPT]";
+            } else if (role == "user") {
+                ss << "[INST] " << content << "[/INST]";
+            }
+            else {
+                ss << " " << content << "</s>";
+            }
+        }
+    } else if (tmpl == LLM_CHAT_TEMPLATE_MISTRAL_V1
+            || tmpl == LLM_CHAT_TEMPLATE_MISTRAL_V3
+            || tmpl == LLM_CHAT_TEMPLATE_MISTRAL_V3_TEKKEN) {
+        // See: https://github.com/mistralai/cookbook/blob/main/concept-deep-dive/tokenization/chat_templates.md
+        // See: https://github.com/mistralai/cookbook/blob/main/concept-deep-dive/tokenization/templates.md
+        std::string leading_space = tmpl == LLM_CHAT_TEMPLATE_MISTRAL_V1 ? " " : "";
+        std::string trailing_space = tmpl == LLM_CHAT_TEMPLATE_MISTRAL_V3_TEKKEN ? "" : " ";
+        bool trim_assistant_message = tmpl == LLM_CHAT_TEMPLATE_MISTRAL_V3;
+        bool is_inside_turn = false;
+        for (auto message : chat) {
+            if (!is_inside_turn) {
+                ss << leading_space << "[INST]" << trailing_space;
+                is_inside_turn = true;
+            }
+            std::string role(message->role);
+            std::string content(message->content);
+            if (role == "system") {
+                ss << content << "\n\n";
+            } else if (role == "user") {
+                ss << content << leading_space << "[/INST]";
+            } else {
+                ss << trailing_space << (trim_assistant_message ? trim(content) : content) << "</s>";
+                is_inside_turn = false;
+            }
+        }
+    } else if (
+            tmpl == LLM_CHAT_TEMPLATE_LLAMA_2
+            || tmpl == LLM_CHAT_TEMPLATE_LLAMA_2_SYS
+            || tmpl == LLM_CHAT_TEMPLATE_LLAMA_2_SYS_BOS
+            || tmpl == LLM_CHAT_TEMPLATE_LLAMA_2_SYS_STRIP) {
         // llama2 template and its variants
         // [variant] support system message
-        bool support_system_message = tmpl_contains("<<SYS>>") || tmpl == "mistral";
-        // [variant] space before + after response
-        bool space_around_response = tmpl_contains("' ' + eos_token");
+        // See: https://huggingface.co/blog/llama2#how-to-prompt-llama-2
+        bool support_system_message = tmpl != LLM_CHAT_TEMPLATE_LLAMA_2;
         // [variant] add BOS inside history
-        bool add_bos_inside_history = tmpl_contains("bos_token + '[INST]");
+        bool add_bos_inside_history = tmpl == LLM_CHAT_TEMPLATE_LLAMA_2_SYS_BOS;
         // [variant] trim spaces from the input message
-        bool strip_message = tmpl_contains("content.strip()");
+        bool strip_message = tmpl == LLM_CHAT_TEMPLATE_LLAMA_2_SYS_STRIP;
         // construct the prompt
         bool is_inside_turn = true; // skip BOS at the beginning
         ss << "[INST] ";
@@ -21865,12 +21950,11 @@ static int32_t llama_chat_apply_template_internal(
             } else if (role == "user") {
                 ss << content << " [/INST]";
             } else {
-                ss << (space_around_response ? " " : "") << content << (space_around_response ? " " : "") << "</s>";
+                ss << content << "</s>";
                 is_inside_turn = false;
             }
         }
-        // llama2 templates seem to not care about "add_generation_prompt"
-    } else if (tmpl == "phi3" || (tmpl_contains("<|assistant|>") && tmpl_contains("<|end|>"))) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_PHI_3) {
         // Phi 3
         for (auto message : chat) {
             std::string role(message->role);
@@ -21879,7 +21963,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "<|assistant|>\n";
         }
-    } else if (tmpl == "zephyr" || tmpl_contains("<|user|>")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_ZEPHYR) {
         // zephyr template
         for (auto message : chat) {
             ss << "<|" << message->role << "|>" << "\n" << message->content << "<|endoftext|>\n";
@@ -21887,7 +21971,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "<|assistant|>\n";
         }
-    } else if (tmpl == "monarch" || tmpl_contains("bos_token + message['role']")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_MONARCH) {
         // mlabonne/AlphaMonarch-7B template (the <s> is included inside history)
         for (auto message : chat) {
             std::string bos = (message == chat.front()) ? "" : "<s>"; // skip BOS for first message
@@ -21896,7 +21980,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "<s>assistant\n";
         }
-    } else if (tmpl == "gemma" || tmpl == "gemma2" || tmpl_contains("<start_of_turn>")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_GEMMA) {
         // google/gemma-7b-it
         std::string system_prompt = "";
         for (auto message : chat) {
@@ -21918,7 +22002,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "<start_of_turn>model\n";
         }
-    } else if (tmpl == "orion" || tmpl_contains("'\\n\\nAssistant: ' + eos_token")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_ORION) {
         // OrionStarAI/Orion-14B-Chat
         std::string system_prompt = "";
         for (auto message : chat) {
@@ -21938,7 +22022,7 @@ static int32_t llama_chat_apply_template_internal(
                 ss << message->content << "</s>";
             }
         }
-    } else if (tmpl == "openchat" || tmpl_contains("GPT4 Correct ")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_OPENCHAT) {
         // openchat/openchat-3.5-0106,
         for (auto message : chat) {
             std::string role(message->role);
@@ -21952,13 +22036,13 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "GPT4 Correct Assistant:";
         }
-    } else if (tmpl == "vicuna" || tmpl == "vicuna-orca" || (tmpl_contains("USER: ") && tmpl_contains("ASSISTANT: "))) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_VICUNA || tmpl == LLM_CHAT_TEMPLATE_VICUNA_ORCA) {
         // eachadea/vicuna-13b-1.1 (and Orca variant)
         for (auto message : chat) {
             std::string role(message->role);
             if (role == "system") {
                 // Orca-Vicuna variant uses a system prefix
-                if (tmpl == "vicuna-orca" || tmpl_contains("SYSTEM: ")) {
+                if (tmpl == LLM_CHAT_TEMPLATE_VICUNA_ORCA) {
                     ss << "SYSTEM: " << message->content << "\n";
                 } else {
                     ss << message->content << "\n\n";
@@ -21972,7 +22056,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "ASSISTANT:";
         }
-    } else if (tmpl == "deepseek" || (tmpl_contains("### Instruction:") && tmpl_contains("<|EOT|>"))) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_DEEPSEEK) {
         // deepseek-ai/deepseek-coder-33b-instruct
         for (auto message : chat) {
             std::string role(message->role);
@@ -21987,7 +22071,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "### Response:\n";
         }
-    } else if (tmpl == "command-r" || (tmpl_contains("<|START_OF_TURN_TOKEN|>") && tmpl_contains("<|USER_TOKEN|>"))) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_COMMAND_R) {
         // CohereForAI/c4ai-command-r-plus
         for (auto message : chat) {
             std::string role(message->role);
@@ -22002,7 +22086,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "<|START_OF_TURN_TOKEN|><|CHATBOT_TOKEN|>";
         }
-    } else if (tmpl == "llama3" || (tmpl_contains("<|start_header_id|>") && tmpl_contains("<|end_header_id|>"))) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_LLAMA_3) {
         // Llama 3
         for (auto message : chat) {
             std::string role(message->role);
@@ -22011,7 +22095,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "<|start_header_id|>assistant<|end_header_id|>\n\n";
         }
-    } else if (tmpl == "chatglm3" || tmpl_contains("[gMASK]sop")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_CHATGML_3) {
         // chatglm3-6b
         ss << "[gMASK]" << "sop";
         for (auto message : chat) {
@@ -22021,7 +22105,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "<|assistant|>";
         }
-    } else if (tmpl == "chatglm4" || tmpl_contains("[gMASK]<sop>")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_CHATGML_4) {
         ss << "[gMASK]" << "<sop>";
         for (auto message : chat) {
             std::string role(message->role);
@@ -22030,7 +22114,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "<|assistant|>";
         }
-    } else if (tmpl == "minicpm" || tmpl_contains(LU8("<用户>"))) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_MINICPM) {
         // MiniCPM-3B-OpenHermes-2.5-v2-GGUF
         for (auto message : chat) {
             std::string role(message->role);
@@ -22042,7 +22126,7 @@ static int32_t llama_chat_apply_template_internal(
                 ss << trim(message->content);
             }
         }
-    } else if (tmpl == "deepseek2" || tmpl_contains("'Assistant: ' + message['content'] + eos_token")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_DEEPSEEK_2) {
         // DeepSeek-V2
         for (auto message : chat) {
             std::string role(message->role);
@@ -22057,7 +22141,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "Assistant:";
         }
-    } else if (tmpl == "exaone3" || (tmpl_contains("[|system|]") && tmpl_contains("[|assistant|]") && tmpl_contains("[|endofturn|]"))) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_EXAONE_3) {
         // ref: https://huggingface.co/LGAI-EXAONE/EXAONE-3.0-7.8B-Instruct/discussions/8#66bae61b1893d14ee8ed85bb
         // EXAONE-3.0-7.8B-Instruct
         for (auto message : chat) {
@@ -22073,7 +22157,7 @@ static int32_t llama_chat_apply_template_internal(
         if (add_ass) {
             ss << "[|assistant|]";
         }
-    } else if (tmpl == "rwkv-world" || tmpl_contains("rwkv-world")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_RWKV_WORLD) {
         // this template requires the model to have "\n\n" as EOT token
         for (auto message : chat) {
             std::string role(message->role);
@@ -22083,7 +22167,7 @@ static int32_t llama_chat_apply_template_internal(
                 ss << message->content << "\n\n";
             }
         }
-    } else if (tmpl == "granite" || tmpl_contains("<|start_of_role|>")) {
+    } else if (tmpl == LLM_CHAT_TEMPLATE_GRANITE) {
         // IBM Granite template
         for (const auto & message : chat) {
             std::string role(message->role);
@@ -22135,7 +22219,11 @@ int32_t llama_chat_apply_template(
     }
 
     std::string formatted_chat;
-    int32_t res = llama_chat_apply_template_internal(curr_tmpl, chat_vec, formatted_chat, add_ass);
+    llm_chat_template detected_tmpl = llama_chat_detect_template(curr_tmpl);
+    if (detected_tmpl == LLM_CHAT_TEMPLATE_UNKNOWN) {
+        return -1;
+    }
+    int32_t res = llama_chat_apply_template_internal(detected_tmpl, chat_vec, formatted_chat, add_ass);
     if (res < 0) {
         return res;
     }
@@ -22143,6 +22231,15 @@ int32_t llama_chat_apply_template(
         strncpy(buf, formatted_chat.c_str(), length);
     }
     return res;
+}
+
+int32_t llama_chat_builtin_templates(const char ** output, size_t len) {
+    auto it = LLM_CHAT_TEMPLATES.begin();
+    for (size_t i = 0; i < std::min(len, LLM_CHAT_TEMPLATES.size()); i++) {
+        output[i] = it->first.c_str();
+        std::advance(it, 1);
+    }
+    return (int32_t) LLM_CHAT_TEMPLATES.size();
 }
 
 //
@@ -22191,32 +22288,23 @@ int llama_split_prefix(char * dest, size_t maxlen, const char * split_path, int 
 }
 
 const char * llama_print_system_info(void) {
-    ggml_cpu_init(); // some ARM features are detected at runtime
-
     static std::string s;
 
-    s  = "";
-    s += "AVX = "         + std::to_string(ggml_cpu_has_avx())         + " | ";
-    s += "AVX_VNNI = "    + std::to_string(ggml_cpu_has_avx_vnni())    + " | ";
-    s += "AVX2 = "        + std::to_string(ggml_cpu_has_avx2())        + " | ";
-    s += "AVX512 = "      + std::to_string(ggml_cpu_has_avx512())      + " | ";
-    s += "AVX512_VBMI = " + std::to_string(ggml_cpu_has_avx512_vbmi()) + " | ";
-    s += "AVX512_VNNI = " + std::to_string(ggml_cpu_has_avx512_vnni()) + " | ";
-    s += "AVX512_BF16 = " + std::to_string(ggml_cpu_has_avx512_bf16()) + " | ";
-    s += "AMX_INT8 = "    + std::to_string(ggml_cpu_has_amx_int8())    + " | ";
-    s += "FMA = "         + std::to_string(ggml_cpu_has_fma())         + " | ";
-    s += "NEON = "        + std::to_string(ggml_cpu_has_neon())        + " | ";
-    s += "SVE = "         + std::to_string(ggml_cpu_has_sve())         + " | ";
-    s += "ARM_FMA = "     + std::to_string(ggml_cpu_has_arm_fma())     + " | ";
-    s += "F16C = "        + std::to_string(ggml_cpu_has_f16c())        + " | ";
-    s += "FP16_VA = "     + std::to_string(ggml_cpu_has_fp16_va())     + " | ";
-    s += "RISCV_VECT = "  + std::to_string(ggml_cpu_has_riscv_v())     + " | ";
-    s += "WASM_SIMD = "   + std::to_string(ggml_cpu_has_wasm_simd())   + " | ";
-    s += "SSE3 = "        + std::to_string(ggml_cpu_has_sse3())        + " | ";
-    s += "SSSE3 = "       + std::to_string(ggml_cpu_has_ssse3())       + " | ";
-    s += "VSX = "         + std::to_string(ggml_cpu_has_vsx())         + " | ";
-    s += "MATMUL_INT8 = " + std::to_string(ggml_cpu_has_matmul_int8()) + " | ";
-    s += "LLAMAFILE = "   + std::to_string(ggml_cpu_has_llamafile())   + " | ";
+    for (size_t i = 0; i < ggml_backend_reg_count(); i++) {
+        auto * reg = ggml_backend_reg_get(i);
+        auto * get_features_fn = (ggml_backend_get_features_t) ggml_backend_reg_get_proc_address(reg, "ggml_backend_get_features");
+        if (get_features_fn) {
+            ggml_backend_feature * features = get_features_fn(reg);
+            s += ggml_backend_reg_name(reg);
+            s += " : ";
+            for (; features->name; features++) {
+                s += features->name;
+                s += " = ";
+                s += features->value;
+                s += " | ";
+            }
+        }
+    }
 
     return s.c_str();
 }
