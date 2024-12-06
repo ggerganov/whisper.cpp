@@ -28,9 +28,9 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y build-essential libsdl2-dev
-            make
-            make stream'
+            apt install -y build-essential libsdl2-dev cmake
+            cmake -B build
+            cmake --build build --config Release -j $(nproc)'
 
   macOS-latest:
     runs-on: macOS-latest
@@ -42,12 +42,12 @@ jobs:
       - name: Dependencies
         run: |
           brew update
-          brew install sdl2
+          brew install sdl2 cmake
 
       - name: Build
         run: |
-          make
-          make stream
+          cmake -B build
+          cmake --build build --config Release
 
   freeBSD-latest:
     runs-on: macos-12
@@ -63,9 +63,9 @@ jobs:
           version: '13.3'
           run: |
             sudo pkg update
-            sudo pkg install -y gmake sdl2
-            gmake
-            gmake stream
+            sudo pkg install -y gmake sdl2 cmake
+            cmake -B build
+            cmake --build build --config Release
 
   ubuntu-latest-gcc:
     runs-on: ubuntu-latest
@@ -279,21 +279,6 @@ jobs:
             mingw-w64-${{matrix.env}}-cmake
             mingw-w64-${{matrix.env}}-SDL2
             mingw-w64-${{matrix.env}}-openblas
-
-      - name: Build using make
-        shell: msys2 {0}
-        run: |
-            make -j $(nproc)
-
-      - name: Clean after building using make
-        shell: msys2 {0}
-        run: |
-            make clean
-
-      - name: Build using make w/ OpenBLAS
-        shell: msys2 {0}
-        run: |
-            make GGML_OPENBLAS=1 -j $(nproc)
 
       - name: Build using CMake
         shell: msys2 {0}
@@ -664,5 +649,6 @@ jobs:
       - name: Test quantize
         run: |
           ./models/download-ggml-model.sh tiny.en
-          make quantize
-          ./quantize models/ggml-tiny.en.bin models/ggml-tiny.en-q4_0.bin q4_0
+          cmake -B build
+          cmake --build build --config Release
+          ./build/bin/quantize models/ggml-tiny.en.bin models/ggml-tiny.en-q4_0.bin q4_0
