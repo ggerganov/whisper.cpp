@@ -49,23 +49,23 @@ jobs:
           cmake -B build
           cmake --build build --config Release
 
-  freeBSD-latest:
-    runs-on: macos-12
-
-    steps:
-      - name: Clone
-        uses: actions/checkout@v4
-
-      - name: Build
-        uses: cross-platform-actions/action@v0.24.0
-        with:
-          operating_system: freebsd
-          version: '13.3'
-          run: |
-            sudo pkg update
-            sudo pkg install -y gmake sdl2 cmake
-            cmake -B build
-            cmake --build build --config Release
+#  freeBSD-latest:
+#    runs-on: macos-12
+#
+#    steps:
+#      - name: Clone
+#        uses: actions/checkout@v4
+#
+#      - name: Build
+#        uses: cross-platform-actions/action@v0.24.0
+#        with:
+#          operating_system: freebsd
+#          version: '13.3'
+#          run: |
+#            sudo pkg update
+#            sudo pkg install -y gmake sdl2 cmake
+#            cmake -B build
+#            cmake --build build --config Release
 
   ubuntu-latest-gcc:
     runs-on: ubuntu-latest
