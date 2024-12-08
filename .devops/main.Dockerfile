@@ -2,17 +2,17 @@ FROM ubuntu:22.04 AS build
 WORKDIR /app
 
 RUN apt-get update && \
-  apt-get install -y build-essential \
+  apt-get install -y build-essential wget \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 COPY .. .
-RUN make
+RUN make base.en
 
 FROM ubuntu:22.04 AS runtime
 WORKDIR /app
 
 RUN apt-get update && \
-  apt-get install -y curl ffmpeg libsdl2-dev \
+  apt-get install -y curl ffmpeg libsdl2-dev wget \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 COPY --from=build /app /app
