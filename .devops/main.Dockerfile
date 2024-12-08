@@ -2,7 +2,7 @@ FROM ubuntu:22.04 AS build
 WORKDIR /app
 
 RUN apt-get update && \
-  apt-get install -y build-essential wget \
+  apt-get install -y build-essential wget cmake \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 COPY .. .
@@ -12,7 +12,7 @@ FROM ubuntu:22.04 AS runtime
 WORKDIR /app
 
 RUN apt-get update && \
-  apt-get install -y curl ffmpeg libsdl2-dev wget \
+  apt-get install -y curl ffmpeg libsdl2-dev wget cmake \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 COPY --from=build /app /app
