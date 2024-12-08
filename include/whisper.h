@@ -245,13 +245,15 @@ extern "C" {
           struct whisper_state * state,
                     const char * model_path,
                     const char * device,
-                    const char * cache_dir);
+                    const char * cache_dir,
+                           int   n_threads);
 
     WHISPER_API int whisper_ctx_init_openvino_encoder(
         struct whisper_context * ctx,
                     const char * model_path,
                     const char * device,
-                    const char * cache_dir);
+                    const char * cache_dir,
+                           int   n_threads);
 
     // Frees all allocated memory
     WHISPER_API void whisper_free      (struct whisper_context * ctx);

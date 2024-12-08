@@ -11,7 +11,8 @@ struct whisper_openvino_context;
 // path to cache_dir. Returns null upon failure.
 struct whisper_openvino_context * whisper_openvino_init(const char * path_model,
                                                         const char * device,
-                                                        const char * cache_dir);
+                                                        const char * cache_dir,
+                                                        int n_threads);
 
 // clean up a ctx previously returned from whisper_openvino_init()
 void whisper_openvino_free(struct whisper_openvino_context * ctx);
