@@ -89,10 +89,11 @@ Now build the [main](examples/main) example and transcribe an audio file like th
 
 ```bash
 # build the main example
-make -j
+cmake -B build
+cmake --build build --config Release
 
 # transcribe an audio file
-./main -f samples/jfk.wav
+./build/bin/main -f samples/jfk.wav
 ```
 
 ---
@@ -265,11 +266,12 @@ Here are the steps for creating and using a quantized model:
 
 ```bash
 # quantize a model with Q5_0 method
-make -j quantize
-./quantize models/ggml-base.en.bin models/ggml-base.en-q5_0.bin q5_0
+cmake -B build
+cmake --build build --config Release
+./build/bin/quantize models/ggml-base.en.bin models/ggml-base.en-q5_0.bin q5_0
 
 # run the examples as usual, specifying the quantized model file
-./main -m models/ggml-base.en-q5_0.bin ./samples/gb0.wav
+./build/bin/main -m models/ggml-base.en-q5_0.bin ./samples/gb0.wav
 ```
 
 ## Core ML support
@@ -303,10 +305,6 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
 - Build `whisper.cpp` with Core ML support:
 
   ```bash
-  # using Makefile
-  make clean
-  WHISPER_COREML=1 make -j
-
   # using CMake
   cmake -B build -DWHISPER_COREML=1
   cmake --build build -j --config Release
@@ -426,8 +424,8 @@ First, make sure you have installed `cuda`: https://developer.nvidia.com/cuda-do
 Now build `whisper.cpp` with CUDA support:
 
 ```
-make clean
-GGML_CUDA=1 make -j
+cmake -B build -DGGML_CUDA=1
+cmake --build build -j --config Release
 ```
 
 ## Vulkan GPU support
@@ -436,8 +434,8 @@ First, make sure your graphics card driver provides support for Vulkan API.
 
 Now build `whisper.cpp` with Vulkan support:
 ```
-make clean
-make GGML_VULKAN=1 -j
+cmake -B build -DGGML_VULKAN=1
+cmake --build build -j --config Release
 ```
 
 ## BLAS CPU support via OpenBLAS
@@ -448,28 +446,13 @@ First, make sure you have installed `openblas`: https://www.openblas.net/
 Now build `whisper.cpp` with OpenBLAS support:
 
 ```
-make clean
-GGML_OPENBLAS=1 make -j
-```
-
-## BLAS CPU support via Intel MKL
-
-Encoder processing can be accelerated on the CPU via the BLAS compatible interface of Intel's Math Kernel Library.
-First, make sure you have installed Intel's MKL runtime and development packages: https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl-download.html
-
-Now build `whisper.cpp` with Intel MKL BLAS support:
-
-```
-source /opt/intel/oneapi/setvars.sh
-mkdir build
-cd build
-cmake -DWHISPER_MKL=ON ..
-WHISPER_MKL=1 make -j
+cmake -B build -DGGML_BLAS=1
+cmake --build build -j --config Release
 ```
 
 ## Ascend NPU support
 
-Ascend NPU provides inference acceleration via [`CANN`](https://www.hiascend.com/en/software/cann) and AI cores. 
+Ascend NPU provides inference acceleration via [`CANN`](https://www.hiascend.com/en/software/cann) and AI cores.
 
 First, check if your Ascend NPU device is supported:
 
@@ -483,10 +466,8 @@ Then, make sure you have installed [`CANN toolkit`](https://www.hiascend.com/en/
 Now build `whisper.cpp` with CANN support:
 
 ```
-mkdir build
-cd build
-cmake .. -D GGML_CANN=on
-make -j
+cmake -B build -DGGML_CANN=1
+cmake --build build -j --config Release
 ```
 
 Run the inference examples as usual, for example:
@@ -636,8 +617,9 @@ The [stream](examples/stream) tool samples the audio every half a second and run
 More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
 ```bash
-make stream -j
-./stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
+cmake -B build
+cmake --build build --config Release
+./build/bin/stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
 ```
 
 https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a80f-28ba83be7d09.mp4
