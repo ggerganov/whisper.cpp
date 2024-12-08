@@ -518,7 +518,7 @@ jobs:
           emcmake cmake . -DCMAKE_BUILD_TYPE=${{ matrix.build }}
           make
 
-  ios:
+  ios-xcode-build:
     runs-on: macos-latest
 
     strategy:
@@ -526,7 +526,7 @@ jobs:
         build: [Release]
 
     steps:
-      - name: Clone
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Configure
@@ -534,11 +534,34 @@ jobs:
           cp models/for-tests-ggml-base.en.bin models/ggml-base.en.bin
           mkdir models/ggml-base.en-encoder.mlmodelc
 
-      - name: Build objc example
-        run: xcodebuild -project examples/whisper.objc/whisper.objc.xcodeproj -scheme whisper.objc -configuration ${{ matrix.build }} -sdk iphonesimulator build
+      - name: Build
+        id: cmake_build
+        run: |
+          sysctl -a
+          mkdir build
+          cd build
+          cmake -G Xcode .. \
+            -DGGML_METAL_USE_BF16=ON \
+            -DGGML_METAL_EMBED_LIBRARY=ON \
+            -DWHISPER_BUILD_EXAMPLES=OFF \
+            -DWHISPER_BUILD_TESTS=OFF \
+            -DWHISPER_BUILD_SERVER=OFF \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+            -DCMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM=ggml
+          cmake --build . --config Release -j $(sysctl -n hw.logicalcpu) -- CODE_SIGNING_ALLOWED=NO
+          sudo cmake --install . --config Release
+
+      - name: xcodebuild for swift package
+        id: xcodebuild
+        run: |
+          xcodebuild -scheme whisper-Package -destination 'generic/platform=iOS'
+
+#- name: Build objc example
+#  run: xcodebuild -project examples/whisper.objc/whisper.objc.xcodeproj -scheme whisper.objc -configuration ${{ matrix.build }} -sdk iphoneos build
 
       - name: Build swiftui example
-        run: xcodebuild -project examples/whisper.swiftui/whisper.swiftui.xcodeproj -scheme WhisperCppDemo -configuration ${{ matrix.build }} -sdk iphonesimulator build
+        run: xcodebuild -project examples/whisper.swiftui/whisper.swiftui.xcodeproj -scheme WhisperCppDemo -configuration ${{ matrix.build }} -sdk iphoneos CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= -destination 'generic/platform=iOS' build
 
   android:
     runs-on: ubuntu-latest

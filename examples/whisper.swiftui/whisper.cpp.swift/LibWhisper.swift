@@ -66,7 +66,7 @@ actor WhisperContext {
 
     private func systemInfo() -> String {
         var info = ""
-        if (ggml_cpu_has_neon() != 0) { info += "NEON " }
+        //if (ggml_cpu_has_neon() != 0) { info += "NEON " }
         return String(info.dropLast())
     }
 
@@ -75,45 +75,45 @@ actor WhisperContext {
         if (whisper_set_mel(context, nil, 0, nMels) != 0) {
             return "error: failed to set mel"
         }
-        
+
         // heat encoder
         if (whisper_encode(context, 0, nThreads) != 0) {
             return "error: failed to encode"
         }
-        
+
         var tokens = [whisper_token](repeating: 0, count: 512)
-        
+
         // prompt heat
         if (whisper_decode(context, &tokens, 256, 0, nThreads) != 0) {
             return "error: failed to decode"
         }
-        
+
         // text-generation heat
         if (whisper_decode(context, &tokens, 1, 256, nThreads) != 0) {
             return "error: failed to decode"
         }
-        
+
         whisper_reset_timings(context)
-        
+
         // actual run
         if (whisper_encode(context, 0, nThreads) != 0) {
             return "error: failed to encode"
         }
-        
+
         // text-generation
         for i in 0..<256 {
             if (whisper_decode(context, &tokens, 1, Int32(i), nThreads) != 0) {
                 return "error: failed to decode"
             }
         }
-        
+
         // batched decoding
         for _ in 0..<64 {
             if (whisper_decode(context, &tokens, 5, 0, nThreads) != 0) {
                 return "error: failed to decode"
             }
         }
-        
+
         // prompt processing
         for _ in 0..<16 {
             if (whisper_decode(context, &tokens, 256, 0, nThreads) != 0) {
