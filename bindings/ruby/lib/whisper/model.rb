@@ -111,7 +111,7 @@ class Whisper::Model
     end
   end
 
-  @names = {}
+  @pre_converted_models = {}
   %w[
     tiny
     tiny.en
@@ -144,16 +144,10 @@ class Whisper::Model
     large-v3-turbo-q5_0
     large-v3-turbo-q8_0
   ].each do |name|
-    @names[name] = URI.new("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-#{name}.bin")
+    @pre_converted_models[name] = URI.new("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-#{name}.bin")
   end
 
   class << self
-    def [](name)
-      @names[name]
-    end
-
-    def preconverted_model_names
-      @names.keys
-    end
+    attr_reader :pre_converted_models
   end
 end
