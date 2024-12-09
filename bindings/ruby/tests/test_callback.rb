@@ -1,14 +1,11 @@
-require "test/unit"
-require "whisper"
+require_relative "helper"
 
-class TestCallback < Test::Unit::TestCase
-  TOPDIR = File.expand_path(File.join(File.dirname(__FILE__), '..'))
-
+class TestCallback < TestBase
   def setup
     GC.start
     @params = Whisper::Params.new
-    @whisper = Whisper::Context.new(File.join(TOPDIR, '..', '..', 'models', 'ggml-base.en.bin'))
-    @audio = File.join(TOPDIR, '..', '..', 'samples', 'jfk.wav')
+    @whisper = Whisper::Context.new("base.en")
+    @audio = File.join(AUDIO)
   end
 
   def test_new_segment_callback

@@ -11,7 +11,7 @@ class TestWhisper < TestBase
   end
 
   def test_whisper
-    @whisper = Whisper::Context.new(MODEL)
+    @whisper = Whisper::Context.new("base.en")
     params  = Whisper::Params.new
     params.print_timestamps = false
 
@@ -25,7 +25,7 @@ class TestWhisper < TestBase
       attr_reader :whisper
 
       def startup
-        @whisper = Whisper::Context.new(TestBase::MODEL)
+        @whisper = Whisper::Context.new("base.en")
         params = Whisper::Params.new
         params.print_timestamps = false
         @whisper.transcribe(TestBase::AUDIO, params)
@@ -104,7 +104,7 @@ class TestWhisper < TestBase
       logs << [level, buffer, udata]
     }
     Whisper.log_set log_callback, user_data
-    Whisper::Context.new(MODEL)
+    Whisper::Context.new("base.en")
 
     assert logs.length > 30
     logs.each do |log|
@@ -120,7 +120,7 @@ class TestWhisper < TestBase
     }, nil
     dev = StringIO.new("")
     $stderr = dev
-    Whisper::Context.new(MODEL)
+    Whisper::Context.new("base.en")
     assert_empty dev.string
   ensure
     $stderr = stderr
@@ -129,7 +129,7 @@ class TestWhisper < TestBase
   sub_test_case "full" do
     def setup
       super
-      @whisper = Whisper::Context.new(MODEL)
+      @whisper = Whisper::Context.new("base.en")
       @samples = File.read(AUDIO, nil, 78).unpack("s<*").collect {|i| i.to_f / 2**15}
     end
 
