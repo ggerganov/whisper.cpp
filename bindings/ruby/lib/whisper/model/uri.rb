@@ -59,7 +59,7 @@ class Whisper::Model
           when Net::HTTPRedirection
             request URI(response["location"]), headers
           else
-            raise response
+            raise "#{response.code} #{response.message}\n#{response.body}"
           end
         end
       end
