@@ -1,2 +1,2 @@
 require "whisper.so"
-require "whisper/model"
+require "whisper/model/uri"
