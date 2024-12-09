@@ -2,6 +2,11 @@
 # Audio samples
 #
 
+.PHONY: build
+build:
+	cmake -B build
+	cmake --build build --config Release
+
 # download a few audio samples into folder "./samples":
 .PHONY: samples
 samples:

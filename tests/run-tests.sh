@@ -39,7 +39,7 @@ if [ $# -eq 0 ]; then
 fi
 
 model=$1
-main="../main"
+main="../build/bin/main"
 
 threads=""
 if [ $# -eq 2 ]; then
