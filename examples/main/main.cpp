@@ -1013,7 +1013,7 @@ int main(int argc, char ** argv) {
     }
 
     // initialize openvino encoder. this has no effect on whisper.cpp builds that don't have OpenVINO configured
-    whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
+    whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr, params.n_threads);
 
     if (!params.grammar.empty()) {
         auto & grammar = params.grammar_parsed;

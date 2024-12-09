@@ -9,7 +9,8 @@ struct whisper_openvino_context {
 
 struct whisper_openvino_context * whisper_openvino_init(const char* path_model,
     const char* device,
-    const char* cache_dir)
+    const char* cache_dir,
+    int n_threads)
 {
     if (!path_model || !device) {
         fprintf(stderr, "%s: path_model and/or device is null\n", __func__);
@@ -27,6 +28,10 @@ struct whisper_openvino_context * whisper_openvino_init(const char* path_model,
             // enables caching of device-specific 'blobs' during core.compile_model
             // routine. This speeds up calls to compile_model for successive runs.
             core.set_property(ov::cache_dir(cache_dir));
+        }
+
+        if (strncmp(device, "CPU", 3) == 0) {
+            core.set_property(ov::inference_num_threads(n_threads));
         }
 
         //Read the OpenVINO encoder IR (.xml/.bin) from disk, producing an ov::Model object.
