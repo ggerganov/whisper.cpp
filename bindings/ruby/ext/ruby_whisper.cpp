@@ -38,6 +38,9 @@ VALUE cContext;
 VALUE cParams;
 VALUE eError;
 
+VALUE cSegment;
+VALUE cModel;
+
 static ID id_to_s;
 static ID id_call;
 static ID id___method__;
@@ -46,6 +49,7 @@ static ID id_length;
 static ID id_next;
 static ID id_new;
 static ID id_to_path;
+static ID id_pre_converted_models;
 
 static bool is_log_callback_finalized = false;
 
@@ -207,6 +211,11 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   rb_scan_args(argc, argv, "01", &whisper_model_file_path);
   Data_Get_Struct(self, ruby_whisper, rw);
 
+  VALUE pre_converted_models = rb_funcall(cModel, id_pre_converted_models, 0);
+  VALUE pre_converted_model = rb_hash_aref(pre_converted_models, whisper_model_file_path);
+  if (!NIL_P(pre_converted_model)) {
+    whisper_model_file_path = pre_converted_model;
+  }
   if (rb_respond_to(whisper_model_file_path, id_to_path)) {
     whisper_model_file_path = rb_funcall(whisper_model_file_path, id_to_path, 0);
   }
@@ -1347,9 +1356,6 @@ typedef struct {
   VALUE context;
 } ruby_whisper_model;
 
-VALUE cSegment;
-VALUE cModel;
-
 static void rb_whisper_segment_mark(ruby_whisper_segment *rws) {
   rb_gc_mark(rws->context);
 }
@@ -1740,6 +1746,7 @@ void Init_whisper() {
   id_next = rb_intern("next");
   id_new = rb_intern("new");
   id_to_path = rb_intern("to_path");
+  id_pre_converted_models = rb_intern("pre_converted_models");
 
   mWhisper = rb_define_module("Whisper");
   cContext = rb_define_class_under(mWhisper, "Context", rb_cObject);
