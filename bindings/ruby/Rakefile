@@ -18,19 +18,9 @@ EXTSOURCES.each do |src|
 end
 
 CLEAN.include SOURCES
-CLEAN.include FileList[
-                "ext/*.o",
-                "ext/*.metal",
-                "ext/whisper.{so,bundle,dll}",
-                "ext/depend"
-              ]
+CLEAN.include FileList["ext/*.o", "ext/*.metal", "ext/whisper.{so,bundle,dll}"]
 
-task build: FileList[
-       "ext/Makefile",
-       "ext/ruby_whisper.h",
-       "ext/ruby_whisper.cpp",
-       "whispercpp.gemspec",
-     ]
+task build: ["ext/Makefile", "ext/ruby_whisper.h", "ext/ruby_whisper.cpp", "whispercpp.gemspec"]
 
 directory "pkg"
 CLOBBER.include "pkg"

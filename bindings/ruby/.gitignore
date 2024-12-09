@@ -1,3 +1,5 @@
 LICENSE
 pkg/
-lib/whisper.*
+lib/whisper.so
+lib/whisper.bundle
+lib/whisper.dll

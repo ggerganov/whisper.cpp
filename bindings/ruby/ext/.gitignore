@@ -2,7 +2,6 @@ Makefile
 whisper.so
 whisper.bundle
 whisper.dll
-depend
 scripts/get-flags.mk
 *.o
 *.c

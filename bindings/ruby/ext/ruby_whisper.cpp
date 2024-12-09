@@ -45,6 +45,7 @@ static ID id_to_enum;
 static ID id_length;
 static ID id_next;
 static ID id_new;
+static ID id_to_path;
 
 static bool is_log_callback_finalized = false;
 
@@ -194,7 +195,9 @@ static VALUE ruby_whisper_params_allocate(VALUE klass) {
 
 /*
  * call-seq:
+ *   new(Whisper::Model["base.en"]) -> Whisper::Context
  *   new("path/to/model.bin") -> Whisper::Context
+ *   new(Whisper::Model::URI.new("https://example.net/uri/of/model.bin")) -> Whisper::Context
  */
 static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   ruby_whisper *rw;
@@ -204,6 +207,9 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   rb_scan_args(argc, argv, "01", &whisper_model_file_path);
   Data_Get_Struct(self, ruby_whisper, rw);
 
+  if (rb_respond_to(whisper_model_file_path, id_to_path)) {
+    whisper_model_file_path = rb_funcall(whisper_model_file_path, id_to_path, 0);
+  }
   if (!rb_respond_to(whisper_model_file_path, id_to_s)) {
     rb_raise(rb_eRuntimeError, "Expected file path to model to initialize Whisper::Context");
   }
@@ -1733,6 +1739,7 @@ void Init_whisper() {
   id_length = rb_intern("length");
   id_next = rb_intern("next");
   id_new = rb_intern("new");
+  id_to_path = rb_intern("to_path");
 
   mWhisper = rb_define_module("Whisper");
   cContext = rb_define_class_under(mWhisper, "Context", rb_cObject);
