@@ -1,6 +1,7 @@
 require "whisper.so"
 require "uri"
 require "net/http"
+require "time"
 require "pathname"
 require "io/console/size"
 
@@ -56,7 +57,7 @@ class Whisper::Model
           when Net::HTTPOK
             download response
           when Net::HTTPRedirection
-            request URI(response["location"])
+            request URI(response["location"]), headers
           else
             raise response
           end
