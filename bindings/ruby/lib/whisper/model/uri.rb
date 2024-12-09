@@ -82,6 +82,7 @@ class Whisper::Model
     end
 
     def show_progress(current, size)
+      return unless $stderr.tty?
       return unless size
 
       unless @prev
