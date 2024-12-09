@@ -296,7 +296,13 @@ func Whisper_print_system_info() string {
 // Return default parameters for a strategy
 func (ctx *Context) Whisper_full_default_params(strategy SamplingStrategy) Params {
 	// Get default parameters
-	return Params(C.whisper_full_default_params_cb((*C.struct_whisper_context)(ctx), C.enum_whisper_sampling_strategy(strategy)))
+	p := Params(C.whisper_full_default_params_cb((*C.struct_whisper_context)(ctx), C.enum_whisper_sampling_strategy(strategy)))
+
+	p.greedy.best_of = 5
+	p.thold_pt = 0
+	p.thold_ptsum = 0
+
+	return p
 }
 
 // Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text
