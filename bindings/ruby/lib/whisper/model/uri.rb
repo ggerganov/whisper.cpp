@@ -59,6 +59,8 @@ class Whisper::Model
           when Net::HTTPRedirection
             request URI(response["location"]), headers
           else
+            return if headers.key?("if-modified-since") # Use cache file
+
             raise "#{response.code} #{response.message}\n#{response.body}"
           end
         end
