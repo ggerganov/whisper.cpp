@@ -61,4 +61,11 @@ class TestModel < TestBase
     assert_equal 1, model.ftype
     assert_equal "base", model.type
   end
+
+  def test_auto_download
+    path = Whisper::Model.pre_converted_models["base.en"].to_path
+
+    assert_path_exist path
+    assert_equal 147964211, File.size(path)
+  end
 end
