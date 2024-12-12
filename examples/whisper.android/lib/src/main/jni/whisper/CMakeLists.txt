@@ -88,3 +88,5 @@ include_directories(${WHISPER_LIB_DIR}/src)
 include_directories(${WHISPER_LIB_DIR}/include)
 include_directories(${WHISPER_LIB_DIR}/ggml/include)
 include_directories(${WHISPER_LIB_DIR}/ggml/src)
+include_directories(${WHISPER_LIB_DIR}/ggml/src/ggml-cpu)
+
