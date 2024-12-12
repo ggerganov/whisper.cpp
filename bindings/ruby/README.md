@@ -130,13 +130,6 @@ end
 You can also add hook to params called on new segment:
 
 ```ruby
-def format_time(time_ms)
-  sec, decimal_part = time_ms.divmod(1000)
-  min, sec = sec.divmod(60)
-  hour, min = min.divmod(60)
-  "%02d:%02d:%02d.%03d" % [hour, min, sec, decimal_part]
-end
-
 # Add hook before calling #transcribe
 params.on_new_segment do |segment|
   line = "[%{st} --> %{ed}] %{text}" % {
