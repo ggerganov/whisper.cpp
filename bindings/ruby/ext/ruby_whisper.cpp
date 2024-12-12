@@ -191,6 +191,7 @@ static VALUE ruby_whisper_params_allocate(VALUE klass) {
   ruby_whisper_params *rwp;
   rwp = ALLOC(ruby_whisper_params);
   rwp->params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+  rwp->diarize = false;
   rwp->new_segment_callback_container = rb_whisper_callback_container_allocate();
   rwp->progress_callback_container = rb_whisper_callback_container_allocate();
   rwp->abort_callback_container = rb_whisper_callback_container_allocate();
