@@ -4826,6 +4826,42 @@ static const std::vector<std::string> non_speech_tokens = {
     "♪♪♪","♩", "♪", "♫", "♬", "♭", "♮", "♯"
 };
 
+static void whisper_compute_logprobs(
+                const std::vector<float> & logits,
+                              const int    n_logits,
+                      std::vector<float> & logprobs) {
+    const float logit_max = *std::max_element(logits.begin(), logits.end());
+    float logsumexp = 0.0f;
+    for (int i = 0; i < n_logits; ++i) {
+        if (logits[i] > -INFINITY) {
+            logsumexp += expf(logits[i] - logit_max);
+        }
+    }
+    logsumexp = logf(logsumexp) + logit_max;
+
+    for (int i = 0; i < n_logits; ++i) {
+        if (logits[i] > -INFINITY) {
+            logprobs[i] = logits[i] - logsumexp;
+        } else {
+            logprobs[i] = -INFINITY;
+        }
+    }
+}
+
+static void whisper_compute_probs(
+    const std::vector<float> & logits,
+                  const int    n_logits,
+    const std::vector<float> & logprobs,
+          std::vector<float> & probs)     {
+    for (int i = 0; i < n_logits; ++i) {
+        if (logits[i] == -INFINITY) {
+            probs[i] = 0.0f;
+        } else {
+            probs[i] = expf(logprobs[i]);
+        }
+    }
+}
+
 // process the logits for the selected decoder
 // - applies logit filters
 // - computes logprobs and probs
@@ -4887,7 +4923,7 @@ static void whisper_process_logits(
 
         // suppress sot and nosp tokens
         logits[vocab.token_sot]  = -INFINITY;
-        logits[vocab.token_nosp] = -INFINITY; // TODO: ignore this token for now
+        logits[vocab.token_nosp] = -INFINITY;
 
         // [TDRZ] when tinydiarize is disabled, suppress solm token
         if (params.tdrz_enable == false) {
@@ -4986,24 +5022,7 @@ static void whisper_process_logits(
         }
 
         // populate the logprobs array (log_softmax)
-        {
-            const float logit_max = *std::max_element(logits.begin(), logits.end());
-            float logsumexp = 0.0f;
-            for (int i = 0; i < n_logits; ++i) {
-                if (logits[i] > -INFINITY) {
-                    logsumexp += expf(logits[i] - logit_max);
-                }
-            }
-            logsumexp = logf(logsumexp) + logit_max;
-
-            for (int i = 0; i < n_logits; ++i) {
-                if (logits[i] > -INFINITY) {
-                    logprobs[i] = logits[i] - logsumexp;
-                } else {
-                    logprobs[i] = -INFINITY;
-                }
-            }
-        }
+        whisper_compute_logprobs(logits, n_logits, logprobs);
 
         // if sum of probability over timestamps is above any other token, sample timestamp
         // ref: https://github.com/openai/whisper/blob/0b1ba3d46ebf7fe6f953acfd8cad62a4f851b49f/whisper/decoding.py#L431-L437
@@ -5061,15 +5080,7 @@ static void whisper_process_logits(
     }
 
     // compute probs
-    {
-        for (int i = 0; i < n_logits; ++i) {
-            if (logits[i] == -INFINITY) {
-                probs[i] = 0.0f;
-            } else {
-                probs[i] = expf(logprobs[i]);
-            }
-        }
-    }
+    whisper_compute_probs(logits, n_logits, logprobs, probs);
 
 #if 0
     // print first 100 logits - token string : logit
@@ -5648,32 +5659,15 @@ int whisper_full_with_state(
                     return -8;
                 }
 
-                // Calculate no_speech probability after first decode
+                // Calculate no_speech probability after first decode.
+                // This has to be done before any logit filtering. Hence we cannot use the probs from the whisper_process_logits.
                 {
-                    const float * logits = state->logits.data();
-                    const int n_vocab = ctx->vocab.n_vocab;
+                    const int n_logits = ctx->vocab.id_to_token.size();
+                    std::vector<float> logprobs(n_logits);
+                    std::vector<float> probs(n_logits);
 
-                    // Find max element for numerical stability
-                    float max_logit = -INFINITY;
-                    for (int i = 0; i < n_vocab; ++i) {
-                        max_logit = std::max(max_logit, logits[i]);
-                    }
-
-                    // Calculate softmax
-                    float sum_exp = 0.0f;
-                    std::vector<float> probs(n_vocab);
-                    for (int i = 0; i < n_vocab; ++i) {
-                        float exp_val = expf(logits[i] - max_logit);
-                        sum_exp += exp_val;
-                        probs[i] = exp_val;
-                    }
-
-                    // Normalize
-                    for (int i = 0; i < n_vocab; ++i) {
-                        probs[i] /= sum_exp;
-                    }
-
-                    // Get probability of no_speech token
+                    whisper_compute_logprobs(state->logits, n_logits, logprobs);
+                    whisper_compute_probs(state->logits, n_logits, logprobs, probs);
                     state->no_speech_prob = probs[whisper_token_nosp(ctx)];
                 }
 
@@ -6070,7 +6064,7 @@ int whisper_full_with_state(
 
                 if (decoder.failed ||
                     (decoder.sequence.avg_logprobs < params.logprob_thold && state->no_speech_prob < params.no_speech_thold)) {
-                    WHISPER_LOG_DEBUG("%s: failed due to avg_logprobs %8.5f < %8.5f\n", __func__, decoder.sequence.avg_logprobs, params.logprob_thold);
+                    WHISPER_LOG_DEBUG("%s: failed due to avg_logprobs %8.5f < %8.5f and no_speech_prob %8.5f < %8.5f\n", __func__, decoder.sequence.avg_logprobs, params.logprob_thold, state->no_speech_prob, params.no_speech_thold);
                     success = false;
                     state->n_fail_p++;
                 }
