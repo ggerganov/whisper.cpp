@@ -31,6 +31,11 @@ public:
     // get audio data from the circular buffer
     void get(int ms, std::vector<float> & audio);
 
+    // check if the audio input has overwritten audio data we haven't
+    // yet read from the circular buffer since the last time we called
+    // overran()
+    bool overran();
+
 private:
     SDL_AudioDeviceID m_dev_id_in = 0;
 
@@ -43,6 +48,10 @@ private:
     std::vector<float> m_audio;
     size_t             m_audio_pos = 0;
     size_t             m_audio_len = 0;
+    // m_audio_read_cursor is the offset into the samples array of the
+    // oldest sample that has not yet been read by a call to get()
+    size_t             m_audio_read_cursor = -1;
+    bool               overran_flag = false;
 };
 
 // Return false if need to quit
