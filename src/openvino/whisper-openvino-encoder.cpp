@@ -2,6 +2,7 @@
 #include "ggml.h"
 #include <openvino/openvino.hpp>
 #include <iostream>
+#include <fstream>
 
 struct whisper_openvino_context {
     ov::InferRequest inferRequest;
@@ -28,7 +29,15 @@ struct whisper_openvino_context * whisper_openvino_init(const char* path_model,
             // routine. This speeds up calls to compile_model for successive runs.
             core.set_property(ov::cache_dir(cache_dir));
         }
+        // OpenVINOのバージョン情報を出力
+        std::cout << "OpenVINO version: " << ov::get_openvino_version() << std::endl;
 
+        // 利用可能なデバイスを出力
+        std::cout << "Available devices: ";
+        for (const auto& device : core.get_available_devices()) {
+            std::cout << device << " ";
+        }
+        std::cout << std::endl;
         //Read the OpenVINO encoder IR (.xml/.bin) from disk, producing an ov::Model object.
         std::shared_ptr<ov::Model> model = core.read_model(path_model);
 
