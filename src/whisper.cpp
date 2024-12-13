@@ -867,6 +867,7 @@ struct whisper_state {
     whisper_token tid_last;
 
     std::vector<float> energy; // PCM signal energy
+    float no_speech_prob = 0.0f;
 
     // [EXPERIMENTAL] Token-level timestamps with DTW
     whisper_aheads_masks aheads_masks;
@@ -5647,6 +5648,35 @@ int whisper_full_with_state(
                     return -8;
                 }
 
+                // Calculate no_speech probability after first decode
+                {
+                    const float * logits = state->logits.data();
+                    const int n_vocab = ctx->vocab.n_vocab;
+
+                    // Find max element for numerical stability
+                    float max_logit = -INFINITY;
+                    for (int i = 0; i < n_vocab; ++i) {
+                        max_logit = std::max(max_logit, logits[i]);
+                    }
+
+                    // Calculate softmax
+                    float sum_exp = 0.0f;
+                    std::vector<float> probs(n_vocab);
+                    for (int i = 0; i < n_vocab; ++i) {
+                        float exp_val = expf(logits[i] - max_logit);
+                        sum_exp += exp_val;
+                        probs[i] = exp_val;
+                    }
+
+                    // Normalize
+                    for (int i = 0; i < n_vocab; ++i) {
+                        probs[i] /= sum_exp;
+                    }
+
+                    // Get probability of no_speech token
+                    state->no_speech_prob = probs[whisper_token_nosp(ctx)];
+                }
+
                 {
                     const int64_t t_start_sample_us = ggml_time_us();
 
@@ -6038,7 +6068,8 @@ int whisper_full_with_state(
             if (it != (int) temperatures.size() - 1) {
                 const auto & decoder = state->decoders[best_decoder_id];
 
-                if (decoder.failed || decoder.sequence.avg_logprobs < params.logprob_thold) {
+                if (decoder.failed ||
+                    (decoder.sequence.avg_logprobs < params.logprob_thold && state->no_speech_prob < params.no_speech_thold)) {
                     WHISPER_LOG_DEBUG("%s: failed due to avg_logprobs %8.5f < %8.5f\n", __func__, decoder.sequence.avg_logprobs, params.logprob_thold);
                     success = false;
                     state->n_fail_p++;
@@ -6068,6 +6099,9 @@ int whisper_full_with_state(
             // [EXPERIMENTAL] Token-level timestamps with DTW
             const auto n_segments_before = state->result_all.size();
 
+            const bool is_no_speech = (state->no_speech_prob > params.no_speech_thold &&
+                best_decoder.sequence.avg_logprobs < params.logprob_thold);
+
             //WHISPER_LOG_DEBUG("prompt_init.size() = %d, prompt.size() = %d, result_len = %d, seek_delta = %d\n", prompt_init.size(), prompt.size(), result_len, seek_delta);
 
             // update prompt_past
@@ -6076,11 +6110,11 @@ int whisper_full_with_state(
                 prompt_past.insert(prompt_past.end(), prompt.begin() + 1, prompt.end() - prompt_init.size());
             }
 
-            for (int i = 0; i < result_len; ++i) {
+            for (int i = 0; i < result_len && !is_no_speech; ++i) {
                 prompt_past.push_back(tokens_cur[i].id);
             }
 
-            if (!tokens_cur.empty() && ctx->model.n_loaded > 0) {
+            if (!tokens_cur.empty() && ctx->model.n_loaded > 0 && !is_no_speech) {
                 int  i0 = 0;
                 auto t0 = seek + 2*(tokens_cur.front().tid - whisper_token_beg(ctx));
 
