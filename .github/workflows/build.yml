@@ -564,35 +564,34 @@ jobs:
       - name: Build swiftui example
         run: xcodebuild -project examples/whisper.swiftui/whisper.swiftui.xcodeproj -scheme WhisperCppDemo -configuration ${{ matrix.build }} -sdk iphoneos CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= -destination 'generic/platform=iOS' build
 
-# TODO: update android build and re-enable when it works
-#  android:
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#      - name: Clone
-#        uses: actions/checkout@v4
-#        with:
-#          path: whisper
-#
-#      - name: Install Java
-#        uses: actions/setup-java@v4
-#        with:
-#          distribution: zulu
-#          java-version: 21
-#
-#      - name: Setup Android SDK
-#        uses: android-actions/setup-android@v3
-#
-#      - name: Build
-#        run: |
-#          cd whisper/examples/whisper.android
-#          ./gradlew assembleRelease --no-daemon
-#
-#      - name: Build with external ggml
-#        run: |
-#          export PATH_TO_GGML=$PWD/ggml
-#          cd whisper/examples/whisper.android
-#          ./gradlew assembleRelease --no-daemon
+  android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+        with:
+          path: whisper
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 21
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build
+        run: |
+          cd whisper/examples/whisper.android
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Build with external ggml
+        run: |
+          export PATH_TO_GGML=$PWD/ggml
+          cd whisper/examples/whisper.android
+          ./gradlew assembleRelease --no-daemon
 
 # TODO: disable because of following fail: https://github.com/ggerganov/whisper.cpp/actions/runs/11019444420/job/30627193602
 #  android_java:
