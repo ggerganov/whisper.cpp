@@ -5,6 +5,10 @@ include(CheckIncludeFileCXX)
 
 set(SOVERSION 1)
 
+if (MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 #set(CMAKE_WARN_DEPRECATED YES)
 set(CMAKE_WARN_UNUSED_CLI YES)
 
