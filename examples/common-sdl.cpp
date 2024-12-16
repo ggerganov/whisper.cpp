@@ -1,5 +1,7 @@
 #include "common-sdl.h"
 
+#include <cstdio>
+
 audio_async::audio_async(int len_ms) {
     m_len_ms = len_ms;
 
