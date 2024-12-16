@@ -6201,10 +6201,12 @@ int whisper_full_with_state(
                 }
             }
 
-            const int single_timestamp_ending = tokens_cur.size() > 1 &&
-                tokens_cur[tokens_cur.size()-2].id < whisper_token_beg(ctx) &&
-                tokens_cur.back().id > whisper_token_beg(ctx);
+            // ref: https://github.com/ggerganov/whisper.cpp/pull/2629
+            const bool single_timestamp_ending = tokens_cur.size() > 1 &&
+                tokens_cur[tokens_cur.size() - 2].id < whisper_token_beg(ctx) &&
+                tokens_cur[tokens_cur.size() - 1].id > whisper_token_beg(ctx);
             if (single_timestamp_ending) {
+                WHISPER_LOG_DEBUG("single timestamp ending - skip entire chunk\n");
                 seek_delta = std::min(seek_end - seek, WHISPER_CHUNK_SIZE * 100);
             }
 
