@@ -534,7 +534,7 @@ extern "C" {
         float temperature_inc;
         float entropy_thold;    // similar to OpenAI's "compression_ratio_threshold"
         float logprob_thold;
-        float no_speech_thold;  // TODO: not implemented
+        float no_speech_thold;
 
         struct {
             int best_of;    // ref: https://github.com/openai/whisper/blob/f82bc59f5ea234d4b97fb2860842ed38519f7e65/whisper/transcribe.py#L264
