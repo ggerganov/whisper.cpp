@@ -151,4 +151,10 @@ class TestParams < TestBase
     @params.logprob_thold = -0.5
     assert_in_delta -0.5, @params.logprob_thold
   end
+
+  def test_no_speech_thold
+    assert_in_delta 0.6, @params.no_speech_thold
+    @params.no_speech_thold = 0.2
+    assert_in_delta 0.2, @params.no_speech_thold
+  end
 end
