@@ -1262,6 +1262,25 @@ static VALUE ruby_whisper_params_set_logprob_thold(VALUE self, VALUE value) {
   return value;
 }
 /*
+ * call-seq:
+ *   no_speech_thold -> Float
+ */
+static VALUE ruby_whisper_params_get_no_speech_thold(VALUE self) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return DBL2NUM(rwp->params.no_speech_thold);
+}
+/*
+ * call-seq:
+ *   no_speech_thold = threshold -> threshold
+ */
+static VALUE ruby_whisper_params_set_no_speech_thold(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->params.no_speech_thold = RFLOAT_VALUE(value);
+  return value;
+}
+/*
  * Sets new segment callback, called for every newly generated text segment.
  *
  *   params.new_segment_callback = ->(context, _, n_new, user_data) {
@@ -1843,6 +1862,8 @@ void Init_whisper() {
   rb_define_method(cParams, "entropy_thold=", ruby_whisper_params_set_entropy_thold, 1);
   rb_define_method(cParams, "logprob_thold", ruby_whisper_params_get_logprob_thold, 0);
   rb_define_method(cParams, "logprob_thold=", ruby_whisper_params_set_logprob_thold, 1);
+  rb_define_method(cParams, "no_speech_thold", ruby_whisper_params_get_no_speech_thold, 0);
+  rb_define_method(cParams, "no_speech_thold=", ruby_whisper_params_set_no_speech_thold, 1);
 
   rb_define_method(cParams, "new_segment_callback=", ruby_whisper_params_set_new_segment_callback, 1);
   rb_define_method(cParams, "new_segment_callback_user_data=", ruby_whisper_params_set_new_segment_callback_user_data, 1);
