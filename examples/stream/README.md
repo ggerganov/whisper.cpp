@@ -15,7 +15,7 @@ https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a
 Setting the `--step` argument to `0` enables the sliding window mode:
 
 ```bash
- ./build/bin/stream -m ./models/ggml-small.en.bin -t 6 --step 0 --length 30000 -vth 0.6
+ ./build/bin/stream -m ./models/ggml-base.en.bin -t 6 --step 0 --length 30000 -vth 0.6
 ```
 
 In this mode, the tool will transcribe only after some speech activity is detected. A very
