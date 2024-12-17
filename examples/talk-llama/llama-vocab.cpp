@@ -418,6 +418,7 @@ struct llm_tokenizer_bpe : llm_tokenizer {
             case LLAMA_VOCAB_PRE_TYPE_SMOLLM:
             case LLAMA_VOCAB_PRE_TYPE_CODESHELL:
             case LLAMA_VOCAB_PRE_TYPE_EXAONE:
+            case LLAMA_VOCAB_PRE_TYPE_MINERVA:
                 regex_exprs = {
                     "\\p{N}",
                     "'s|'t|'re|'ve|'m|'ll|'d| ?\\p{L}+| ?\\p{N}+| ?[^\\s\\p{L}\\p{N}]+|\\s+(?!\\S)",
@@ -737,7 +738,7 @@ struct llm_tokenizer_wpm_session {
         std::vector<std::string> words(1, "");
 
         for (const uint32_t cpt : cpts_nfd) {
-            const auto flags = unicode_cpt_flags(cpt);
+            const auto flags = unicode_cpt_flags_from_cpt(cpt);
 
             if (flags.is_whitespace) {
                 if (words.back().size()) {  // finish previous word if any
