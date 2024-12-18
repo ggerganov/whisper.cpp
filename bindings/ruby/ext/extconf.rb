@@ -157,7 +157,6 @@ end
 
 $OBJ_GGML <<
   'ggml/src/ggml.o' <<
-  'ggml/src/ggml-aarch64.o' <<
   'ggml/src/ggml-alloc.o' <<
   'ggml/src/ggml-backend.o' <<
   'ggml/src/ggml-backend-reg.o' <<
@@ -167,7 +166,9 @@ $OBJ_GGML <<
   'ggml/src/ggml-cpu/ggml-cpu.o' <<
   'ggml/src/ggml-cpu/ggml-cpu-cpp.o' <<
   'ggml/src/ggml-cpu/ggml-cpu-aarch64.o' <<
-  'ggml/src/ggml-cpu/ggml-cpu-quants.o'
+  'ggml/src/ggml-cpu/ggml-cpu-hbm.o' <<
+  'ggml/src/ggml-cpu/ggml-cpu-quants.o' <<
+  'ggml/src/ggml-cpu/ggml-cpu-traits.o'
 
 $OBJ_WHISPER <<
   'src/whisper.o'
