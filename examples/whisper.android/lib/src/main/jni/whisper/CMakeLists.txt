@@ -21,7 +21,6 @@ if (NOT GGML_HOME)
         SOURCE_FILES
         ${SOURCE_FILES}
         ${WHISPER_LIB_DIR}/ggml/src/ggml.c
-        ${WHISPER_LIB_DIR}/ggml/src/ggml-aarch64.c
         ${WHISPER_LIB_DIR}/ggml/src/ggml-alloc.c
         ${WHISPER_LIB_DIR}/ggml/src/ggml-backend.cpp
         ${WHISPER_LIB_DIR}/ggml/src/ggml-backend-reg.cpp
@@ -29,7 +28,7 @@ if (NOT GGML_HOME)
         ${WHISPER_LIB_DIR}/ggml/src/ggml-threading.cpp
         ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu.c
         ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu.cpp
-        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-aarch64.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp
         ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-quants.c
         )
 endif()
