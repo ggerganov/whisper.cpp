@@ -3,12 +3,12 @@ require "pathname"
 
 class TestModel < TestBase
   def test_model
-    whisper = Whisper::Context.new(MODEL)
+    whisper = Whisper::Context.new("base.en")
     assert_instance_of Whisper::Model, whisper.model
   end
 
   def test_attributes
-    whisper = Whisper::Context.new(MODEL)
+    whisper = Whisper::Context.new("base.en")
     model = whisper.model
 
     assert_equal 51864, model.n_vocab
@@ -26,7 +26,7 @@ class TestModel < TestBase
   end
 
   def test_gc
-    model = Whisper::Context.new(MODEL).model
+    model = Whisper::Context.new("base.en").model
     GC.start
 
     assert_equal 51864, model.n_vocab
@@ -44,7 +44,7 @@ class TestModel < TestBase
   end
 
   def test_pathname
-    path = Pathname(MODEL)
+    path = Pathname(Whisper::Model.pre_converted_models["base.en"].to_path)
     whisper = Whisper::Context.new(path)
     model = whisper.model
 
@@ -60,5 +60,12 @@ class TestModel < TestBase
     assert_equal 80, model.n_mels
     assert_equal 1, model.ftype
     assert_equal "base", model.type
+  end
+
+  def test_auto_download
+    path = Whisper::Model.pre_converted_models["base.en"].to_path
+
+    assert_path_exist path
+    assert_equal 147964211, File.size(path)
   end
 end

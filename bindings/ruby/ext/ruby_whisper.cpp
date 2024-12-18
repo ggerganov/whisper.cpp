@@ -38,6 +38,9 @@ VALUE cContext;
 VALUE cParams;
 VALUE eError;
 
+VALUE cSegment;
+VALUE cModel;
+
 static ID id_to_s;
 static ID id_call;
 static ID id___method__;
@@ -46,6 +49,7 @@ static ID id_length;
 static ID id_next;
 static ID id_new;
 static ID id_to_path;
+static ID id_pre_converted_models;
 
 static bool is_log_callback_finalized = false;
 
@@ -187,6 +191,7 @@ static VALUE ruby_whisper_params_allocate(VALUE klass) {
   ruby_whisper_params *rwp;
   rwp = ALLOC(ruby_whisper_params);
   rwp->params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+  rwp->diarize = false;
   rwp->new_segment_callback_container = rb_whisper_callback_container_allocate();
   rwp->progress_callback_container = rb_whisper_callback_container_allocate();
   rwp->abort_callback_container = rb_whisper_callback_container_allocate();
@@ -195,7 +200,7 @@ static VALUE ruby_whisper_params_allocate(VALUE klass) {
 
 /*
  * call-seq:
- *   new(Whisper::Model["base.en"]) -> Whisper::Context
+ *   new("base.en") -> Whisper::Context
  *   new("path/to/model.bin") -> Whisper::Context
  *   new(Whisper::Model::URI.new("https://example.net/uri/of/model.bin")) -> Whisper::Context
  */
@@ -207,6 +212,11 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   rb_scan_args(argc, argv, "01", &whisper_model_file_path);
   Data_Get_Struct(self, ruby_whisper, rw);
 
+  VALUE pre_converted_models = rb_funcall(cModel, id_pre_converted_models, 0);
+  VALUE pre_converted_model = rb_hash_aref(pre_converted_models, whisper_model_file_path);
+  if (!NIL_P(pre_converted_model)) {
+    whisper_model_file_path = pre_converted_model;
+  }
   if (rb_respond_to(whisper_model_file_path, id_to_path)) {
     whisper_model_file_path = rb_funcall(whisper_model_file_path, id_to_path, 0);
   }
@@ -1252,6 +1262,25 @@ static VALUE ruby_whisper_params_set_logprob_thold(VALUE self, VALUE value) {
   return value;
 }
 /*
+ * call-seq:
+ *   no_speech_thold -> Float
+ */
+static VALUE ruby_whisper_params_get_no_speech_thold(VALUE self) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return DBL2NUM(rwp->params.no_speech_thold);
+}
+/*
+ * call-seq:
+ *   no_speech_thold = threshold -> threshold
+ */
+static VALUE ruby_whisper_params_set_no_speech_thold(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->params.no_speech_thold = RFLOAT_VALUE(value);
+  return value;
+}
+/*
  * Sets new segment callback, called for every newly generated text segment.
  *
  *   params.new_segment_callback = ->(context, _, n_new, user_data) {
@@ -1346,9 +1375,6 @@ typedef struct {
 typedef struct {
   VALUE context;
 } ruby_whisper_model;
-
-VALUE cSegment;
-VALUE cModel;
 
 static void rb_whisper_segment_mark(ruby_whisper_segment *rws) {
   rb_gc_mark(rws->context);
@@ -1740,6 +1766,7 @@ void Init_whisper() {
   id_next = rb_intern("next");
   id_new = rb_intern("new");
   id_to_path = rb_intern("to_path");
+  id_pre_converted_models = rb_intern("pre_converted_models");
 
   mWhisper = rb_define_module("Whisper");
   cContext = rb_define_class_under(mWhisper, "Context", rb_cObject);
@@ -1835,6 +1862,8 @@ void Init_whisper() {
   rb_define_method(cParams, "entropy_thold=", ruby_whisper_params_set_entropy_thold, 1);
   rb_define_method(cParams, "logprob_thold", ruby_whisper_params_get_logprob_thold, 0);
   rb_define_method(cParams, "logprob_thold=", ruby_whisper_params_set_logprob_thold, 1);
+  rb_define_method(cParams, "no_speech_thold", ruby_whisper_params_get_no_speech_thold, 0);
+  rb_define_method(cParams, "no_speech_thold=", ruby_whisper_params_set_no_speech_thold, 1);
 
   rb_define_method(cParams, "new_segment_callback=", ruby_whisper_params_set_new_segment_callback, 1);
   rb_define_method(cParams, "new_segment_callback_user_data=", ruby_whisper_params_set_new_segment_callback_user_data, 1);

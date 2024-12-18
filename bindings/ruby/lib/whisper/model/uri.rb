@@ -1,6 +1,7 @@
 require "whisper.so"
 require "uri"
 require "net/http"
+require "time"
 require "pathname"
 require "io/console/size"
 
@@ -56,9 +57,11 @@ class Whisper::Model
           when Net::HTTPOK
             download response
           when Net::HTTPRedirection
-            request URI(response["location"])
+            request URI(response["location"]), headers
           else
-            raise response
+            return if headers.key?("if-modified-since") # Use cache file
+
+            raise "#{response.code} #{response.message}\n#{response.body}"
           end
         end
       end
@@ -81,6 +84,7 @@ class Whisper::Model
     end
 
     def show_progress(current, size)
+      return unless $stderr.tty?
       return unless size
 
       unless @prev
@@ -111,7 +115,7 @@ class Whisper::Model
     end
   end
 
-  @names = {}
+  @pre_converted_models = {}
   %w[
     tiny
     tiny.en
@@ -137,23 +141,17 @@ class Whisper::Model
     large-v1
     large-v2
     large-v2-q5_0
-    large-v2-8_0
+    large-v2-q8_0
     large-v3
     large-v3-q5_0
     large-v3-turbo
     large-v3-turbo-q5_0
     large-v3-turbo-q8_0
   ].each do |name|
-    @names[name] = URI.new("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-#{name}.bin")
+    @pre_converted_models[name] = URI.new("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-#{name}.bin")
   end
 
   class << self
-    def [](name)
-      @names[name]
-    end
-
-    def preconverted_model_names
-      @names.keys
-    end
+    attr_reader :pre_converted_models
   end
 end

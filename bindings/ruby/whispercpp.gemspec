@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   s.test_files = s.files.select {|file| file.start_with? "tests/"}
   
   s.extensions << 'ext/extconf.rb'
-  
+  s.required_ruby_version = '>= 3.1.0'
 
   #### Documentation and testing.
   s.homepage = 'https://github.com/ggerganov/whisper.cpp'

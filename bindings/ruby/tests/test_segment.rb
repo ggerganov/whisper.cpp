@@ -5,7 +5,7 @@ class TestSegment < TestBase
     attr_reader :whisper
 
     def startup
-      @whisper = Whisper::Context.new(TestBase::MODEL)
+      @whisper = Whisper::Context.new("base.en")
       params = Whisper::Params.new
       params.print_timestamps = false
       @whisper.transcribe(TestBase::AUDIO, params)

@@ -22,7 +22,7 @@ Usage
 ```ruby
 require "whisper"
 
-whisper = Whisper::Context.new(Whisper::Model["base"])
+whisper = Whisper::Context.new("base")
 
 params = Whisper::Params.new
 params.language = "en"
@@ -44,17 +44,23 @@ end
 Some models are prepared up-front:
 
 ```ruby
-base_en = Whisper::Model["base.en"]
+base_en = Whisper::Model.pre_converted_models["base.en"]
 whisper = Whisper::Context.new(base_en)
 ```
 
 At first time you use a model, it is downloaded automatically. After that, downloaded cached file is used. To clear cache, call `#clear_cache`:
 
 ```ruby
-Whisper::Model["base"].clear_cache
+Whisper::Model.pre_converted_models["base"].clear_cache
 ```
 
-You can see the list of prepared model names by `Whisper::Model.preconverted_model_names`:
+You also can use shorthand for pre-converted models:
+
+```ruby
+whisper = Whisper::Context.new("base.en")
+```
+
+You can see the list of prepared model names by `Whisper::Model.preconverted_models.keys`:
 
 ```ruby
 puts Whisper::Model.preconverted_model_names
@@ -124,13 +130,6 @@ end
 You can also add hook to params called on new segment:
 
 ```ruby
-def format_time(time_ms)
-  sec, decimal_part = time_ms.divmod(1000)
-  min, sec = sec.divmod(60)
-  hour, min = min.divmod(60)
-  "%02d:%02d:%02d.%03d" % [hour, min, sec, decimal_part]
-end
-
 # Add hook before calling #transcribe
 params.on_new_segment do |segment|
   line = "[%{st} --> %{ed}] %{text}" % {
@@ -151,7 +150,7 @@ whisper.transcribe("path/to/audio.wav", params)
 You can see model information:
 
 ```ruby
-whisper = Whisper::Context.new(Whisper::Model["base"])
+whisper = Whisper::Context.new("base")
 model = whisper.model
 
 model.n_vocab # => 51864
@@ -200,7 +199,7 @@ Using this feature, you are also able to suppress log:
 Whisper.log_set ->(level, buffer, user_data) {
   # do nothing
 }, nil
-Whisper::Context.new(MODEL)
+Whisper::Context.new("base")
 ```
 
 ### Low-level API to transcribe ###
@@ -214,7 +213,7 @@ require "wavefile"
 reader = WaveFile::Reader.new("path/to/audio.wav", WaveFile::Format.new(:mono, :float, 16000))
 samples = reader.enum_for(:each_buffer).map(&:samples).flatten
 
-whisper = Whisper::Context.new(Whisper::Model["base"])
+whisper = Whisper::Context.new("base")
 whisper.full(Whisper::Params.new, samples)
 whisper.each_segment do |segment|
   puts segment.text

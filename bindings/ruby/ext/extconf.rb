@@ -111,11 +111,6 @@ unless ENV['RISCV']
     $MK_CFLAGS     << ' -march=native -mtune=native'
     $HOST_CXXFLAGS << ' -march=native -mtune=native'
   end
-
-  if $UNAME_M.match? /aarch64.*/
-    $MK_CFLAGS   << ' -mcpu=native'
-    $MK_CXXFLAGS << ' -mcpu=native'
-  end
 else
   $MK_CFLAGS   << ' -march=rv64gcv -mabi=lp64d'
   $MK_CXXFLAGS << ' -march=rv64gcv -mabi=lp64d'
