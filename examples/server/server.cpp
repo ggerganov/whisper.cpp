@@ -560,7 +560,7 @@ int main(int argc, char ** argv) {
     }
 
     // initialize openvino encoder. this has no effect on whisper.cpp builds that don't have OpenVINO configured
-    whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
+    whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr, params.n_threads);
 
     Server svr;
     svr.set_default_headers({{"Server", "whisper.cpp"},
@@ -981,7 +981,7 @@ int main(int argc, char ** argv) {
         }
 
         // initialize openvino encoder. this has no effect on whisper.cpp builds that don't have OpenVINO configured
-        whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr);
+        whisper_ctx_init_openvino_encoder(ctx, nullptr, params.openvino_encode_device.c_str(), nullptr, params.n_threads);
 
         const std::string success = "Load was successful!";
         res.set_content(success, "application/text");
