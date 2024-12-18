@@ -283,7 +283,7 @@ jobs:
       - name: Build using CMake
         shell: msys2 {0}
         run: |
-            cmake -B build
+            cmake -B build -DWHISPER_SDL2=ON
             cmake --build build --config ${{ matrix.build }} -j $(nproc)
 
       - name: Clean after building using CMake
