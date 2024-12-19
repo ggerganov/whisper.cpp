@@ -53,6 +53,9 @@ static ID id_pre_converted_models;
 
 static bool is_log_callback_finalized = false;
 
+// High level API
+static VALUE rb_whisper_segment_initialize(VALUE context, int index);
+
 /*
  * call-seq:
  *   lang_max_id -> Integer
@@ -187,6 +190,29 @@ static ruby_whisper_callback_container * rb_whisper_callback_container_allocate(
   return container;
 }
 
+static void new_segment_callback(struct whisper_context *ctx, struct whisper_state *state, int n_new, void *user_data) {
+  const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
+
+  // Currently, doesn't support state because
+  // those require to resolve GC-related problems.
+  if (!NIL_P(container->callback)) {
+    rb_funcall(container->callback, id_call, 4, *container->context, Qnil, INT2NUM(n_new), container->user_data);
+  }
+  const long callbacks_len = RARRAY_LEN(container->callbacks);
+  if (0 == callbacks_len) {
+    return;
+  }
+  const int n_segments = whisper_full_n_segments_from_state(state);
+  for (int i = n_new; i > 0; i--) {
+    int i_segment = n_segments - i;
+    VALUE segment = rb_whisper_segment_initialize(*container->context, i_segment);
+    for (int j = 0; j < callbacks_len; j++) {
+      VALUE cb = rb_ary_entry(container->callbacks, j);
+      rb_funcall(cb, id_call, 1, segment);
+    }
+  }
+}
+
 static VALUE ruby_whisper_params_allocate(VALUE klass) {
   ruby_whisper_params *rwp;
   rwp = ALLOC(ruby_whisper_params);
@@ -229,9 +255,6 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   }
   return self;
 }
-
-// High level API
-static VALUE rb_whisper_segment_initialize(VALUE context, int index);
 
 /*
  * transcribe a single file
@@ -354,29 +377,8 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
   }
 
   if (!NIL_P(rwp->new_segment_callback_container->callback) || 0 != RARRAY_LEN(rwp->new_segment_callback_container->callbacks)) {
-    rwp->params.new_segment_callback = [](struct whisper_context * ctx, struct whisper_state * state, int n_new, void * user_data) {
-      const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
-
-      // Currently, doesn't support state because
-      // those require to resolve GC-related problems.
-      if (!NIL_P(container->callback)) {
-        rb_funcall(container->callback, id_call, 4, *container->context, Qnil, INT2NUM(n_new), container->user_data);
-      }
-      const long callbacks_len = RARRAY_LEN(container->callbacks);
-      if (0 == callbacks_len) {
-        return;
-      }
-      const int n_segments = whisper_full_n_segments_from_state(state);
-      for (int i = n_new; i > 0; i--) {
-        int i_segment = n_segments - i;
-        VALUE segment = rb_whisper_segment_initialize(*container->context, i_segment);
-        for (int j = 0; j < callbacks_len; j++) {
-          VALUE cb = rb_ary_entry(container->callbacks, j);
-          rb_funcall(cb, id_call, 1, segment);
-        }
-      }
-    };
     rwp->new_segment_callback_container->context = &self;
+    rwp->params.new_segment_callback = new_segment_callback;
     rwp->params.new_segment_callback_user_data = rwp->new_segment_callback_container;
   }
 
