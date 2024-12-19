@@ -296,6 +296,26 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   return self;
 }
 
+static void register_callbacks(ruby_whisper_params * rwp, VALUE * self) {
+  if (!NIL_P(rwp->new_segment_callback_container->callback) || 0 != RARRAY_LEN(rwp->new_segment_callback_container->callbacks)) {
+    rwp->new_segment_callback_container->context = self;
+    rwp->params.new_segment_callback = new_segment_callback;
+    rwp->params.new_segment_callback_user_data = rwp->new_segment_callback_container;
+  }
+
+  if (!NIL_P(rwp->progress_callback_container->callback) || 0 != RARRAY_LEN(rwp->progress_callback_container->callbacks)) {
+    rwp->progress_callback_container->context = self;
+    rwp->params.progress_callback = progress_callback;
+    rwp->params.progress_callback_user_data = rwp->progress_callback_container;
+  }
+
+  if (!NIL_P(rwp->abort_callback_container->callback) || 0 != RARRAY_LEN(rwp->abort_callback_container->callbacks)) {
+    rwp->abort_callback_container->context = self;
+    rwp->params.abort_callback = abort_callback;
+    rwp->params.abort_callback_user_data = rwp->abort_callback_container;
+  }
+}
+
 /*
  * transcribe a single file
  * can emit to a block results
@@ -416,23 +436,7 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
     rwp->params.encoder_begin_callback_user_data = &is_aborted;
   }
 
-  if (!NIL_P(rwp->new_segment_callback_container->callback) || 0 != RARRAY_LEN(rwp->new_segment_callback_container->callbacks)) {
-    rwp->new_segment_callback_container->context = &self;
-    rwp->params.new_segment_callback = new_segment_callback;
-    rwp->params.new_segment_callback_user_data = rwp->new_segment_callback_container;
-  }
-
-  if (!NIL_P(rwp->progress_callback_container->callback) || 0 != RARRAY_LEN(rwp->progress_callback_container->callbacks)) {
-    rwp->progress_callback_container->context = &self;
-    rwp->params.progress_callback = progress_callback;
-    rwp->params.progress_callback_user_data = rwp->progress_callback_container;
-  }
-
-  if (!NIL_P(rwp->abort_callback_container->callback) || 0 != RARRAY_LEN(rwp->abort_callback_container->callbacks)) {
-    rwp->abort_callback_container->context = &self;
-    rwp->params.abort_callback = abort_callback;
-    rwp->params.abort_callback_user_data = rwp->abort_callback_container;
-  }
+  register_callbacks(rwp, &self);
 
   if (whisper_full_parallel(rw->context, rwp->params, pcmf32.data(), pcmf32.size(), 1) != 0) {
     fprintf(stderr, "failed to process audio\n");
