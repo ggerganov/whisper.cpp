@@ -213,6 +213,24 @@ static void new_segment_callback(struct whisper_context *ctx, struct whisper_sta
   }
 }
 
+static void progress_callback(struct whisper_context *ctx, struct whisper_state *state, int progress_cur, void *user_data) {
+  const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
+  const VALUE progress = INT2NUM(progress_cur);
+  // Currently, doesn't support state because
+  // those require to resolve GC-related problems.
+  if (!NIL_P(container->callback)) {
+    rb_funcall(container->callback, id_call, 4, *container->context, Qnil, progress, container->user_data);
+  }
+  const long callbacks_len = RARRAY_LEN(container->callbacks);
+  if (0 == callbacks_len) {
+    return;
+  }
+  for (int j = 0; j < callbacks_len; j++) {
+    VALUE cb = rb_ary_entry(container->callbacks, j);
+    rb_funcall(cb, id_call, 1, progress);
+  }
+}
+
 static VALUE ruby_whisper_params_allocate(VALUE klass) {
   ruby_whisper_params *rwp;
   rwp = ALLOC(ruby_whisper_params);
@@ -383,24 +401,8 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
   }
 
   if (!NIL_P(rwp->progress_callback_container->callback) || 0 != RARRAY_LEN(rwp->progress_callback_container->callbacks)) {
-    rwp->params.progress_callback = [](struct whisper_context *ctx, struct whisper_state * /*state*/, int progress_cur, void *user_data) {
-      const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
-      const VALUE progress = INT2NUM(progress_cur);
-      // Currently, doesn't support state because
-      // those require to resolve GC-related problems.
-      if (!NIL_P(container->callback)) {
-        rb_funcall(container->callback, id_call, 4, *container->context, Qnil, progress, container->user_data);
-      }
-      const long callbacks_len = RARRAY_LEN(container->callbacks);
-      if (0 == callbacks_len) {
-        return;
-      }
-      for (int j = 0; j < callbacks_len; j++) {
-        VALUE cb = rb_ary_entry(container->callbacks, j);
-        rb_funcall(cb, id_call, 1, progress);
-      }
-    };
     rwp->progress_callback_container->context = &self;
+    rwp->params.progress_callback = progress_callback;
     rwp->params.progress_callback_user_data = rwp->progress_callback_container;
   }
 
