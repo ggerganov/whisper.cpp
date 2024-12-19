@@ -231,6 +231,28 @@ static void progress_callback(struct whisper_context *ctx, struct whisper_state 
   }
 }
 
+static bool abort_callback(void * user_data) {
+  const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
+  if (!NIL_P(container->callback)) {
+    VALUE result = rb_funcall(container->callback, id_call, 1, container->user_data);
+    if (!NIL_P(result) && Qfalse != result) {
+      return true;
+    }
+  }
+  const long callbacks_len = RARRAY_LEN(container->callbacks);
+  if (0 == callbacks_len) {
+    return false;
+  }
+  for (int j = 0; j < callbacks_len; j++) {
+    VALUE cb = rb_ary_entry(container->callbacks, j);
+    VALUE result = rb_funcall(cb, id_call, 1, container->user_data);
+    if (!NIL_P(result) && Qfalse != result) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static VALUE ruby_whisper_params_allocate(VALUE klass) {
   ruby_whisper_params *rwp;
   rwp = ALLOC(ruby_whisper_params);
@@ -407,28 +429,8 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
   }
 
   if (!NIL_P(rwp->abort_callback_container->callback) || 0 != RARRAY_LEN(rwp->abort_callback_container->callbacks)) {
-    rwp->params.abort_callback = [](void * user_data) {
-      const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
-      if (!NIL_P(container->callback)) {
-        VALUE result = rb_funcall(container->callback, id_call, 1, container->user_data);
-        if (!NIL_P(result) && Qfalse != result) {
-          return true;
-        }
-      }
-      const long callbacks_len = RARRAY_LEN(container->callbacks);
-      if (0 == callbacks_len) {
-        return false;
-      }
-      for (int j = 0; j < callbacks_len; j++) {
-        VALUE cb = rb_ary_entry(container->callbacks, j);
-        VALUE result = rb_funcall(cb, id_call, 1, container->user_data);
-        if (!NIL_P(result) && Qfalse != result) {
-          return true;
-        }
-      }
-      return false;
-    };
     rwp->abort_callback_container->context = &self;
+    rwp->params.abort_callback = abort_callback;
     rwp->params.abort_callback_user_data = rwp->abort_callback_container;
   }
 
