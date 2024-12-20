@@ -79,30 +79,36 @@ class Whisper::Model
           downloaded += chunk.bytesize
           show_progress downloaded, size
         end
+        $stderr.puts
       end
       downloading_path.rename path
     end
 
     def show_progress(current, size)
-      return unless $stderr.tty?
-      return unless size
+      progress_rate_available = size && $stderr.tty?
 
       unless @prev
         @prev = Time.now
-        $stderr.puts "Downloading #{@uri}"
+        $stderr.puts "Downloading #{@uri} to #{cache_path}"
       end
 
       now = Time.now
-      return if now - @prev < 1 && current < size
 
-      progress_width = 20
-      progress = current.to_f / size
-      arrow_length = progress * progress_width
-      arrow = "=" * (arrow_length - 1) + ">" + " " * (progress_width - arrow_length)
-      line = "[#{arrow}] (#{format_bytesize(current)} / #{format_bytesize(size)})"
-      padding = ' ' * ($stderr.winsize[1] - line.size)
-      $stderr.print "\r#{line}#{padding}"
-      $stderr.puts if current >= size
+      if progress_rate_available
+        return if now - @prev < 1 && current < size
+
+        progress_width = 20
+        progress = current.to_f / size
+        arrow_length = progress * progress_width
+        arrow = "=" * (arrow_length - 1) + ">" + " " * (progress_width - arrow_length)
+        line = "[#{arrow}] (#{format_bytesize(current)} / #{format_bytesize(size)})"
+        padding = ' ' * ($stderr.winsize[1] - line.size)
+        $stderr.print "\r#{line}#{padding}"
+      else
+        return if now - @prev < 1
+
+        $stderr.print "."
+      end
       @prev = now
     end
 
