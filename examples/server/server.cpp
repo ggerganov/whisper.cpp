@@ -677,17 +677,8 @@ int main(int argc, char ** argv) {
         if (sparams.ffmpeg_converter) {
             // if file is not wav, convert to wav
             // write to temporary file
-            //const std::string temp_filename_base = std::tmpnam(nullptr); // note: this is unsafe
-            const std::string temp_filename_base = []() {
-                char temp_filename_template[] = "/tmp/tempfileXXXXXX";
-                int fd = mkstemp(temp_filename_template);
-                if (fd == -1) {
-                    perror("mkstemp");
-                    return std::string();
-                }
-                close(fd);
-                return std::string(temp_filename_template);
-            }();
+            //const std::string temp_filename_base = std::tmpnam(nullptr);
+            const std::string temp_filename_base = "whisper-server-tmp"; // TODO: this is a hack, remove when the mutext is removed
             const std::string temp_filename = temp_filename_base + ".wav";
             std::ofstream temp_file{temp_filename, std::ios::binary};
             temp_file << audio_file.content;

@@ -40,6 +40,8 @@ set_target_properties(${TARGET} PROPERTIES LINK_FLAGS " \
     ${EXTRA_FLAGS} \
     ")
 
+set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
+
 #
 # command.wasm
 #
