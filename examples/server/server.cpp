@@ -76,6 +76,7 @@ struct whisper_params {
     bool no_timestamps   = false;
     bool use_gpu         = true;
     bool flash_attn      = false;
+    bool suppress_non_speech_tokens = false;
 
     std::string language        = "en";
     std::string prompt          = "";
@@ -472,6 +473,10 @@ void get_req_parameters(const Request & req, whisper_params & params)
     {
         params.temperature_inc = std::stof(req.get_file_value("temperature_inc").content);
     }
+    if (req.has_file("suppress_non_speech"))
+    {
+        params.suppress_non_speech_tokens = parse_str_to_bool(req.get_file_value("suppress_non_speech").content);
+    }
 }
 
 }  // namespace
@@ -785,6 +790,8 @@ int main(int argc, char ** argv) {
 
             wparams.no_timestamps    = params.no_timestamps;
             wparams.token_timestamps = !params.no_timestamps && params.response_format == vjson_format;
+
+            wparams.suppress_non_speech_tokens = params.suppress_non_speech_tokens;
 
             whisper_print_user_data user_data = { &params, &pcmf32s, 0 };
 
