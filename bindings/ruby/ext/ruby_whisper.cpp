@@ -979,19 +979,19 @@ static VALUE ruby_whisper_params_get_suppress_blank(VALUE self) {
 }
 /*
  * call-seq:
- *   suppress_non_speech_tokens = force_suppress -> force_suppress
+ *   suppress_nst = force_suppress -> force_suppress
  */
-static VALUE ruby_whisper_params_set_suppress_non_speech_tokens(VALUE self, VALUE value) {
-  BOOL_PARAMS_SETTER(self, suppress_non_speech_tokens, value)
+static VALUE ruby_whisper_params_set_suppress_nst(VALUE self, VALUE value) {
+  BOOL_PARAMS_SETTER(self, suppress_nst, value)
 }
 /*
  * If true, suppresses non-speech-tokens.
  *
  * call-seq:
- *   suppress_non_speech_tokens -> bool
+ *   suppress_nst -> bool
  */
-static VALUE ruby_whisper_params_get_suppress_non_speech_tokens(VALUE self) {
-  BOOL_PARAMS_GETTER(self, suppress_non_speech_tokens)
+static VALUE ruby_whisper_params_get_suppress_nst(VALUE self) {
+  BOOL_PARAMS_GETTER(self, suppress_nst)
 }
 /*
  * If true, enables token-level timestamps.
@@ -1832,8 +1832,8 @@ void Init_whisper() {
   rb_define_method(cParams, "print_timestamps=", ruby_whisper_params_set_print_timestamps, 1);
   rb_define_method(cParams, "suppress_blank", ruby_whisper_params_get_suppress_blank, 0);
   rb_define_method(cParams, "suppress_blank=", ruby_whisper_params_set_suppress_blank, 1);
-  rb_define_method(cParams, "suppress_non_speech_tokens", ruby_whisper_params_get_suppress_non_speech_tokens, 0);
-  rb_define_method(cParams, "suppress_non_speech_tokens=", ruby_whisper_params_set_suppress_non_speech_tokens, 1);
+  rb_define_method(cParams, "suppress_nst", ruby_whisper_params_get_suppress_nst, 0);
+  rb_define_method(cParams, "suppress_nst=", ruby_whisper_params_set_suppress_nst, 1);
   rb_define_method(cParams, "token_timestamps", ruby_whisper_params_get_token_timestamps, 0);
   rb_define_method(cParams, "token_timestamps=", ruby_whisper_params_set_token_timestamps, 1);
   rb_define_method(cParams, "split_on_word", ruby_whisper_params_get_split_on_word, 0);
