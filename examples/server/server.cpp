@@ -61,6 +61,7 @@ struct whisper_params {
     float logprob_thold   = -1.00f;
     float temperature     =  0.00f;
     float temperature_inc =  0.20f;
+    float no_speech_thold = 0.6f;
 
     bool debug_mode      = false;
     bool translate       = false;
@@ -137,6 +138,7 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  --inference-path PATH,         [%-7s] Inference path for all requests\n", sparams.inference_path.c_str());
     fprintf(stderr, "  --convert,                     [%-7s] Convert audio to WAV, requires ffmpeg on the server", sparams.ffmpeg_converter ? "true" : "false");
     fprintf(stderr, "  -sns,      --suppress-nst      [%-7s] suppress non-speech tokens\n", params.suppress_nst ? "true" : "false");
+    fprintf(stderr, "  -nth N,    --no-speech-thold N [%-7.2f] no speech threshold\n",   params.no_speech_thold);
     fprintf(stderr, "\n");
 }
 
@@ -182,6 +184,8 @@ bool whisper_params_parse(int argc, char ** argv, whisper_params & params, serve
         else if (arg == "-ng"   || arg == "--no-gpu")          { params.use_gpu         = false; }
         else if (arg == "-fa"   || arg == "--flash-attn")      { params.flash_attn      = true; }
         else if (arg == "-sns"  || arg == "--suppress-nst")    { params.suppress_nst    = true; }
+        else if (arg == "-nth"  || arg == "--no-speech-thold") { params.no_speech_thold = std::stof(argv[++i]); }
+
         // server params
         else if (                  arg == "--port")            { sparams.port        = std::stoi(argv[++i]); }
         else if (                  arg == "--host")            { sparams.hostname    = argv[++i]; }
@@ -790,6 +794,7 @@ int main(int argc, char ** argv) {
             wparams.beam_search.beam_size = params.beam_size;
 
             wparams.temperature      = params.temperature;
+            wparams.no_speech_thold = params.no_speech_thold;
             wparams.temperature_inc  = params.temperature_inc;
             wparams.entropy_thold    = params.entropy_thold;
             wparams.logprob_thold    = params.logprob_thold;
@@ -942,7 +947,7 @@ int main(int argc, char ** argv) {
 
                 // TODO compression_ratio and no_speech_prob are not implemented yet
                 // segment["compression_ratio"] = 0;
-                // segment["no_speech_prob"] = 0;
+                segment["no_speech_prob"] = whisper_full_get_segment_no_speech_prob(ctx, i);
 
                 jres["segments"].push_back(segment);
             }
