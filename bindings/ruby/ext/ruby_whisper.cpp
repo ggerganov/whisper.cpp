@@ -836,6 +836,18 @@ static VALUE ruby_whisper_full_get_segment_text(VALUE self, VALUE i_segment) {
 }
 
 /*
+ * call-seq:
+ *   full_get_segment_no_speech_prob -> Float
+ */
+static VALUE ruby_whisper_full_get_segment_no_speech_prob(VALUE self, VALUE i_segment) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  const int c_i_segment = ruby_whisper_full_check_segment_index(rw, i_segment);
+  const float no_speech_prob = whisper_full_get_segment_no_speech_prob(rw->context, c_i_segment);
+  return DBL2NUM(no_speech_prob);
+}
+
+/*
  * params.language = "auto" | "en", etc...
  *
  * call-seq:
@@ -1559,6 +1571,18 @@ static VALUE ruby_whisper_segment_get_text(VALUE self) {
   return rb_str_new2(text);
 }
 
+/*
+ * call-seq:
+ *   no_speech_prob -> Float
+ */
+static VALUE ruby_whisper_segment_get_no_speech_prob(VALUE self) {
+  ruby_whisper_segment *rws;
+  Data_Get_Struct(self, ruby_whisper_segment, rws);
+  ruby_whisper *rw;
+  Data_Get_Struct(rws->context, ruby_whisper, rw);
+  return DBL2NUM(whisper_full_get_segment_no_speech_prob(rw->context, rws->index));
+}
+
 static void rb_whisper_model_mark(ruby_whisper_model *rwm) {
   rb_gc_mark(rwm->context);
 }
@@ -1821,6 +1845,7 @@ void Init_whisper() {
   rb_define_method(cContext, "full_get_segment_t1", ruby_whisper_full_get_segment_t1, 1);
   rb_define_method(cContext, "full_get_segment_speaker_turn_next", ruby_whisper_full_get_segment_speaker_turn_next, 1);
   rb_define_method(cContext, "full_get_segment_text", ruby_whisper_full_get_segment_text, 1);
+  rb_define_method(cContext, "full_get_segment_no_speech_prob", ruby_whisper_full_get_segment_no_speech_prob, 1);
   rb_define_method(cContext, "full", ruby_whisper_full, -1);
   rb_define_method(cContext, "full_parallel", ruby_whisper_full_parallel, -1);
 
@@ -1899,6 +1924,7 @@ void Init_whisper() {
   rb_define_method(cSegment, "end_time", ruby_whisper_segment_get_end_time, 0);
   rb_define_method(cSegment, "speaker_next_turn?", ruby_whisper_segment_get_speaker_turn_next, 0);
   rb_define_method(cSegment, "text", ruby_whisper_segment_get_text, 0);
+  rb_define_method(cSegment, "no_speech_prob", ruby_whisper_segment_get_no_speech_prob, 0);
 
   cModel = rb_define_class_under(mWhisper, "Model", rb_cObject);
   rb_define_alloc_func(cModel, ruby_whisper_model_allocate);
