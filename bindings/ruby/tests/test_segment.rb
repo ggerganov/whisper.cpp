@@ -1,17 +1,6 @@
 require_relative "helper"
 
 class TestSegment < TestBase
-  class << self
-    attr_reader :whisper
-
-    def startup
-      @whisper = Whisper::Context.new("base.en")
-      params = Whisper::Params.new
-      params.print_timestamps = false
-      @whisper.transcribe(TestBase::AUDIO, params)
-    end
-  end
-
   def test_iteration
     whisper.each_segment do |segment|
       assert_instance_of Whisper::Segment, segment
@@ -41,6 +30,14 @@ class TestSegment < TestBase
       assert_equal whisper.full_get_segment_t1(i) * 10, segment.end_time
       i += 1
     end
+  end
+
+  def test_no_speech_prob
+    no_speech_prob = nil
+    whisper.each_segment do |segment|
+      no_speech_prob = segment.no_speech_prob
+    end
+    assert no_speech_prob > 0.0
   end
 
   def test_on_new_segment
@@ -73,11 +70,5 @@ class TestSegment < TestBase
       return
     end
     whisper.transcribe(AUDIO, params)
-  end
-
-  private
-
-  def whisper
-    self.class.whisper
   end
 end

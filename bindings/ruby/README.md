@@ -63,7 +63,7 @@ whisper = Whisper::Context.new("base.en")
 You can see the list of prepared model names by `Whisper::Model.preconverted_models.keys`:
 
 ```ruby
-puts Whisper::Model.preconverted_model_names
+puts Whisper::Model.preconverted_models.keys
 # tiny
 # tiny.en
 # tiny-q5_1
@@ -220,7 +220,7 @@ whisper.each_segment do |segment|
 end
 ```
 
-The second argument `samples` may be an array, an object with `length` method, or a MemoryView. If you can prepare audio data as C array and export it as a MemoryView, whispercpp accepts and works with it with zero copy.
+The second argument `samples` may be an array, an object with `length` and `each` method, or a MemoryView. If you can prepare audio data as C array and export it as a MemoryView, whispercpp accepts and works with it with zero copy.
 
 License
 -------

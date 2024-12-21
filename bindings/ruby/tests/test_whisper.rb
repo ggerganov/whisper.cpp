@@ -21,21 +21,6 @@ class TestWhisper < TestBase
   end
 
   sub_test_case "After transcription" do
-    class << self
-      attr_reader :whisper
-
-      def startup
-        @whisper = Whisper::Context.new("base.en")
-        params = Whisper::Params.new
-        params.print_timestamps = false
-        @whisper.transcribe(TestBase::AUDIO, params)
-      end
-    end
-
-    def whisper
-      self.class.whisper
-    end
-
     def test_full_n_segments
       assert_equal 1, whisper.full_n_segments
     end
@@ -69,6 +54,12 @@ class TestWhisper < TestBase
 
     def test_full_get_segment_text
       assert_match /ask not what your country can do for you, ask what you can do for your country/, whisper.full_get_segment_text(0)
+    end
+
+    def test_full_get_segment_no_speech_prob
+      prob = whisper.full_get_segment_no_speech_prob(0)
+      assert prob > 0.0
+      assert prob < 1.0
     end
   end
 
