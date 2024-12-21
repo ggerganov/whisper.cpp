@@ -11,7 +11,7 @@
 # Press Ctrl+C to stop recording
 #
 
-executable="./main"
+executable="./build/bin/whisper-cli"
 model="base.en"
 model_path="models/ggml-$model.bin"
 
@@ -46,7 +46,7 @@ ffmpeg -y -i ./rec.wav -ar 16000 -ac 1 -c:a pcm_s16le ./rec16.wav > /dev/null 2>
 
 # run Whisper
 echo "Processing ..."
-./main -m models/ggml-base.en.bin rec16.wav -owts > /dev/null 2>&1
+${executable} -m models/ggml-base.en.bin rec16.wav -owts > /dev/null 2>&1
 
 # generate Karaoke video
 echo "Generating video ..."

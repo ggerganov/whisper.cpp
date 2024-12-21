@@ -1,4 +1,4 @@
-# whisper.cpp http server
+# whisper.cpp/examples/server
 
 Simple http server. WAV Files are passed to the inference model via http requests.
 
@@ -7,9 +7,9 @@ https://github.com/ggerganov/whisper.cpp/assets/1991296/e983ee53-8741-4eb5-9048-
 ## Usage
 
 ```
-./server -h
+./build/bin/whisper-server -h
 
-usage: ./bin/server [options]
+usage: ./build/bin/whisper-server [options]
 
 options:
   -h,        --help              [default] show this help message and exit

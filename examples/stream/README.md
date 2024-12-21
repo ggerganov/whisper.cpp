@@ -1,11 +1,11 @@
-# stream
+# whisper.cpp/examples/stream
 
 This is a naive example of performing real-time inference on audio from your microphone.
-The `stream` tool samples the audio every half a second and runs the transcription continously.
+The `whisper-stream` tool samples the audio every half a second and runs the transcription continously.
 More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
 ```bash
-./build/bin/stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
+./build/bin/whisper-stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
 ```
 
 https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a80f-28ba83be7d09.mp4
@@ -15,7 +15,7 @@ https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a
 Setting the `--step` argument to `0` enables the sliding window mode:
 
 ```bash
- ./build/bin/stream -m ./models/ggml-base.en.bin -t 6 --step 0 --length 30000 -vth 0.6
+ ./build/bin/whisper-stream -m ./models/ggml-base.en.bin -t 6 --step 0 --length 30000 -vth 0.6
 ```
 
 In this mode, the tool will transcribe only after some speech activity is detected. A very
@@ -27,7 +27,7 @@ a transcription block that is suitable for parsing.
 
 ## Building
 
-The `stream` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
+The `whisper-stream` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
 
 ```bash
 # Install SDL2
@@ -43,7 +43,7 @@ brew install sdl2
 cmake -B build -DWHISPER_SDL2=ON
 cmake --build build --config Release
 
-./build/bin/stream
+./build/bin/whisper-stream
 ```
 
 ## Web version

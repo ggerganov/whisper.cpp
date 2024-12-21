@@ -1,4 +1,4 @@
-# bench
+# whisper.cpp/examples/bench
 
 A very basic tool for benchmarking the inference performance on your device. The tool simply runs the Encoder part of
 the transformer on some random audio data and records the execution time. This way we can have an objective comparison
@@ -7,11 +7,8 @@ of the performance of the model for various setups.
 Benchmark results are tracked in the following Github issue: https://github.com/ggerganov/whisper.cpp/issues/89
 
 ```bash
-# build the bench tool
-$ make bench
-
-# run it on the small.en model using 4 threads
-$ ./bench -m ./models/ggml-small.en.bin -t 4
+# run the bench too on the small.en model using 4 threads
+$ ./build/bin/whisper-bench -m ./models/ggml-small.en.bin -t 4
 
 whisper_model_load: loading model from './models/ggml-small.en.bin'
 whisper_model_load: n_vocab       = 51864
