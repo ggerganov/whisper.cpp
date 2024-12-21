@@ -89,11 +89,11 @@ class TestParams < TestBase
     assert !@params.suppress_blank
   end
 
-  def test_suppress_non_speech_tokens
-    @params.suppress_non_speech_tokens = true
-    assert @params.suppress_non_speech_tokens
-    @params.suppress_non_speech_tokens = false
-    assert !@params.suppress_non_speech_tokens
+  def test_suppress_nst
+    @params.suppress_nst = true
+    assert @params.suppress_nst
+    @params.suppress_nst = false
+    assert !@params.suppress_nst
   end
 
   def test_token_timestamps

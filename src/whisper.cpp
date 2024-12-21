@@ -4676,7 +4676,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.detect_language   =*/ false,
 
         /*.suppress_blank    =*/ true,
-        /*.suppress_non_speech_tokens =*/ false,
+        /*.suppress_nst      =*/ false,
 
         /*.temperature       =*/  0.0f,
         /*.max_initial_ts    =*/  1.0f,
@@ -4960,7 +4960,7 @@ static void whisper_process_logits(
 
         // suppress non-speech tokens
         // ref: https://github.com/openai/whisper/blob/7858aa9c08d98f75575035ecd6481f462d66ca27/whisper/tokenizer.py#L224-L253
-        if (params.suppress_non_speech_tokens) {
+        if (params.suppress_nst) {
             for (const std::string & token : non_speech_tokens) {
                 const std::string suppress_tokens[] = {token, " " + token};
                 for (const std::string & suppress_token : suppress_tokens) {
