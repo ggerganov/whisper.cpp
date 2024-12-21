@@ -32,6 +32,14 @@ class TestSegment < TestBase
     end
   end
 
+  def test_no_speech_prob
+    no_speech_prob = nil
+    whisper.each_segment do |segment|
+      no_speech_prob = segment.no_speech_prob
+    end
+    assert no_speech_prob > 0.0
+  end
+
   def test_on_new_segment
     params = Whisper::Params.new
     seg = nil

@@ -55,6 +55,12 @@ class TestWhisper < TestBase
     def test_full_get_segment_text
       assert_match /ask not what your country can do for you, ask what you can do for your country/, whisper.full_get_segment_text(0)
     end
+
+    def test_full_get_segment_no_speech_prob
+      prob = whisper.full_get_segment_no_speech_prob(0)
+      assert prob > 0.0
+      assert prob < 1.0
+    end
   end
 
   def test_lang_max_id
