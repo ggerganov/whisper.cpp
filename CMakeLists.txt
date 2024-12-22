@@ -48,6 +48,12 @@ else()
     endif()
 endif()
 
+if (MSVC)
+    # Enable UTF-8 encoding for MSVC
+    add_compile_options("/utf-8")
+    message(STATUS "MSVC detected: Enabling UTF-8 encoding")
+endif()
+
 option(BUILD_SHARED_LIBS "build shared libraries" ${BUILD_SHARED_LIBS_DEFAULT})
 
 #
