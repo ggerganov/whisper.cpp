@@ -71,6 +71,7 @@ struct whisper_params {
     bool log_score       = false;
     bool use_gpu         = true;
     bool flash_attn      = false;
+    bool suppress_nst    = false;
 
     std::string language  = "en";
     std::string prompt;
@@ -170,6 +171,7 @@ static bool whisper_params_parse(int argc, char ** argv, whisper_params & params
         else if (arg == "-ls"   || arg == "--log-score")       { params.log_score       = true; }
         else if (arg == "-ng"   || arg == "--no-gpu")          { params.use_gpu         = false; }
         else if (arg == "-fa"   || arg == "--flash-attn")      { params.flash_attn      = true; }
+        else if (arg == "-sns"  || arg == "--suppress-nst")    { params.suppress_nst    = true; }
         else if (                  arg == "--suppress-regex")  { params.suppress_regex  = argv[++i]; }
         else if (                  arg == "--grammar")         { params.grammar         = argv[++i]; }
         else if (                  arg == "--grammar-rule")    { params.grammar_rule    = argv[++i]; }
@@ -237,6 +239,7 @@ static void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params
     fprintf(stderr, "  -ls,       --log-score         [%-7s] log best decoder scores of tokens\n",              params.log_score?"true":"false");
     fprintf(stderr, "  -ng,       --no-gpu            [%-7s] disable GPU\n",                                    params.use_gpu ? "false" : "true");
     fprintf(stderr, "  -fa,       --flash-attn        [%-7s] flash attention\n",                                params.flash_attn ? "true" : "false");
+    fprintf(stderr, "  -sns,      --suppress-nst      [%-7s] suppress non-speech tokens\n",                     params.suppress_nst ? "true" : "false");
     fprintf(stderr, "  --suppress-regex REGEX         [%-7s] regular expression matching tokens to suppress\n", params.suppress_regex.c_str());
     fprintf(stderr, "  --grammar GRAMMAR              [%-7s] GBNF grammar to guide decoding\n",                 params.grammar.c_str());
     fprintf(stderr, "  --grammar-rule RULE            [%-7s] top-level GBNF grammar rule name\n",               params.grammar_rule.c_str());
@@ -1127,6 +1130,8 @@ int main(int argc, char ** argv) {
             wparams.no_speech_thold  = params.no_speech_thold;
 
             wparams.no_timestamps    = params.no_timestamps;
+
+            wparams.suppress_nst     = params.suppress_nst;
 
             whisper_print_user_data user_data = { &params, &pcmf32s, 0 };
 
