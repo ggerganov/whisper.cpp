@@ -115,7 +115,7 @@ static VALUE ruby_whisper_s_finalize_log_callback(VALUE self, VALUE id) {
 static VALUE ruby_whisper_s_log_set(VALUE self, VALUE log_callback, VALUE user_data) {
   VALUE old_callback = rb_iv_get(self, "log_callback");
   if (!NIL_P(old_callback)) {
-    rb_undefine_finalizer(old_callback);
+    rb_undefine_finalizer(self);
   }
 
   rb_iv_set(self, "log_callback", log_callback);
