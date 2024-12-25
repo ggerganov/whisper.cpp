@@ -49,6 +49,7 @@ static ID id_length;
 static ID id_next;
 static ID id_new;
 static ID id_to_path;
+static ID id_URI;
 static ID id_pre_converted_models;
 
 static bool is_log_callback_finalized = false;
@@ -282,6 +283,17 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   VALUE pre_converted_model = rb_hash_aref(pre_converted_models, whisper_model_file_path);
   if (!NIL_P(pre_converted_model)) {
     whisper_model_file_path = pre_converted_model;
+  }
+  if (TYPE(whisper_model_file_path) == T_STRING) {
+    const char * whisper_model_file_path_str = StringValueCStr(whisper_model_file_path);
+    if (strncmp("http://", whisper_model_file_path_str, 7) == 0 || strncmp("https://", whisper_model_file_path_str, 8) == 0) {
+      VALUE uri_class = rb_const_get(cModel, id_URI);
+      whisper_model_file_path = rb_class_new_instance(1, &whisper_model_file_path, uri_class);
+    }
+  }
+  if (rb_obj_is_kind_of(whisper_model_file_path, rb_path2class("URI::HTTP"))) {
+    VALUE uri_class = rb_const_get(cModel, id_URI);
+    whisper_model_file_path = rb_class_new_instance(1, &whisper_model_file_path, uri_class);
   }
   if (rb_respond_to(whisper_model_file_path, id_to_path)) {
     whisper_model_file_path = rb_funcall(whisper_model_file_path, id_to_path, 0);
@@ -1802,6 +1814,7 @@ void Init_whisper() {
   id_next = rb_intern("next");
   id_new = rb_intern("new");
   id_to_path = rb_intern("to_path");
+  id_URI = rb_intern("URI");
   id_pre_converted_models = rb_intern("pre_converted_models");
 
   mWhisper = rb_define_module("Whisper");
