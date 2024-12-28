@@ -466,18 +466,7 @@ jobs:
           7z x sdl2.zip
           echo "SDL2_DIR=${{ github.workspace }}\SDL2-${{ matrix.sdl2_ver }}\cmake" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "${{ github.workspace }}\SDL2-${{ matrix.sdl2_ver }}\cmake" > SDL2_PATH.txt
-
-      - name: Debug SDL2_DIR
-        run: |
-          echo SDL2_DIR=$env:SDL2_DIR
-          ls $env:SDL2_DIR
-
-      - name: Debug SDL2 extraction
-        if: matrix.sdl2 == 'ON'
-        run: |
-          dir "SDL2-${{ matrix.sdl2_ver }}"
-          dir "SDL2-${{ matrix.sdl2_ver }}/cmake"          
-  
+ 
       - name: Configure CMake
         shell: cmd
         run: |
