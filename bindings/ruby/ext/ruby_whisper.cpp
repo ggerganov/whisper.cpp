@@ -1954,6 +1954,8 @@ void Init_whisper() {
   rb_define_method(cModel, "n_mels", ruby_whisper_c_model_n_mels, 0);
   rb_define_method(cModel, "ftype", ruby_whisper_c_model_ftype, 0);
   rb_define_method(cModel, "type", ruby_whisper_c_model_type, 0);
+
+  rb_require("whisper/model/uri");
 }
 #ifdef __cplusplus
 }
