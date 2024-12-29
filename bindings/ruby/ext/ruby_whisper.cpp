@@ -1767,7 +1767,7 @@ static VALUE ruby_whisper_c_model_type(VALUE self) {
 
 static VALUE ruby_whisper_error_initialize(VALUE self, VALUE code) {
   const int c_code = NUM2INT(code);
-  char *raw_message;
+  const char *raw_message;
   switch (c_code) {
   case -2:
     raw_message = "failed to compute log mel spectrogram";
