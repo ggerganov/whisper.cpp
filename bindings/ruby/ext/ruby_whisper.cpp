@@ -849,7 +849,7 @@ static VALUE ruby_whisper_full_get_segment_text(VALUE self, VALUE i_segment) {
 
 /*
  * call-seq:
- *   full_get_segment_no_speech_prob -> Float
+ *   full_get_segment_no_speech_prob(segment_index) -> Float
  */
 static VALUE ruby_whisper_full_get_segment_no_speech_prob(VALUE self, VALUE i_segment) {
   ruby_whisper *rw;

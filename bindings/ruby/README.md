@@ -60,10 +60,10 @@ You also can use shorthand for pre-converted models:
 whisper = Whisper::Context.new("base.en")
 ```
 
-You can see the list of prepared model names by `Whisper::Model.preconverted_models.keys`:
+You can see the list of prepared model names by `Whisper::Model.pre_converted_models.keys`:
 
 ```ruby
-puts Whisper::Model.preconverted_models.keys
+puts Whisper::Model.pre_converted_models.keys
 # tiny
 # tiny.en
 # tiny-q5_1
