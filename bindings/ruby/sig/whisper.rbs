@@ -1,0 +1,153 @@
+module Whisper
+  interface _Samples
+    def length: () -> Integer
+    def each: { (Float) -> void } -> void
+  end
+
+  type log_callback = ^(Integer level, String message, Object user_data) -> void
+  type new_segment_callback = ^(Whisper::Context, void, Integer n_new, Object user_data) -> void
+  type progress_callback = ^(Whisper::Context, void, Integer progress, Object user_data) -> void
+  type abort_callback = ^(Whisper::Context, void, Object user_data) -> boolish
+
+  LOG_LEVEL_NONE: Integer
+  LOG_LEVEL_INFO: Integer
+  LOG_LEVEL_WARN: Integer
+  LOG_LEVEL_ERROR: Integer
+  LOG_LEVEL_DEBUG: Integer
+  LOG_LEVEL_CONT: Integer
+
+  def self.lang_max_id: () -> Integer
+  def self.lang_id: (string name) -> Integer
+  def self.lang_str: (Integer id) -> String
+  def self.lang_str_full: (Integer id) -> String
+  def self.log_set=: (log_callback) -> log_callback
+  def self.finalize_log_callback: (void) -> void # Second argument of ObjectSpace.define_finalizer
+
+  class Context
+    def initialize: (string | _ToPath | ::URI::HTTP ) -> void
+    def transcribe: (string, Params) -> void
+                  | (string, Params) { (String) -> void } -> void
+    def model_n_vocab: () -> Integer
+    def model_n_audio_ctx: () -> Integer
+    def model_n_audio_state: () -> Integer
+    def model_n_text_head: () -> Integer
+    def model_n_text_layer: () -> Integer
+    def model_n_mels: () -> Integer
+    def model_ftype: () -> Integer
+    def model_type: () -> String
+    def full_n_segments: () -> Integer
+    def full_lang_id: () -> Integer
+    def full_get_segment_t0: (Integer) -> Integer
+    def full_get_segment_t1: (Integer) -> Integer
+    def full_get_segment_speaker_turn_next: (Integer) -> (true | false)
+    def full_get_segment_text: (Integer) -> String
+    def full_get_segment_no_speech_prob: (Integer) -> Float
+    def full: (Params, Array[Float], ?Integer) -> void
+            | (Params, _Samples, ?Integer) -> void
+    def full_parallel: (Params, Array[Float], ?Integer) -> void
+                     | (Params, _Samples, ?Integer) -> void
+                     | (Params, _Samples, ?Integer?, Integer) -> void
+    def each_segment: { (Segment) -> void } -> void
+                    | () -> Enumerator[Segment]
+    def model: () -> Model
+  end
+
+  class Params
+    def initialize: () -> void
+    def language=: (String) -> String # TODO: Enumerate lang names
+    def language: () -> String
+    def translate=: (boolish) -> boolish
+    def translate: () -> (true | false)
+    def no_context=: (boolish) -> boolish
+    def no_context: () -> (true | false)
+    def single_segment=: (boolish) -> boolish
+    def single_segment: () -> (true | false)
+    def print_special=: (boolish) -> boolish
+    def print_special: () -> (true | false)
+    def print_progress=: (boolish) -> boolish
+    def print_progress: () -> (true | false)
+    def print_realtime=: (boolish) -> boolish
+    def print_realtime: () -> (true | false)
+    def print_timestamps=: (boolish) -> boolish
+    def print_timestamps: () -> (true | false)
+    def suppress_blank=: (boolish) -> boolish
+    def suppress_blank: () -> (true | false)
+    def suppress_nst=: (boolish) -> boolish
+    def suppress_nst: () -> (true | false)
+    def token_timestamps=: (boolish) -> boolish
+    def token_timestamps: () -> (true | false)
+    def split_on_word=: (boolish) -> boolish
+    def split_on_word: () -> (true | false)
+    def initial_prompt=: (_ToS) -> _ToS
+    def initial_prompt: () -> String
+    def diarize=: (boolish) -> boolish
+    def diarize: () -> (true | false)
+    def offset=: (Integer) -> Integer
+    def offset: () -> Integer
+    def duration=: (Integer) -> Integer
+    def duration: () -> Integer
+    def max_text_tokens=: (Integer) -> Integer
+    def max_text_tokens: () -> Integer
+    def temperature=: (Float) -> Float
+    def temperature: () -> Float
+    def max_initial_ts=: (Float) -> Float
+    def max_initial_ts: () -> Float
+    def length_penalty=: (Float) -> Float
+    def length_penalty: () -> Float
+    def temperature_inc=: (Float) -> Float
+    def temperature_inc: () -> Float
+    def entropy_thold=: (Float) -> Float
+    def entropy_thold: () -> Float
+    def logprob_thold=: (Float) -> Float
+    def logprob_thold: () -> Float
+    def no_speech_thold=: (Float) -> Float
+    def no_speech_thold: () -> Float
+    def new_segment_callback=: (new_segment_callback) -> new_segment_callback
+    def new_segment_callback_user_data=: (Object) -> Object
+    def progress_callback=: (progress_callback) -> progress_callback
+    def progress_callback_user_data=: (Object) -> Object
+    def abort_callback=: (abort_callback) -> abort_callback
+    def abort_callback_user_data=: (Object) -> Object
+    def on_new_segment: { (Segment) -> void } -> void
+    def on_progress: { (Integer) -> void } -> void
+    def abort_on: { (Object) -> boolish } -> void
+  end
+
+  class Model
+    def self.pre_converted_models: () -> Hash[String, Model::URI]
+    def initialize: () -> void
+    def n_vocab: () -> Integer
+    def n_audio_ctx: () -> Integer
+    def n_audio_state: () -> Integer
+    def n_audio_head: () -> Integer
+    def n_audio_layer: () -> Integer
+    def n_text_ctx: () -> Integer
+    def n_text_state: () -> Integer
+    def n_text_head: () -> Integer
+    def n_text_layer: () -> Integer
+    def n_mels: () -> Integer
+    def ftype: () -> Integer
+    def type: () -> String
+
+    class URI
+      def initialize: (string | ::URI::HTTP) -> void
+      def to_path: -> String
+      def clear_cache: -> void
+    end
+  end
+
+  class Segment
+    def initialize: () -> void
+    def start_time: () -> Integer
+    def end_time: () -> Integer
+    def speaker_next_turn?: () -> (true | false)
+    def text: () -> String
+    def no_speech_prob: () -> Float
+  end
+
+  class Error < StandardError
+    attr_reader code: Integer
+
+    def initialize: (Integer) -> void
+  end
+end
