@@ -49,6 +49,7 @@ static ID id_length;
 static ID id_next;
 static ID id_new;
 static ID id_to_path;
+static ID id_URI;
 static ID id_pre_converted_models;
 
 static bool is_log_callback_finalized = false;
@@ -282,6 +283,17 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   VALUE pre_converted_model = rb_hash_aref(pre_converted_models, whisper_model_file_path);
   if (!NIL_P(pre_converted_model)) {
     whisper_model_file_path = pre_converted_model;
+  }
+  if (TYPE(whisper_model_file_path) == T_STRING) {
+    const char * whisper_model_file_path_str = StringValueCStr(whisper_model_file_path);
+    if (strncmp("http://", whisper_model_file_path_str, 7) == 0 || strncmp("https://", whisper_model_file_path_str, 8) == 0) {
+      VALUE uri_class = rb_const_get(cModel, id_URI);
+      whisper_model_file_path = rb_class_new_instance(1, &whisper_model_file_path, uri_class);
+    }
+  }
+  if (rb_obj_is_kind_of(whisper_model_file_path, rb_path2class("URI::HTTP"))) {
+    VALUE uri_class = rb_const_get(cModel, id_URI);
+    whisper_model_file_path = rb_class_new_instance(1, &whisper_model_file_path, uri_class);
   }
   if (rb_respond_to(whisper_model_file_path, id_to_path)) {
     whisper_model_file_path = rb_funcall(whisper_model_file_path, id_to_path, 0);
@@ -837,7 +849,7 @@ static VALUE ruby_whisper_full_get_segment_text(VALUE self, VALUE i_segment) {
 
 /*
  * call-seq:
- *   full_get_segment_no_speech_prob -> Float
+ *   full_get_segment_no_speech_prob(segment_index) -> Float
  */
 static VALUE ruby_whisper_full_get_segment_no_speech_prob(VALUE self, VALUE i_segment) {
   ruby_whisper *rw;
@@ -1755,7 +1767,7 @@ static VALUE ruby_whisper_c_model_type(VALUE self) {
 
 static VALUE ruby_whisper_error_initialize(VALUE self, VALUE code) {
   const int c_code = NUM2INT(code);
-  char *raw_message;
+  const char *raw_message;
   switch (c_code) {
   case -2:
     raw_message = "failed to compute log mel spectrogram";
@@ -1802,6 +1814,7 @@ void Init_whisper() {
   id_next = rb_intern("next");
   id_new = rb_intern("new");
   id_to_path = rb_intern("to_path");
+  id_URI = rb_intern("URI");
   id_pre_converted_models = rb_intern("pre_converted_models");
 
   mWhisper = rb_define_module("Whisper");
@@ -1941,6 +1954,8 @@ void Init_whisper() {
   rb_define_method(cModel, "n_mels", ruby_whisper_c_model_n_mels, 0);
   rb_define_method(cModel, "ftype", ruby_whisper_c_model_ftype, 0);
   rb_define_method(cModel, "type", ruby_whisper_c_model_type, 0);
+
+  rb_require("whisper/model/uri");
 }
 #ifdef __cplusplus
 }

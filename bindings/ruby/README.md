@@ -60,10 +60,10 @@ You also can use shorthand for pre-converted models:
 whisper = Whisper::Context.new("base.en")
 ```
 
-You can see the list of prepared model names by `Whisper::Model.preconverted_models.keys`:
+You can see the list of prepared model names by `Whisper::Model.pre_converted_models.keys`:
 
 ```ruby
-puts Whisper::Model.preconverted_models.keys
+puts Whisper::Model.pre_converted_models.keys
 # tiny
 # tiny.en
 # tiny-q5_1
@@ -87,8 +87,9 @@ whisper = Whisper::Context.new("path/to/your/model.bin")
 Or, you can download model files:
 
 ```ruby
-model_uri = Whisper::Model::URI.new("http://example.net/uri/of/your/model.bin")
-whisper = Whisper::Context.new(model_uri)
+whisper = Whisper::Context.new("https://example.net/uri/of/your/model.bin")
+# Or
+whisper = Whisper::Context.new(URI("https://example.net/uri/of/your/model.bin"))
 ```
 
 See [models][] page for details.
@@ -221,6 +222,17 @@ end
 ```
 
 The second argument `samples` may be an array, an object with `length` and `each` method, or a MemoryView. If you can prepare audio data as C array and export it as a MemoryView, whispercpp accepts and works with it with zero copy.
+
+Development
+-----------
+
+    % git clone https://github.com/ggerganov/whisper.cpp.git
+    % cd whisper.cpp/bindings/ruby
+    % rake test
+
+First call of `rake test` builds an extension and downloads a model for testing. After that, you add tests in `tests` directory and modify `ext/ruby_whisper.cpp`.
+
+If something seems wrong on build, running `rake clean` solves some cases.
 
 License
 -------
