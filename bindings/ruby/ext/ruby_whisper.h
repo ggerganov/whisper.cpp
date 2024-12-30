@@ -1,5 +1,5 @@
-#ifndef __RUBY_WHISPER_H
-#define __RUBY_WHISPER_H
+#ifndef RUBY_WHISPER_H
+#define RUBY_WHISPER_H
 
 #include "whisper.h"
 
