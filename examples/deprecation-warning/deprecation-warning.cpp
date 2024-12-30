@@ -24,6 +24,10 @@ int main(int argc, char** argv) {
         replacement_filename = "whisper-cli";
     }
 
+    if (filename == "main.exe") {
+        replacement_filename = "whisper-cli.exe";
+    }
+
     fprintf(stdout, "\n");
     fprintf(stdout, "WARNING: The binary '%s' is deprecated.\n", filename.c_str());
     fprintf(stdout, " Please use '%s' instead.\n", replacement_filename.c_str());
