@@ -223,6 +223,17 @@ end
 
 The second argument `samples` may be an array, an object with `length` and `each` method, or a MemoryView. If you can prepare audio data as C array and export it as a MemoryView, whispercpp accepts and works with it with zero copy.
 
+Development
+-----------
+
+    % git clone https://github.com/ggerganov/whisper.cpp.git
+    % cd whisper.cpp/bindings/ruby
+    % rake test
+
+First call of `rake test` builds an extension and downloads a model for testing. After that, you add tests in `tests` directory and modify `ext/ruby_whisper.cpp`.
+
+If something seems wrong on build, running `rake clean` solves some cases.
+
 License
 -------
 
