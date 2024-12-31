@@ -430,72 +430,73 @@ jobs:
           name: whisper-blas-bin-${{ matrix.arch }}
           path: build/bin/${{ matrix.build }}
 
-# TODO: fix and re-enable
-#  windows-cublas:
-#    runs-on: windows-2019
-#
-#    strategy:
-#      matrix:
-#        build: [Release]
-#        arch: [x64]
-#        cublas: [ON]
-#        sdl2: [ON]
-#        cuda-toolkit: [12.2.0, 11.8.0]
-#        include:
-#          - arch: x64
-#            s2arc: x64
-#          - sdl2: ON
-#            s2ver: 2.28.5
-#
-#    steps:
-#      - name: Clone
-#        uses: actions/checkout@v4
-#
-#      - name: Add msbuild to PATH
-#        uses: microsoft/setup-msbuild@v2
-#
-#      - name: Install CUDA Toolkit
-#        id: cuda-toolkit
-#        uses: Jimver/cuda-toolkit@v0.2.15
-#        with:
-#          cuda: '${{ matrix.cuda-toolkit }}'
-#
-#      - name: Fetch SDL2 and set SDL2_DIR
-#        if: matrix.sdl2 == 'ON'
-#        run: |
-#          C:/msys64/usr/bin/wget.exe -qO sdl2.zip https://github.com/libsdl-org/SDL/releases/download/release-${{ matrix.s2ver }}/SDL2-devel-${{ matrix.s2ver }}-VC.zip
-#          7z x sdl2.zip
-#          echo "SDL2_DIR=$env:GITHUB_WORKSPACE/SDL2-${{ matrix.s2ver }}/cmake" >> $env:GITHUB_ENV
-#
-#      - name: Configure
-#        run: >
-#          cmake -S . -B ./build -A ${{ matrix.arch }}
-#          -DCMAKE_BUILD_TYPE=${{ matrix.build }}
-#          -DGGML_CUDA=${{ matrix.cublas }}
-#          -DWHISPER_SDL2=${{ matrix.sdl2 }}
-#
-#      - name: Build ${{ matrix.cuda-toolkit }}
-#        run: |
-#          cd ./build
-#          cmake --build . --config ${{ matrix.build }}
-#
-#      - name: Copy CUDA DLLs
-#        run: >
-#          Copy-Item -PassThru
-#          -Path "${{ steps.cuda-toolkit.outputs.CUDA_PATH }}/bin/*.dll"
-#          -Include cudart64_*,cublas64_*,cublasLt64_*
-#          -Destination build/bin/${{ matrix.build }}
-#
-#      - name: Copy SDL2.dll
-#        if: matrix.sdl2 == 'ON'
-#        run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
-#
-#      - name: Upload binaries
-#        if: matrix.sdl2 == 'ON'
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: whisper-cublas-${{ matrix.cuda-toolkit }}-bin-${{ matrix.arch }}
-#          path: build/bin/${{ matrix.build }}
+  windows-cublas:
+    runs-on: windows-2019
+    strategy:
+      matrix:
+        build: [Release]
+        arch: [x64]
+        cublas: [ON]
+        sdl2: [ON]
+        cuda-toolkit: [12.2.0, 11.8.0]
+        include:
+          - arch: x64
+            sdl2: ON
+            sdl2_ver: 2.28.5
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install CUDA Toolkit
+        id: cuda-toolkit
+        uses: Jimver/cuda-toolkit@v0.2.15
+        with:
+          cuda: '${{ matrix.cuda-toolkit }}'
+
+      - name: Install 7-Zip
+        run: choco install 7zip -y
+
+      - name: Fetch SDL2 and set SDL2_DIR
+        if: matrix.sdl2 == 'ON'
+        run: |
+          Invoke-WebRequest -Uri https://github.com/libsdl-org/SDL/releases/download/release-${{ matrix.sdl2_ver }}/SDL2-devel-${{ matrix.sdl2_ver }}-VC.zip -OutFile sdl2.zip
+          7z x sdl2.zip
+          echo "SDL2_DIR=${{ github.workspace }}\SDL2-${{ matrix.sdl2_ver }}\cmake" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "${{ github.workspace }}\SDL2-${{ matrix.sdl2_ver }}\cmake" > SDL2_PATH.txt
+ 
+      - name: Configure CMake
+        shell: cmd
+        run: |
+          cmake -S . -B ./build -A ${{ matrix.arch }} ^
+            -DCMAKE_BUILD_TYPE=${{ matrix.build }} ^
+            -DGGML_CUDA=${{ matrix.cublas }} ^
+            -DCMAKE_CUDA_ARCHITECTURES=all  ^
+            -DWHISPER_SDL2=${{ matrix.sdl2 }} ^
+            -DSDL2_DIR="%SDL2_DIR%"
+  
+      - name: Build Project
+        shell: cmd
+        run: |
+          cd ./build
+          cmake --build . --config ${{ matrix.build }}          
+
+      - name: Copy CUDA DLLs
+        run: |
+          Get-ChildItem "${{ steps.cuda-toolkit.outputs.CUDA_PATH }}/bin/" -Filter "*.dll" | 
+          Copy-Item -Destination "build/bin/${{ matrix.build }}"
+
+      - name: Copy SDL2.dll
+        if: matrix.sdl2 == 'ON'
+        run: copy "$env:SDL2_DIR/../lib/${{ matrix.arch }}/SDL2.dll" build/bin/${{ matrix.build }}
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-cublas-${{ matrix.cuda-toolkit }}-bin-${{ matrix.arch }}
+          path: build/bin/${{ matrix.build }}
 
   emscripten:
     runs-on: ubuntu-latest
