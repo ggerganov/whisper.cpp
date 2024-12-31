@@ -64,6 +64,6 @@ tiny.en tiny base.en base small.en small medium.en medium large-v1 large-v2 larg
 		echo "[+] Running $@ on $$f ... (run 'ffplay $$f' to listen)" ; \
 	    echo "----------------------------------------------" ; \
 		echo "" ; \
-		./build/bin/main -m models/ggml-$@.bin -f $$f ; \
+		./build/bin/whisper-cli -m models/ggml-$@.bin -f $$f ; \
 		echo "" ; \
 	done
