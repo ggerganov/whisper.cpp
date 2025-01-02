@@ -27,4 +27,8 @@ typedef struct {
   int index;
 } ruby_whisper_segment;
 
+typedef struct {
+  VALUE context;
+} ruby_whisper_model;
+
 #endif
