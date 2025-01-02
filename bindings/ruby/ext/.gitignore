@@ -11,4 +11,5 @@ scripts/get-flags.mk
 *.metal
 !ruby_whisper.cpp
 !ruby_whisper_transcribe.cpp
+!ruby_whisper_error.c
 !ruby_whisper.h

@@ -49,6 +49,7 @@ static bool is_log_callback_finalized = false;
 // High level API
 extern VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self);
 static VALUE rb_whisper_segment_initialize(VALUE context, int index);
+extern void init_ruby_whisper_error(VALUE *mWhisper);
 
 /*
  * call-seq:
@@ -1619,46 +1620,6 @@ static VALUE ruby_whisper_c_model_type(VALUE self) {
   return rb_str_new2(whisper_model_type_readable(rw->context));
 }
 
-static VALUE ruby_whisper_error_initialize(VALUE self, VALUE code) {
-  const int c_code = NUM2INT(code);
-  const char *raw_message;
-  switch (c_code) {
-  case -2:
-    raw_message = "failed to compute log mel spectrogram";
-    break;
-  case -3:
-    raw_message = "failed to auto-detect language";
-    break;
-  case -4:
-    raw_message = "too many decoders requested";
-    break;
-  case -5:
-    raw_message = "audio_ctx is larger than the maximum allowed";
-    break;
-  case -6:
-    raw_message = "failed to encode";
-    break;
-  case -7:
-    raw_message = "whisper_kv_cache_init() failed for self-attention cache";
-    break;
-  case -8:
-    raw_message = "failed to decode";
-    break;
-  case -9:
-    raw_message = "failed to decode";
-    break;
-  default:
-    raw_message = "unknown error";
-    break;
-  }
-  const VALUE message = rb_str_new2(raw_message);
-  rb_call_super(1, &message);
-  rb_iv_set(self, "@code", code);
-
-  return self;
-}
-
-
 void Init_whisper() {
   id_to_s = rb_intern("to_s");
   id_call = rb_intern("call");
@@ -1674,7 +1635,6 @@ void Init_whisper() {
   mWhisper = rb_define_module("Whisper");
   cContext = rb_define_class_under(mWhisper, "Context", rb_cObject);
   cParams  = rb_define_class_under(mWhisper, "Params", rb_cObject);
-  eError   = rb_define_class_under(mWhisper, "Error", rb_eStandardError);
 
   rb_define_const(mWhisper, "LOG_LEVEL_NONE", INT2NUM(GGML_LOG_LEVEL_NONE));
   rb_define_const(mWhisper, "LOG_LEVEL_INFO", INT2NUM(GGML_LOG_LEVEL_INFO));
@@ -1776,9 +1736,6 @@ void Init_whisper() {
   rb_define_method(cParams, "abort_callback=", ruby_whisper_params_set_abort_callback, 1);
   rb_define_method(cParams, "abort_callback_user_data=", ruby_whisper_params_set_abort_callback_user_data, 1);
 
-  rb_define_attr(eError, "code", true, false);
-  rb_define_method(eError, "initialize", ruby_whisper_error_initialize, 1);
-
   // High leve
   cSegment  = rb_define_class_under(mWhisper, "Segment", rb_cObject);
 
@@ -1808,6 +1765,8 @@ void Init_whisper() {
   rb_define_method(cModel, "n_mels", ruby_whisper_c_model_n_mels, 0);
   rb_define_method(cModel, "ftype", ruby_whisper_c_model_ftype, 0);
   rb_define_method(cModel, "type", ruby_whisper_c_model_type, 0);
+
+  init_ruby_whisper_error(&mWhisper);
 
   rb_require("whisper/model/uri");
 }
