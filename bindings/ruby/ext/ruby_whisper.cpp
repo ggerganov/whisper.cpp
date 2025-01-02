@@ -89,6 +89,16 @@ static VALUE ruby_whisper_s_finalize_log_callback(VALUE self, VALUE id) {
   return Qnil;
 }
 
+static void
+ruby_whisper_log_callback(ggml_log_level level, const char * buffer, void * user_data) {
+  if (is_log_callback_finalized) {
+    return;
+  }
+  VALUE log_callback = rb_iv_get(mWhisper, "log_callback");
+  VALUE udata = rb_iv_get(mWhisper, "user_data");
+  rb_funcall(log_callback, id_call, 3, INT2NUM(level), rb_str_new2(buffer), udata);
+}
+
 /*
  * call-seq:
  *   log_set ->(level, buffer, user_data) { ... }, user_data -> nil
@@ -105,14 +115,7 @@ static VALUE ruby_whisper_s_log_set(VALUE self, VALUE log_callback, VALUE user_d
   VALUE finalize_log_callback = rb_funcall(mWhisper, rb_intern("method"), 1, rb_str_new2("finalize_log_callback"));
   rb_define_finalizer(log_callback, finalize_log_callback);
 
-  whisper_log_set([](ggml_log_level level, const char * buffer, void * user_data) {
-    if (is_log_callback_finalized) {
-      return;
-    }
-    VALUE log_callback = rb_iv_get(mWhisper, "log_callback");
-    VALUE udata = rb_iv_get(mWhisper, "user_data");
-    rb_funcall(log_callback, id_call, 3, INT2NUM(level), rb_str_new2(buffer), udata);
-  }, nullptr);
+  whisper_log_set(ruby_whisper_log_callback, nullptr);
 
   return Qnil;
 }
