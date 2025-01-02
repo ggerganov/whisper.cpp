@@ -176,6 +176,7 @@ $OBJ_WHISPER <<
 $objs = $OBJ_GGML + $OBJ_WHISPER + $OBJ_COMMON + $OBJ_SDL
 $objs <<
   "ruby_whisper.o" <<
+  "ruby_whisper_context.o" <<
   "ruby_whisper_transcribe.o" <<
   "ruby_whisper_params.o" <<
   "ruby_whisper_error.o" <<
