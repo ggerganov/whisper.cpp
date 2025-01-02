@@ -27,7 +27,7 @@
 		18E864A92CE73C1E0094B8B3 /* ggml-cpu.c in Sources */ = {isa = PBXBuildFile; fileRef = 18E864A82CE73C1E0094B8B3 /* ggml-cpu.c */; };
 		18F8C0BC2CEDF4DC00CAD607 /* ggml-threading.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0BB2CEDF4DC00CAD607 /* ggml-threading.cpp */; };
 		18F8C0BE2CEDF50700CAD607 /* ggml-cpu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0BD2CEDF50700CAD607 /* ggml-cpu.cpp */; };
-		18F8C0C42CEDF52700CAD607 /* ggml-cpu-aarch64.c in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0C02CEDF52700CAD607 /* ggml-cpu-aarch64.c */; };
+		18F8C0C42CEDF52700CAD607 /* ggml-cpu-aarch64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0C02CEDF52700CAD607 /* ggml-cpu-aarch64.cpp */; };
 		18F8C0C52CEDF52700CAD607 /* ggml-cpu-quants.c in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0C32CEDF52700CAD607 /* ggml-cpu-quants.c */; };
 		18F8C0C72CEDF7AB00CAD607 /* ggml-backend-reg.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18F8C0C62CEDF7AB00CAD607 /* ggml-backend-reg.cpp */; };
 		7FE3424B2A0C3FA20015A058 /* whisper-encoder-impl.m in Sources */ = {isa = PBXBuildFile; fileRef = 7FE342452A0C3FA20015A058 /* whisper-encoder-impl.m */; };
@@ -88,7 +88,7 @@
 		18F8C0BB2CEDF4DC00CAD607 /* ggml-threading.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "ggml-threading.cpp"; path = "../../../ggml/src/ggml-threading.cpp"; sourceTree = "<group>"; };
 		18F8C0BD2CEDF50700CAD607 /* ggml-cpu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "ggml-cpu.cpp"; path = "../../../ggml/src/ggml-cpu/ggml-cpu.cpp"; sourceTree = "<group>"; };
 		18F8C0BF2CEDF52700CAD607 /* ggml-cpu-aarch64.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-cpu-aarch64.h"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-aarch64.h"; sourceTree = "<group>"; };
-		18F8C0C02CEDF52700CAD607 /* ggml-cpu-aarch64.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "ggml-cpu-aarch64.c"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-aarch64.c"; sourceTree = "<group>"; };
+		18F8C0C02CEDF52700CAD607 /* ggml-cpu-aarch64.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "ggml-cpu-aarch64.cpp"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp"; sourceTree = "<group>"; };
 		18F8C0C12CEDF52700CAD607 /* ggml-cpu-impl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-cpu-impl.h"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-impl.h"; sourceTree = "<group>"; };
 		18F8C0C22CEDF52700CAD607 /* ggml-cpu-quants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-cpu-quants.h"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-quants.h"; sourceTree = "<group>"; };
 		18F8C0C32CEDF52700CAD607 /* ggml-cpu-quants.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "ggml-cpu-quants.c"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-quants.c"; sourceTree = "<group>"; };
@@ -134,7 +134,7 @@
 			children = (
 				18F8C0C62CEDF7AB00CAD607 /* ggml-backend-reg.cpp */,
 				18F8C0BF2CEDF52700CAD607 /* ggml-cpu-aarch64.h */,
-				18F8C0C02CEDF52700CAD607 /* ggml-cpu-aarch64.c */,
+				18F8C0C02CEDF52700CAD607 /* ggml-cpu-aarch64.cpp */,
 				18F8C0C12CEDF52700CAD607 /* ggml-cpu-impl.h */,
 				18F8C0C22CEDF52700CAD607 /* ggml-cpu-quants.h */,
 				18F8C0C32CEDF52700CAD607 /* ggml-cpu-quants.c */,
@@ -278,7 +278,7 @@
 				18F8C0C72CEDF7AB00CAD607 /* ggml-backend-reg.cpp in Sources */,
 				18F8C0BE2CEDF50700CAD607 /* ggml-cpu.cpp in Sources */,
 				1844471A2AB211A2007D6BFE /* ggml-alloc.c in Sources */,
-				18F8C0C42CEDF52700CAD607 /* ggml-cpu-aarch64.c in Sources */,
+				18F8C0C42CEDF52700CAD607 /* ggml-cpu-aarch64.cpp in Sources */,
 				18F8C0C52CEDF52700CAD607 /* ggml-cpu-quants.c in Sources */,
 				18E864A92CE73C1E0094B8B3 /* ggml-cpu.c in Sources */,
 				18ABE15A2AF556340044A204 /* ggml-backend.cpp in Sources */,
