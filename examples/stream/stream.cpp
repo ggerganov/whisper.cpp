@@ -15,12 +15,12 @@
 #include <thread>
 #include <vector>
 #include <fstream>
+#include <fcntl.h>
 
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
 #else
-#include <fcntl.h>
 #include <unistd.h>
 #endif
 
