@@ -2,10 +2,6 @@
 #include <ruby/memory_view.h>
 #include "ruby_whisper.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 VALUE mWhisper;
 VALUE cContext;
 VALUE cParams;
@@ -65,7 +61,7 @@ static VALUE ruby_whisper_s_lang_id(VALUE self, VALUE lang) {
 static VALUE ruby_whisper_s_lang_str(VALUE self, VALUE id) {
   const int lang_id = NUM2INT(id);
   const char * str = whisper_lang_str(lang_id);
-  if (nullptr == str) {
+  if (NULL == str) {
     rb_raise(rb_eIndexError, "id %d outside of language id", lang_id);
   }
   return rb_str_new2(str);
@@ -78,7 +74,7 @@ static VALUE ruby_whisper_s_lang_str(VALUE self, VALUE id) {
 static VALUE ruby_whisper_s_lang_str_full(VALUE self, VALUE id) {
   const int lang_id = NUM2INT(id);
   const char * str_full = whisper_lang_str_full(lang_id);
-  if (nullptr == str_full) {
+  if (NULL == str_full) {
     rb_raise(rb_eIndexError, "id %d outside of language id", lang_id);
   }
   return rb_str_new2(str_full);
@@ -90,7 +86,7 @@ static VALUE ruby_whisper_s_finalize_log_callback(VALUE self, VALUE id) {
 }
 
 static void
-ruby_whisper_log_callback(ggml_log_level level, const char * buffer, void * user_data) {
+ruby_whisper_log_callback(enum ggml_log_level level, const char * buffer, void * user_data) {
   if (is_log_callback_finalized) {
     return;
   }
@@ -115,7 +111,7 @@ static VALUE ruby_whisper_s_log_set(VALUE self, VALUE log_callback, VALUE user_d
   VALUE finalize_log_callback = rb_funcall(mWhisper, rb_intern("method"), 1, rb_str_new2("finalize_log_callback"));
   rb_define_finalizer(log_callback, finalize_log_callback);
 
-  whisper_log_set(ruby_whisper_log_callback, nullptr);
+  whisper_log_set(ruby_whisper_log_callback, NULL);
 
   return Qnil;
 }
@@ -166,6 +162,3 @@ void Init_whisper() {
 
   rb_require("whisper/model/uri");
 }
-#ifdef __cplusplus
-}
-#endif
