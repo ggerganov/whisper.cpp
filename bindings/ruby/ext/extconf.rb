@@ -174,7 +174,7 @@ $OBJ_WHISPER <<
   'src/whisper.o'
 
 $objs = $OBJ_GGML + $OBJ_WHISPER + $OBJ_COMMON + $OBJ_SDL
-$objs << "ruby_whisper.o"
+$objs << "ruby_whisper.o" << "ruby_whisper_transcribe.o"
 
 $CPPFLAGS  = "#{$MK_CPPFLAGS} #{$CPPFLAGS}"
 $CFLAGS    = "#{$CPPFLAGS} #{$MK_CFLAGS} #{$GF_CFLAGS} #{$CFLAGS}"
