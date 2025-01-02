@@ -9,6 +9,8 @@
 #include <cassert>
 #include <codecvt>
 #include <cstdio>
+#include <deque>
+#include <locale>
 #include <string>
 #include <thread>
 #include <vector>
@@ -261,7 +263,7 @@ int main(int argc, char ** argv) {
             wavWriter.write(pcmf32.data(), n_samples_buf);
         }
 
-        copy(pcmf32.begin(), pcmf32.end(), back_inserter(pcmf32_deque));
+        copy(pcmf32.begin(), pcmf32.end(), std::back_inserter(pcmf32_deque));
         if (pcmf32_deque.size() > n_samples_30s) {
             pcmf32_deque.erase(pcmf32_deque.begin(), pcmf32_deque.end() - n_samples_30s);
         }
