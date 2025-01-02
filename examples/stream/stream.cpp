@@ -16,6 +16,38 @@
 #include <vector>
 #include <fstream>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <io.h>
+#else
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
+void setStdinNonBlocking() {
+#ifdef _WIN32
+    DWORD mode;
+    HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
+    GetConsoleMode(stdinHandle, &mode);
+    mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+    SetConsoleMode(stdinHandle, mode);
+#else
+    fcntl(fileno(stdin), F_SETFL, fcntl(fileno(stdin), F_GETFL, 0) | O_NONBLOCK);
+#endif
+}
+
+void setStdinBlocking() {
+#if defined(_WIN32)
+    DWORD mode;
+    HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
+    GetConsoleMode(stdinHandle, &mode);
+    mode |= ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT;
+    SetConsoleMode(stdinHandle, mode);
+#else
+    fcntl(fileno(stdin), F_SETFL, fcntl(fileno(stdin), F_GETFL, 0) & ~O_NONBLOCK);
+#endif
+}
+
 
 // command-line parameters
 struct whisper_params {
@@ -143,12 +175,22 @@ int main(int argc, char ** argv) {
     // init audio
 
     audio_async audio(params.length_ms);
-    if (!audio.init(params.capture_id, WHISPER_SAMPLE_RATE)) {
-        fprintf(stderr, "%s: audio.init() failed!\n", __func__);
-        return 1;
-    }
+    bool piped = !isatty(fileno(stdin));
 
-    audio.resume();
+    if (piped) {
+        #ifdef _WIN32
+        _setmode(_fileno(stdin), _O_BINARY);
+        #else
+        freopen(NULL, "rb", stdin);
+        #endif
+    } else {
+        if (!audio.init(params.capture_id, WHISPER_SAMPLE_RATE)) {
+            fprintf(stderr, "%s: audio.init() failed!\n", __func__);
+            return 1;
+        }
+
+        audio.resume();
+    }
 
     // whisper init
     if (params.language != "auto" && whisper_lang_id(params.language.c_str()) == -1){
@@ -225,8 +267,42 @@ int main(int argc, char ** argv) {
 
         wavWriter.open(filename, WHISPER_SAMPLE_RATE, 16, 1);
     }
+
+    // ignore premature stdin
+    int n_mod = 0;
+    if (piped) {
+        const auto n_bytes_len = sizeof(float) * n_samples_len;
+        setStdinNonBlocking();
+        while (true) {
+            const auto n_bytes_read = read(fileno(stdin), pcmf32.data(), n_bytes_len);
+            if (n_bytes_read == -1 && errno == EAGAIN) {
+                break;
+            } else if (n_bytes_read < 1) {
+                fprintf(stderr, "stdin ended too early\n");
+                is_running = false;
+                break;
+            }
+            n_mod = n_bytes_read % sizeof(float);
+            if (n_bytes_read < n_bytes_len) {
+                break;
+            }
+        }
+    }
+
     fprintf(stderr, "[Start speaking]\n");
     fflush(stderr);
+
+    if (piped) {
+        // ignore the partial sample
+        if (n_mod > 0) {
+            const auto n_remain = sizeof(float) - n_mod;
+            setStdinBlocking();
+            if (n_remain != fread(pcmf32.data(), 1, n_remain, stdin)) {
+                is_running = false;
+            }
+        }
+        setStdinNonBlocking();
+    }
 
     auto t_last  = std::chrono::high_resolution_clock::now();
     auto t_interim = t_last;
@@ -250,6 +326,33 @@ int main(int argc, char ** argv) {
         // get new audio
         if (n_samples_new > n_samples_step) {
             pcmf32.clear();
+        } else if (piped) {
+            pcmf32.resize(n_samples_len);
+            char *p_buf = (char *)pcmf32.data();
+            const auto n_bytes_min = (n_samples_step - n_samples_new) * sizeof(float);
+            auto n_bytes_wanted = n_samples_len * sizeof(float);
+            auto n_bytes_read = 0;
+            while (n_bytes_wanted > 0) {
+                const auto n_read = read(fileno(stdin), p_buf + n_bytes_read, n_bytes_wanted);
+                if (n_read == 0 || n_read == -1 && errno != EAGAIN) {
+                    fprintf(stderr, "read(stdin) returned %zd, errno = %d\n", n_read, errno);
+                    is_running = false;
+                    break;
+                }
+                n_bytes_read += std::max(0L, n_read);
+                if (n_bytes_read < n_bytes_min) {
+                    n_bytes_wanted = n_bytes_min - n_bytes_read;
+                } else {
+                    n_bytes_wanted = n_bytes_read % sizeof(float);
+                }
+                if (n_bytes_wanted > 0) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+            }
+            pcmf32.resize(n_bytes_read / sizeof(float));
+            if (!is_running) {
+                break;
+            }
         } else if (t_diff < abs(params.step_ms)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(abs(params.step_ms) - t_diff));
             continue;
@@ -308,7 +411,9 @@ int main(int argc, char ** argv) {
                 } else {
                     n_samples_new -= n_samples_100ms;
                     n_samples_old = std::min(n_samples_len, n_samples_old + n_samples_100ms);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    if (!piped) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    }
                     continue;
                 }
             }
