@@ -241,7 +241,7 @@ int main(int argc, char ** argv) {
 
         if (!use_vad) {
             while (true) {
-                audio.get(params.step_ms, pcmf32_new);
+                audio.next(pcmf32_new);
 
                 if ((int) pcmf32_new.size() > 2*n_samples_step) {
                     fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, dropping audio ...\n\n", __func__);
@@ -250,7 +250,6 @@ int main(int argc, char ** argv) {
                 }
 
                 if ((int) pcmf32_new.size() >= n_samples_step) {
-                    audio.clear();
                     break;
                 }
 
