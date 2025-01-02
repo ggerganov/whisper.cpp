@@ -65,6 +65,13 @@ module Whisper
             end
           end
         end
+      rescue => err
+        if cache_path.exist?
+          warn err
+        # Use cache file
+        else
+          raise
+        end
       end
 
       def download(response)
