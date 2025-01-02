@@ -37,7 +37,7 @@ void setStdinNonBlocking() {
 }
 
 void setStdinBlocking() {
-#if defined(_WIN32)
+#ifdef _WIN32
     DWORD mode;
     HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
     GetConsoleMode(stdinHandle, &mode);
