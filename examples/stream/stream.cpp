@@ -170,8 +170,6 @@ int main(int argc, char ** argv) {
 
     const bool use_vad = params.step_ms <= 0; // sliding window mode uses VAD
 
-    const int n_new_line = !use_vad ? std::max(1, params.length_ms / params.step_ms - 1) : 1; // number of steps to print new line
-
     // init audio
 
     audio_async audio(params.length_ms);
@@ -235,7 +233,7 @@ int main(int argc, char ** argv) {
                 params.no_timestamps ? 0 : 1);
 
         if (!use_vad) {
-            fprintf(stderr, "%s: n_new_line = %d, no_context = %d\n", __func__, n_new_line, params.no_context);
+            fprintf(stderr, "%s: no_context = %d\n", __func__, params.no_context);
         } else {
             fprintf(stderr, "%s: using VAD, will transcribe on speech activity\n", __func__);
         }
