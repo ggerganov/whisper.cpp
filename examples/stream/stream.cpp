@@ -339,7 +339,7 @@ int main(int argc, char ** argv) {
                     is_running = false;
                     break;
                 }
-                n_bytes_read += std::max(0L, n_read);
+                n_bytes_read += std::max<long>(0, n_read);
                 if (n_bytes_read < n_bytes_min) {
                     n_bytes_wanted = n_bytes_min - n_bytes_read;
                 } else {
