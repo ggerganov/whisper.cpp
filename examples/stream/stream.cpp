@@ -18,10 +18,11 @@
 #include <fcntl.h>
 
 #ifdef _WIN32
-#include <windows.h>
-#include <io.h>
+    #define NOMINMAX
+    #include <windows.h>
+    #include <io.h>
 #else
-#include <unistd.h>
+    #include <unistd.h>
 #endif
 
 void setStdinNonBlocking() {
