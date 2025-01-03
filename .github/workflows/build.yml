@@ -91,7 +91,7 @@ jobs:
             set -e
             apt update
             apt install -y build-essential libsdl2-dev cmake
-            cmake -B build -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv7-a
+            cmake -B build -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv7-a+fp
             cmake --build build --config Release -j $(nproc)'
 
   macOS-latest:
@@ -136,7 +136,7 @@ jobs:
       fail-fast: false
       matrix:
         build: [Debug, Release]
-        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+        arch: [linux/amd64, linux/ppc64le]
 
     steps:
       - name: Clone
@@ -209,7 +209,7 @@ jobs:
             set -e
             apt update
             apt install -y build-essential cmake libsdl2-dev
-            cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv7-a
+            cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv7-a+fp
             make
             ctest -L gh --output-on-failure'
 
