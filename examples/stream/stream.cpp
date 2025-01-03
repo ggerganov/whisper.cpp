@@ -73,6 +73,8 @@ struct whisper_params {
     bool use_gpu       = true;
     bool flash_attn    = false;
     bool interim       = false;
+    bool delete_vt100  = true;
+    bool test_pipe     = false;
 
     std::string language  = "en";
     std::string model     = "models/ggml-base.en.bin";
@@ -111,6 +113,8 @@ static bool whisper_params_parse(int argc, char ** argv, whisper_params & params
         else if (arg == "-ng"   || arg == "--no-gpu")        { params.use_gpu       = false; }
         else if (arg == "-fa"   || arg == "--flash-attn")    { params.flash_attn    = true; }
         else if (arg == "-int"  || arg == "--interim")       { params.interim       = true; }
+        else if (arg == "-nvt"  || arg == "--no-vt100")      { params.delete_vt100  = false; }
+        else if (                  arg == "--test-pipe")     { params.test_pipe     = true; }
 
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
@@ -150,6 +154,8 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -ng,      --no-gpu        [%-7s] disable GPU inference\n",                          params.use_gpu ? "false" : "true");
     fprintf(stderr, "  -fa,      --flash-attn    [%-7s] flash attention during inference\n",               params.flash_attn ? "true" : "false");
     fprintf(stderr, "  -int,     --interim       [%-7s] show interim report in vad every step\n",          params.interim ? "true" : "false");
+    fprintf(stderr, "  -nvt,     --no-vt100      [%-7s] do not delete unconfirmed result\n",               params.delete_vt100 ? "false" : "true");
+    fprintf(stderr, "            --test-pipe     [%-7s] use all data from pipe\n",                         params.test_pipe ? "true" : "false");
     fprintf(stderr, "\n");
 }
 
@@ -160,8 +166,8 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    params.keep_ms   = std::min(params.keep_ms,   params.step_ms);
-    params.length_ms = std::max(params.length_ms, params.step_ms);
+    params.keep_ms   = std::min(params.keep_ms,   abs(params.step_ms));
+    params.length_ms = std::max(params.length_ms, abs(params.step_ms));
 
     const int n_samples_step = (1e-3*abs(params.step_ms))*WHISPER_SAMPLE_RATE;
     const int n_samples_len  = (1e-3*params.length_ms   )*WHISPER_SAMPLE_RATE;
@@ -269,7 +275,7 @@ int main(int argc, char ** argv) {
 
     // ignore premature stdin
     int n_mod = 0;
-    if (piped) {
+    if (piped && !params.test_pipe) {
         const auto n_bytes_len = sizeof(float) * n_samples_len;
         setStdinNonBlocking();
         while (true) {
@@ -349,9 +355,6 @@ int main(int argc, char ** argv) {
                 }
             }
             pcmf32.resize(n_bytes_read / sizeof(float));
-            if (!is_running) {
-                break;
-            }
         } else if (t_diff < abs(params.step_ms)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(abs(params.step_ms) - t_diff));
             continue;
@@ -371,7 +374,7 @@ int main(int argc, char ** argv) {
         }
 
         n_samples_new += n_samples_buf;
-        if (!is_interim && n_samples_new > 2*n_samples_step) {
+        if (!use_vad && n_samples_new > 2*n_samples_step) {
             fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, dropping audio ...\n", __func__);
             fprintf(stderr, "t_diff = %.2fs, new = %.2fs, buf = %.2fs\n\n", 1e-3*t_diff, float(n_samples_new)/WHISPER_SAMPLE_RATE, float(n_samples_buf)/WHISPER_SAMPLE_RATE);
             n_samples_old = 0;
@@ -379,7 +382,13 @@ int main(int argc, char ** argv) {
             t_last = t_now;
             continue;
         }
+
+        if (n_samples_old + n_samples_new == 0) {
+            continue;
+        }
+
         is_interim = false;
+        bool is_aborted = true;
 
         if (!use_vad){
             n_samples_old += n_samples_new;
@@ -389,11 +398,17 @@ int main(int argc, char ** argv) {
 
             t_last = t_now;
         } else {
-            pcmf32.resize(n_samples_step);
-            copy(pcmf32_deque.end() - n_samples_step, pcmf32_deque.end(), pcmf32.begin());
-            if (::vad_simple(pcmf32, WHISPER_SAMPLE_RATE, std::min(1000, abs(params.step_ms) / 2), params.vad_thold, params.freq_thold, false)) {
-                pcmf32.resize(n_samples_old + n_samples_new);
-                copy(pcmf32_deque.end() - n_samples_old - n_samples_new, pcmf32_deque.end(), pcmf32.begin());
+            const auto n_samples = std::min(n_samples_len, n_samples_old + n_samples_new);
+
+            is_aborted = (n_samples > n_samples_len);
+            if (is_running && !is_aborted) {
+                pcmf32.resize(n_samples_step);
+                copy(pcmf32_deque.end() - n_samples_step, pcmf32_deque.end(), pcmf32.begin());
+            }
+
+            if (!is_running || is_aborted || ::vad_simple(pcmf32, WHISPER_SAMPLE_RATE, std::min(1000, abs(params.step_ms) / 2), params.vad_thold, params.freq_thold, false)) {
+                pcmf32.resize(n_samples);
+                copy(pcmf32_deque.end() - n_samples, pcmf32_deque.end(), pcmf32.begin());
                 n_samples_new = 0;
                 n_samples_old = 0;
 
@@ -443,25 +458,50 @@ int main(int argc, char ** argv) {
             wparams.prompt_tokens    = params.no_context ? nullptr : prompt_tokens.data();
             wparams.prompt_n_tokens  = params.no_context ? 0       : prompt_tokens.size();
 
-            if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
-                fprintf(stderr, "%s: failed to process audio\n", argv[0]);
-                return 6;
+            {
+                auto pcm_size = pcmf32.size();
+                if (pcm_size < WHISPER_SAMPLE_RATE * 1.1) {
+                    pcmf32.resize(pcm_size + WHISPER_SAMPLE_RATE, 0.0f);
+                }
+                if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
+                    fprintf(stderr, "%s: failed to process audio\n", argv[0]);
+                    return 6;
+                }
+                pcmf32.resize(pcm_size);
             }
             t_interim  = std::chrono::high_resolution_clock::now();
 
             // print result;
             int n_segments;
-            bool is_unconfirmed = false;
+            bool no_confirmed = (!use_vad && n_samples_old < n_samples_len - n_samples_step);
             std::ostringstream text;
             {
-                if (!use_vad || params.interim && params.no_timestamps && s_to_delete.size()) {
+                if (params.delete_vt100 && s_to_delete.size()) {
                     printf("\33[2K\r");
 
                     // print long empty line to clear the previous line
                     printf("%s", std::string(s_to_delete.size(), ' ').c_str());
 
                     printf("\33[2K\r");
-                } else if (use_vad && !params.no_timestamps) {
+                }
+                s_to_delete.clear();
+
+                n_segments = whisper_full_n_segments(ctx);
+                no_confirmed = (no_confirmed || is_interim && n_segments <= 1);
+                if (is_running && is_interim && !no_confirmed) {
+                    const int64_t t1_ms = whisper_full_get_segment_t1(ctx, n_segments - 2) * 10;
+                    if (t1_ms < abs(params.step_ms)) {
+                        // too short to confirm
+                        no_confirmed = true;
+                    } else {
+                        t_last += std::chrono::milliseconds(t1_ms);
+                        const auto n_samples_confirmed = (1e-3*t1_ms)*WHISPER_SAMPLE_RATE;
+                        pcmf32.resize(n_samples_confirmed); // for timestamps
+                        n_samples_old -= n_samples_confirmed;
+                    }
+                }
+
+                if (use_vad && !params.no_timestamps && (!is_running || !no_confirmed)) {
                     const int64_t t1 = (t_last - t_start).count()/1000000;
                     const int64_t t0 = std::max(0.0, t1 - pcmf32.size()*1000.0/WHISPER_SAMPLE_RATE);
 
@@ -470,28 +510,42 @@ int main(int argc, char ** argv) {
                     text << std::endl;
                 }
 
-                n_segments = whisper_full_n_segments(ctx);
-                if (is_interim) {
-                    if (n_segments < 2) {
-                        is_unconfirmed = true;
-                    } else {
-                        n_segments--;
-                        const int64_t t1_ms = whisper_full_get_segment_t1(ctx, n_segments - 1) * 10;
-                        t_last += std::chrono::milliseconds(t1_ms);
-                        const auto n_confirmed = (1e-3*t1_ms)*WHISPER_SAMPLE_RATE;
-                        pcmf32.resize(n_confirmed);
-                        n_samples_old -= n_confirmed;
-                    }
-                }
                 for (int i = 0; i < n_segments; ++i) {
                     std::string i_text = whisper_full_get_segment_text(ctx, i);
 
-                    if (!use_vad || params.no_timestamps) {
+                    // last segment may be s_to_delete
+                    if (i == n_segments - 1 && is_running && (no_confirmed || is_interim)) {
+                        if (params.no_timestamps && i > 0) {
+                            text << std::endl;
+                        }
+                        if (is_interim) {
+                            // utf-8 cannot be simply cut into two
+                            std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
+                            const auto t_u32 = conv.from_bytes(i_text);
+                            const auto t_sub = conv.to_bytes(t_u32.substr(0, t_u32.size() * 0.7));
+                            i_text = t_sub + "…";
+                        }
+                        if (s_to_delete.size() > 0) {
+                            s_to_delete += " ";
+                        }
+                        s_to_delete += i_text;
+                        if (!params.delete_vt100) {
+                            s_to_delete = "(" + s_to_delete + ")";
+                        }
+                        break;
+                    }
+
+                    if (is_running && no_confirmed) {
+                        if (s_to_delete.size() > 0) {
+                            s_to_delete += " ";
+                        }
+                        s_to_delete += i_text;
+                    } else if (params.no_timestamps) {
                         if (i > 0) {
                             text << std::endl;
                         }
                         text << i_text;
-                    } else {
+                    } else if (!is_running || !(is_interim && i == n_segments - 1)) {
                         const int64_t t_end = (t_last - t_start).count()/1000000;
                         const int64_t t_beg = std::max(0.0, t_end - pcmf32.size()*1000.0/WHISPER_SAMPLE_RATE);
                         const int64_t t0 = t_beg/10 + whisper_full_get_segment_t0(ctx, i);
@@ -507,10 +561,13 @@ int main(int argc, char ** argv) {
                     }
                 }
 
-                if (use_vad && !params.no_timestamps) {
+                if (use_vad && !params.no_timestamps && (!is_running || !no_confirmed)) {
                     text << std::endl;
                     text << "### Transcription " << n_iter << " END";
                     text << std::endl;
+                    if (s_to_delete.size() > 0) {
+                        text << std::endl;
+                    }
                 }
             }
 
@@ -519,42 +576,33 @@ int main(int argc, char ** argv) {
                 fout << std::endl;
             }
 
-            ++n_iter;
-
-            if (is_unconfirmed) {
-                --n_iter;
-                // utf-8 cannot be simply cut into two
-                std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
-                auto t_u32 = conv.from_bytes(text.str());
-                auto t_sub = conv.to_bytes(t_u32.substr(0, t_u32.size() / 2));
-                text.str(t_sub + "…");
+            if (!no_confirmed) {
+                ++n_iter;
             }
 
             printf("%s", text.str().c_str());
 
-            if (is_unconfirmed || !use_vad && n_samples_old < n_samples_len - n_samples_step) {
-                s_to_delete = text.str();
+            if (is_running && (no_confirmed || is_interim)) {
+                printf("%s%s", s_to_delete.c_str(), params.delete_vt100 ? "" : "\n");
+                --n_segments; // exclude s_to_delete from context
             } else {
                 printf("\n");
                 s_to_delete = "";
 
-                if (!use_vad) {
-                    n_iter = 0;
-                    if (n_samples_keep < n_samples_old) {
-                        // keep part of the audio for next iteration to try to mitigate word boundary issues
-                        n_samples_old = n_samples_keep;
-                    }
+                if (is_aborted) {
+                    // keep part of the audio for next iteration to try to mitigate word boundary issues
+                    n_samples_old = std::min(n_samples_old, n_samples_keep);
                 }
+            }
 
-                // Add tokens of the last full length segment as the prompt
-                if (!params.no_context) {
-                    prompt_tokens.clear();
+            // Add tokens of the last full length segment as the prompt
+            if (!no_confirmed && !params.no_context) {
+                prompt_tokens.clear();
 
-                    for (int i = 0; i < n_segments; ++i) {
-                        const int token_count = whisper_full_n_tokens(ctx, i);
-                        for (int j = 0; j < token_count; ++j) {
-                            prompt_tokens.push_back(whisper_full_get_token_id(ctx, i, j));
-                        }
+                for (int i = 0; i < n_segments; ++i) {
+                    const int token_count = whisper_full_n_tokens(ctx, i);
+                    for (int j = 0; j < token_count; ++j) {
+                        prompt_tokens.push_back(whisper_full_get_token_id(ctx, i, j));
                     }
                 }
             }
