@@ -1,5 +1,15 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref && github.ref || github.run_id }}
+  cancel-in-progress: true
 
 env:
   ubuntu_image: "ubuntu:22.04"
@@ -12,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+        arch: [linux/amd64, linux/ppc64le]
 
     steps:
       - name: Clone
@@ -30,6 +40,58 @@ jobs:
             apt update
             apt install -y build-essential libsdl2-dev cmake
             cmake -B build
+            cmake --build build --config Release -j $(nproc)'
+
+  ubuntu-latest-arm64:
+    runs-on: ubuntu-latest-arm64
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [linux/arm64, linux/arm/v7]
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build ${{ matrix.arch }}
+        run: |
+          docker run --platform ${{ matrix.arch }} --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            set -e
+            apt update
+            apt install -y build-essential libsdl2-dev cmake
+            cmake -B build -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv8-a
+            cmake --build build --config Release -j $(nproc)'
+
+  ubuntu-latest-arm-v7:
+    runs-on: ubuntu-latest-arm-v7
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [linux/arm64, linux/arm/v7]
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build ${{ matrix.arch }}
+        run: |
+          docker run --platform ${{ matrix.arch }} --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            set -e
+            apt update
+            apt install -y build-essential libsdl2-dev cmake
+            cmake -B build -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv7-a+fp
             cmake --build build --config Release -j $(nproc)'
 
   macOS-latest:
@@ -74,7 +136,7 @@ jobs:
       fail-fast: false
       matrix:
         build: [Debug, Release]
-        arch: [linux/amd64, linux/arm64, linux/arm/v7, linux/ppc64le]
+        arch: [linux/amd64, linux/ppc64le]
 
     steps:
       - name: Clone
@@ -92,6 +154,62 @@ jobs:
             apt update
             apt install -y build-essential cmake libsdl2-dev
             cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }}
+            make
+            ctest -L gh --output-on-failure'
+
+  ubuntu-latest-gcc-arm64:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [Debug, Release]
+        arch: [linux/arm64]
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build ${{ matrix.arch }}
+        run: |
+          docker run --platform ${{ matrix.arch }} --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            set -e
+            apt update
+            apt install -y build-essential cmake libsdl2-dev
+            cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv8-a
+            make
+            ctest -L gh --output-on-failure'
+
+  ubuntu-latest-gcc-arm-v7:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [Debug, Release]
+        arch: [linux/arm/v7]
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build ${{ matrix.arch }}
+        run: |
+          docker run --platform ${{ matrix.arch }} --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
+            set -e
+            apt update
+            apt install -y build-essential cmake libsdl2-dev
+            cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv7-a+fp
             make
             ctest -L gh --output-on-failure'
 
