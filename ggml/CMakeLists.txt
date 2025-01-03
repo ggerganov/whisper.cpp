@@ -74,10 +74,10 @@ if (NOT GGML_CUDA_GRAPHS_DEFAULT)
 endif()
 
 # general
-option(GGML_STATIC "ggml: static link libraries"         OFF)
-option(GGML_NATIVE "ggml: enable -march=native flag"     ${GGML_NATIVE_DEFAULT})
-option(GGML_LTO    "ggml: enable link time optimization" OFF)
-option(GGML_CCACHE "ggml: use ccache if available"       ON)
+option(GGML_STATIC "ggml: static link libraries"                     OFF)
+option(GGML_NATIVE "ggml: optimize the build for the current system" ${GGML_NATIVE_DEFAULT})
+option(GGML_LTO    "ggml: enable link time optimization"             OFF)
+option(GGML_CCACHE "ggml: use ccache if available"                   ON)
 
 # debug
 option(GGML_ALL_WARNINGS           "ggml: enable all compiler warnings"                   ON)
@@ -120,8 +120,9 @@ endif()
 option(GGML_LASX             "ggml: enable lasx"             ON)
 option(GGML_LSX              "ggml: enable lsx"              ON)
 option(GGML_RVV              "ggml: enable rvv"              ON)
-option(GGML_SVE              "ggml: enable SVE"              OFF)
+
 option(GGML_CPU_ALL_VARIANTS "ggml: build all variants of the CPU backend (requires GGML_BACKEND_DL)" OFF)
+set(GGML_CPU_ARM_ARCH "" CACHE STRING "ggml: CPU architecture for ARM")
 
 
 if (WIN32)
@@ -250,26 +251,6 @@ set_target_properties(ggml PROPERTIES PUBLIC_HEADER "${GGML_PUBLIC_HEADERS}")
 #endif()
 install(TARGETS ggml LIBRARY PUBLIC_HEADER)
 install(TARGETS ggml-base LIBRARY)
-
-# FIXME: this should be done in the backend cmake files
-if (GGML_METAL)
-    # FIXME: does this need to be installed with GGML_METAL_EMBED_LIBRARY?
-    install(
-        FILES src/ggml-metal/ggml-metal.metal
-        PERMISSIONS
-            OWNER_READ
-            OWNER_WRITE
-            GROUP_READ
-            WORLD_READ
-        DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-    if (NOT GGML_METAL_EMBED_LIBRARY)
-        install(
-            FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/default.metallib
-            DESTINATION ${CMAKE_INSTALL_BINDIR}
-        )
-    endif()
-endif()
 
 if (GGML_STANDALONE)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ggml.pc.in
