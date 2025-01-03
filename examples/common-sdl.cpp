@@ -130,6 +130,7 @@ bool audio_async::clear() {
 
         m_audio_pos = 0;
         m_audio_len = 0;
+        m_audio_nxt = 0;
     }
 
     return true;
@@ -172,6 +173,28 @@ void audio_async::callback(uint8_t * stream, int len) {
 }
 
 void audio_async::get(int ms, std::vector<float> & result) {
+    if (ms <= 0) {
+        ms = m_len_ms;
+    }
+
+    size_t n_samples = std::min<size_t>(m_audio_len, (m_sample_rate * ms) / 1000);
+
+    get_n(n_samples, result);
+}
+
+void audio_async::next(std::vector<float> & result) {
+    size_t n_samples;
+
+    if (m_audio_pos >= m_audio_nxt) {
+        n_samples = m_audio_pos - m_audio_nxt;
+    } else {
+        n_samples = m_audio_len - m_audio_nxt + m_audio_pos;
+    }
+
+    get_n(n_samples, result);
+}
+
+void audio_async::get_n(size_t n_samples, std::vector<float> & result) {
     if (!m_dev_id_in) {
         fprintf(stderr, "%s: no audio device to get audio from!\n", __func__);
         return;
@@ -182,19 +205,8 @@ void audio_async::get(int ms, std::vector<float> & result) {
         return;
     }
 
-    result.clear();
-
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-
-        if (ms <= 0) {
-            ms = m_len_ms;
-        }
-
-        size_t n_samples = (m_sample_rate * ms) / 1000;
-        if (n_samples > m_audio_len) {
-            n_samples = m_audio_len;
-        }
 
         result.resize(n_samples);
 
@@ -205,10 +217,12 @@ void audio_async::get(int ms, std::vector<float> & result) {
 
         if (s0 + n_samples > m_audio.size()) {
             const size_t n0 = m_audio.size() - s0;
+            m_audio_nxt = n_samples - n0;
 
             memcpy(result.data(), &m_audio[s0], n0 * sizeof(float));
-            memcpy(&result[n0], &m_audio[0], (n_samples - n0) * sizeof(float));
+            memcpy(&result[n0], &m_audio[0], m_audio_nxt * sizeof(float));
         } else {
+            m_audio_nxt = s0 + n_samples;
             memcpy(result.data(), &m_audio[s0], n_samples * sizeof(float));
         }
     }
