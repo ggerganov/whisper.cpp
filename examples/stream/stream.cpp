@@ -362,7 +362,7 @@ int main(int argc, char ** argv) {
             audio.next(pcmf32);
         }
 
-        const int n_samples_buf = pcmf32.size();
+        int n_samples_buf = pcmf32.size();
 
         if (params.save_audio && n_samples_buf > 0) {
             wavWriter.write(pcmf32.data(), n_samples_buf);
@@ -390,25 +390,19 @@ int main(int argc, char ** argv) {
         is_interim = false;
         bool is_aborted = true;
 
+        n_samples_buf = std::min(n_samples_len, n_samples_old + n_samples_new);
+        pcmf32.resize(n_samples_buf);
+        copy(pcmf32_deque.end() - n_samples_buf, pcmf32_deque.end(), pcmf32.begin());
+
         if (!use_vad){
             n_samples_old += n_samples_new;
             n_samples_new = 0;
-            pcmf32.resize(n_samples_old);
-            copy(pcmf32_deque.end() - n_samples_old, pcmf32_deque.end(), pcmf32.begin());
 
             t_last = t_now;
         } else {
-            const auto n_samples = std::min(n_samples_len, n_samples_old + n_samples_new);
-
-            is_aborted = (n_samples > n_samples_len);
-            if (is_running && !is_aborted) {
-                pcmf32.resize(n_samples_step);
-                copy(pcmf32_deque.end() - n_samples_step, pcmf32_deque.end(), pcmf32.begin());
-            }
+            is_aborted = (n_samples_buf > n_samples_len);
 
             if (!is_running || is_aborted || ::vad_simple(pcmf32, WHISPER_SAMPLE_RATE, std::min(1000, abs(params.step_ms) / 2), params.vad_thold, params.freq_thold, false)) {
-                pcmf32.resize(n_samples);
-                copy(pcmf32_deque.end() - n_samples, pcmf32_deque.end(), pcmf32.begin());
                 n_samples_new = 0;
                 n_samples_old = 0;
 
