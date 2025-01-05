@@ -32,13 +32,13 @@ SO_FILE = File.join("ext", LIB_NAME)
 LIB_FILE = File.join("lib", LIB_NAME)
 
 file "ext/Makefile" => SRC + ["ext/extconf.rb"] + SOURCES do |t|
-  Dir.chdir "ext" do
+  chdir "ext" do
     ruby "extconf.rb"
   end
 end
 
 file SO_FILE => "ext/Makefile" do |t|
-  Dir.chdir "ext" do
+  chdir "ext" do
     sh "make"
   end
 end
@@ -56,7 +56,7 @@ end
 
 TEST_MEMORY_VIEW = "tests/jfk_reader/jfk_reader.#{RbConfig::CONFIG['DLEXT']}"
 file TEST_MEMORY_VIEW => "tests/jfk_reader/jfk_reader.c" do |t|
-  Dir.chdir "tests/jfk_reader" do
+  chdir "tests/jfk_reader" do
     ruby "extconf.rb"
     sh "make"
   end
