@@ -48,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [linux/arm64, linux/arm/v7]
+        arch: [linux/arm64]
 
     steps:
       - name: Clone
@@ -74,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [linux/arm64, linux/arm/v7]
+        arch: [linux/arm/v7]
 
     steps:
       - name: Clone
