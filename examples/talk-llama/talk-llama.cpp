@@ -304,7 +304,7 @@ int main(int argc, char ** argv) {
         lmparams.n_gpu_layers = params.n_gpu_layers;
     }
 
-    struct llama_model * model_llama = llama_load_model_from_file(params.model_llama.c_str(), lmparams);
+    struct llama_model * model_llama = llama_model_load_from_file(params.model_llama.c_str(), lmparams);
     if (!model_llama) {
         fprintf(stderr, "No llama.cpp model specified. Please provide using -ml <modelfile>\n");
         return 1;
