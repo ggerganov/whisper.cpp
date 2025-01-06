@@ -194,6 +194,7 @@ init_ruby_whisper_model(VALUE *mWhisper)
 {
   cModel = rb_define_class_under(*mWhisper, "Model", rb_cObject);
 
+  rb_define_alloc_func(cModel, ruby_whisper_model_allocate);
   rb_define_method(cModel, "n_vocab", ruby_whisper_model_n_vocab, 0);
   rb_define_method(cModel, "n_audio_ctx", ruby_whisper_model_n_audio_ctx, 0);
   rb_define_method(cModel, "n_audio_state", ruby_whisper_model_n_audio_state, 0);
