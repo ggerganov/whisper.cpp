@@ -50,7 +50,7 @@ if %ERRORLEVEL% neq 0 (
 
 echo Done! Model %model% saved in %root_path%\models\ggml-%model%.bin
 echo You can now use it like this:
-echo main.exe -m %root_path%\models\ggml-%model%.bin -f %root_path%\samples\jfk.wav
+echo build\bin\Release\whisper-cli.exe -m %root_path%\models\ggml-%model%.bin -f %root_path%\samples\jfk.wav
 
 goto :eof
 
