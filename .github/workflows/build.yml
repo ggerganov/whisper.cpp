@@ -43,7 +43,7 @@ jobs:
             cmake --build build --config Release -j $(nproc)'
 
   ubuntu-latest-arm64:
-    runs-on: ubuntu-latest-arm64
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
@@ -69,7 +69,7 @@ jobs:
             cmake --build build --config Release -j $(nproc)'
 
   ubuntu-latest-arm-v7:
-    runs-on: ubuntu-latest-arm-v7
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
