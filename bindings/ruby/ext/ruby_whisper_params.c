@@ -715,6 +715,13 @@ ruby_whisper_params_set_no_speech_thold(VALUE self, VALUE value)
   rwp->params.no_speech_thold = RFLOAT_VALUE(value);
   return value;
 }
+static VALUE
+ruby_whisper_params_get_new_segment_callback(VALUE self)
+{
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return rwp->new_segment_callback_container->callback;
+}
 /*
  * Sets new segment callback, called for every newly generated text segment.
  *
@@ -733,6 +740,13 @@ ruby_whisper_params_set_new_segment_callback(VALUE self, VALUE value)
   rwp->new_segment_callback_container->callback = value;
   return value;
 }
+static VALUE
+ruby_whisper_params_get_new_segment_callback_user_data(VALUE self)
+{
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return rwp->new_segment_callback_container->user_data;
+}
 /*
  * Sets user data passed to the last argument of new segment callback.
  *
@@ -746,6 +760,13 @@ ruby_whisper_params_set_new_segment_callback_user_data(VALUE self, VALUE value)
   Data_Get_Struct(self, ruby_whisper_params, rwp);
   rwp->new_segment_callback_container->user_data = value;
   return value;
+}
+static VALUE
+ruby_whisper_params_get_progress_callback(VALUE self)
+{
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return rwp->progress_callback_container->callback;
 }
 /*
  * Sets progress callback, called on each progress update.
@@ -765,6 +786,13 @@ ruby_whisper_params_set_progress_callback(VALUE self, VALUE value)
   rwp->progress_callback_container->callback = value;
   return value;
 }
+static VALUE
+ruby_whisper_params_get_progress_callback_user_data(VALUE self)
+{
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return rwp->progress_callback_container->user_data;
+}
 /*
  * Sets user data passed to the last argument of progress callback.
  *
@@ -778,6 +806,13 @@ ruby_whisper_params_set_progress_callback_user_data(VALUE self, VALUE value)
   Data_Get_Struct(self, ruby_whisper_params, rwp);
   rwp->progress_callback_container->user_data = value;
   return value;
+}
+static VALUE
+ruby_whisper_params_get_abort_callback(VALUE self)
+{
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return rwp->abort_callback_container->callback;
 }
 /*
  * Sets abort callback, called to check if the process should be aborted.
@@ -796,6 +831,13 @@ ruby_whisper_params_set_abort_callback(VALUE self, VALUE value)
   Data_Get_Struct(self, ruby_whisper_params, rwp);
   rwp->abort_callback_container->callback = value;
   return value;
+}
+static VALUE
+ruby_whisper_params_get_abort_callback_user_data(VALUE self)
+{
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return rwp->abort_callback_container->user_data;
 }
 /*
  * Sets user data passed to the last argument of abort callback.
@@ -933,11 +975,17 @@ init_ruby_whisper_params(VALUE *mWhisper)
   rb_define_method(cParams, "no_speech_thold", ruby_whisper_params_get_no_speech_thold, 0);
   rb_define_method(cParams, "no_speech_thold=", ruby_whisper_params_set_no_speech_thold, 1);
 
+  rb_define_method(cParams, "new_segment_callback", ruby_whisper_params_get_new_segment_callback, 0);
   rb_define_method(cParams, "new_segment_callback=", ruby_whisper_params_set_new_segment_callback, 1);
+  rb_define_method(cParams, "new_segment_callback_user_data", ruby_whisper_params_get_new_segment_callback_user_data, 0);
   rb_define_method(cParams, "new_segment_callback_user_data=", ruby_whisper_params_set_new_segment_callback_user_data, 1);
+  rb_define_method(cParams, "progress_callback", ruby_whisper_params_get_progress_callback, 0);
   rb_define_method(cParams, "progress_callback=", ruby_whisper_params_set_progress_callback, 1);
+  rb_define_method(cParams, "progress_callback_user_data", ruby_whisper_params_get_progress_callback_user_data, 0);
   rb_define_method(cParams, "progress_callback_user_data=", ruby_whisper_params_set_progress_callback_user_data, 1);
+  rb_define_method(cParams, "abort_callback", ruby_whisper_params_get_abort_callback, 0);
   rb_define_method(cParams, "abort_callback=", ruby_whisper_params_set_abort_callback, 1);
+  rb_define_method(cParams, "abort_callback_user_data", ruby_whisper_params_get_abort_callback_user_data, 0);
   rb_define_method(cParams, "abort_callback_user_data=", ruby_whisper_params_set_abort_callback_user_data, 1);
 
   rb_define_method(cParams, "on_new_segment", ruby_whisper_params_on_new_segment, 0);
