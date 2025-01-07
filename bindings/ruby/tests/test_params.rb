@@ -1,38 +1,38 @@
 require_relative "helper"
 
 class TestParams < TestBase
-  DEFAULT_VALUES = {
-    language: "en",
-    translate: false,
-    no_context: true,
-    single_segment: false,
-    print_special: false,
-    print_progress: true,
-    print_realtime: false,
-    print_timestamps: true,
-    suppress_blank: true,
-    suppress_nst: false,
-    token_timestamps: false,
-    split_on_word: false,
-    initial_prompt: nil,
-    diarize: false,
-    offset: 0,
-    duration: 0,
-    max_text_tokens: 16384,
-    temperature: 0.0,
-    max_initial_ts: 1.0,
-    length_penalty: -1.0,
-    temperature_inc: 0.2,
-    entropy_thold: 2.4,
-    logprob_thold: -1.0,
-    no_speech_thold: 0.6,
-    new_segment_callback: nil,
-    new_segment_callback_user_data: nil,
-    progress_callback: nil,
-    progress_callback_user_data: nil,
-    abort_callback: nil,
-    abort_callback_user_data: nil
-  }
+  PARAM_NAMES = [
+    :language,
+    :translate,
+    :no_context,
+    :single_segment,
+    :print_special,
+    :print_progress,
+    :print_realtime,
+    :print_timestamps,
+    :suppress_blank,
+    :suppress_nst,
+    :token_timestamps,
+    :split_on_word,
+    :initial_prompt,
+    :diarize,
+    :offset,
+    :duration,
+    :max_text_tokens,
+    :temperature,
+    :max_initial_ts,
+    :length_penalty,
+    :temperature_inc,
+    :entropy_thold,
+    :logprob_thold,
+    :no_speech_thold,
+    :new_segment_callback,
+    :new_segment_callback_user_data,
+    :progress_callback,
+    :progress_callback_user_data,
+    :abort_callback,
+    :abort_callback_user_data,
+  ]
 
   def setup
     @params  = Whisper::Params.new
@@ -209,9 +209,9 @@ class TestParams < TestBase
     end
   end
 
-  data(DEFAULT_VALUES.collect {|param, value| [param, [param, value]]}.to_h)
-  def test_new_with_kw_args_default_values(data)
-    param, default_value = data
+  data(PARAM_NAMES.collect {|param| [param, param]}.to_h)
+  def test_new_with_kw_args_default_values(param)
+    default_value = @params.send(param)
     value = case [param, default_value]
             in [*, true | false]
               !default_value
@@ -233,11 +233,13 @@ class TestParams < TestBase
       assert_equal value, params.send(param)
     end
 
-    DEFAULT_VALUES.except(param).each do |key, default_value|
-      if Float === default_value
-        assert_in_delta default_value, params.send(key)
+    PARAM_NAMES.reject {|name| name == param}.each do |name|
+      expected = @params.send(name)
+      actual = params.send(name)
+      if Float === expected
+        assert_in_delta expected, actual
       else
-        assert_equal default_value, params.send(key)
+        assert_equal expected, actual
       end
     end
   end
