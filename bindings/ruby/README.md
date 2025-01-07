@@ -24,14 +24,15 @@ require "whisper"
 
 whisper = Whisper::Context.new("base")
 
-params = Whisper::Params.new
-params.language = "en"
-params.offset = 10_000
-params.duration = 60_000
-params.max_text_tokens = 300
-params.translate = true
-params.print_timestamps = false
-params.initial_prompt = "Initial prompt here."
+params = Whisper::Params.new(
+  language: "en",
+  offset: 10_000,
+  duration: 60_000,
+  max_text_tokens: 300,
+  translate: true,
+  print_timestamps: false,
+  initial_prompt: "Initial prompt here."
+)
 
 whisper.transcribe("path/to/audio.wav", params) do |whole_text|
   puts whole_text
