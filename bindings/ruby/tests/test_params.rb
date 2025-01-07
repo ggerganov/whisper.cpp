@@ -1,6 +1,39 @@
 require_relative "helper"
 
 class TestParams < TestBase
+  DEFAULT_VALUES = {
+    language: "en",
+    translate: false,
+    no_context: true,
+    single_segment: false,
+    print_special: false,
+    print_progress: true,
+    print_realtime: false,
+    print_timestamps: true,
+    suppress_blank: true,
+    suppress_nst: false,
+    token_timestamps: false,
+    split_on_word: false,
+    initial_prompt: nil,
+    diarize: false,
+    offset: 0,
+    duration: 0,
+    max_text_tokens: 16384,
+    temperature: 0.0,
+    max_initial_ts: 1.0,
+    length_penalty: -1.0,
+    temperature_inc: 0.2,
+    entropy_thold: 2.4,
+    logprob_thold: -1.0,
+    no_speech_thold: 0.6,
+    new_segment_callback: nil,
+    new_segment_callback_user_data: nil,
+    progress_callback: nil,
+    progress_callback_user_data: nil,
+    abort_callback: nil,
+    abort_callback_user_data: nil
+  }
+
   def setup
     @params  = Whisper::Params.new
   end
@@ -156,5 +189,56 @@ class TestParams < TestBase
     assert_in_delta 0.6, @params.no_speech_thold
     @params.no_speech_thold = 0.2
     assert_in_delta 0.2, @params.no_speech_thold
+  end
+
+  def test_new_with_kw_args
+    params = Whisper::Params.new(language: "es")
+    assert_equal "es", params.language
+    assert_equal 1.0, params.max_initial_ts
+  end
+
+  def test_new_with_kw_args_non_existent
+    assert_raise ArgumentError do
+      Whisper::Params.new(non_existent: "value")
+    end
+  end
+
+  def test_new_with_kw_args_wrong_type
+    assert_raise TypeError do
+      Whisper::Params.new(language: 3)
+    end
+  end
+
+  data(DEFAULT_VALUES.collect {|param, value| [param, [param, value]]}.to_h)
+  def test_new_with_kw_args_default_values(data)
+    param, default_value = data
+    value = case [param, default_value]
+            in [*, true | false]
+              !default_value
+            in [*, Integer | Float]
+              default_value + 1
+            in [:language, *]
+              "es"
+            in [:initial_prompt, *]
+              "Initial prompt"
+            in [/_callback\Z/, *]
+              proc {}
+            in [/_user_data\Z/, *]
+              Object.new
+            end
+    params = Whisper::Params.new(param => value)
+    if Float === value
+      assert_in_delta value, params.send(param)
+    else
+      assert_equal value, params.send(param)
+    end
+
+    DEFAULT_VALUES.except(param).each do |key, default_value|
+      if Float === default_value
+        assert_in_delta default_value, params.send(key)
+      else
+        assert_equal default_value, params.send(key)
+      end
+    end
   end
 end
