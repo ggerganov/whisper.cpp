@@ -20,11 +20,45 @@
     return Qfalse; \
   }
 
+#define RUBY_WHISPER_PARAMS_PARAM_NAMES_COUNT 30
+
 extern VALUE cParams;
 
 extern ID id_call;
 
 extern VALUE rb_whisper_segment_initialize(VALUE context, int index);
+
+static ID param_names[RUBY_WHISPER_PARAMS_PARAM_NAMES_COUNT];
+static ID id_language;
+static ID id_translate;
+static ID id_no_context;
+static ID id_single_segment;
+static ID id_print_special;
+static ID id_print_progress;
+static ID id_print_realtime;
+static ID id_print_timestamps;
+static ID id_suppress_blank;
+static ID id_suppress_nst;
+static ID id_token_timestamps;
+static ID id_split_on_word;
+static ID id_initial_prompt;
+static ID id_diarize;
+static ID id_offset;
+static ID id_duration;
+static ID id_max_text_tokens;
+static ID id_temperature;
+static ID id_max_initial_ts;
+static ID id_length_penalty;
+static ID id_temperature_inc;
+static ID id_entropy_thold;
+static ID id_logprob_thold;
+static ID id_no_speech_thold;
+static ID id_new_segment_callback;
+static ID id_new_segment_callback_user_data;
+static ID id_progress_callback;
+static ID id_progress_callback_user_data;
+static ID id_abort_callback;
+static ID id_abort_callback_user_data;
 
 static void
 rb_whisper_callbcack_container_mark(ruby_whisper_callback_container *rwc)
@@ -854,6 +888,78 @@ ruby_whisper_params_set_abort_callback_user_data(VALUE self, VALUE value)
   return value;
 }
 
+#define SET_PARAM_IF_SAME(param_name) \
+  if (id == id_ ## param_name) { \
+    ruby_whisper_params_set_ ## param_name(self, value); \
+    continue; \
+  }
+
+static VALUE
+ruby_whisper_params_initialize(int argc, VALUE *argv, VALUE self)
+{
+
+  VALUE kw_hash;
+  VALUE values[RUBY_WHISPER_PARAMS_PARAM_NAMES_COUNT] = {Qundef};
+  VALUE value;
+  ruby_whisper_params *rwp;
+  ID id;
+  int i;
+
+  rb_scan_args_kw(RB_SCAN_ARGS_KEYWORDS, argc, argv, ":", &kw_hash);
+  if (NIL_P(kw_hash)) {
+    return self;
+  }
+
+  rb_get_kwargs(kw_hash, &param_names, 0, RUBY_WHISPER_PARAMS_PARAM_NAMES_COUNT, &values);
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+
+  for (i = 0; i < RUBY_WHISPER_PARAMS_PARAM_NAMES_COUNT; i++) {
+    id = param_names[i];
+    value = values[i];
+    if (value == Qundef) {
+      continue;
+    }
+    if (id == id_diarize) {
+      rwp->diarize = value;
+      continue;
+    } else {
+      SET_PARAM_IF_SAME(language)
+      SET_PARAM_IF_SAME(translate)
+      SET_PARAM_IF_SAME(no_context)
+      SET_PARAM_IF_SAME(single_segment)
+      SET_PARAM_IF_SAME(print_special)
+      SET_PARAM_IF_SAME(print_progress)
+      SET_PARAM_IF_SAME(print_realtime)
+      SET_PARAM_IF_SAME(print_timestamps)
+      SET_PARAM_IF_SAME(suppress_blank)
+      SET_PARAM_IF_SAME(suppress_nst)
+      SET_PARAM_IF_SAME(token_timestamps)
+      SET_PARAM_IF_SAME(split_on_word)
+      SET_PARAM_IF_SAME(initial_prompt)
+      SET_PARAM_IF_SAME(offset)
+      SET_PARAM_IF_SAME(duration)
+      SET_PARAM_IF_SAME(max_text_tokens)
+      SET_PARAM_IF_SAME(temperature)
+      SET_PARAM_IF_SAME(max_initial_ts)
+      SET_PARAM_IF_SAME(length_penalty)
+      SET_PARAM_IF_SAME(temperature_inc)
+      SET_PARAM_IF_SAME(entropy_thold)
+      SET_PARAM_IF_SAME(logprob_thold)
+      SET_PARAM_IF_SAME(no_speech_thold)
+      SET_PARAM_IF_SAME(new_segment_callback)
+      SET_PARAM_IF_SAME(new_segment_callback_user_data)
+      SET_PARAM_IF_SAME(progress_callback)
+      SET_PARAM_IF_SAME(progress_callback_user_data)
+      SET_PARAM_IF_SAME(abort_callback)
+      SET_PARAM_IF_SAME(abort_callback_user_data)
+    }
+  }
+
+  return self;
+}
+
+#undef SET_PARAM_IF_SAME
+
 /*
  * Hook called on new segment. Yields each Whisper::Segment.
  *
@@ -921,9 +1027,73 @@ ruby_whisper_params_abort_on(VALUE self)
 void
 init_ruby_whisper_params(VALUE *mWhisper)
 {
+  id_language = rb_intern("language");
+  id_translate = rb_intern("translate");
+  id_no_context = rb_intern("no_context");
+  id_single_segment = rb_intern("single_segment");
+  id_print_special = rb_intern("print_special");
+  id_print_progress = rb_intern("print_progress");
+  id_print_realtime = rb_intern("print_realtime");
+  id_print_timestamps = rb_intern("print_timestamps");
+  id_suppress_blank = rb_intern("suppress_blank");
+  id_suppress_nst = rb_intern("suppress_nst");
+  id_token_timestamps = rb_intern("token_timestamps");
+  id_split_on_word = rb_intern("split_on_word");
+  id_initial_prompt = rb_intern("initial_prompt");
+  id_diarize = rb_intern("diarize");
+  id_offset = rb_intern("offset");
+  id_duration = rb_intern("duration");
+  id_max_text_tokens = rb_intern("max_text_tokens");
+  id_temperature = rb_intern("temperature");
+  id_max_initial_ts = rb_intern("max_initial_ts");
+  id_length_penalty = rb_intern("length_penalty");
+  id_temperature_inc = rb_intern("temperature_inc");
+  id_entropy_thold = rb_intern("entropy_thold");
+  id_logprob_thold = rb_intern("logprob_thold");
+  id_no_speech_thold = rb_intern("no_speech_thold");
+  id_new_segment_callback = rb_intern("new_segment_callback");
+  id_new_segment_callback_user_data = rb_intern("new_segment_callback_user_data");
+  id_progress_callback = rb_intern("progress_callback");
+  id_progress_callback_user_data = rb_intern("progress_callback_user_data");
+  id_abort_callback = rb_intern("abort_callback");
+  id_abort_callback_user_data = rb_intern("abort_callback_user_data");
+
+  param_names[0] = id_language;
+  param_names[1] = id_translate;
+  param_names[2] = id_no_context;
+  param_names[3] = id_single_segment;
+  param_names[4] = id_print_special;
+  param_names[5] = id_print_progress;
+  param_names[6] = id_print_realtime;
+  param_names[7] = id_print_timestamps;
+  param_names[8] = id_suppress_blank;
+  param_names[9] = id_suppress_nst;
+  param_names[10] = id_token_timestamps;
+  param_names[11] = id_split_on_word;
+  param_names[12] = id_initial_prompt;
+  param_names[13] = id_diarize;
+  param_names[14] = id_offset;
+  param_names[15] = id_duration;
+  param_names[16] = id_max_text_tokens;
+  param_names[17] = id_temperature;
+  param_names[18] = id_max_initial_ts;
+  param_names[19] = id_length_penalty;
+  param_names[20] = id_temperature_inc;
+  param_names[21] = id_entropy_thold;
+  param_names[22] = id_logprob_thold;
+  param_names[23] = id_no_speech_thold;
+  param_names[24] = id_new_segment_callback;
+  param_names[25] = id_new_segment_callback_user_data;
+  param_names[26] = id_progress_callback;
+  param_names[27] = id_progress_callback_user_data;
+  param_names[28] = id_abort_callback;
+  param_names[29] = id_abort_callback_user_data;
+
   cParams  = rb_define_class_under(*mWhisper, "Params", rb_cObject);
 
   rb_define_alloc_func(cParams, ruby_whisper_params_allocate);
+  rb_define_method(cParams, "initialize", ruby_whisper_params_initialize, -1);
+
   rb_define_method(cParams, "language=", ruby_whisper_params_set_language, 1);
   rb_define_method(cParams, "language", ruby_whisper_params_get_language, 0);
   rb_define_method(cParams, "translate=", ruby_whisper_params_set_translate, 1);
