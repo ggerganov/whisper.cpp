@@ -223,6 +223,24 @@ void check_ffmpeg_availibility() {
     }
 }
 
+std::string generate_temp_filename(const std::string &prefix, const std::string &extension) {
+    auto now = std::chrono::system_clock::now();
+    auto now_time_t = std::chrono::system_clock::to_time_t(now);
+
+    static std::mt19937 rng{std::random_device{}()};
+    std::uniform_int_distribution<long long> dist(0, 1'000'000'000);
+
+    std::stringstream ss;
+    ss << prefix
+       << "-"
+       << std::put_time(std::localtime(&now_time_t), "%Y%m%d-%H%M%S")
+       << "-"
+       << dist(rng)
+       << extension;
+
+    return ss.str();
+}
+
 bool convert_to_wav(const std::string & temp_filename, std::string & error_resp) {
     std::ostringstream cmd_stream;
     std::string converted_filename_temp = temp_filename + "_temp.wav";
@@ -692,9 +710,7 @@ int main(int argc, char ** argv) {
         if (sparams.ffmpeg_converter) {
             // if file is not wav, convert to wav
             // write to temporary file
-            //const std::string temp_filename_base = std::tmpnam(nullptr);
-            const std::string temp_filename_base = "whisper-server-tmp"; // TODO: this is a hack, remove when the mutext is removed
-            const std::string temp_filename = temp_filename_base + ".wav";
+            const std::string temp_filename = generate_temp_filename("whisper-server", ".wav");
             std::ofstream temp_file{temp_filename, std::ios::binary};
             temp_file << audio_file.content;
             temp_file.close();
