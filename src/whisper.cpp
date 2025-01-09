@@ -6464,6 +6464,10 @@ float whisper_full_get_segment_no_speech_prob(struct whisper_context * ctx, int 
     return ctx->state->result_all[i_segment].no_speech_prob;
 }
 
+float whisper_full_get_segment_no_speech_prob_from_state(struct whisper_state * state, int i_segment) {
+    return state->result_all[i_segment].no_speech_prob;
+}
+
 // =================================================================================================
 
 //

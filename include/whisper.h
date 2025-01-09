@@ -667,6 +667,7 @@ extern "C" {
 
     // Get the no_speech probability for the specified segment
     WHISPER_API float whisper_full_get_segment_no_speech_prob           (struct whisper_context * ctx, int i_segment);
+    WHISPER_API float whisper_full_get_segment_no_speech_prob_from_state(struct whisper_state * state, int i_segment);
 #ifdef __cplusplus
 }
 #endif
