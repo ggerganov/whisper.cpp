@@ -20,6 +20,12 @@
     return Qfalse; \
   }
 
+#define DEFINE_PARAM(param_name, nth) \
+  id_ ## param_name = rb_intern(#param_name); \
+  param_names[nth] = id_ ## param_name; \
+  rb_define_method(cParams, #param_name, ruby_whisper_params_get_ ## param_name, 0); \
+  rb_define_method(cParams, #param_name "=", ruby_whisper_params_set_ ## param_name, 1);
+
 #define RUBY_WHISPER_PARAMS_PARAM_NAMES_COUNT 30
 
 extern VALUE cParams;
@@ -1029,136 +1035,41 @@ ruby_whisper_params_abort_on(VALUE self)
 void
 init_ruby_whisper_params(VALUE *mWhisper)
 {
-  id_language = rb_intern("language");
-  id_translate = rb_intern("translate");
-  id_no_context = rb_intern("no_context");
-  id_single_segment = rb_intern("single_segment");
-  id_print_special = rb_intern("print_special");
-  id_print_progress = rb_intern("print_progress");
-  id_print_realtime = rb_intern("print_realtime");
-  id_print_timestamps = rb_intern("print_timestamps");
-  id_suppress_blank = rb_intern("suppress_blank");
-  id_suppress_nst = rb_intern("suppress_nst");
-  id_token_timestamps = rb_intern("token_timestamps");
-  id_split_on_word = rb_intern("split_on_word");
-  id_initial_prompt = rb_intern("initial_prompt");
-  id_diarize = rb_intern("diarize");
-  id_offset = rb_intern("offset");
-  id_duration = rb_intern("duration");
-  id_max_text_tokens = rb_intern("max_text_tokens");
-  id_temperature = rb_intern("temperature");
-  id_max_initial_ts = rb_intern("max_initial_ts");
-  id_length_penalty = rb_intern("length_penalty");
-  id_temperature_inc = rb_intern("temperature_inc");
-  id_entropy_thold = rb_intern("entropy_thold");
-  id_logprob_thold = rb_intern("logprob_thold");
-  id_no_speech_thold = rb_intern("no_speech_thold");
-  id_new_segment_callback = rb_intern("new_segment_callback");
-  id_new_segment_callback_user_data = rb_intern("new_segment_callback_user_data");
-  id_progress_callback = rb_intern("progress_callback");
-  id_progress_callback_user_data = rb_intern("progress_callback_user_data");
-  id_abort_callback = rb_intern("abort_callback");
-  id_abort_callback_user_data = rb_intern("abort_callback_user_data");
-
-  param_names[0] = id_language;
-  param_names[1] = id_translate;
-  param_names[2] = id_no_context;
-  param_names[3] = id_single_segment;
-  param_names[4] = id_print_special;
-  param_names[5] = id_print_progress;
-  param_names[6] = id_print_realtime;
-  param_names[7] = id_print_timestamps;
-  param_names[8] = id_suppress_blank;
-  param_names[9] = id_suppress_nst;
-  param_names[10] = id_token_timestamps;
-  param_names[11] = id_split_on_word;
-  param_names[12] = id_initial_prompt;
-  param_names[13] = id_diarize;
-  param_names[14] = id_offset;
-  param_names[15] = id_duration;
-  param_names[16] = id_max_text_tokens;
-  param_names[17] = id_temperature;
-  param_names[18] = id_max_initial_ts;
-  param_names[19] = id_length_penalty;
-  param_names[20] = id_temperature_inc;
-  param_names[21] = id_entropy_thold;
-  param_names[22] = id_logprob_thold;
-  param_names[23] = id_no_speech_thold;
-  param_names[24] = id_new_segment_callback;
-  param_names[25] = id_new_segment_callback_user_data;
-  param_names[26] = id_progress_callback;
-  param_names[27] = id_progress_callback_user_data;
-  param_names[28] = id_abort_callback;
-  param_names[29] = id_abort_callback_user_data;
-
   cParams  = rb_define_class_under(*mWhisper, "Params", rb_cObject);
 
   rb_define_alloc_func(cParams, ruby_whisper_params_allocate);
   rb_define_method(cParams, "initialize", ruby_whisper_params_initialize, -1);
 
-  rb_define_method(cParams, "language=", ruby_whisper_params_set_language, 1);
-  rb_define_method(cParams, "language", ruby_whisper_params_get_language, 0);
-  rb_define_method(cParams, "translate=", ruby_whisper_params_set_translate, 1);
-  rb_define_method(cParams, "translate", ruby_whisper_params_get_translate, 0);
-  rb_define_method(cParams, "no_context=", ruby_whisper_params_set_no_context, 1);
-  rb_define_method(cParams, "no_context", ruby_whisper_params_get_no_context, 0);
-  rb_define_method(cParams, "single_segment=", ruby_whisper_params_set_single_segment, 1);
-  rb_define_method(cParams, "single_segment", ruby_whisper_params_get_single_segment, 0);
-  rb_define_method(cParams, "print_special", ruby_whisper_params_get_print_special, 0);
-  rb_define_method(cParams, "print_special=", ruby_whisper_params_set_print_special, 1);
-  rb_define_method(cParams, "print_progress", ruby_whisper_params_get_print_progress, 0);
-  rb_define_method(cParams, "print_progress=", ruby_whisper_params_set_print_progress, 1);
-  rb_define_method(cParams, "print_realtime", ruby_whisper_params_get_print_realtime, 0);
-  rb_define_method(cParams, "print_realtime=", ruby_whisper_params_set_print_realtime, 1);
-  rb_define_method(cParams, "print_timestamps", ruby_whisper_params_get_print_timestamps, 0);
-  rb_define_method(cParams, "print_timestamps=", ruby_whisper_params_set_print_timestamps, 1);
-  rb_define_method(cParams, "suppress_blank", ruby_whisper_params_get_suppress_blank, 0);
-  rb_define_method(cParams, "suppress_blank=", ruby_whisper_params_set_suppress_blank, 1);
-  rb_define_method(cParams, "suppress_nst", ruby_whisper_params_get_suppress_nst, 0);
-  rb_define_method(cParams, "suppress_nst=", ruby_whisper_params_set_suppress_nst, 1);
-  rb_define_method(cParams, "token_timestamps", ruby_whisper_params_get_token_timestamps, 0);
-  rb_define_method(cParams, "token_timestamps=", ruby_whisper_params_set_token_timestamps, 1);
-  rb_define_method(cParams, "split_on_word", ruby_whisper_params_get_split_on_word, 0);
-  rb_define_method(cParams, "split_on_word=", ruby_whisper_params_set_split_on_word, 1);
-  rb_define_method(cParams, "initial_prompt", ruby_whisper_params_get_initial_prompt, 0);
-  rb_define_method(cParams, "initial_prompt=", ruby_whisper_params_set_initial_prompt, 1);
-  rb_define_method(cParams, "diarize", ruby_whisper_params_get_diarize, 0);
-  rb_define_method(cParams, "diarize=", ruby_whisper_params_set_diarize, 1);
-
-  rb_define_method(cParams, "offset", ruby_whisper_params_get_offset, 0);
-  rb_define_method(cParams, "offset=", ruby_whisper_params_set_offset, 1);
-  rb_define_method(cParams, "duration", ruby_whisper_params_get_duration, 0);
-  rb_define_method(cParams, "duration=", ruby_whisper_params_set_duration, 1);
-
-  rb_define_method(cParams, "max_text_tokens", ruby_whisper_params_get_max_text_tokens, 0);
-  rb_define_method(cParams, "max_text_tokens=", ruby_whisper_params_set_max_text_tokens, 1);
-  rb_define_method(cParams, "temperature", ruby_whisper_params_get_temperature, 0);
-  rb_define_method(cParams, "temperature=", ruby_whisper_params_set_temperature, 1);
-  rb_define_method(cParams, "max_initial_ts", ruby_whisper_params_get_max_initial_ts, 0);
-  rb_define_method(cParams, "max_initial_ts=", ruby_whisper_params_set_max_initial_ts, 1);
-  rb_define_method(cParams, "length_penalty", ruby_whisper_params_get_length_penalty, 0);
-  rb_define_method(cParams, "length_penalty=", ruby_whisper_params_set_length_penalty, 1);
-  rb_define_method(cParams, "temperature_inc", ruby_whisper_params_get_temperature_inc, 0);
-  rb_define_method(cParams, "temperature_inc=", ruby_whisper_params_set_temperature_inc, 1);
-  rb_define_method(cParams, "entropy_thold", ruby_whisper_params_get_entropy_thold, 0);
-  rb_define_method(cParams, "entropy_thold=", ruby_whisper_params_set_entropy_thold, 1);
-  rb_define_method(cParams, "logprob_thold", ruby_whisper_params_get_logprob_thold, 0);
-  rb_define_method(cParams, "logprob_thold=", ruby_whisper_params_set_logprob_thold, 1);
-  rb_define_method(cParams, "no_speech_thold", ruby_whisper_params_get_no_speech_thold, 0);
-  rb_define_method(cParams, "no_speech_thold=", ruby_whisper_params_set_no_speech_thold, 1);
-
-  rb_define_method(cParams, "new_segment_callback", ruby_whisper_params_get_new_segment_callback, 0);
-  rb_define_method(cParams, "new_segment_callback=", ruby_whisper_params_set_new_segment_callback, 1);
-  rb_define_method(cParams, "new_segment_callback_user_data", ruby_whisper_params_get_new_segment_callback_user_data, 0);
-  rb_define_method(cParams, "new_segment_callback_user_data=", ruby_whisper_params_set_new_segment_callback_user_data, 1);
-  rb_define_method(cParams, "progress_callback", ruby_whisper_params_get_progress_callback, 0);
-  rb_define_method(cParams, "progress_callback=", ruby_whisper_params_set_progress_callback, 1);
-  rb_define_method(cParams, "progress_callback_user_data", ruby_whisper_params_get_progress_callback_user_data, 0);
-  rb_define_method(cParams, "progress_callback_user_data=", ruby_whisper_params_set_progress_callback_user_data, 1);
-  rb_define_method(cParams, "abort_callback", ruby_whisper_params_get_abort_callback, 0);
-  rb_define_method(cParams, "abort_callback=", ruby_whisper_params_set_abort_callback, 1);
-  rb_define_method(cParams, "abort_callback_user_data", ruby_whisper_params_get_abort_callback_user_data, 0);
-  rb_define_method(cParams, "abort_callback_user_data=", ruby_whisper_params_set_abort_callback_user_data, 1);
+  DEFINE_PARAM(language, 0)
+  DEFINE_PARAM(translate, 1)
+  DEFINE_PARAM(no_context, 2)
+  DEFINE_PARAM(single_segment, 3)
+  DEFINE_PARAM(print_special, 4)
+  DEFINE_PARAM(print_progress, 5)
+  DEFINE_PARAM(print_realtime, 6)
+  DEFINE_PARAM(print_timestamps, 7)
+  DEFINE_PARAM(suppress_blank, 8)
+  DEFINE_PARAM(suppress_nst, 9)
+  DEFINE_PARAM(token_timestamps, 10)
+  DEFINE_PARAM(split_on_word, 11)
+  DEFINE_PARAM(initial_prompt, 12)
+  DEFINE_PARAM(diarize, 13)
+  DEFINE_PARAM(offset, 14)
+  DEFINE_PARAM(duration, 15)
+  DEFINE_PARAM(max_text_tokens, 16)
+  DEFINE_PARAM(temperature, 17)
+  DEFINE_PARAM(max_initial_ts, 18)
+  DEFINE_PARAM(length_penalty, 19)
+  DEFINE_PARAM(temperature_inc, 20)
+  DEFINE_PARAM(entropy_thold, 21)
+  DEFINE_PARAM(logprob_thold, 22)
+  DEFINE_PARAM(no_speech_thold, 23)
+  DEFINE_PARAM(new_segment_callback, 24)
+  DEFINE_PARAM(new_segment_callback_user_data, 25)
+  DEFINE_PARAM(progress_callback, 26)
+  DEFINE_PARAM(progress_callback_user_data, 27)
+  DEFINE_PARAM(abort_callback, 28)
+  DEFINE_PARAM(abort_callback_user_data, 29)
 
   rb_define_method(cParams, "on_new_segment", ruby_whisper_params_on_new_segment, 0);
   rb_define_method(cParams, "on_progress", ruby_whisper_params_on_progress, 0);
