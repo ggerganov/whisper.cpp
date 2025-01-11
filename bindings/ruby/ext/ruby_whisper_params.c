@@ -805,9 +805,11 @@ ruby_whisper_params_get_progress_callback(VALUE self)
 /*
  * Sets progress callback, called on each progress update.
  *
- *   params.new_segment_callback = ->(context, _, n_new, user_data) {
+ *   params.new_segment_callback = ->(context, _, progress, user_data) {
  *     # ...
  *   }
+ *
+ * +progress+ is an Integer between 0 and 100.
  *
  * call-seq:
  *   progress_callback = callback -> callback
