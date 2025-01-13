@@ -228,7 +228,7 @@ std::string generate_temp_filename(const std::string &prefix, const std::string 
     auto now_time_t = std::chrono::system_clock::to_time_t(now);
 
     static std::mt19937 rng{std::random_device{}()};
-    std::uniform_int_distribution<long long> dist(0, 1'000'000'000);
+    std::uniform_int_distribution<long long> dist(0, 1e9);
 
     std::stringstream ss;
     ss << prefix
