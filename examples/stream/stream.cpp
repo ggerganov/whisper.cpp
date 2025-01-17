@@ -37,18 +37,6 @@ void setStdinNonBlocking() {
 #endif
 }
 
-void setStdinBlocking() {
-#ifdef _WIN32
-    DWORD mode;
-    HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
-    GetConsoleMode(stdinHandle, &mode);
-    mode |= ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT;
-    SetConsoleMode(stdinHandle, mode);
-#else
-    fcntl(fileno(stdin), F_SETFL, fcntl(fileno(stdin), F_GETFL, 0) & ~O_NONBLOCK);
-#endif
-}
-
 
 // command-line parameters
 struct whisper_params {
@@ -74,7 +62,6 @@ struct whisper_params {
     bool flash_attn    = false;
     bool interim       = false;
     bool delete_vt100  = true;
-    bool test_pipe     = false;
 
     std::string language  = "en";
     std::string model     = "models/ggml-base.en.bin";
@@ -114,7 +101,6 @@ static bool whisper_params_parse(int argc, char ** argv, whisper_params & params
         else if (arg == "-fa"   || arg == "--flash-attn")    { params.flash_attn    = true; }
         else if (arg == "-int"  || arg == "--interim")       { params.interim       = true; }
         else if (arg == "-nvt"  || arg == "--no-vt100")      { params.delete_vt100  = false; }
-        else if (                  arg == "--test-pipe")     { params.test_pipe     = true; }
 
         else {
             fprintf(stderr, "error: unknown argument: %s\n", arg.c_str());
@@ -155,7 +141,6 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -fa,      --flash-attn    [%-7s] flash attention during inference\n",               params.flash_attn ? "true" : "false");
     fprintf(stderr, "  -int,     --interim       [%-7s] show interim report in vad every step\n",          params.interim ? "true" : "false");
     fprintf(stderr, "  -nvt,     --no-vt100      [%-7s] do not delete unconfirmed result\n",               params.delete_vt100 ? "false" : "true");
-    fprintf(stderr, "            --test-pipe     [%-7s] use all data from pipe\n",                         params.test_pipe ? "true" : "false");
     fprintf(stderr, "\n");
 }
 
@@ -188,6 +173,7 @@ int main(int argc, char ** argv) {
         #else
         freopen(NULL, "rb", stdin);
         #endif
+        setStdinNonBlocking();
     } else {
         if (!audio.init(params.capture_id, WHISPER_SAMPLE_RATE)) {
             fprintf(stderr, "%s: audio.init() failed!\n", __func__);
@@ -273,41 +259,8 @@ int main(int argc, char ** argv) {
         wavWriter.open(filename, WHISPER_SAMPLE_RATE, 16, 1);
     }
 
-    // ignore premature stdin
-    int n_mod = 0;
-    if (piped && !params.test_pipe) {
-        const auto n_bytes_len = sizeof(float) * n_samples_len;
-        setStdinNonBlocking();
-        while (true) {
-            const auto n_bytes_read = read(fileno(stdin), pcmf32.data(), n_bytes_len);
-            if (n_bytes_read == -1 && errno == EAGAIN) {
-                break;
-            } else if (n_bytes_read < 1) {
-                fprintf(stderr, "stdin ended too early\n");
-                is_running = false;
-                break;
-            }
-            n_mod = n_bytes_read % sizeof(float);
-            if (n_bytes_read < n_bytes_len) {
-                break;
-            }
-        }
-    }
-
     fprintf(stderr, "[Start speaking]\n");
     fflush(stderr);
-
-    if (piped) {
-        // ignore the partial sample
-        if (n_mod > 0) {
-            const auto n_remain = sizeof(float) - n_mod;
-            setStdinBlocking();
-            if (n_remain != fread(pcmf32.data(), 1, n_remain, stdin)) {
-                is_running = false;
-            }
-        }
-        setStdinNonBlocking();
-    }
 
     auto t_last  = std::chrono::high_resolution_clock::now();
     auto t_interim = t_last;
@@ -332,12 +285,15 @@ int main(int argc, char ** argv) {
         if (n_samples_new > n_samples_step) {
             pcmf32.clear();
         } else if (piped) {
-            pcmf32.resize(n_samples_len);
-            char *p_buf = (char *)pcmf32.data();
+            // need at least step_ms
             const auto n_bytes_min = (n_samples_step - n_samples_new) * sizeof(float);
+            // but try to get length_ms at first
             auto n_bytes_wanted = n_samples_len * sizeof(float);
+            pcmf32.resize(n_samples_len);
+
             auto n_bytes_read = 0;
             while (n_bytes_wanted > 0) {
+                char *p_buf = (char *)pcmf32.data();
                 const auto n_read = read(fileno(stdin), p_buf + n_bytes_read, n_bytes_wanted);
                 if (n_read == 0 || n_read == -1 && errno != EAGAIN) {
                     fprintf(stderr, "read(stdin) returned %zd, errno = %d\n", n_read, errno);
@@ -348,11 +304,11 @@ int main(int argc, char ** argv) {
                 if (n_bytes_read < n_bytes_min) {
                     n_bytes_wanted = n_bytes_min - n_bytes_read;
                 } else {
-                    n_bytes_wanted = n_bytes_read % sizeof(float);
+                    const auto n_mod = n_bytes_read % sizeof(float);
+                    n_bytes_wanted = (n_mod != 0) ? sizeof(float) - n_mod : 0;
                 }
-                if (n_bytes_wanted > 0) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                }
+                const auto est_ms = 1000 * n_bytes_wanted / sizeof(float) / WHISPER_SAMPLE_RATE;
+                std::this_thread::sleep_for(std::chrono::milliseconds(est_ms));
             }
             pcmf32.resize(n_bytes_read / sizeof(float));
         } else if (t_diff < abs(params.step_ms)) {
@@ -374,7 +330,7 @@ int main(int argc, char ** argv) {
         }
 
         n_samples_new += n_samples_buf;
-        if (!use_vad && n_samples_new > 2*n_samples_step) {
+        if (!use_vad && !piped && n_samples_new > 2*n_samples_step) {
             fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, dropping audio ...\n", __func__);
             fprintf(stderr, "t_diff = %.2fs, new = %.2fs, buf = %.2fs\n\n", 1e-3*t_diff, float(n_samples_new)/WHISPER_SAMPLE_RATE, float(n_samples_buf)/WHISPER_SAMPLE_RATE);
             n_samples_old = 0;
@@ -513,10 +469,10 @@ int main(int argc, char ** argv) {
                             text << std::endl;
                         }
                         if (is_interim) {
-                            // utf-8 cannot be simply cut into two
+                            // utf-8 cannot be simply cut
                             std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
                             const auto t_u32 = conv.from_bytes(i_text);
-                            const auto t_sub = conv.to_bytes(t_u32.substr(0, t_u32.size() * 0.7));
+                            const auto t_sub = conv.to_bytes(t_u32.substr(0, t_u32.size() * 0.9));
                             i_text = t_sub + "…";
                         }
                         if (s_to_delete.size() > 0) {
