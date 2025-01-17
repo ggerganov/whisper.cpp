@@ -17,15 +17,16 @@
 #include <sstream>
 
 static std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos) {
-    auto * model = llama_get_model(ctx);
+    const llama_model * model = llama_get_model(ctx);
+    const llama_vocab * vocab = llama_model_get_vocab(model);
 
     // upper limit for the number of tokens
     int n_tokens = text.length() + add_bos;
     std::vector<llama_token> result(n_tokens);
-    n_tokens = llama_tokenize(model, text.data(), text.length(), result.data(), result.size(), add_bos, false);
+    n_tokens = llama_tokenize(vocab, text.data(), text.length(), result.data(), result.size(), add_bos, false);
     if (n_tokens < 0) {
         result.resize(-n_tokens);
-        int check = llama_tokenize(model, text.data(), text.length(), result.data(), result.size(), add_bos, false);
+        int check = llama_tokenize(vocab, text.data(), text.length(), result.data(), result.size(), add_bos, false);
         GGML_ASSERT(check == -n_tokens);
     } else {
         result.resize(n_tokens);
@@ -34,11 +35,14 @@ static std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const
 }
 
 static std::string llama_token_to_piece(const struct llama_context * ctx, llama_token token) {
+    const llama_model * model = llama_get_model(ctx);
+    const llama_vocab * vocab = llama_model_get_vocab(model);
+
     std::vector<char> result(8, 0);
-    const int n_tokens = llama_token_to_piece(llama_get_model(ctx), token, result.data(), result.size(), 0, false);
+    const int n_tokens = llama_token_to_piece(vocab, token, result.data(), result.size(), 0, false);
     if (n_tokens < 0) {
         result.resize(-n_tokens);
-        int check = llama_token_to_piece(llama_get_model(ctx), token, result.data(), result.size(), 0, false);
+        int check = llama_token_to_piece(vocab, token, result.data(), result.size(), 0, false);
         GGML_ASSERT(check == -n_tokens);
     } else {
         result.resize(n_tokens);
@@ -310,6 +314,8 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
+    const llama_vocab * vocab_llama = llama_model_get_vocab(model_llama);
+
     llama_context_params lcparams = llama_context_default_params();
 
     // tune these to your liking
@@ -317,7 +323,7 @@ int main(int argc, char ** argv) {
     lcparams.n_threads  = params.n_threads;
     lcparams.flash_attn = params.flash_attn;
 
-    struct llama_context * ctx_llama = llama_new_context_with_model(model_llama, lcparams);
+    struct llama_context * ctx_llama = llama_init_from_model(model_llama, lcparams);
 
     // print some info about the processing
     {
@@ -727,7 +733,7 @@ int main(int argc, char ** argv) {
 
                         const llama_token id = llama_sampler_sample(smpl, ctx_llama, -1);
 
-                        if (id != llama_token_eos(model_llama)) {
+                        if (id != llama_vocab_eos(vocab_llama)) {
                             // add it to the context
                             embd.push_back(id);
 

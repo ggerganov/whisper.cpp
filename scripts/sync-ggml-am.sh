@@ -59,6 +59,7 @@ while read c; do
         src/ggml*.h \
         src/ggml*.c \
         src/ggml*.cpp \
+        src/gguf*.cpp \
         src/ggml-blas/* \
         src/ggml-cann/* \
         src/ggml-cpu/* \
@@ -67,10 +68,12 @@ while read c; do
         src/ggml-kompute/* \
         src/ggml-metal/* \
         src/ggml-musa/* \
+        src/ggml-opencl/* \
         src/ggml-rpc/* \
         src/ggml-sycl/* \
         src/ggml-vulkan/* \
         include/ggml*.h \
+        include/gguf*.h \
         examples/common.h \
         examples/common.cpp \
         examples/common-ggml.h \
@@ -109,6 +112,7 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
     # src/ggml*.c          -> ggml/src/ggml*.c
     # src/ggml*.cpp        -> ggml/src/ggml*.cpp
     # src/ggml*.h          -> ggml/src/ggml*.h
+    # src/gguf*.cpp        -> ggml/src/gguf*.cpp
     # src/ggml-blas/*      -> ggml/src/ggml-blas/*
     # src/ggml-cann/*      -> ggml/src/ggml-cann/*
     # src/ggml-cpu/*       -> ggml/src/ggml-cpu/*
@@ -117,11 +121,13 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
     # src/ggml-kompute/*   -> ggml/src/ggml-kompute/*
     # src/ggml-metal/*     -> ggml/src/ggml-metal/*
     # src/ggml-musa/*      -> ggml/src/ggml-musa/*
+    # src/ggml-opencl/*     > ggml/src/ggml-opencl/*
     # src/ggml-rpc/*       -> ggml/src/ggml-rpc/*
     # src/ggml-sycl/*      -> ggml/src/ggml-sycl/*
     # src/ggml-vulkan/*    -> ggml/src/ggml-vulkan/*
     #
     # include/ggml*.h -> ggml/include/ggml*.h
+    # include/gguf*.h -> ggml/include/gguf*.h
     #
     # examples/common.h        -> examples/common.h
     # examples/common.cpp      -> examples/common.cpp
@@ -138,6 +144,7 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
         -e 's/([[:space:]]|[ab]\/)src\/ggml(.*)\.c/\1ggml\/src\/ggml\2.c/g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml(.*)\.cpp/\1ggml\/src\/ggml\2.cpp/g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml(.*)\.h/\1ggml\/src\/ggml\2.h/g' \
+        -e 's/([[:space:]]|[ab]\/)src\/gguf(.*)\.cpp/\1ggml\/src\/gguf\2.cpp/g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-blas\//\1ggml\/src\/ggml-blas\//g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-cann\//\1ggml\/src\/ggml-cann\//g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-cpu\//\1ggml\/src\/ggml-cpu\//g' \
@@ -146,10 +153,12 @@ if [ -f $SRC_WHISPER/ggml-src.patch ]; then
         -e 's/([[:space:]]|[ab]\/)src\/ggml-kompute\//\1ggml\/src\/ggml-kompute\//g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-metal\//\1ggml\/src\/ggml-metal\//g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-musa\//\1ggml\/src\/ggml-musa\//g' \
+        -e 's/([[:space:]]|[ab]\/)src\/ggml-opencl\//\1ggml\/src\/ggml-opencl\//g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-rpc\//\1ggml\/src\/ggml-rpc\//g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-sycl\//\1ggml\/src\/ggml-sycl\//g' \
         -e 's/([[:space:]]|[ab]\/)src\/ggml-vulkan\//\1ggml\/src\/ggml-vulkan\//g' \
-        -e 's/([[:space:]]|[ab]\/)include\/ggml(.*)\.h/\1ggml\/include\/ggml\2.h/g' \
+        -e 's/(^[[:space:]]|[ab]\/)include\/ggml(.*)\.h/\1ggml\/include\/ggml\2.h/g' \
+        -e 's/(^[[:space:]]|[ab]\/)include\/gguf(.*)\.h/\1ggml\/include\/gguf\2.h/g' \
         -e 's/(^[[:space:]]|[ab]\/)examples\/common\.h/\1examples\/common.h/g' \
         -e 's/(^[[:space:]]|[ab]\/)examples\/common\.cpp/\1examples\/common.cpp/g' \
         -e 's/(^[[:space:]]|[ab]\/)examples\/common-ggml\.h/\1examples\/common-ggml.h/g' \
