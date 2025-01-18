@@ -17,7 +17,7 @@ models/ggml-base.en.bin          100%[==========================================
 Done! Model 'base.en' saved in 'models/ggml-base.en.bin'
 You can now use it like this:
 
-  $ ./main -m models/ggml-base.en.bin -f samples/jfk.wav
+  $ ./build/bin/whisper-cli -m models/ggml-base.en.bin -f samples/jfk.wav
 ```
 
 ### 2. Manually download pre-converted models

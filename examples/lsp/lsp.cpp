@@ -181,7 +181,7 @@ static json unguided_transcription(struct whisper_context * ctx, audio_async &au
     wparams.n_threads        = params.n_threads;
 
     wparams.audio_ctx        = params.audio_ctx;
-    wparams.suppress_non_speech_tokens = true;
+    wparams.suppress_nst     = true;
     // run the transformer and a single decoding pass
     if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
         fprintf(stderr, "%s: ERROR: whisper_full() failed\n", __func__);
@@ -225,7 +225,7 @@ static json guided_transcription(struct whisper_context * ctx, audio_async &audi
     wparams.prompt_tokens    = cs.prompt_tokens.data();
     wparams.prompt_n_tokens  = cs.prompt_tokens.size();
     // TODO: properly expose as option
-    wparams.suppress_non_speech_tokens = true;
+    wparams.suppress_nst     = true;
 
     // run the transformer and a single decoding pass
     if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {

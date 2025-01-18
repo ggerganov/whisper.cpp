@@ -428,6 +428,7 @@ struct whisper_segment {
     int64_t t1;
 
     std::string text;
+    float no_speech_prob;
 
     std::vector<whisper_token_data> tokens;
 
@@ -1234,21 +1235,36 @@ static size_t aheads_masks_nbytes(struct whisper_aheads_masks & aheads_masks) {
 static ggml_backend_t whisper_backend_init_gpu(const whisper_context_params & params) {
     ggml_log_set(g_state.log_callback, g_state.log_callback_user_data);
 
+    ggml_backend_dev_t dev = nullptr;
+
+    int cnt = 0;
     if (params.use_gpu) {
         for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
-            ggml_backend_dev_t dev = ggml_backend_dev_get(i);
-            if (ggml_backend_dev_type(dev) == GGML_BACKEND_DEVICE_TYPE_GPU) {
-                WHISPER_LOG_INFO("%s: using %s backend\n", __func__, ggml_backend_dev_name(dev));
-                ggml_backend_t result = ggml_backend_dev_init(dev, nullptr);
-                if (!result) {
-                    WHISPER_LOG_ERROR("%s: failed to initialize %s backend\n", __func__, ggml_backend_dev_name(dev));
+            ggml_backend_dev_t dev_cur = ggml_backend_dev_get(i);
+            if (ggml_backend_dev_type(dev_cur) == GGML_BACKEND_DEVICE_TYPE_GPU) {
+                if (cnt == 0 || cnt == params.gpu_device) {
+                    dev = dev_cur;
                 }
-                return result;
+
+                if (++cnt > params.gpu_device) {
+                    break;
+                }
             }
         }
     }
 
-    return nullptr;
+    if (dev == nullptr) {
+        WHISPER_LOG_INFO("%s: no GPU found\n", __func__);
+        return nullptr;
+    }
+
+    WHISPER_LOG_INFO("%s: using %s backend\n", __func__, ggml_backend_dev_name(dev));
+    ggml_backend_t result = ggml_backend_dev_init(dev, nullptr);
+    if (!result) {
+        WHISPER_LOG_ERROR("%s: failed to initialize %s backend\n", __func__, ggml_backend_dev_name(dev));
+    }
+
+    return result;
 }
 
 static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_params & params) {
@@ -1282,20 +1298,27 @@ static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_pa
 }
 
 static ggml_backend_buffer_type_t whisper_default_buffer_type(const whisper_context_params & params) {
+    ggml_backend_buffer_type_t result = ggml_backend_cpu_buffer_type();
+
     if (!params.use_gpu) {
-        return ggml_backend_cpu_buffer_type();
+        return result;
     }
 
-    // if we have a GPU device - use it
+    int cnt = 0;
     for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
         ggml_backend_dev_t dev = ggml_backend_dev_get(i);
         if (ggml_backend_dev_type(dev) == GGML_BACKEND_DEVICE_TYPE_GPU) {
-            WHISPER_LOG_INFO("%s: using device %s (%s)\n", __func__, ggml_backend_dev_name(dev), ggml_backend_dev_description(dev));
-            return ggml_backend_dev_buffer_type(dev);
+            if (cnt == 0 || cnt == params.gpu_device) {
+                result = ggml_backend_dev_buffer_type(dev);
+            }
+
+            if (++cnt > params.gpu_device) {
+                break;
+            }
         }
     }
 
-    return ggml_backend_cpu_buffer_type();
+    return result;
 }
 
 // load the model from a ggml file
@@ -4676,7 +4699,7 @@ struct whisper_full_params whisper_full_default_params(enum whisper_sampling_str
         /*.detect_language   =*/ false,
 
         /*.suppress_blank    =*/ true,
-        /*.suppress_non_speech_tokens =*/ false,
+        /*.suppress_nst      =*/ false,
 
         /*.temperature       =*/  0.0f,
         /*.max_initial_ts    =*/  1.0f,
@@ -4960,7 +4983,7 @@ static void whisper_process_logits(
 
         // suppress non-speech tokens
         // ref: https://github.com/openai/whisper/blob/7858aa9c08d98f75575035ecd6481f462d66ca27/whisper/tokenizer.py#L224-L253
-        if (params.suppress_non_speech_tokens) {
+        if (params.suppress_nst) {
             for (const std::string & token : non_speech_tokens) {
                 const std::string suppress_tokens[] = {token, " " + token};
                 for (const std::string & suppress_token : suppress_tokens) {
@@ -6147,7 +6170,7 @@ int whisper_full_with_state(
 
                             //printf("tt0 = %d, tt1 = %d, text = %s, token = %s, token_id = %d, tid = %d\n", tt0, tt1, text.c_str(), ctx->vocab.id_to_token[tokens_cur[i].id].c_str(), tokens_cur[i].id, tokens_cur[i].tid);
 
-                            result_all.push_back({ tt0, tt1, text, {}, speaker_turn_next });
+                            result_all.push_back({ tt0, tt1, text, state->no_speech_prob, {}, speaker_turn_next });
                             for (int j = i0; j <= i; j++) {
                                 result_all.back().tokens.push_back(tokens_cur[j]);
                             }
@@ -6192,7 +6215,7 @@ int whisper_full_with_state(
                         }
                     }
 
-                    result_all.push_back({ tt0, tt1, text, {} , speaker_turn_next });
+                    result_all.push_back({ tt0, tt1, text, state->no_speech_prob, {}, speaker_turn_next });
                     for (int j = i0; j < (int) tokens_cur.size(); j++) {
                         result_all.back().tokens.push_back(tokens_cur[j]);
                     }
@@ -6457,6 +6480,14 @@ float whisper_full_get_token_p_from_state(struct whisper_state * state, int i_se
 
 float whisper_full_get_token_p(struct whisper_context * ctx, int i_segment, int i_token) {
     return ctx->state->result_all[i_segment].tokens[i_token].p;
+}
+
+float whisper_full_get_segment_no_speech_prob(struct whisper_context * ctx, int i_segment) {
+    return ctx->state->result_all[i_segment].no_speech_prob;
+}
+
+float whisper_full_get_segment_no_speech_prob_from_state(struct whisper_state * state, int i_segment) {
+    return state->result_all[i_segment].no_speech_prob;
 }
 
 // =================================================================================================

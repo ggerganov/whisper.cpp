@@ -49,9 +49,13 @@ static ID id_length;
 static ID id_next;
 static ID id_new;
 static ID id_to_path;
+static ID id_URI;
 static ID id_pre_converted_models;
 
 static bool is_log_callback_finalized = false;
+
+// High level API
+static VALUE rb_whisper_segment_initialize(VALUE context, int index);
 
 /*
  * call-seq:
@@ -187,6 +191,69 @@ static ruby_whisper_callback_container * rb_whisper_callback_container_allocate(
   return container;
 }
 
+static void new_segment_callback(struct whisper_context *ctx, struct whisper_state *state, int n_new, void *user_data) {
+  const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
+
+  // Currently, doesn't support state because
+  // those require to resolve GC-related problems.
+  if (!NIL_P(container->callback)) {
+    rb_funcall(container->callback, id_call, 4, *container->context, Qnil, INT2NUM(n_new), container->user_data);
+  }
+  const long callbacks_len = RARRAY_LEN(container->callbacks);
+  if (0 == callbacks_len) {
+    return;
+  }
+  const int n_segments = whisper_full_n_segments_from_state(state);
+  for (int i = n_new; i > 0; i--) {
+    int i_segment = n_segments - i;
+    VALUE segment = rb_whisper_segment_initialize(*container->context, i_segment);
+    for (int j = 0; j < callbacks_len; j++) {
+      VALUE cb = rb_ary_entry(container->callbacks, j);
+      rb_funcall(cb, id_call, 1, segment);
+    }
+  }
+}
+
+static void progress_callback(struct whisper_context *ctx, struct whisper_state *state, int progress_cur, void *user_data) {
+  const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
+  const VALUE progress = INT2NUM(progress_cur);
+  // Currently, doesn't support state because
+  // those require to resolve GC-related problems.
+  if (!NIL_P(container->callback)) {
+    rb_funcall(container->callback, id_call, 4, *container->context, Qnil, progress, container->user_data);
+  }
+  const long callbacks_len = RARRAY_LEN(container->callbacks);
+  if (0 == callbacks_len) {
+    return;
+  }
+  for (int j = 0; j < callbacks_len; j++) {
+    VALUE cb = rb_ary_entry(container->callbacks, j);
+    rb_funcall(cb, id_call, 1, progress);
+  }
+}
+
+static bool abort_callback(void * user_data) {
+  const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
+  if (!NIL_P(container->callback)) {
+    VALUE result = rb_funcall(container->callback, id_call, 1, container->user_data);
+    if (!NIL_P(result) && Qfalse != result) {
+      return true;
+    }
+  }
+  const long callbacks_len = RARRAY_LEN(container->callbacks);
+  if (0 == callbacks_len) {
+    return false;
+  }
+  for (int j = 0; j < callbacks_len; j++) {
+    VALUE cb = rb_ary_entry(container->callbacks, j);
+    VALUE result = rb_funcall(cb, id_call, 1, container->user_data);
+    if (!NIL_P(result) && Qfalse != result) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static VALUE ruby_whisper_params_allocate(VALUE klass) {
   ruby_whisper_params *rwp;
   rwp = ALLOC(ruby_whisper_params);
@@ -217,6 +284,17 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   if (!NIL_P(pre_converted_model)) {
     whisper_model_file_path = pre_converted_model;
   }
+  if (TYPE(whisper_model_file_path) == T_STRING) {
+    const char * whisper_model_file_path_str = StringValueCStr(whisper_model_file_path);
+    if (strncmp("http://", whisper_model_file_path_str, 7) == 0 || strncmp("https://", whisper_model_file_path_str, 8) == 0) {
+      VALUE uri_class = rb_const_get(cModel, id_URI);
+      whisper_model_file_path = rb_class_new_instance(1, &whisper_model_file_path, uri_class);
+    }
+  }
+  if (rb_obj_is_kind_of(whisper_model_file_path, rb_path2class("URI::HTTP"))) {
+    VALUE uri_class = rb_const_get(cModel, id_URI);
+    whisper_model_file_path = rb_class_new_instance(1, &whisper_model_file_path, uri_class);
+  }
   if (rb_respond_to(whisper_model_file_path, id_to_path)) {
     whisper_model_file_path = rb_funcall(whisper_model_file_path, id_to_path, 0);
   }
@@ -230,8 +308,25 @@ static VALUE ruby_whisper_initialize(int argc, VALUE *argv, VALUE self) {
   return self;
 }
 
-// High level API
-static VALUE rb_whisper_segment_initialize(VALUE context, int index);
+static void register_callbacks(ruby_whisper_params * rwp, VALUE * self) {
+  if (!NIL_P(rwp->new_segment_callback_container->callback) || 0 != RARRAY_LEN(rwp->new_segment_callback_container->callbacks)) {
+    rwp->new_segment_callback_container->context = self;
+    rwp->params.new_segment_callback = new_segment_callback;
+    rwp->params.new_segment_callback_user_data = rwp->new_segment_callback_container;
+  }
+
+  if (!NIL_P(rwp->progress_callback_container->callback) || 0 != RARRAY_LEN(rwp->progress_callback_container->callbacks)) {
+    rwp->progress_callback_container->context = self;
+    rwp->params.progress_callback = progress_callback;
+    rwp->params.progress_callback_user_data = rwp->progress_callback_container;
+  }
+
+  if (!NIL_P(rwp->abort_callback_container->callback) || 0 != RARRAY_LEN(rwp->abort_callback_container->callbacks)) {
+    rwp->abort_callback_container->context = self;
+    rwp->params.abort_callback = abort_callback;
+    rwp->params.abort_callback_user_data = rwp->abort_callback_container;
+  }
+}
 
 /*
  * transcribe a single file
@@ -353,80 +448,7 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
     rwp->params.encoder_begin_callback_user_data = &is_aborted;
   }
 
-  if (!NIL_P(rwp->new_segment_callback_container->callback) || 0 != RARRAY_LEN(rwp->new_segment_callback_container->callbacks)) {
-    rwp->params.new_segment_callback = [](struct whisper_context * ctx, struct whisper_state * state, int n_new, void * user_data) {
-      const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
-
-      // Currently, doesn't support state because
-      // those require to resolve GC-related problems.
-      if (!NIL_P(container->callback)) {
-        rb_funcall(container->callback, id_call, 4, *container->context, Qnil, INT2NUM(n_new), container->user_data);
-      }
-      const long callbacks_len = RARRAY_LEN(container->callbacks);
-      if (0 == callbacks_len) {
-        return;
-      }
-      const int n_segments = whisper_full_n_segments_from_state(state);
-      for (int i = n_new; i > 0; i--) {
-        int i_segment = n_segments - i;
-        VALUE segment = rb_whisper_segment_initialize(*container->context, i_segment);
-        for (int j = 0; j < callbacks_len; j++) {
-          VALUE cb = rb_ary_entry(container->callbacks, j);
-          rb_funcall(cb, id_call, 1, segment);
-        }
-      }
-    };
-    rwp->new_segment_callback_container->context = &self;
-    rwp->params.new_segment_callback_user_data = rwp->new_segment_callback_container;
-  }
-
-  if (!NIL_P(rwp->progress_callback_container->callback) || 0 != RARRAY_LEN(rwp->progress_callback_container->callbacks)) {
-    rwp->params.progress_callback = [](struct whisper_context *ctx, struct whisper_state * /*state*/, int progress_cur, void *user_data) {
-      const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
-      const VALUE progress = INT2NUM(progress_cur);
-      // Currently, doesn't support state because
-      // those require to resolve GC-related problems.
-      if (!NIL_P(container->callback)) {
-        rb_funcall(container->callback, id_call, 4, *container->context, Qnil, progress, container->user_data);
-      }
-      const long callbacks_len = RARRAY_LEN(container->callbacks);
-      if (0 == callbacks_len) {
-        return;
-      }
-      for (int j = 0; j < callbacks_len; j++) {
-        VALUE cb = rb_ary_entry(container->callbacks, j);
-        rb_funcall(cb, id_call, 1, progress);
-      }
-    };
-    rwp->progress_callback_container->context = &self;
-    rwp->params.progress_callback_user_data = rwp->progress_callback_container;
-  }
-
-  if (!NIL_P(rwp->abort_callback_container->callback) || 0 != RARRAY_LEN(rwp->abort_callback_container->callbacks)) {
-    rwp->params.abort_callback = [](void * user_data) {
-      const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
-      if (!NIL_P(container->callback)) {
-        VALUE result = rb_funcall(container->callback, id_call, 1, container->user_data);
-        if (!NIL_P(result) && Qfalse != result) {
-          return true;
-        }
-      }
-      const long callbacks_len = RARRAY_LEN(container->callbacks);
-      if (0 == callbacks_len) {
-        return false;
-      }
-      for (int j = 0; j < callbacks_len; j++) {
-        VALUE cb = rb_ary_entry(container->callbacks, j);
-        VALUE result = rb_funcall(cb, id_call, 1, container->user_data);
-        if (!NIL_P(result) && Qfalse != result) {
-          return true;
-        }
-      }
-      return false;
-    };
-    rwp->abort_callback_container->context = &self;
-    rwp->params.abort_callback_user_data = rwp->abort_callback_container;
-  }
+  register_callbacks(rwp, &self);
 
   if (whisper_full_parallel(rw->context, rwp->params, pcmf32.data(), pcmf32.size(), 1) != 0) {
     fprintf(stderr, "failed to process audio\n");
@@ -631,6 +653,7 @@ VALUE ruby_whisper_full(int argc, VALUE *argv, VALUE self) {
       }
     }
   }
+  register_callbacks(rwp, &self);
   const int result = whisper_full(rw->context, rwp->params, c_samples, n_samples);
   if (0 == result) {
     return Qnil;
@@ -719,6 +742,7 @@ static VALUE ruby_whisper_full_parallel(int argc, VALUE *argv,VALUE self) {
       }
     }
   }
+  register_callbacks(rwp, &self);
   const int result = whisper_full_parallel(rw->context, rwp->params, c_samples, n_samples, n_processors);
   if (0 == result) {
     return Qnil;
@@ -821,6 +845,18 @@ static VALUE ruby_whisper_full_get_segment_text(VALUE self, VALUE i_segment) {
   const int c_i_segment = ruby_whisper_full_check_segment_index(rw, i_segment);
   const char * text = whisper_full_get_segment_text(rw->context, c_i_segment);
   return rb_str_new2(text);
+}
+
+/*
+ * call-seq:
+ *   full_get_segment_no_speech_prob(segment_index) -> Float
+ */
+static VALUE ruby_whisper_full_get_segment_no_speech_prob(VALUE self, VALUE i_segment) {
+  ruby_whisper *rw;
+  Data_Get_Struct(self, ruby_whisper, rw);
+  const int c_i_segment = ruby_whisper_full_check_segment_index(rw, i_segment);
+  const float no_speech_prob = whisper_full_get_segment_no_speech_prob(rw->context, c_i_segment);
+  return DBL2NUM(no_speech_prob);
 }
 
 /*
@@ -979,19 +1015,19 @@ static VALUE ruby_whisper_params_get_suppress_blank(VALUE self) {
 }
 /*
  * call-seq:
- *   suppress_non_speech_tokens = force_suppress -> force_suppress
+ *   suppress_nst = force_suppress -> force_suppress
  */
-static VALUE ruby_whisper_params_set_suppress_non_speech_tokens(VALUE self, VALUE value) {
-  BOOL_PARAMS_SETTER(self, suppress_non_speech_tokens, value)
+static VALUE ruby_whisper_params_set_suppress_nst(VALUE self, VALUE value) {
+  BOOL_PARAMS_SETTER(self, suppress_nst, value)
 }
 /*
  * If true, suppresses non-speech-tokens.
  *
  * call-seq:
- *   suppress_non_speech_tokens -> bool
+ *   suppress_nst -> bool
  */
-static VALUE ruby_whisper_params_get_suppress_non_speech_tokens(VALUE self) {
-  BOOL_PARAMS_GETTER(self, suppress_non_speech_tokens)
+static VALUE ruby_whisper_params_get_suppress_nst(VALUE self) {
+  BOOL_PARAMS_GETTER(self, suppress_nst)
 }
 /*
  * If true, enables token-level timestamps.
@@ -1547,6 +1583,18 @@ static VALUE ruby_whisper_segment_get_text(VALUE self) {
   return rb_str_new2(text);
 }
 
+/*
+ * call-seq:
+ *   no_speech_prob -> Float
+ */
+static VALUE ruby_whisper_segment_get_no_speech_prob(VALUE self) {
+  ruby_whisper_segment *rws;
+  Data_Get_Struct(self, ruby_whisper_segment, rws);
+  ruby_whisper *rw;
+  Data_Get_Struct(rws->context, ruby_whisper, rw);
+  return DBL2NUM(whisper_full_get_segment_no_speech_prob(rw->context, rws->index));
+}
+
 static void rb_whisper_model_mark(ruby_whisper_model *rwm) {
   rb_gc_mark(rwm->context);
 }
@@ -1719,7 +1767,7 @@ static VALUE ruby_whisper_c_model_type(VALUE self) {
 
 static VALUE ruby_whisper_error_initialize(VALUE self, VALUE code) {
   const int c_code = NUM2INT(code);
-  char *raw_message;
+  const char *raw_message;
   switch (c_code) {
   case -2:
     raw_message = "failed to compute log mel spectrogram";
@@ -1766,6 +1814,7 @@ void Init_whisper() {
   id_next = rb_intern("next");
   id_new = rb_intern("new");
   id_to_path = rb_intern("to_path");
+  id_URI = rb_intern("URI");
   id_pre_converted_models = rb_intern("pre_converted_models");
 
   mWhisper = rb_define_module("Whisper");
@@ -1809,6 +1858,7 @@ void Init_whisper() {
   rb_define_method(cContext, "full_get_segment_t1", ruby_whisper_full_get_segment_t1, 1);
   rb_define_method(cContext, "full_get_segment_speaker_turn_next", ruby_whisper_full_get_segment_speaker_turn_next, 1);
   rb_define_method(cContext, "full_get_segment_text", ruby_whisper_full_get_segment_text, 1);
+  rb_define_method(cContext, "full_get_segment_no_speech_prob", ruby_whisper_full_get_segment_no_speech_prob, 1);
   rb_define_method(cContext, "full", ruby_whisper_full, -1);
   rb_define_method(cContext, "full_parallel", ruby_whisper_full_parallel, -1);
 
@@ -1832,8 +1882,8 @@ void Init_whisper() {
   rb_define_method(cParams, "print_timestamps=", ruby_whisper_params_set_print_timestamps, 1);
   rb_define_method(cParams, "suppress_blank", ruby_whisper_params_get_suppress_blank, 0);
   rb_define_method(cParams, "suppress_blank=", ruby_whisper_params_set_suppress_blank, 1);
-  rb_define_method(cParams, "suppress_non_speech_tokens", ruby_whisper_params_get_suppress_non_speech_tokens, 0);
-  rb_define_method(cParams, "suppress_non_speech_tokens=", ruby_whisper_params_set_suppress_non_speech_tokens, 1);
+  rb_define_method(cParams, "suppress_nst", ruby_whisper_params_get_suppress_nst, 0);
+  rb_define_method(cParams, "suppress_nst=", ruby_whisper_params_set_suppress_nst, 1);
   rb_define_method(cParams, "token_timestamps", ruby_whisper_params_get_token_timestamps, 0);
   rb_define_method(cParams, "token_timestamps=", ruby_whisper_params_set_token_timestamps, 1);
   rb_define_method(cParams, "split_on_word", ruby_whisper_params_get_split_on_word, 0);
@@ -1887,6 +1937,7 @@ void Init_whisper() {
   rb_define_method(cSegment, "end_time", ruby_whisper_segment_get_end_time, 0);
   rb_define_method(cSegment, "speaker_next_turn?", ruby_whisper_segment_get_speaker_turn_next, 0);
   rb_define_method(cSegment, "text", ruby_whisper_segment_get_text, 0);
+  rb_define_method(cSegment, "no_speech_prob", ruby_whisper_segment_get_no_speech_prob, 0);
 
   cModel = rb_define_class_under(mWhisper, "Model", rb_cObject);
   rb_define_alloc_func(cModel, ruby_whisper_model_allocate);
@@ -1903,6 +1954,8 @@ void Init_whisper() {
   rb_define_method(cModel, "n_mels", ruby_whisper_c_model_n_mels, 0);
   rb_define_method(cModel, "ftype", ruby_whisper_c_model_ftype, 0);
   rb_define_method(cModel, "type", ruby_whisper_c_model_type, 0);
+
+  rb_require("whisper/model/uri");
 }
 #ifdef __cplusplus
 }
