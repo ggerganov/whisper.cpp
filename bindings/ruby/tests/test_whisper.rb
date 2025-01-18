@@ -29,6 +29,12 @@ class TestWhisper < TestBase
       assert_equal 0, whisper.full_lang_id
     end
 
+    def test_full_get_segment
+      segment = whisper.full_get_segment(0)
+      assert_equal 0, segment.start_time
+      assert_match /ask not what your country can do for you, ask what you can do for your country/, segment.text
+    end
+
     def test_full_get_segment_t0
       assert_equal 0, whisper.full_get_segment_t0(0)
       assert_raise IndexError do
