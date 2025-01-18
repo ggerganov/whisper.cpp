@@ -92,8 +92,8 @@
 		18F8C0C22CEDF52700CAD607 /* ggml-cpu-quants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-cpu-quants.h"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-quants.h"; sourceTree = "<group>"; };
 		18F8C0C32CEDF52700CAD607 /* ggml-cpu-quants.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "ggml-cpu-quants.c"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-quants.c"; sourceTree = "<group>"; };
 		18F8C0C62CEDF7AB00CAD607 /* ggml-backend-reg.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "ggml-backend-reg.cpp"; path = "../../../ggml/src/ggml-backend-reg.cpp"; sourceTree = "<group>"; };
-		433188B72D3A187C00E3FE79 /* gguf.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = gguf.cpp; path = /Users/iamcgn/Development/whisper.cpp/ggml/src/gguf.cpp; sourceTree = "<absolute>"; };
-		433188B92D3A18A400E3FE79 /* gguf.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = gguf.h; path = /Users/iamcgn/Development/whisper.cpp/ggml/include/gguf.h; sourceTree = "<absolute>"; };
+		433188B72D3A187C00E3FE79 /* gguf.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = gguf.cpp; path = ../../../ggml/src/gguf.cpp; sourceTree = "<group>"; };
+		433188B92D3A18A400E3FE79 /* gguf.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = gguf.h; path = ../../../ggml/include/gguf.h; sourceTree = "<group>"; };
 		437B63E02D36280C002A49EC /* ggml-cpu-traits.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "ggml-cpu-traits.h"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-traits.h"; sourceTree = "<group>"; };
 		437B63E12D36280C002A49EC /* ggml-cpu-traits.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "ggml-cpu-traits.cpp"; path = "../../../ggml/src/ggml-cpu/ggml-cpu-traits.cpp"; sourceTree = "<group>"; };
 		7FE342452A0C3FA20015A058 /* whisper-encoder-impl.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "whisper-encoder-impl.m"; sourceTree = "<group>"; };
