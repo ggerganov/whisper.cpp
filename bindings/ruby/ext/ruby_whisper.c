@@ -152,7 +152,7 @@ void Init_whisper() {
   rb_define_singleton_method(mWhisper, "lang_str", ruby_whisper_s_lang_str, 1);
   rb_define_singleton_method(mWhisper, "lang_str_full", ruby_whisper_s_lang_str_full, 1);
   rb_define_singleton_method(mWhisper, "log_set", ruby_whisper_s_log_set, 2);
-  rb_define_singleton_method(mWhisper, "finalize_log_callback", ruby_whisper_s_finalize_log_callback, 1);
+  rb_define_private_method(rb_singleton_class(mWhisper), "finalize_log_callback", ruby_whisper_s_finalize_log_callback, 1);
 
   init_ruby_whisper_context(&mWhisper);
   init_ruby_whisper_params(&mWhisper);
