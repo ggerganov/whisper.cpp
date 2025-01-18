@@ -21,12 +21,11 @@ module Whisper
   def self.lang_str: (Integer id) -> String
   def self.lang_str_full: (Integer id) -> String
   def self.log_set: (log_callback, Object? user_data) -> log_callback
-  def self.finalize_log_callback: (void) -> void # Second argument of ObjectSpace.define_finalizer
 
   class Context
     def initialize: (string | _ToPath | ::URI::HTTP) -> void
-    def transcribe: (string, Params) -> void
-                  | (string, Params) { (String) -> void } -> void
+    def transcribe: (string, Params) -> self
+                  | (string, Params) { (String) -> void } -> self
     def model_n_vocab: () -> Integer
     def model_n_audio_ctx: () -> Integer
     def model_n_audio_state: () -> Integer
@@ -35,6 +34,10 @@ module Whisper
     def model_n_mels: () -> Integer
     def model_ftype: () -> Integer
     def model_type: () -> String
+    def each_segment: { (Segment) -> void } -> void
+                    | () -> Enumerator[Segment]
+    def model: () -> Model
+    def full_get_segment: (Integer nth) -> Segment
     def full_n_segments: () -> Integer
     def full_lang_id: () -> Integer
     def full_get_segment_t0: (Integer) -> Integer
@@ -42,14 +45,11 @@ module Whisper
     def full_get_segment_speaker_turn_next: (Integer) -> (true | false)
     def full_get_segment_text: (Integer) -> String
     def full_get_segment_no_speech_prob: (Integer) -> Float
-    def full: (Params, Array[Float] samples, ?Integer n_samples) -> void
-            | (Params, _Samples, ?Integer n_samples) -> void
-    def full_parallel: (Params, Array[Float], ?Integer n_samples) -> void
-                     | (Params, _Samples, ?Integer n_samples) -> void
+    def full: (Params, Array[Float] samples, ?Integer n_samples) -> self
+            | (Params, _Samples, ?Integer n_samples) -> self
+    def full_parallel: (Params, Array[Float], ?Integer n_samples) -> self
+                     | (Params, _Samples, ?Integer n_samples) -> self
                      | (Params, _Samples, ?Integer? n_samples, Integer n_processors) -> void
-    def each_segment: { (Segment) -> void } -> void
-                    | () -> Enumerator[Segment]
-    def model: () -> Model
   end
 
   class Params
