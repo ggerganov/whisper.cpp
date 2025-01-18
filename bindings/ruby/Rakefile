@@ -22,7 +22,7 @@ CLEAN.include FileList["ext/**/*.o", "ext/**/*.metal", "ext/**/*.tmp", "ext/whis
 
 SRC = FileList["ext/*.{c,cpp,h}"]
 
-task build: ["ext/Makefile", "whispercpp.gemspec"]
+task build: SOURCES
 
 directory "pkg"
 CLOBBER.include "pkg"
