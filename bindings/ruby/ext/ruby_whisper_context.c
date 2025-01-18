@@ -521,6 +521,12 @@ ruby_whisper_full_get_segment_no_speech_prob(VALUE self, VALUE i_segment)
 
 // High level API
 
+static VALUE
+ruby_whisper_full_get_segment(VALUE self, VALUE i_segment)
+{
+  return rb_whisper_segment_initialize(self, NUM2INT(i_segment));
+}
+
 /*
  * Yields each Whisper::Segment:
  *
@@ -600,6 +606,7 @@ init_ruby_whisper_context(VALUE *mWhisper)
   rb_define_method(cContext, "full_parallel", ruby_whisper_full_parallel, -1);
 
   // High leve
+  rb_define_method(cContext, "full_get_segment", ruby_whisper_full_get_segment, 1);
   rb_define_method(cContext, "each_segment", ruby_whisper_each_segment, 0);
 
   rb_define_method(cContext, "model", ruby_whisper_get_model, 0);
