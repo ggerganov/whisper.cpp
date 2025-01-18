@@ -23,7 +23,7 @@ module Whisper
   def self.log_set: (log_callback, Object? user_data) -> log_callback
 
   class Context
-    def initialize: (string | _ToPath | ::URI::HTTP) -> void
+    def self.new: (string | _ToPath | ::URI::HTTP) -> instance
     def transcribe: (string, Params) -> self
                   | (string, Params) { (String) -> void } -> self
     def model_n_vocab: () -> Integer
@@ -53,7 +53,7 @@ module Whisper
   end
 
   class Params
-    def initialize: (
+    def self.new: (
       ?language: string,
       ?translate: boolish,
       ?no_context: boolish,
@@ -84,7 +84,7 @@ module Whisper
       ?progress_callback_user_data: Object,
       ?abort_callback: abort_callback,
       ?abort_callback_user_data: Object
-    ) -> void
+    ) -> instance
     def language=: (String) -> String # TODO: Enumerate lang names
     def language: () -> String
     def translate=: (boolish) -> boolish
@@ -152,7 +152,7 @@ module Whisper
 
   class Model
     def self.pre_converted_models: () -> Hash[String, Model::URI]
-    def initialize: () -> void
+    def self.new: () -> instance
     def n_vocab: () -> Integer
     def n_audio_ctx: () -> Integer
     def n_audio_state: () -> Integer
@@ -167,14 +167,13 @@ module Whisper
     def type: () -> String
 
     class URI
-      def initialize: (string | ::URI::HTTP) -> void
+      def self.new: (string | ::URI::HTTP) -> self
       def to_path: -> String
       def clear_cache: -> void
     end
   end
 
   class Segment
-    def initialize: () -> void
     def start_time: () -> Integer
     def end_time: () -> Integer
     def speaker_next_turn?: () -> (true | false)
@@ -185,6 +184,6 @@ module Whisper
   class Error < StandardError
     attr_reader code: Integer
 
-    def initialize: (Integer code) -> void
+    def self.new: (Integer code) -> instance
   end
 end
