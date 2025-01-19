@@ -25,18 +25,6 @@
     #include <unistd.h>
 #endif
 
-void setStdinNonBlocking() {
-#ifdef _WIN32
-    DWORD mode;
-    HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
-    GetConsoleMode(stdinHandle, &mode);
-    mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
-    SetConsoleMode(stdinHandle, mode);
-#else
-    fcntl(fileno(stdin), F_SETFL, fcntl(fileno(stdin), F_GETFL, 0) | O_NONBLOCK);
-#endif
-}
-
 
 // command-line parameters
 struct whisper_params {
@@ -47,6 +35,7 @@ struct whisper_params {
     int32_t capture_id = -1;
     int32_t max_tokens = 128;
     int32_t audio_ctx  = 0;
+    int32_t n_tmp_segs = 1;
 
     float vad_thold    = 0.6f;
     float freq_thold   = 100.0f;
@@ -151,6 +140,9 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
+    if (params.step_ms == 0) {
+        params.step_ms = -2000; // reasonable default for VAD
+    }
     params.keep_ms   = std::min(params.keep_ms,   abs(params.step_ms));
     params.length_ms = std::max(params.length_ms, abs(params.step_ms));
 
@@ -161,26 +153,38 @@ int main(int argc, char ** argv) {
     const int n_samples_100ms= (1e-3*100.0              )*WHISPER_SAMPLE_RATE;
 
     const bool use_vad = params.step_ms <= 0; // sliding window mode uses VAD
+    const bool piped = !isatty(fileno(stdin));
 
     // init audio
 
     audio_async audio(params.length_ms);
-    bool piped = !isatty(fileno(stdin));
 
-    if (piped) {
-        #ifdef _WIN32
-        _setmode(_fileno(stdin), _O_BINARY);
-        #else
-        freopen(NULL, "rb", stdin);
-        #endif
-        setStdinNonBlocking();
-    } else {
+    if (!piped) {
         if (!audio.init(params.capture_id, WHISPER_SAMPLE_RATE)) {
             fprintf(stderr, "%s: audio.init() failed!\n", __func__);
             return 1;
         }
 
         audio.resume();
+    } else {
+        fprintf(stderr, "%s: audio is from stdin, not from microphone\n", __func__);
+
+        #ifdef _WIN32
+        _setmode(_fileno(stdin), _O_BINARY);
+        #else
+        freopen(NULL, "rb", stdin);
+        #endif
+
+        // non-blocking mode
+        #ifdef _WIN32
+        DWORD mode;
+        HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
+        GetConsoleMode(stdinHandle, &mode);
+        mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+        SetConsoleMode(stdinHandle, mode);
+        #else
+        fcntl(fileno(stdin), F_SETFL, fcntl(fileno(stdin), F_GETFL, 0) | O_NONBLOCK);
+        #endif
     }
 
     // whisper init
@@ -225,10 +229,10 @@ int main(int argc, char ** argv) {
                 params.translate ? "translate" : "transcribe",
                 params.no_timestamps ? 0 : 1);
 
-        if (!use_vad) {
-            fprintf(stderr, "%s: no_context = %d\n", __func__, params.no_context);
-        } else {
+        fprintf(stderr, "%s: no_context = %d\n", __func__, params.no_context);
+        if (use_vad) {
             fprintf(stderr, "%s: using VAD, will transcribe on speech activity\n", __func__);
+            fprintf(stderr, "%s: interim report = %d, temporary segments = %d\n", __func__, params.interim, params.n_tmp_segs);
         }
 
         fprintf(stderr, "\n");
@@ -258,15 +262,13 @@ int main(int argc, char ** argv) {
 
         wavWriter.open(filename, WHISPER_SAMPLE_RATE, 16, 1);
     }
-
     fprintf(stderr, "[Start speaking]\n");
     fflush(stderr);
 
     auto t_last  = std::chrono::high_resolution_clock::now();
-    auto t_interim = t_last;
-    bool is_interim = false;
     const auto t_start = t_last;
-    std::string s_to_delete = "";
+    auto t_interim = t_last;
+    std::string s_tmp = "";
 
     // main audio loop
     while (is_running) {
@@ -281,13 +283,26 @@ int main(int argc, char ** argv) {
         const auto t_now  = std::chrono::high_resolution_clock::now();
         const auto t_diff = std::chrono::duration_cast<std::chrono::milliseconds>(t_now - t_last).count();
 
-        // get new audio
-        if (n_samples_new > n_samples_step) {
-            pcmf32.clear();
-        } else if (piped) {
-            // need at least step_ms
+        if (!piped) {
+            const auto sleep_ms = abs(params.step_ms) - t_diff;
+            if (sleep_ms > 0) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+                continue;
+            }
+
+            audio.next(pcmf32);
+
+            if ((int) pcmf32.size() > 2*n_samples_step) {
+                fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, dropping audio ...\n", __func__);
+                fprintf(stderr, "t_diff = %.2f sec, prev = %.2f sec, got = %.2f sec\n\n", 1e-3*t_diff, float(n_samples_new)/WHISPER_SAMPLE_RATE, float(pcmf32.size())/WHISPER_SAMPLE_RATE);
+                n_samples_old = 0;
+                n_samples_new = 0;
+                t_last = t_now;
+                continue;
+            }
+        } else {
+            // piped: need at least step_ms but try to get length_ms at first
             const auto n_bytes_min = (n_samples_step - n_samples_new) * sizeof(float);
-            // but try to get length_ms at first
             auto n_bytes_wanted = n_samples_len * sizeof(float);
             pcmf32.resize(n_samples_len);
 
@@ -296,8 +311,8 @@ int main(int argc, char ** argv) {
                 char *p_buf = (char *)pcmf32.data();
                 const auto n_read = read(fileno(stdin), p_buf + n_bytes_read, n_bytes_wanted);
                 if (n_read == 0 || n_read == -1 && errno != EAGAIN) {
-                    fprintf(stderr, "read(stdin) returned %zd, errno = %d\n", n_read, errno);
-                    is_running = false;
+                    fprintf(stderr, "read(stdin) returned %zd, errno = %s\n", n_read, strerror(errno));
+                    is_running = false; // flush all results
                     break;
                 }
                 n_bytes_read += std::max<long>(0, n_read);
@@ -307,15 +322,10 @@ int main(int argc, char ** argv) {
                     const auto n_mod = n_bytes_read % sizeof(float);
                     n_bytes_wanted = (n_mod != 0) ? sizeof(float) - n_mod : 0;
                 }
-                const auto est_ms = 1000 * n_bytes_wanted / sizeof(float) / WHISPER_SAMPLE_RATE;
-                std::this_thread::sleep_for(std::chrono::milliseconds(est_ms));
+                const auto est_sleep_ms = 1000 * n_bytes_wanted / sizeof(float) / WHISPER_SAMPLE_RATE;
+                std::this_thread::sleep_for(std::chrono::milliseconds(est_sleep_ms));
             }
             pcmf32.resize(n_bytes_read / sizeof(float));
-        } else if (t_diff < abs(params.step_ms)) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(abs(params.step_ms) - t_diff));
-            continue;
-        } else {
-            audio.next(pcmf32);
         }
 
         int n_samples_buf = pcmf32.size();
@@ -330,49 +340,46 @@ int main(int argc, char ** argv) {
         }
 
         n_samples_new += n_samples_buf;
-        if (!use_vad && !piped && n_samples_new > 2*n_samples_step) {
-            fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, dropping audio ...\n", __func__);
-            fprintf(stderr, "t_diff = %.2fs, new = %.2fs, buf = %.2fs\n\n", 1e-3*t_diff, float(n_samples_new)/WHISPER_SAMPLE_RATE, float(n_samples_buf)/WHISPER_SAMPLE_RATE);
-            n_samples_old = 0;
-            n_samples_new = 0;
-            t_last = t_now;
-            continue;
-        }
 
         if (n_samples_old + n_samples_new == 0) {
             continue;
         }
 
-        is_interim = false;
-        bool is_aborted = true;
-
-        n_samples_buf = std::min(n_samples_len, n_samples_old + n_samples_new);
+        // prepare pcmf32 for inference
+        n_samples_buf = n_samples_old + n_samples_new;
         pcmf32.resize(n_samples_buf);
         copy(pcmf32_deque.end() - n_samples_buf, pcmf32_deque.end(), pcmf32.begin());
 
-        if (!use_vad){
+        // chop the audio unconditionally
+        bool use_keep_ms = ((!use_vad || params.interim) && n_samples_buf > n_samples_len);
+
+        // interim report in vad mode: once every step_ms,
+        // run the inference even if vad returns false,
+        // confirm (n_segments - params.n_tmp_segs) segments,
+        // and print other segments as s_tmp, which will be deleted
+        bool is_interim = false;
+
+        if (!use_vad || use_keep_ms || !is_running) {
+            use_keep_ms = true;
             n_samples_old += n_samples_new;
             n_samples_new = 0;
 
             t_last = t_now;
         } else {
-            is_aborted = (n_samples_buf > n_samples_len);
-
-            if (!is_running || is_aborted || ::vad_simple(pcmf32, WHISPER_SAMPLE_RATE, std::min(1000, abs(params.step_ms) / 2), params.vad_thold, params.freq_thold, false)) {
+            if (::vad_simple(pcmf32, WHISPER_SAMPLE_RATE, std::min(1000, abs(params.step_ms) / 2), params.vad_thold, params.freq_thold, false)) {
                 n_samples_new = 0;
                 n_samples_old = 0;
 
                 t_last = t_now;
             } else {
-                const auto n_interim_diff_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_now - t_interim).count();
+                const auto interim_diff_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_now - t_interim).count();
 
-                if (params.interim && n_interim_diff_ms > abs(params.step_ms)) {
-                    is_interim = (n_interim_diff_ms < params.length_ms - abs(params.step_ms));
+                if (params.interim && interim_diff_ms > abs(params.step_ms)) {
+                    is_interim = true;
                     n_samples_old += n_samples_new;
                     n_samples_new = 0;
-                    pcmf32.resize(n_samples_old);
-                    copy(pcmf32_deque.end() - n_samples_old, pcmf32_deque.end(), pcmf32.begin());
                 } else {
+                    // sliding window
                     n_samples_new -= n_samples_100ms;
                     n_samples_old = std::min(n_samples_len, n_samples_old + n_samples_100ms);
                     if (!piped) {
@@ -408,145 +415,150 @@ int main(int argc, char ** argv) {
             wparams.prompt_tokens    = params.no_context ? nullptr : prompt_tokens.data();
             wparams.prompt_n_tokens  = params.no_context ? 0       : prompt_tokens.size();
 
+            // call whisper_full() with at least 1 sec of buffer
             {
                 auto pcm_size = pcmf32.size();
                 if (pcm_size < WHISPER_SAMPLE_RATE * 1.1) {
                     pcmf32.resize(pcm_size + WHISPER_SAMPLE_RATE, 0.0f);
                 }
-                if (whisper_full(ctx, wparams, pcmf32.data(), pcmf32.size()) != 0) {
+                if (whisper_full(ctx, wparams, pcmf32.data(), pcm_size) != 0) {
                     fprintf(stderr, "%s: failed to process audio\n", argv[0]);
                     return 6;
                 }
                 pcmf32.resize(pcm_size);
             }
-            t_interim  = std::chrono::high_resolution_clock::now();
+            t_interim = std::chrono::high_resolution_clock::now();
 
             // print result;
             int n_segments;
-            bool no_confirmed = (!use_vad && n_samples_old < n_samples_len - n_samples_step);
-            std::ostringstream text;
+            bool is_all_tmp = (!use_vad && n_samples_old < n_samples_len - n_samples_step);
+            std::ostringstream ss_output;
+
             {
-                if (params.delete_vt100 && s_to_delete.size()) {
+                if (params.delete_vt100 && s_tmp.size()) {
                     printf("\33[2K\r");
 
                     // print long empty line to clear the previous line
-                    printf("%s", std::string(s_to_delete.size(), ' ').c_str());
+                    printf("%s", std::string(s_tmp.size(), ' ').c_str());
 
                     printf("\33[2K\r");
                 }
-                s_to_delete.clear();
+                s_tmp.clear();
 
                 n_segments = whisper_full_n_segments(ctx);
-                no_confirmed = (no_confirmed || is_interim && n_segments <= 1);
-                if (is_running && is_interim && !no_confirmed) {
-                    const int64_t t1_ms = whisper_full_get_segment_t1(ctx, n_segments - 2) * 10;
+                is_all_tmp = (is_running && (is_all_tmp || is_interim && n_segments <= params.n_tmp_segs));
+                if (is_running && is_interim && !is_all_tmp) {
+                    const int64_t t1_ms = whisper_full_get_segment_t1(ctx, n_segments - params.n_tmp_segs - 1) * 10;
                     if (t1_ms < abs(params.step_ms)) {
                         // too short to confirm
-                        no_confirmed = true;
+                        is_all_tmp = true;
                     } else {
                         t_last += std::chrono::milliseconds(t1_ms);
                         const auto n_samples_confirmed = (1e-3*t1_ms)*WHISPER_SAMPLE_RATE;
                         pcmf32.resize(n_samples_confirmed); // for timestamps
-                        n_samples_old -= n_samples_confirmed;
+                        n_samples_old -= n_samples_confirmed; // kept for next iteration
                     }
                 }
 
-                if (use_vad && !params.no_timestamps && (!is_running || !no_confirmed)) {
+                bool show_n_iter = (use_vad && !params.no_timestamps && !is_all_tmp);
+
+                if (show_n_iter) {
                     const int64_t t1 = (t_last - t_start).count()/1000000;
                     const int64_t t0 = std::max(0.0, t1 - pcmf32.size()*1000.0/WHISPER_SAMPLE_RATE);
 
-                    text << std::endl;
-                    text << "### Transcription " << n_iter << " START | t0 = " << t0 << " ms | t1 = " << t1 << " ms" << std::endl;
-                    text << std::endl;
+                    ss_output << std::endl;
+                    ss_output << "### Transcription " << n_iter << " START | t0 = " << t0 << " ms | t1 = " << t1 << " ms" << std::endl;
+                    ss_output << std::endl;
                 }
 
                 for (int i = 0; i < n_segments; ++i) {
-                    std::string i_text = whisper_full_get_segment_text(ctx, i);
+                    std::string text = whisper_full_get_segment_text(ctx, i);
 
-                    // last segment may be s_to_delete
-                    if (i == n_segments - 1 && is_running && (no_confirmed || is_interim)) {
+                    // last segment(s) may be s_tmp
+                    if (i >= n_segments - params.n_tmp_segs && is_running && (is_all_tmp || is_interim)) {
                         if (params.no_timestamps && i > 0) {
-                            text << std::endl;
+                            ss_output << std::endl;
                         }
                         if (is_interim) {
-                            // utf-8 cannot be simply cut
+                            // utf-8 cannot be simply cut, so use char32_t
                             std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
-                            const auto t_u32 = conv.from_bytes(i_text);
-                            const auto t_sub = conv.to_bytes(t_u32.substr(0, t_u32.size() * 0.9));
-                            i_text = t_sub + "…";
+                            const auto s_u32 = conv.from_bytes(text);
+                            const auto s_sub = conv.to_bytes(s_u32.substr(0, s_u32.size() * 0.9));
+                            text = s_sub + "…";
                         }
-                        if (s_to_delete.size() > 0) {
-                            s_to_delete += " ";
+                        if (s_tmp.size() > 0) {
+                            s_tmp += " ";
                         }
-                        s_to_delete += i_text;
-                        if (!params.delete_vt100) {
-                            s_to_delete = "(" + s_to_delete + ")";
-                        }
-                        break;
+                        s_tmp += text;
+                        continue;
                     }
 
-                    if (is_running && no_confirmed) {
-                        if (s_to_delete.size() > 0) {
-                            s_to_delete += " ";
+                    if (is_all_tmp) {
+                        if (s_tmp.size() > 0) {
+                            s_tmp += " ";
                         }
-                        s_to_delete += i_text;
+                        s_tmp += text;
                     } else if (params.no_timestamps) {
                         if (i > 0) {
-                            text << std::endl;
+                            ss_output << std::endl;
                         }
-                        text << i_text;
-                    } else if (!is_running || !(is_interim && i == n_segments - 1)) {
+                        ss_output << text;
+                    } else {
                         const int64_t t_end = (t_last - t_start).count()/1000000;
                         const int64_t t_beg = std::max(0.0, t_end - pcmf32.size()*1000.0/WHISPER_SAMPLE_RATE);
                         const int64_t t0 = t_beg/10 + whisper_full_get_segment_t0(ctx, i);
                         const int64_t t1 = t_beg/10 + whisper_full_get_segment_t1(ctx, i);
 
-                        text << "[" << to_timestamp(t0, false) << " --> " << to_timestamp(t1, false) << "]  " << i_text;
+                        ss_output << "[" << to_timestamp(t0, false) << " --> " << to_timestamp(t1, false) << "]  " << text;
 
                         if (whisper_full_get_segment_speaker_turn_next(ctx, i)) {
-                            text << " [SPEAKER_TURN]";
+                            ss_output << " [SPEAKER_TURN]";
                         }
 
-                        text << std::endl;
+                        ss_output << std::endl;
                     }
                 }
 
-                if (use_vad && !params.no_timestamps && (!is_running || !no_confirmed)) {
-                    text << std::endl;
-                    text << "### Transcription " << n_iter << " END";
-                    text << std::endl;
-                    if (s_to_delete.size() > 0) {
-                        text << std::endl;
+                if (show_n_iter) {
+                    ss_output << std::endl;
+                    ss_output << "### Transcription " << n_iter << " END" << std::endl;
+                    if (s_tmp.size() > 0) {
+                        ss_output << std::endl;
                     }
                 }
             }
 
             if (params.fname_out.length() > 0) {
-                fout << text.str();
+                fout << ss_output.str();
                 fout << std::endl;
             }
 
-            if (!no_confirmed) {
+            if (!is_all_tmp) {
                 ++n_iter;
             }
 
-            printf("%s", text.str().c_str());
+            printf("%s", ss_output.str().c_str());
 
-            if (is_running && (no_confirmed || is_interim)) {
-                printf("%s%s", s_to_delete.c_str(), params.delete_vt100 ? "" : "\n");
-                --n_segments; // exclude s_to_delete from context
+            if (s_tmp.size() > 0) {
+                if (!params.delete_vt100) {
+                    s_tmp = "(" + s_tmp + ")\n";
+                }
+                printf("%s", s_tmp.c_str());
+
+                // exclude s_tmp from context
+                n_segments -= is_all_tmp ? n_segments : params.n_tmp_segs;
             } else {
                 printf("\n");
-                s_to_delete = "";
+                s_tmp = "";
 
-                if (is_aborted) {
+                if (use_keep_ms) {
                     // keep part of the audio for next iteration to try to mitigate word boundary issues
                     n_samples_old = std::min(n_samples_old, n_samples_keep);
                 }
             }
 
             // Add tokens of the last full length segment as the prompt
-            if (!no_confirmed && !params.no_context) {
+            if (n_segments > 0 && !params.no_context) {
                 prompt_tokens.clear();
 
                 for (int i = 0; i < n_segments; ++i) {
