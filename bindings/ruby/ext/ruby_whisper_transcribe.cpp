@@ -110,7 +110,7 @@ ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
       }
     } else {
       for (uint64_t i = 0; i < n; i++) {
-        pcmf32[i] = float(pcm16[2*i] + pcm16[2*i + 1])/65536.0f;
+        pcmf32[i] = float((int32_t)pcm16[2*i] + pcm16[2*i + 1])/65536.0f;
       }
     }
 
