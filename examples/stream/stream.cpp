@@ -302,11 +302,11 @@ int main(int argc, char ** argv) {
             }
         } else {
             // piped: need at least step_ms but try to get length_ms at first
-            const auto n_bytes_min = (n_samples_step - n_samples_new) * sizeof(float);
+            const auto n_bytes_min = std::max<long>(0, (n_samples_step - n_samples_new) * sizeof(float));
             auto n_bytes_wanted = n_samples_len * sizeof(float);
             pcmf32.resize(n_samples_len);
 
-            auto n_bytes_read = 0;
+            long n_bytes_read = 0;
             while (n_bytes_wanted > 0) {
                 char *p_buf = (char *)pcmf32.data();
                 const auto n_read = read(fileno(stdin), p_buf + n_bytes_read, n_bytes_wanted);
