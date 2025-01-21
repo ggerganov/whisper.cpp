@@ -4,10 +4,8 @@ whisper.bundle
 whisper.dll
 scripts/get-flags.mk
 *.o
-*.c
-*.cpp
-*.h
-*.m
-*.metal
-!ruby_whisper.cpp
-!ruby_whisper.h
+/*/**/*.c
+/*/**/*.cpp
+/*/**/*.h
+/*/**/*.m
+/*/**/*.metal

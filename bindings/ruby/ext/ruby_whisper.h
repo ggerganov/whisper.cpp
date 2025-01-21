@@ -22,4 +22,13 @@ typedef struct {
   ruby_whisper_callback_container *abort_callback_container;
 } ruby_whisper_params;
 
+typedef struct {
+  VALUE context;
+  int index;
+} ruby_whisper_segment;
+
+typedef struct {
+  VALUE context;
+} ruby_whisper_model;
+
 #endif

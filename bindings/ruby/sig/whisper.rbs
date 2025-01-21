@@ -20,13 +20,12 @@ module Whisper
   def self.lang_id: (string name) -> Integer
   def self.lang_str: (Integer id) -> String
   def self.lang_str_full: (Integer id) -> String
-  def self.log_set=: (log_callback) -> log_callback
-  def self.finalize_log_callback: (void) -> void # Second argument of ObjectSpace.define_finalizer
+  def self.log_set: (log_callback, Object? user_data) -> log_callback
 
   class Context
-    def initialize: (string | _ToPath | ::URI::HTTP ) -> void
-    def transcribe: (string, Params) -> void
-                  | (string, Params) { (String) -> void } -> void
+    def self.new: (string | _ToPath | ::URI::HTTP) -> instance
+    def transcribe: (string, Params) -> self
+                  | (string, Params) { (String) -> void } -> self
     def model_n_vocab: () -> Integer
     def model_n_audio_ctx: () -> Integer
     def model_n_audio_state: () -> Integer
@@ -35,6 +34,10 @@ module Whisper
     def model_n_mels: () -> Integer
     def model_ftype: () -> Integer
     def model_type: () -> String
+    def each_segment: { (Segment) -> void } -> void
+                    | () -> Enumerator[Segment]
+    def model: () -> Model
+    def full_get_segment: (Integer nth) -> Segment
     def full_n_segments: () -> Integer
     def full_lang_id: () -> Integer
     def full_get_segment_t0: (Integer) -> Integer
@@ -42,18 +45,46 @@ module Whisper
     def full_get_segment_speaker_turn_next: (Integer) -> (true | false)
     def full_get_segment_text: (Integer) -> String
     def full_get_segment_no_speech_prob: (Integer) -> Float
-    def full: (Params, Array[Float], ?Integer) -> void
-            | (Params, _Samples, ?Integer) -> void
-    def full_parallel: (Params, Array[Float], ?Integer) -> void
-                     | (Params, _Samples, ?Integer) -> void
-                     | (Params, _Samples, ?Integer?, Integer) -> void
-    def each_segment: { (Segment) -> void } -> void
-                    | () -> Enumerator[Segment]
-    def model: () -> Model
+    def full: (Params, Array[Float] samples, ?Integer n_samples) -> self
+            | (Params, _Samples, ?Integer n_samples) -> self
+    def full_parallel: (Params, Array[Float], ?Integer n_samples) -> self
+                     | (Params, _Samples, ?Integer n_samples) -> self
+                     | (Params, _Samples, ?Integer? n_samples, Integer n_processors) -> self
   end
 
   class Params
-    def initialize: () -> void
+    def self.new: (
+      ?language: string,
+      ?translate: boolish,
+      ?no_context: boolish,
+      ?single_segment: boolish,
+      ?print_special: boolish,
+      ?print_progress: boolish,
+      ?print_realtime: boolish,
+      ?print_timestamps: boolish,
+      ?suppress_blank: boolish,
+      ?suppress_nst: boolish,
+      ?token_timestamps: boolish,
+      ?split_on_word: boolish,
+      ?initial_prompt: string | nil,
+      ?diarize: boolish,
+      ?offset: Integer,
+      ?duration: Integer,
+      ?max_text_tokens: Integer,
+      ?temperature: Float,
+      ?max_initial_ts: Float,
+      ?length_penalty: Float,
+      ?temperature_inc: Float,
+      ?entropy_thold: Float,
+      ?logprob_thold: Float,
+      ?no_speech_thold: Float,
+      ?new_segment_callback: new_segment_callback,
+      ?new_segment_callback_user_data: Object,
+      ?progress_callback: progress_callback,
+      ?progress_callback_user_data: Object,
+      ?abort_callback: abort_callback,
+      ?abort_callback_user_data: Object
+    ) -> instance
     def language=: (String) -> String # TODO: Enumerate lang names
     def language: () -> String
     def translate=: (boolish) -> boolish
@@ -79,7 +110,7 @@ module Whisper
     def split_on_word=: (boolish) -> boolish
     def split_on_word: () -> (true | false)
     def initial_prompt=: (_ToS) -> _ToS
-    def initial_prompt: () -> String
+    def initial_prompt: () -> (String | nil)
     def diarize=: (boolish) -> boolish
     def diarize: () -> (true | false)
     def offset=: (Integer) -> Integer
@@ -103,19 +134,25 @@ module Whisper
     def no_speech_thold=: (Float) -> Float
     def no_speech_thold: () -> Float
     def new_segment_callback=: (new_segment_callback) -> new_segment_callback
+    def new_segment_callback: () -> (new_segment_callback | nil)
     def new_segment_callback_user_data=: (Object) -> Object
+    def new_segment_callback_user_data: () -> Object
     def progress_callback=: (progress_callback) -> progress_callback
+    def progress_callback: () -> (progress_callback | nil)
     def progress_callback_user_data=: (Object) -> Object
+    def progress_callback_user_data: () -> Object
     def abort_callback=: (abort_callback) -> abort_callback
+    def abort_callback: () -> (abort_callback | nil)
     def abort_callback_user_data=: (Object) -> Object
+    def abort_callback_user_data: () -> Object
     def on_new_segment: { (Segment) -> void } -> void
-    def on_progress: { (Integer) -> void } -> void
-    def abort_on: { (Object) -> boolish } -> void
+    def on_progress: { (Integer progress) -> void } -> void
+    def abort_on: { (Object user_data) -> boolish } -> void
   end
 
   class Model
     def self.pre_converted_models: () -> Hash[String, Model::URI]
-    def initialize: () -> void
+    def self.new: () -> instance
     def n_vocab: () -> Integer
     def n_audio_ctx: () -> Integer
     def n_audio_state: () -> Integer
@@ -130,14 +167,13 @@ module Whisper
     def type: () -> String
 
     class URI
-      def initialize: (string | ::URI::HTTP) -> void
+      def self.new: (string | ::URI::HTTP) -> self
       def to_path: -> String
       def clear_cache: -> void
     end
   end
 
   class Segment
-    def initialize: () -> void
     def start_time: () -> Integer
     def end_time: () -> Integer
     def speaker_next_turn?: () -> (true | false)
@@ -148,6 +184,6 @@ module Whisper
   class Error < StandardError
     attr_reader code: Integer
 
-    def initialize: (Integer) -> void
+    def self.new: (Integer code) -> instance
   end
 end

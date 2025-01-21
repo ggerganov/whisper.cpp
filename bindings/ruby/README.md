@@ -24,14 +24,15 @@ require "whisper"
 
 whisper = Whisper::Context.new("base")
 
-params = Whisper::Params.new
-params.language = "en"
-params.offset = 10_000
-params.duration = 60_000
-params.max_text_tokens = 300
-params.translate = true
-params.print_timestamps = false
-params.initial_prompt = "Initial prompt here."
+params = Whisper::Params.new(
+  language: "en",
+  offset: 10_000,
+  duration: 60_000,
+  max_text_tokens: 300,
+  translate: true,
+  print_timestamps: false,
+  initial_prompt: "Initial prompt here."
+)
 
 whisper.transcribe("path/to/audio.wav", params) do |whole_text|
   puts whole_text
@@ -113,18 +114,18 @@ def format_time(time_ms)
   "%02d:%02d:%02d.%03d" % [hour, min, sec, decimal_part]
 end
 
-whisper.transcribe("path/to/audio.wav", params)
-
-whisper.each_segment.with_index do |segment, index|
-  line = "[%{nth}: %{st} --> %{ed}] %{text}" % {
-    nth: index + 1,
-    st: format_time(segment.start_time),
-    ed: format_time(segment.end_time),
-    text: segment.text
-  }
-  line << " (speaker turned)" if segment.speaker_next_turn?
-  puts line
-end
+whisper
+  .transcribe("path/to/audio.wav", params)
+  .each_segment.with_index do |segment, index|
+    line = "[%{nth}: %{st} --> %{ed}] %{text}" % {
+      nth: index + 1,
+      st: format_time(segment.start_time),
+      ed: format_time(segment.end_time),
+      text: segment.text
+    }
+    line << " (speaker turned)" if segment.speaker_next_turn?
+    puts line
+  end
 
 ```
 
@@ -215,10 +216,11 @@ reader = WaveFile::Reader.new("path/to/audio.wav", WaveFile::Format.new(:mono, :
 samples = reader.enum_for(:each_buffer).map(&:samples).flatten
 
 whisper = Whisper::Context.new("base")
-whisper.full(Whisper::Params.new, samples)
-whisper.each_segment do |segment|
-  puts segment.text
-end
+whisper
+  .full(Whisper::Params.new, samples)
+  .each_segment do |segment|
+    puts segment.text
+  end
 ```
 
 The second argument `samples` may be an array, an object with `length` and `each` method, or a MemoryView. If you can prepare audio data as C array and export it as a MemoryView, whispercpp accepts and works with it with zero copy.

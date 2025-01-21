@@ -1,6 +1,39 @@
 require_relative "helper"
 
 class TestParams < TestBase
+  PARAM_NAMES = [
+    :language,
+    :translate,
+    :no_context,
+    :single_segment,
+    :print_special,
+    :print_progress,
+    :print_realtime,
+    :print_timestamps,
+    :suppress_blank,
+    :suppress_nst,
+    :token_timestamps,
+    :split_on_word,
+    :initial_prompt,
+    :diarize,
+    :offset,
+    :duration,
+    :max_text_tokens,
+    :temperature,
+    :max_initial_ts,
+    :length_penalty,
+    :temperature_inc,
+    :entropy_thold,
+    :logprob_thold,
+    :no_speech_thold,
+    :new_segment_callback,
+    :new_segment_callback_user_data,
+    :progress_callback,
+    :progress_callback_user_data,
+    :abort_callback,
+    :abort_callback_user_data,
+  ]
+
   def setup
     @params  = Whisper::Params.new
   end
@@ -156,5 +189,58 @@ class TestParams < TestBase
     assert_in_delta 0.6, @params.no_speech_thold
     @params.no_speech_thold = 0.2
     assert_in_delta 0.2, @params.no_speech_thold
+  end
+
+  def test_new_with_kw_args
+    params = Whisper::Params.new(language: "es")
+    assert_equal "es", params.language
+    assert_equal 1.0, params.max_initial_ts
+  end
+
+  def test_new_with_kw_args_non_existent
+    assert_raise ArgumentError do
+      Whisper::Params.new(non_existent: "value")
+    end
+  end
+
+  def test_new_with_kw_args_wrong_type
+    assert_raise TypeError do
+      Whisper::Params.new(language: 3)
+    end
+  end
+
+  data(PARAM_NAMES.collect {|param| [param, param]}.to_h)
+  def test_new_with_kw_args_default_values(param)
+    default_value = @params.send(param)
+    value = case [param, default_value]
+            in [*, true | false]
+              !default_value
+            in [*, Integer | Float]
+              default_value + 1
+            in [:language, *]
+              "es"
+            in [:initial_prompt, *]
+              "Initial prompt"
+            in [/_callback\Z/, *]
+              proc {}
+            in [/_user_data\Z/, *]
+              Object.new
+            end
+    params = Whisper::Params.new(param => value)
+    if Float === value
+      assert_in_delta value, params.send(param)
+    else
+      assert_equal value, params.send(param)
+    end
+
+    PARAM_NAMES.reject {|name| name == param}.each do |name|
+      expected = @params.send(name)
+      actual = params.send(name)
+      if Float === expected
+        assert_in_delta expected, actual
+      else
+        assert_equal expected, actual
+      end
+    end
   end
 end
