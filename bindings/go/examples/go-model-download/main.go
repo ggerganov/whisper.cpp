@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -146,15 +147,7 @@ func GetOut() (string, error) {
 func GetModels() []string {
 	if flag.NArg() == 0 {
 		fmt.Println("No model specified.")
-		fmt.Println("Would you like to download all models? (y/N)")
-
-		// Prompt for user input
-		var response string
-		fmt.Scanln(&response)
-		if response != "y" && response != "Y" {
-			fmt.Println("Aborting. Specify a model to download.")
-			os.Exit(0)
-		}
+		fmt.Println("Preparing to download all models...")
 
 		// Calculate total download size
 		fmt.Println("Calculating total download size...")
@@ -164,13 +157,15 @@ func GetModels() []string {
 			os.Exit(1)
 		}
 
-		fmt.Printf("Total download size: %.2f MB\n", float64(totalSize)/1e6)
-		fmt.Println("Do you want to proceed? (y/N)")
+		fmt.Println("View available models: https://huggingface.co/ggerganov/whisper.cpp/tree/main")
+		fmt.Printf("Total download size: %.2f GB\n", float64(totalSize)/(1024*1024*1024))
+		fmt.Println("Would you like to download all models? (y/N)")
 
-		// Confirm with the user again
+		// Prompt for user input
+		var response string
 		fmt.Scanln(&response)
 		if response != "y" && response != "Y" {
-			fmt.Println("Aborting.")
+			fmt.Println("Aborting. Specify a model to download.")
 			os.Exit(0)
 		}
 
@@ -214,18 +209,24 @@ func CalculateTotalDownloadSize(models []string) (int64, error) {
 
 // URLForModel returns the URL for the given model on huggingface.co
 func URLForModel(model string) (string, error) {
-	if filepath.Ext(model) != srcExt {
-		model += "ggml-" + model + srcExt
+	// Ensure "ggml-" prefix is added only once
+	if !strings.HasPrefix(model, "ggml-") {
+		model = "ggml-" + model
 	}
+
+	// Ensure ".bin" extension is added only once
+	if filepath.Ext(model) != srcExt {
+		model += srcExt
+	}
+
+	// Parse the base URL
 	url, err := url.Parse(srcUrl)
 	if err != nil {
 		return "", err
 	}
-	// Ensure no double slassh by trimming trailing '/' from srcUrl if present
-	if url.Path[len(url.Path)-1] == '/' {
-		url.Path = url.Path[:len(url.Path)-1]
-	}
-	url.Path = fmt.Sprintf("%s/%s", url.Path, model)
+
+	// Ensure no trailing slash in the base URL
+	url.Path = fmt.Sprintf("%s/%s", strings.TrimSuffix(url.Path, "/"), model)
 	return url.String(), nil
 }
 
