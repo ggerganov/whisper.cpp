@@ -145,10 +145,71 @@ func GetOut() (string, error) {
 // GetModels returns the list of models to download
 func GetModels() []string {
 	if flag.NArg() == 0 {
-		return modelNames
-	} else {
-		return flag.Args()
+		fmt.Println("No model specified.")
+		fmt.Println("Would you like to download all models? (y/N)")
+
+		// Prompt for user input
+		var response string
+		fmt.Scanln(&response)
+		if response != "y" && response != "Y" {
+			fmt.Println("Aborting. Specify a model to download.")
+			os.Exit(0)
+		}
+
+		// Calculate total download size
+		fmt.Println("Calculating total download size...")
+		totalSize, err := CalculateTotalDownloadSize(modelNames)
+		if err != nil {
+			fmt.Println("Error calculating download sizes:", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Total download size: %.2f MB\n", float64(totalSize)/1e6)
+		fmt.Println("Do you want to proceed? (y/N)")
+
+		// Confirm with the user again
+		fmt.Scanln(&response)
+		if response != "y" && response != "Y" {
+			fmt.Println("Aborting.")
+			os.Exit(0)
+		}
+
+		return modelNames // Return all models if confirmed
 	}
+	return flag.Args() // Return specific models if arguments are provided
+}
+
+func CalculateTotalDownloadSize(models []string) (int64, error) {
+	var totalSize int64
+	client := http.Client{}
+
+	for _, model := range models {
+		modelURL, err := URLForModel(model)
+		if err != nil {
+			return 0, err
+		}
+
+		// Issue a HEAD request to get the file size
+		req, err := http.NewRequest("HEAD", modelURL, nil)
+		if err != nil {
+			return 0, err
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return 0, err
+		}
+		resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("Warning: Unable to fetch size for %s (HTTP %d)\n", model, resp.StatusCode)
+			continue
+		}
+
+		size := resp.ContentLength
+		totalSize += size
+	}
+	return totalSize, nil
 }
 
 // URLForModel returns the URL for the given model on huggingface.co
