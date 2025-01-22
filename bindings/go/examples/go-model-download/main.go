@@ -154,7 +154,7 @@ func GetModels() []string {
 // URLForModel returns the URL for the given model on huggingface.co
 func URLForModel(model string) (string, error) {
 	if filepath.Ext(model) != srcExt {
-		model += srcExt
+		model += "ggml-" + model + srcExt
 	}
 	url, err := url.Parse(srcUrl)
 	if err != nil {
