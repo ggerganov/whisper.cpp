@@ -159,9 +159,12 @@ func URLForModel(model string) (string, error) {
 	url, err := url.Parse(srcUrl)
 	if err != nil {
 		return "", err
-	} else {
-		url.Path = fmt.Sprintf("%s/%s", url.Path, model)
 	}
+	// Ensure no double slassh by trimming trailing '/' from srcUrl if present
+	if url.Path[len(url.Path)-1] == '/' {
+		url.Path = url.Path[:len(url.Path)-1]
+	}
+	url.Path = fmt.Sprintf("%s/%s", url.Path, model)
 	return url.String(), nil
 }
 
