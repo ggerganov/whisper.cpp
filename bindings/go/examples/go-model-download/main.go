@@ -160,7 +160,7 @@ func URLForModel(model string) (string, error) {
 	if err != nil {
 		return "", err
 	} else {
-		url.Path = fmt.Sprintf("%s/%s", url.Path, model)
+		url.Path = filepath.Join(url.Path, model)
 	}
 	return url.String(), nil
 }
