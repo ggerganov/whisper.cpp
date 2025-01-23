@@ -92,13 +92,6 @@ The command downloads the `base.en` model converted to custom `ggml` format and 
 
 For detailed usage instructions, run: `./build/bin/whisper-cli -h`
 
-Note that the [whisper-cli](examples/cli) example currently runs only with 16-bit WAV files, so make sure to convert your input before running the tool.
-For example, you can use `ffmpeg` like this:
-
-```bash
-ffmpeg -i input.mp3 -ar 16000 -ac 1 -c:a pcm_s16le output.wav
-```
-
 ## More audio samples
 
 If you want some extra audio samples to play with, simply run:
@@ -107,7 +100,7 @@ If you want some extra audio samples to play with, simply run:
 make -j samples
 ```
 
-This will download a few more audio files from Wikipedia and convert them to 16-bit WAV format via `ffmpeg`.
+This will download a few more audio files from Wikipedia.
 
 You can download and run the other models as follows:
 
