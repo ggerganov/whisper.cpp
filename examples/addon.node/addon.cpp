@@ -330,6 +330,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   bool no_timestamps = whisper_params.Get("no_timestamps").As<Napi::Boolean>();
   int32_t audio_ctx = whisper_params.Get("audio_ctx").As<Napi::Number>();
   bool comma_in_time = whisper_params.Get("comma_in_time").As<Napi::Boolean>();
+  int32_t max_len = whisper_params.Get("max_len").As<Napi::Number>();
 
   Napi::Value pcmf32Value = whisper_params.Get("pcmf32");
   std::vector<float> pcmf32_vec;
@@ -352,6 +353,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   params.audio_ctx = audio_ctx;
   params.pcmf32 = pcmf32_vec;
   params.comma_in_time = comma_in_time;
+  params.max_len = max_len;
 
   Napi::Function callback = info[1].As<Napi::Function>();
   Worker* worker = new Worker(callback, params);
