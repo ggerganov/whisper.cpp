@@ -87,7 +87,7 @@ func (model *model) NewContext() (Context, error) {
 	}
 
 	// Create new context
-	params := model.ctx.Whisper_full_default_params(whisper.SAMPLING_GREEDY)
+	params := model.ctx.Whisper_full_default_params(whisper.SAMPLING_BEAM_SEARCH)
 	params.SetTranslate(false)
 	params.SetPrintSpecial(false)
 	params.SetPrintProgress(false)
