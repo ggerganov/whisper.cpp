@@ -40,16 +40,16 @@
 #endif
 
 #if defined(GGML_BIG_ENDIAN)
-#include <bit>
-
 template<typename T>
 static T byteswap(T value) {
-    return std::byteswap(value);
-}
-
-template<>
-float byteswap(float value) {
-    return std::bit_cast<float>(byteswap(std::bit_cast<std::uint32_t>(value)));
+    T value_swapped;
+    char * source = reinterpret_cast<char *>(&value);
+    char * target = reinterpret_cast<char *>(&value_swapped);
+    int size = sizeof(T);
+    for (int i = 0; i < size; i++) {
+        target[size - 1 - i] = source[i];
+    }
+    return value_swapped;
 }
 
 template<typename T>
