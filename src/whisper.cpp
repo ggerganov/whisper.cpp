@@ -85,14 +85,14 @@ static void byteswap_tensor(ggml_tensor * tensor) {
 }
 
 #define BYTESWAP_VALUE(d) d = byteswap(d)
-#define BYTESWAP_FILTERS(f)            \
+#define BYTESWAP_FILTERS(f)           \
     do {                              \
         for (auto & datum : f.data) { \
             datum = byteswap(datum);  \
         }                             \
     } while (0)
-#define BYTESWAP_TENSOR(t)       \
-    do {                         \
+#define BYTESWAP_TENSOR(t)  \
+    do {                    \
         byteswap_tensor(t); \
     } while (0)
 #else
