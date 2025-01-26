@@ -39,7 +39,7 @@
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
 
-#if defined(GGML_BIG_ENDIAN)
+#if defined(WHISPER_BIG_ENDIAN)
 template<typename T>
 static T byteswap(T value) {
     T value_swapped;
