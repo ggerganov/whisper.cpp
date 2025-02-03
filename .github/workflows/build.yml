@@ -16,8 +16,8 @@ env:
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
 jobs:
-  ubuntu-latest:
-    runs-on: ubuntu-latest
+  ubuntu-22:
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -42,8 +42,8 @@ jobs:
             cmake -B build
             cmake --build build --config Release -j $(nproc)'
 
-  ubuntu-latest-arm64:
-    runs-on: ubuntu-latest
+  ubuntu-22-arm64:
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -68,8 +68,8 @@ jobs:
             cmake -B build -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv8-a
             cmake --build build --config Release -j $(nproc)'
 
-  ubuntu-latest-arm-v7:
-    runs-on: ubuntu-latest
+  ubuntu-22-arm-v7:
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -129,8 +129,8 @@ jobs:
 #            cmake -B build
 #            cmake --build build --config Release
 
-  ubuntu-latest-gcc:
-    runs-on: ubuntu-latest
+  ubuntu-22-gcc:
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -157,8 +157,8 @@ jobs:
             make
             ctest -L gh --output-on-failure'
 
-  ubuntu-latest-gcc-arm64:
-    runs-on: ubuntu-latest
+  ubuntu-22-gcc-arm64:
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -185,8 +185,8 @@ jobs:
             make
             ctest -L gh --output-on-failure'
 
-  ubuntu-latest-gcc-arm-v7:
-    runs-on: ubuntu-latest
+  ubuntu-22-gcc-arm-v7:
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -213,8 +213,8 @@ jobs:
             make
             ctest -L gh --output-on-failure'
 
-  ubuntu-latest-clang:
-    runs-on: ubuntu-latest
+  ubuntu-22-clang:
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -244,8 +244,8 @@ jobs:
             make
             ctest -L gh --output-on-failure'
 
-  ubuntu-latest-gcc-sanitized:
-    runs-on: ubuntu-latest
+  ubuntu-22-gcc-sanitized:
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -584,7 +584,7 @@ jobs:
           7z x sdl2.zip
           echo "SDL2_DIR=${{ github.workspace }}\SDL2-${{ matrix.sdl2_ver }}\cmake" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "${{ github.workspace }}\SDL2-${{ matrix.sdl2_ver }}\cmake" > SDL2_PATH.txt
- 
+
       - name: Configure CMake
         shell: cmd
         run: |
@@ -594,16 +594,16 @@ jobs:
             -DCMAKE_CUDA_ARCHITECTURES=all  ^
             -DWHISPER_SDL2=${{ matrix.sdl2 }} ^
             -DSDL2_DIR="%SDL2_DIR%"
-  
+
       - name: Build Project
         shell: cmd
         run: |
           cd ./build
-          cmake --build . --config ${{ matrix.build }}          
+          cmake --build . --config ${{ matrix.build }}
 
       - name: Copy CUDA DLLs
         run: |
-          Get-ChildItem "${{ steps.cuda-toolkit.outputs.CUDA_PATH }}/bin/" -Filter "*.dll" | 
+          Get-ChildItem "${{ steps.cuda-toolkit.outputs.CUDA_PATH }}/bin/" -Filter "*.dll" |
           Copy-Item -Destination "build/bin/${{ matrix.build }}"
 
       - name: Copy SDL2.dll
@@ -617,7 +617,7 @@ jobs:
           path: build/bin/${{ matrix.build }}
 
   emscripten:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
@@ -684,7 +684,7 @@ jobs:
         run: xcodebuild -project examples/whisper.swiftui/whisper.swiftui.xcodeproj -scheme WhisperCppDemo -configuration ${{ matrix.build }} -sdk iphoneos CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= -destination 'generic/platform=iOS' build
 
   android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Clone
@@ -714,7 +714,7 @@ jobs:
 
 # TODO: disable because of following fail: https://github.com/ggerganov/whisper.cpp/actions/runs/11019444420/job/30627193602
 #  android_java:
-#    runs-on: ubuntu-latest
+#    runs-on: ubuntu-22.04
 #
 #    steps:
 #      - name: Clone
@@ -783,7 +783,7 @@ jobs:
 #          PGP_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
   quantize:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Clone

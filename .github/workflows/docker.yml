@@ -11,7 +11,7 @@ jobs:
     name: Push Docker image to Docker Hub
     if: github.event.pull_request.draft == false
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       COMMIT_SHA: ${{ github.sha }}
     strategy:
