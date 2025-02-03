@@ -18,6 +18,7 @@ const whisperParams = {
   translate: true,
   no_timestamps: false,
   audio_ctx: 0,
+  max_len: 0,
 };
 
 const arguments = process.argv.slice(2);
