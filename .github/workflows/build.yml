@@ -38,7 +38,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y build-essential libsdl2-dev cmake
+            apt install -y build-essential libsdl2-dev cmake git
             cmake -B build
             cmake --build build --config Release -j $(nproc)'
 
@@ -64,7 +64,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y build-essential libsdl2-dev cmake
+            apt install -y build-essential libsdl2-dev cmake git
             cmake -B build -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv8-a
             cmake --build build --config Release -j $(nproc)'
 
@@ -90,7 +90,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y build-essential libsdl2-dev cmake
+            apt install -y build-essential libsdl2-dev cmake git
             cmake -B build -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv7-a+fp
             cmake --build build --config Release -j $(nproc)'
 
@@ -152,7 +152,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y build-essential cmake libsdl2-dev
+            apt install -y build-essential cmake libsdl2-dev git
             cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }}
             make
             ctest -L gh --output-on-failure'
@@ -180,7 +180,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y build-essential cmake libsdl2-dev
+            apt install -y build-essential cmake libsdl2-dev git
             cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv8-a
             make
             ctest -L gh --output-on-failure'
@@ -208,7 +208,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y build-essential cmake libsdl2-dev
+            apt install -y build-essential cmake libsdl2-dev git
             cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DGGML_NATIVE=OFF -DGGML_CPU_ARM_ARCH=armv7-a+fp
             make
             ctest -L gh --output-on-failure'
@@ -239,7 +239,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y clang build-essential cmake libsdl2-dev
+            apt install -y clang build-essential cmake libsdl2-dev git
             cmake . -DWHISPER_SDL2=ON -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
             make
             ctest -L gh --output-on-failure'
@@ -267,7 +267,7 @@ jobs:
             -w /workspace ${{ env.ubuntu_image }} /bin/sh -c '
             set -e
             apt update
-            apt install -y build-essential cmake
+            apt install -y build-essential cmake git
             cmake . -DCMAKE_BUILD_TYPE=Debug -DWHISPER_SANITIZE_${{ matrix.sanitizer }}=ON
             make
             ctest -L gh --output-on-failure'
@@ -302,12 +302,12 @@ jobs:
         shell: bash
         run: |
           sudo apt update
-          sudo apt install intel-oneapi-compiler-dpcpp-cpp
+          sudo apt install intel-oneapi-compiler-dpcpp-cpp git
 
       - name: install oneAPI MKL library
         shell: bash
         run: |
-          sudo apt install intel-oneapi-mkl-devel
+          sudo apt install intel-oneapi-mkl-devel git
 
       - name: Clone
         id: checkout
@@ -352,7 +352,7 @@ jobs:
         shell: bash
         run: |
           sudo apt update
-          sudo apt install intel-oneapi-compiler-dpcpp-cpp
+          sudo apt install intel-oneapi-compiler-dpcpp-cpp git
 
       - name: install oneAPI MKL library
         shell: bash
