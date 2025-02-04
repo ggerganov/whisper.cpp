@@ -171,8 +171,8 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
 
         // read the input audio file if params.pcmf32 is not provided
         if (params.pcmf32.empty()) {
-            if (!::read_wav(fname_inp, pcmf32, pcmf32s, params.diarize)) {
-                fprintf(stderr, "error: failed to read WAV file '%s'\n", fname_inp.c_str());
+            if (!::read_audio_data(fname_inp, pcmf32, pcmf32s, params.diarize)) {
+                fprintf(stderr, "error: failed to read audio file '%s'\n", fname_inp.c_str());
                 continue;
             }
         } else {
