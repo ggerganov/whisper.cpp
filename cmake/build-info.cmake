@@ -42,6 +42,7 @@ endif()
 if(MSVC)
     set(BUILD_COMPILER "${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
     set(BUILD_TARGET ${CMAKE_VS_PLATFORM_NAME})
+    add_compile_options("/utf-8")
 else()
     execute_process(
         COMMAND sh -c "$@ --version | head -1" _ ${CMAKE_C_COMPILER}
