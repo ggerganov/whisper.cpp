@@ -920,7 +920,7 @@ static bool output_lrc(struct whisper_context * ctx, const char * fname, const w
 
 static void cb_log_disable(enum ggml_log_level , const char * , void * ) { }
 
-int main(int argc, char **argv) {
+int main(int argc, char ** argv) {
 #if defined(_WIN32)
     // Set the console output code page to UTF-8, while command line arguments
     // are still encoded in the system's code page. In this way, we can print
