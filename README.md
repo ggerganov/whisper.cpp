@@ -17,7 +17,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Plain C/C++ implementation without dependencies
 - Apple Silicon first-class citizen - optimized via ARM NEON, Accelerate framework, Metal and [Core ML](#core-ml-support)
 - AVX intrinsics support for x86 architectures
-- VSX intrinsics support for POWER architectures
+- [VSX intrinsics support for POWER architectures](#power-vsx-intrinsics)
 - Mixed F16 / F32 precision
 - [Integer quantization support](#quantization)
 - Zero memory allocations at runtime
@@ -138,6 +138,20 @@ make -j large-v3-turbo
 | small  | 466 MiB | ~852 MB |
 | medium | 1.5 GiB | ~2.1 GB |
 | large  | 2.9 GiB | ~3.9 GB |
+
+## POWER VSX Intrinsics
+
+`whisper.cpp` supports POWER architectures and includes code which
+significantly speeds operation on Linux running on POWER9/10, making it
+capable of faster-than-realtime transcription on underclocked Raptor
+Talos II. Ensure you have a BLAS package installed, and replace the
+standard cmake setup with:
+
+```bash
+# build with GGML_BLAS defined
+cmake -B build -DGGML_BLAS=1
+cmake --build build --config Release
+./build/bin/whisper-cli [ .. etc .. ]
 
 ## Quantization
 
