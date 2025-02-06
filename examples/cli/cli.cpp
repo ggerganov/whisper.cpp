@@ -12,6 +12,11 @@
 #include <vector>
 #include <cstring>
 
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
@@ -916,6 +921,13 @@ static bool output_lrc(struct whisper_context * ctx, const char * fname, const w
 static void cb_log_disable(enum ggml_log_level , const char * , void * ) { }
 
 int main(int argc, char ** argv) {
+#if defined(_WIN32)
+    // Set the console output code page to UTF-8, while command line arguments
+    // are still encoded in the system's code page. In this way, we can print
+    // non-ASCII characters to the console, and access files with non-ASCII paths.
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
     whisper_params params;
 
     // If the only argument starts with "@", read arguments line-by-line
