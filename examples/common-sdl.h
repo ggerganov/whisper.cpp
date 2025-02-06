@@ -30,6 +30,8 @@ public:
 
     // get audio data from the circular buffer
     void get(int ms, std::vector<float> & audio);
+    void next(std::vector<float> & audio);
+    void get_n(size_t n_samples, std::vector<float> & audio);
 
 private:
     SDL_AudioDeviceID m_dev_id_in = 0;
@@ -43,6 +45,7 @@ private:
     std::vector<float> m_audio;
     size_t             m_audio_pos = 0;
     size_t             m_audio_len = 0;
+    size_t             m_audio_nxt = 0;
 };
 
 // Return false if need to quit

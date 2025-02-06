@@ -12,7 +12,7 @@ https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a
 
 ## Sliding window mode with VAD
 
-Setting the `--step` argument to `0` enables the sliding window mode:
+Setting the `--step` argument to `0` or a negative value enables the sliding window mode:
 
 ```bash
  ./build/bin/whisper-stream -m ./models/ggml-base.en.bin -t 6 --step 0 --length 30000 -vth 0.6
@@ -24,6 +24,17 @@ basic VAD detector is used, but in theory a more sophisticated approach can be a
 It's best to tune it to the specific use case, but a value around `0.6` should be OK in general.
 When silence is detected, it will transcribe the last `--length` milliseconds of audio and output
 a transcription block that is suitable for parsing.
+
+You can also set the `--interim` argument to force transcription before the VAD detects silence.
+
+```bash
+ ./build/bin/stream -m ./models/ggml-base.en.bin -t 6 --step -2000 --length 10000 -vth 0.6 --interim --keep 200
+```
+
+This will transcribe the audio, keeping the last segment unconfirmed, every two seconds
+even if the VAD says the speech is still ongoing. In this mode, if the sentence doesn't end
+in `--length` milliseconds, the time window will not slide. The audio will be cut there
+to be transcribed anyway, keeping the last `--keep` milliseconds for the next inference.
 
 ## Building
 
