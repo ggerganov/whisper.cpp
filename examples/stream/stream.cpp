@@ -241,6 +241,9 @@ int main(int argc, char ** argv) {
 
         if (!use_vad) {
             while (true) {
+                if (audio.overran()) {
+                    fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, audio dropped ...\n\n", __func__);
+                }
                 audio.get(params.step_ms, pcmf32_new);
 
                 if ((int) pcmf32_new.size() > 2*n_samples_step) {
@@ -283,9 +286,15 @@ int main(int argc, char ** argv) {
                 continue;
             }
 
+            if (audio.overran()) {
+                fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, audio dropped...\n\n", __func__);
+            }
             audio.get(2000, pcmf32_new);
 
             if (::vad_simple(pcmf32_new, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, false)) {
+                if (audio.overran()) {
+                    fprintf(stderr, "\n\n%s: WARNING: cannot process audio fast enough, audio dropped...\n\n", __func__);
+                }
                 audio.get(params.length_ms, pcmf32);
             } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
