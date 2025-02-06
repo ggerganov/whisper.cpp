@@ -12,6 +12,14 @@
 #include <thread>
 #include <vector>
 #include <fstream>
+#if defined(_WIN32)
+#  define WIN32_LEAN_AND_MEAN
+#  define VC_EXTRALEAN
+#  include <Windows.h>
+#else
+#  include <sys/ioctl.h>
+#  include <unistd.h>
+#endif
 
 
 // command-line parameters
@@ -110,6 +118,18 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -ng,      --no-gpu        [%-7s] disable GPU inference\n",                          params.use_gpu ? "false" : "true");
     fprintf(stderr, "  -fa,      --flash-attn    [%-7s] flash attention during inference\n",               params.flash_attn ? "true" : "false");
     fprintf(stderr, "\n");
+}
+
+static void get_terminal_width(int& width) {
+#if defined(_WIN32)
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    width = (int)(csbi.srWindow.Right-csbi.srWindow.Left+1);
+#else
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    width = (int)(w.ws_col);
+#endif
 }
 
 int main(int argc, char ** argv) {
@@ -224,6 +244,8 @@ int main(int argc, char ** argv) {
 
     auto t_last  = std::chrono::high_resolution_clock::now();
     const auto t_start = t_last;
+    int terminal_width = 80;
+    int current_text_length = 0;
 
     // main audio loop
     while (is_running) {
@@ -330,11 +352,14 @@ int main(int argc, char ** argv) {
             {
                 if (!use_vad) {
                     printf("\33[2K\r");
-
-                    // print long empty line to clear the previous line
-                    printf("%s", std::string(100, ' ').c_str());
-
-                    printf("\33[2K\r");
+                    // also erase text that is longer than one row/terminal width
+                    get_terminal_width(terminal_width);
+                    for (int j = 1; j*terminal_width < current_text_length; j++) {
+                        printf("\33[A\r");
+                        printf("\33[2K\r");
+                    }
+                    fflush(stdout);
+                    current_text_length = 0;
                 } else {
                     const int64_t t1 = (t_last - t_start).count()/1000000;
                     const int64_t t0 = std::max(0.0, t1 - pcmf32.size()*1000.0/WHISPER_SAMPLE_RATE);
@@ -351,6 +376,7 @@ int main(int argc, char ** argv) {
                     if (params.no_timestamps) {
                         printf("%s", text);
                         fflush(stdout);
+                        current_text_length += strlen(text);
 
                         if (params.fname_out.length() > 0) {
                             fout << text;
@@ -390,6 +416,7 @@ int main(int argc, char ** argv) {
 
             if (!use_vad && (n_iter % n_new_line) == 0) {
                 printf("\n");
+                current_text_length = 0;
 
                 // keep part of the audio for next iteration to try to mitigate word boundary issues
                 pcmf32_old = std::vector<float>(pcmf32.end() - n_samples_keep, pcmf32.end());
