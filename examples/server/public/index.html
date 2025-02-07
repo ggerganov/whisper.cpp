@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Whisper.cpp Live Transcription</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #transcript {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            background-color: #6c757d;
+        }
+        .status {
+            margin-top: 10px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .buffer-status {
+            font-size: 0.9em;
+            color: #888;
+            margin-top: 5px;
+        }
+        .segment {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            border-left: 3px solid #007bff;
+        }
+        .segment-time {
+            color: #666;
+            font-size: 0.8em;
+            margin-right: 8px;
+        }
+        .segment-text {
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Whisper.cpp Live Transcription</h1>
+    
+    <div class="controls">
+        <button id="startBtn">Start Recording</button>
+        <button id="stopBtn" disabled>Stop Recording</button>
+        <div class="status" id="status">Ready to record</div>
+        <div class="buffer-status" id="bufferStatus"></div>
+    </div>
+    
+    <div id="transcript"></div>
+
+    <script>
+        let mediaRecorder;
+        let audioContext;
+        let processor;
+        let isRecording = false;
+        let audioChunks = [];
+        const transcriptDiv = document.getElementById('transcript');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusDiv = document.getElementById('status');
+        const bufferStatusDiv = document.getElementById('bufferStatus');
+        
+        // Collect audio for 500ms before sending
+        const CHUNK_INTERVAL = 500;
+        let lastSendTime = 0;
+
+        // Function to format timestamp
+        function formatTimestamp(seconds) {
+            const date = new Date(seconds * 1000);
+            const minutes = date.getUTCMinutes();
+            const secs = date.getUTCSeconds();
+            const ms = date.getUTCMilliseconds();
+            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+        }
+
+        // Function to send audio data to server
+        async function sendAudioChunk(audioData) {
+            try {
+                const formData = new FormData();
+                formData.append('audio', new Blob([audioData], { type: 'application/octet-stream' }));
+
+                const response = await fetch('/stream', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                // Update buffer status
+                if (result.buffer_size_ms !== undefined) {
+                    bufferStatusDiv.textContent = `Buffer: ${(result.buffer_size_ms / 1000).toFixed(1)}s`;
+                }
+
+                if (result.segments && result.segments.length > 0) {
+                    result.segments.forEach(segment => {
+                        const div = document.createElement('div');
+                        div.className = 'segment';
+                        
+                        const timeSpan = document.createElement('span');
+                        timeSpan.className = 'segment-time';
+                        timeSpan.textContent = `[${formatTimestamp(segment.t0)}]`;
+                        
+                        const textSpan = document.createElement('span');
+                        textSpan.className = 'segment-text';
+                        textSpan.textContent = segment.text;
+                        
+                        div.appendChild(timeSpan);
+                        div.appendChild(textSpan);
+                        transcriptDiv.appendChild(div);
+                        transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
+                    });
+                }
+            } catch (error) {
+                console.error('Error sending audio:', error);
+                statusDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function startRecording() {
+            try {
+                statusDiv.textContent = 'Initializing...';
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Setup AudioContext
+                audioContext = new AudioContext({
+                    sampleRate: 16000 // Match Whisper's expected sample rate
+                });
+                const source = audioContext.createMediaStreamSource(stream);
+                processor = audioContext.createScriptProcessor(4096, 1, 1);
+                
+                // Connect audio processing
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+                
+                isRecording = true;
+                lastSendTime = Date.now();
+                audioChunks = [];
+                
+                // Process audio data
+                processor.onaudioprocess = async (e) => {
+                    if (isRecording) {
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        audioChunks.push(new Float32Array(inputData));
+                        
+                        // Send accumulated chunks every CHUNK_INTERVAL
+                        const now = Date.now();
+                        if (now - lastSendTime >= CHUNK_INTERVAL) {
+                            // Concatenate all chunks
+                            const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.length, 0);
+                            const concatenated = new Float32Array(totalLength);
+                            let offset = 0;
+                            audioChunks.forEach(chunk => {
+                                concatenated.set(chunk, offset);
+                                offset += chunk.length;
+                            });
+                            
+                            await sendAudioChunk(concatenated.buffer);
+                            lastSendTime = now;
+                            audioChunks = []; // Clear chunks after sending
+                        }
+                    }
+                };
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusDiv.textContent = 'Recording...';
+                bufferStatusDiv.textContent = 'Buffer: 0.0s';
+            } catch (err) {
+                console.error('Error:', err);
+                statusDiv.textContent = 'Error: ' + err.message;
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            
+            if (processor) {
+                processor.disconnect();
+                processor = null;
+            }
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusDiv.textContent = 'Ready to record';
+            bufferStatusDiv.textContent = '';
+            audioChunks = [];
+        }
+
+        startBtn.onclick = startRecording;
+        stopBtn.onclick = stopRecording;
+    </script>
+</body>
+</html>
