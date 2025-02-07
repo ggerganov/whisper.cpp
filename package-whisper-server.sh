@@ -115,8 +115,8 @@ cat > "$PACKAGE_NAME/run-server.sh" << 'EOL'
 
 # Default configuration
 HOST="127.0.0.1"
-PORT="8080"
-MODEL="models/ggml-small.bin"
+PORT="8178"
+MODEL="models/ggml-large-v3.bin"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -147,6 +147,7 @@ done
     --port "$PORT" \
     --diarize \
     --print-progress
+
 
 EOL
 
