@@ -3,10 +3,10 @@ name: Build Whisper for Windows and Android
 on:
   push:
     branches:
-      - main
+      - meowl3860-patch-1
   pull_request:
     branches:
-      - main
+      - meowl3860-patch-1
   workflow_dispatch:
 
 jobs:
