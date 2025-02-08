@@ -22,10 +22,13 @@ jobs:
         uses: jwlawson/actions-setup-cmake@v1
 
       - name: Configure CMake
-        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+        run: cmake -B build -S . -G "Visual Studio 17 2022" -A x64
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build --config Release --target whisper
+
+      - name: Debug Windows Build Files
+        run: Get-ChildItem -Path build -Recurse
 
       - name: Upload Windows DLL
         uses: actions/upload-artifact@v4
@@ -49,7 +52,7 @@ jobs:
 
       - name: Configure CMake for Android
         run: |
-          cmake -B build-android \
+          cmake -B build-android -S . \
             -D CMAKE_SYSTEM_NAME=Android \
             -D CMAKE_SYSTEM_VERSION=24 \
             -D CMAKE_ANDROID_ARCH_ABI=arm64-v8a \
@@ -58,10 +61,13 @@ jobs:
             -D CMAKE_BUILD_TYPE=Release
 
       - name: Build Android SO
-        run: cmake --build build-android --config Release
+        run: cmake --build build-android --config Release --target whisper
+
+      - name: Debug Android Build Files
+        run: ls -R build-android/
 
       - name: Upload Android SO
         uses: actions/upload-artifact@v4
         with:
           name: whisper-android
-          path: build-android/libwhisper.so
+          path: build-android/**/*.so
