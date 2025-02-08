@@ -181,6 +181,9 @@ Java_com_whispercpp_whisper_WhisperLib_00024Companion_fullTranscribe(
     params.offset_ms = 0;
     params.no_context = true;
     params.single_segment = false;
+    params.token_timestamps = true; // Enable for word level timestamps
+    params.split_on_word = true; // Enable for word level timestamps
+    params.max_len = 1; // Set number of words in a line
 
     whisper_reset_timings(context);
 
