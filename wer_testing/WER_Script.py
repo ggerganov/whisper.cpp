@@ -43,6 +43,15 @@ parser.add_argument(
     help="Relative path of the file to transcribe (default: ./samples/jfk.wav)",
 )
 
+parser.add_arguemnt(
+    "-t",
+    "--type_set", 
+    type = str, 
+    default = "./speech_commands_v0.01/validation_list.txt", 
+    help=" Running WER set based on the validation / test set from the Commands Dataset \
+        \n Set path for the dataset"
+)
+
 # Parse the command line arguments
 args = parser.parse_args()
 
@@ -98,7 +107,7 @@ def filtered_word(file_path):
 models = filtered_models
 
 # read the valdiation list
-with open(validating_files, 'r') as file:
+with open(args.type_set, 'r') as file:
     validating_files = file.read().splitlines()
 
 def stitch_audio(validation_files, output_file):
