@@ -52,6 +52,7 @@ models/*.mlpackage
 bindings/java/.gradle/
 bindings/java/.idea/
 .idea/
+models/ggml-base.en.bin
 
 benchmark_results.csv
 cmake-build-debug/
