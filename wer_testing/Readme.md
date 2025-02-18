@@ -2,9 +2,8 @@
 
 ## Instructions: (Take note, this must be only after you have downloaded and made the model, else you can reference to either YT or the main dir)
 
-1. Place the WER_Script in the same directory as main directory
-2. Place the folder ``` 6097_5_min ``` as the same directory as whisper
-3. Run WER_Script.py
+### How it works:
+1. Just run ```WER_script.py```
 
 
 ### What it does:

@@ -12,7 +12,6 @@ class ListAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, [int(val) for val in values.split(",")])
 
-
 parser = argparse.ArgumentParser(description="Benchmark the speech recognition model")
 
 # Define the argument to accept a list
@@ -53,9 +52,6 @@ parser.add_argument(
 
 # Parse the command line arguments
 args = parser.parse_args()
-
-
-
 models = [
     "ggml-tiny.en.bin",
     "ggml-tiny.bin",
@@ -72,12 +68,9 @@ models = [
 ]
 
 validating_files = args.type_set
-
 sample_folder = args.filename
-
 threads = args.threads
 processors = args.processors
-
 
 def check_folder_exists(file: str) -> bool:
     return os.path.isdir(file)
@@ -91,7 +84,7 @@ if not check_folder_exists(sample_folder):
 
 filtered_models = []
 for model in models:
-    if check_file_exists(f"./models/{model}"):
+    if check_file_exists(f"../models/{model}"):
         filtered_models.append(model)
     else:
         print(f"Model {model} not found, removing from list")
@@ -103,7 +96,7 @@ def filtered_text(output):
 
 models = filtered_models
 
-# read the valdiation list
+# read the validation list
 manifest_data = []
 with open(validating_files, 'r') as file:
     for line in file: 
@@ -139,8 +132,6 @@ def calculate_wer(text, origin_word):
     wer = d[len(ref_words)][len(hyp_words)] / len(ref_words)
     return wer
 
-
-
 avg_size = len(manifest_data)
 total_wer = 0
 for model in filtered_models:
@@ -150,16 +141,18 @@ for model in filtered_models:
                 audio_filepath = file['audio_filepath']
                 audio_text = file['text']
                 sample_file_path = sample_folder + audio_filepath
-               # print(sample_file_path)
-                cmd = f"./build/bin/whisper-cli -m models/{model} -t {thread} -p {processor_count} -f {sample_file_path}"
+                print("printing out command:")
+                cmd = f"../build/bin/whisper-cli -m ../models/{model} -t {thread} -p {processor_count} -f {sample_file_path}"
                 process = subprocess.Popen(
                     cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
                 )
-
+                print(cmd)
                 output = ""
                 while process.poll() is None:
                     output += process.stdout.read().decode()
                 final_word = filtered_text(output)
+                print(f"Word transcribed is : {final_word}")
+                print(f"Actual word is: {audio_text}")
                 if len(final_word) == 0:
                     print(f"wer for {audio_filepath} is 1")
                     continue
