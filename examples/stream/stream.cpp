@@ -12,7 +12,7 @@
 #include <thread>
 #include <vector>
 #include <fstream>
-
+#include <chrono>
 
 // command-line parameters
 struct whisper_params {
@@ -157,6 +157,7 @@ int main(int argc, char ** argv) {
     cparams.use_gpu    = params.use_gpu;
     cparams.flash_attn = params.flash_attn;
 
+    fprintf(stderr, "whisper_init_from_file_with_params ...\n");
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
     std::vector<float> pcmf32    (n_samples_30s, 0.0f);
@@ -166,6 +167,8 @@ int main(int argc, char ** argv) {
     std::vector<whisper_token> prompt_tokens;
 
     // print some info about the processing
+    fprintf(stderr, "whisper_init_from_file_with_params ok\n");
+
     {
         fprintf(stderr, "\n");
         if (!whisper_is_multilingual(ctx)) {

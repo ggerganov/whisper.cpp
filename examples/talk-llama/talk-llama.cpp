@@ -15,6 +15,7 @@
 #include <vector>
 #include <regex>
 #include <sstream>
+#include <chrono>
 
 static std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos) {
     const llama_model * model = llama_get_model(ctx);

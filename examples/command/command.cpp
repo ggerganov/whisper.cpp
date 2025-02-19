@@ -21,6 +21,7 @@
 #include <thread>
 #include <vector>
 #include <map>
+#include <chrono>
 
 // command-line parameters
 struct whisper_params {
