@@ -17,6 +17,11 @@
 #include <sstream>
 #include <chrono>
 
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 static std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos) {
     const llama_model * model = llama_get_model(ctx);
     const llama_vocab * vocab = llama_model_get_vocab(model);
@@ -273,6 +278,10 @@ The transcript only includes text, it does not include markup like HTML and Mark
 {0}{4})";
 
 int main(int argc, char ** argv) {
+#if defined(_WIN32)
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
     whisper_params params;
 
     if (whisper_params_parse(argc, argv, params) == false) {

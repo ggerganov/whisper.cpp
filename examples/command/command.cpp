@@ -23,6 +23,11 @@
 #include <map>
 #include <chrono>
 
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 // command-line parameters
 struct whisper_params {
     int32_t n_threads  = std::min(4, (int32_t) std::thread::hardware_concurrency());
@@ -680,6 +685,10 @@ static int process_general_transcription(struct whisper_context * ctx, audio_asy
 }
 
 int main(int argc, char ** argv) {
+#if defined(_WIN32)
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
     whisper_params params;
 
     if (whisper_params_parse(argc, argv, params) == false) {
