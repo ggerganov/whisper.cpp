@@ -7,7 +7,7 @@ if (CUDAToolkit_FOUND)
 
     if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
         # native == GPUs available at build time
-        # 52     == Maxwell, lowest CUDA 12 standard
+        # 50     == Maxwell, lowest CUDA 12 standard
         # 60     == P100, FP16 CUDA intrinsics
         # 61     == Pascal, __dp4a instruction (per-byte integer dot product)
         # 70     == V100, FP16 tensor cores
@@ -17,7 +17,7 @@ if (CUDAToolkit_FOUND)
         elseif(GGML_CUDA_F16 OR GGML_CUDA_DMMV_F16)
             set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75;80")
         else()
-            set(CMAKE_CUDA_ARCHITECTURES "52;61;70;75;80")
+            set(CMAKE_CUDA_ARCHITECTURES "50;61;70;75;80")
         endif()
     endif()
     message(STATUS "Using CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
