@@ -237,6 +237,8 @@ typedef pthread_t ggml_thread_t;
 #else
 #if defined(__POWER9_VECTOR__)
 #define CACHE_LINE_SIZE 128
+#elif defined(__VXE__) || defined(__VXE2__)
+#define CACHE_LINE_SIZE 256
 #else
 #define CACHE_LINE_SIZE 64
 #endif
@@ -1210,6 +1212,87 @@ static inline void __lsx_f16x4_store(ggml_fp16_t * x, __m128 y) {
 #define GGML_F16_VEC_ADD             GGML_F32Cx4_ADD
 #define GGML_F16_VEC_MUL             GGML_F32Cx4_MUL
 #define GGML_F16_VEC_REDUCE          GGML_F32Cx4_REDUCE
+
+#elif defined(__VXE__) || defined(__VXE2__)
+
+#define GGML_SIMD
+
+// F32 s390x
+
+#define GGML_F32_STEP 32
+#define GGML_F32_EPR  4
+
+#define GGML_F32x4              __vector float
+#define GGML_F32x4_ZERO         vec_splats(0.0f)
+#define GGML_F32x4_SET1         vec_splats
+#define GGML_F32x4_LOAD(p)      vec_xl(0, p)
+#define GGML_F32x4_STORE(p, r)  vec_xst(r, 0, p)
+#define GGML_F32x4_FMA(a, b, c) vec_madd(b, c, a)
+#define GGML_F32x4_ADD          vec_add
+#define GGML_F32x4_MUL          vec_mul
+#define GGML_F32x4_REDUCE(res, x)                   \
+{                                                   \
+    int offset = GGML_F32_ARR >> 1;                 \
+    for (int i = 0; i < offset; ++i) {              \
+        x[i] = vec_add(x[i], x[offset + i]);        \
+    }                                               \
+    offset >>= 1;                                   \
+    for (int i = 0; i < offset; ++i) {              \
+        x[i] = vec_add(x[i], x[offset + i]);        \
+    }                                               \
+    offset >>= 1;                                   \
+    for (int i = 0; i < offset; ++i) {              \
+        x[i] = vec_add(x[i], x[offset + i]);        \
+    }                                               \
+    res = vec_extract(x[0], 0) +                    \
+          vec_extract(x[0], 1) +                    \
+          vec_extract(x[0], 2) +                    \
+          vec_extract(x[0], 3);                     \
+}
+
+#define GGML_F32_VEC        GGML_F32x4
+#define GGML_F32_VEC_ZERO   GGML_F32x4_ZERO
+#define GGML_F32_VEC_SET1   GGML_F32x4_SET1
+#define GGML_F32_VEC_LOAD   GGML_F32x4_LOAD
+#define GGML_F32_VEC_STORE  GGML_F32x4_STORE
+#define GGML_F32_VEC_FMA    GGML_F32x4_FMA
+#define GGML_F32_VEC_ADD    GGML_F32x4_ADD
+#define GGML_F32_VEC_MUL    GGML_F32x4_MUL
+#define GGML_F32_VEC_REDUCE GGML_F32x4_REDUCE
+
+// F16 s390x
+#define GGML_F16_STEP GGML_F32_STEP
+#define GGML_F16_EPR  GGML_F32_EPR
+
+static inline __vector float __lzs_f16cx4_load(const ggml_fp16_t * x) {
+    float tmp[4];
+
+    for (int i = 0; i < 4; i++) {
+        tmp[i] = GGML_FP16_TO_FP32(x[i]);
+    }
+
+    return vec_xl(0, tmp);
+}
+
+static inline void __lzs_f16cx4_store(ggml_fp16_t * x, __vector float y) {
+    float arr[4];
+
+    vec_xst(y, 0, arr);
+
+    for (int i = 0; i < 4; i++) {
+        x[i] = GGML_FP32_TO_FP16(arr[i]);
+    }
+}
+
+#define GGML_F16_VEC                GGML_F32x4
+#define GGML_F16_VEC_ZERO           GGML_F32x4_ZERO
+#define GGML_F16_VEC_SET1           GGML_F32x4_SET1
+#define GGML_F16_VEC_LOAD(p, i)     __lzs_f16cx4_load(p)
+#define GGML_F16_VEC_STORE(p, r, i) __lzs_f16cx4_store(p, r[i])
+#define GGML_F16_VEC_FMA            GGML_F32x4_FMA
+#define GGML_F16_VEC_ADD            GGML_F32x4_ADD
+#define GGML_F16_VEC_MUL            GGML_F32x4_MUL
+#define GGML_F16_VEC_REDUCE         GGML_F32x4_REDUCE
 
 #endif
 
@@ -14413,6 +14496,14 @@ int ggml_cpu_has_ssse3(void) {
 
 int ggml_cpu_has_vsx(void) {
 #if defined(__POWER9_VECTOR__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int ggml_cpu_has_vxe(void) {
+#if defined(__VXE__) || defined(__VXE2__)
     return 1;
 #else
     return 0;

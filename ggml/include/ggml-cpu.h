@@ -99,6 +99,7 @@ extern "C" {
     // other
     GGML_BACKEND_API int ggml_cpu_has_riscv_v    (void);
     GGML_BACKEND_API int ggml_cpu_has_vsx        (void);
+    GGML_BACKEND_API int ggml_cpu_has_vxe        (void);
     GGML_BACKEND_API int ggml_cpu_has_wasm_simd  (void);
     GGML_BACKEND_API int ggml_cpu_has_llamafile  (void);
 
