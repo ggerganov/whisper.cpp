@@ -83,6 +83,10 @@ if (MUSAToolkit_FOUND)
         add_compile_definitions(GGML_CUDA_NO_VMM)
     endif()
 
+    if (NOT GGML_CUDA_FA)
+        add_compile_definitions(GGML_CUDA_NO_FA)
+    endif()
+
     if (GGML_CUDA_F16 OR GGML_CUDA_DMMV_F16)
         add_compile_definitions(GGML_CUDA_F16)
     endif()
