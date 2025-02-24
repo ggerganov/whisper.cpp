@@ -312,6 +312,7 @@ int main(int argc, char ** argv) {
             wparams.max_tokens       = params.max_tokens;
             wparams.language         = params.language.c_str();
             wparams.n_threads        = params.n_threads;
+            wparams.beam_search.beam_size = params.beam_size;
 
             wparams.audio_ctx        = params.audio_ctx;
 
