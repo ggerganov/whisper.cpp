@@ -808,6 +808,7 @@ int main(int argc, char ** argv) {
 
             wparams.greedy.best_of        = params.best_of;
             wparams.beam_search.beam_size = params.beam_size;
+            wparams.beam_search.beam_size = params.beam_size;
 
             wparams.temperature      = params.temperature;
             wparams.no_speech_thold = params.no_speech_thold;
