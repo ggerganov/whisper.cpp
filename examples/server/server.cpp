@@ -12,6 +12,7 @@
 #include <vector>
 #include <cstring>
 #include <sstream>
+#include <chrono>
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data

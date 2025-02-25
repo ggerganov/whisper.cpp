@@ -12,7 +12,12 @@
 #include <thread>
 #include <vector>
 #include <fstream>
+#include <chrono>
 
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 // command-line parameters
 struct whisper_params {
@@ -116,6 +121,10 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
 }
 
 int main(int argc, char ** argv) {
+#if defined(_WIN32)
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
     whisper_params params;
 
     if (whisper_params_parse(argc, argv, params) == false) {
@@ -160,6 +169,7 @@ int main(int argc, char ** argv) {
     cparams.use_gpu    = params.use_gpu;
     cparams.flash_attn = params.flash_attn;
 
+    fprintf(stderr, "whisper_init_from_file_with_params ...\n");
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
 
     std::vector<float> pcmf32    (n_samples_30s, 0.0f);
@@ -169,6 +179,8 @@ int main(int argc, char ** argv) {
     std::vector<whisper_token> prompt_tokens;
 
     // print some info about the processing
+    fprintf(stderr, "whisper_init_from_file_with_params ok\n");
+
     {
         fprintf(stderr, "\n");
         if (!whisper_is_multilingual(ctx)) {
