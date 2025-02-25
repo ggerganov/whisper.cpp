@@ -5265,6 +5265,7 @@ void ggml_vec_dot_q3_K_q8_K(int n, float * restrict s, size_t bs, const void * r
 
 #if defined(__ARM_FEATURE_SVE)
 
+    uint32_t aux[3];
     uint32_t utmp[4];
 
     const int8_t m32 = 32;
@@ -5276,7 +5277,6 @@ void ggml_vec_dot_q3_K_q8_K(int n, float * restrict s, size_t bs, const void * r
     const svuint8_t m1_sv = svlsl_n_u8_x(svptrue_b8(), m0_sv, 1);
     const svuint8_t m2_sv = svlsl_n_u8_x(svptrue_b8(), m0_sv, 2);
     const svuint8_t m3_sv = svlsl_n_u8_x(svptrue_b8(), m0_sv, 3);
-    svbool_t pred_s32 = svnot_b_z (svptrue_b32(), svptrue_pat_b32(SV_VL4));
 
     float sum = 0;
 
@@ -5289,7 +5289,7 @@ void ggml_vec_dot_q3_K_q8_K(int n, float * restrict s, size_t bs, const void * r
         const int8_t  * restrict q8_sv = y[i].qs;
 
         // Set up scales
-        uint32_t * aux = &x[i].scales;
+        memcpy(aux, x[i].scales, 12);
         utmp[3] = ((aux[1] >> 4) & kmask2) | (((aux[2] >> 6) & kmask1) << 4);
         utmp[2] = ((aux[0] >> 4) & kmask2) | (((aux[2] >> 4) & kmask1) << 4);
         utmp[1] = (aux[1] & kmask2) | (((aux[2] >> 2) & kmask1) << 4);
