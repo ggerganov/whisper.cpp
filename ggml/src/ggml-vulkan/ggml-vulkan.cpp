@@ -4183,7 +4183,7 @@ static void ggml_vk_mul_mat_q_f16(ggml_backend_vk_context * ctx, vk_context& sub
     }
     if (qy_needs_dequant) {
         d_Y = ctx->prealloc_y;
-        GGML_ASSERT(d_Y->size >= y_sz * ne02 * ne03);
+        GGML_ASSERT(d_Y->size >= y_sz * ne12 * ne13);
     } else {
         d_Y = d_Qy;
         y_buf_offset = qy_buf_offset;
@@ -4760,7 +4760,7 @@ static void ggml_vk_mul_mat_id_q_f16(ggml_backend_vk_context * ctx, vk_context& 
     }
     if (qy_needs_dequant) {
         d_Y = ctx->prealloc_y;
-        GGML_ASSERT(d_Y->size >= y_sz * ne02 * ne03);
+        GGML_ASSERT(d_Y->size >= y_sz * ne12 * ne13);
     } else {
         d_Y = d_Qy;
         y_buf_offset = qy_buf_offset;
