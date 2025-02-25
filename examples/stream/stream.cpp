@@ -12,6 +12,7 @@
 #include <thread>
 #include <vector>
 #include <fstream>
+#include <sstream>
 
 
 // command-line parameters
@@ -203,6 +204,9 @@ int main(int argc, char ** argv) {
     bool is_running = true;
 
     std::ofstream fout;
+    std::stringbuf sbuf;
+    std::ostream sout (&sbuf);
+
     if (params.fname_out.length() > 0) {
         fout.open(params.fname_out);
         if (!fout.is_open()) {
@@ -299,6 +303,7 @@ int main(int argc, char ** argv) {
             t_last = t_now;
         }
 
+
         // run the inference
         {
             whisper_full_params wparams = whisper_full_default_params(params.beam_size > 1 ? WHISPER_SAMPLING_BEAM_SEARCH : WHISPER_SAMPLING_GREEDY);
@@ -332,6 +337,8 @@ int main(int argc, char ** argv) {
 
             // print result;
             {
+                sbuf.str("");
+
                 if (!use_vad) {
                     printf("\33[2K\r");
 
@@ -357,7 +364,7 @@ int main(int argc, char ** argv) {
                         fflush(stdout);
 
                         if (params.fname_out.length() > 0) {
-                            fout << text;
+                            sout << ( (i == 0 && *text == ' ') ? text + 1 : text);
                         }
                     } else {
                         const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
@@ -381,7 +388,7 @@ int main(int argc, char ** argv) {
                 }
 
                 if (params.fname_out.length() > 0) {
-                    fout << std::endl;
+                    sout << std::endl;
                 }
 
                 if (use_vad) {
@@ -393,6 +400,9 @@ int main(int argc, char ** argv) {
             ++n_iter;
 
             if (!use_vad && (n_iter % n_new_line) == 0) {
+                fout << sbuf.str() << std::flush;
+                sbuf.str("");
+
                 printf("\n");
 
                 // keep part of the audio for next iteration to try to mitigate word boundary issues
@@ -414,6 +424,7 @@ int main(int argc, char ** argv) {
             fflush(stdout);
         }
     }
+    fout << sbuf.str() << std::flush;
 
     audio.pause();
 
