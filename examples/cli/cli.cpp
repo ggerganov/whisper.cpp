@@ -199,7 +199,8 @@ static bool whisper_params_parse(int argc, char ** argv, whisper_params & params
 
 static void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params) {
     fprintf(stderr, "\n");
-    fprintf(stderr, "usage: %s [options] file0.wav file1.wav ...\n", argv[0]);
+    fprintf(stderr, "usage: %s [options] file0 file1 ...\n", argv[0]);
+    fprintf(stderr, "supported audio formats: flac, mp3, ogg, wav\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "options:\n");
     fprintf(stderr, "  -h,        --help              [default] show this help message and exit\n");
@@ -244,7 +245,7 @@ static void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params
     fprintf(stderr, "  -dl,       --detect-language   [%-7s] exit after automatically detecting language\n",    params.detect_language ? "true" : "false");
     fprintf(stderr, "             --prompt PROMPT     [%-7s] initial prompt (max n_text_ctx/2 tokens)\n",       params.prompt.c_str());
     fprintf(stderr, "  -m FNAME,  --model FNAME       [%-7s] model path\n",                                     params.model.c_str());
-    fprintf(stderr, "  -f FNAME,  --file FNAME        [%-7s] input WAV file path\n",                            "");
+    fprintf(stderr, "  -f FNAME,  --file FNAME        [%-7s] input audio file path\n",                            "");
     fprintf(stderr, "  -oved D,   --ov-e-device DNAME [%-7s] the OpenVINO device used for encode inference\n",  params.openvino_encode_device.c_str());
     fprintf(stderr, "  -dtw MODEL --dtw MODEL         [%-7s] compute token-level timestamps\n",                 params.dtw.c_str());
     fprintf(stderr, "  -ls,       --log-score         [%-7s] log best decoder scores of tokens\n",              params.log_score?"true":"false");
@@ -1069,8 +1070,8 @@ int main(int argc, char ** argv) {
         std::vector<float> pcmf32;               // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
-        if (!::read_wav(fname_inp, pcmf32, pcmf32s, params.diarize)) {
-            fprintf(stderr, "error: failed to read WAV file '%s'\n", fname_inp.c_str());
+        if (!::read_audio_data(fname_inp, pcmf32, pcmf32s, params.diarize)) {
+            fprintf(stderr, "error: failed to read audio file '%s'\n", fname_inp.c_str());
             continue;
         }
 
