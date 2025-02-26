@@ -1,5 +1,7 @@
-set(TARGET quantize)
+set(TARGET whisper-quantize)
 add_executable(${TARGET} quantize.cpp)
+
+install(TARGETS ${TARGET} RUNTIME DESTINATION bin)
 
 include(DefaultTargetOptions)
 

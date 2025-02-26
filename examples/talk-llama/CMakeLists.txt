@@ -25,6 +25,8 @@ if (WHISPER_SDL2)
         unicode-data.cpp)
     target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS})
 
+    install(TARGETS ${TARGET} RUNTIME DESTINATION bin)
+
     if (WHISPER_CLBLAST)
         set(CLBLAST_LIBNAME clblast)
     endif ()
