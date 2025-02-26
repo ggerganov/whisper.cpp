@@ -212,6 +212,16 @@ static ggml_tensor * whisper_set_f32(struct ggml_tensor * t, float v) {
     return t;
 }
 
+static ggml_tensor * whisper_set_i32(struct ggml_tensor * t, int32_t v) {
+    GGML_ASSERT(t->type == GGML_TYPE_I32);
+    GGML_ASSERT(ggml_is_contiguous(t));
+    size_t nels = ggml_nelements(t);
+    for (int64_t i = 0; i < nels; ++i) {
+        ((int32_t *) t->data)[i] = v;
+    }
+    return t;
+}
+
 static float whisper_get_f32_nd(const struct ggml_tensor * t, int64_t i0, int64_t i1, int64_t i2, int64_t i3) {
     GGML_ASSERT(t->type == GGML_TYPE_F32);
     void * data = (char *) t->data + i0*t->nb[0] + i1*t->nb[1] + i2*t->nb[2] + i3*t->nb[3];
@@ -3567,7 +3577,7 @@ struct whisper_context_params whisper_context_default_params() {
             /*.n_heads          =*/ 0,
             /*.heads            =*/ NULL,
         },
-        /*.dtw_mem_size         =*/ 1024*1024*128, // TODO: probably can be removed now
+        /*.dtw_mem_size         =*/ 1024*1024*128,
     };
     return result;
 }
@@ -7170,7 +7180,7 @@ static ggml_tensor * dtw_and_backtrace(ggml_context * ctx, ggml_tensor * x) {
     struct ggml_tensor * trace = ggml_new_tensor_2d(ctx, GGML_TYPE_I32, N + 1, M + 1);
 
     cost = whisper_set_f32(cost, INFINITY);
-    trace = whisper_set_f32(trace, -1);
+    trace = whisper_set_i32(trace, -1);
     whisper_set_f32_nd(cost, 0, 0, 0, 0, 0.0);
 
     // dtw
@@ -7306,9 +7316,9 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     // Our ggml buffer should be pre-allocated somewhere during init and reused
     // when we call this function
     struct ggml_init_params gparams = {
-        /*.mem_size   =*/ ggml_tensor_overhead()*1024 + ggml_graph_overhead(),
+        /*.mem_size   =*/ ctx->params.dtw_mem_size,
         /*.mem_buffer =*/ NULL,
-        /*.no_alloc   =*/ true,
+        /*.no_alloc   =*/ false,
     };
     struct ggml_context * gctx = ggml_init(gparams);
 
@@ -7403,7 +7413,6 @@ static void whisper_exp_compute_token_level_timestamps_dtw(
     ggml_build_forward_expand(gf, w);
 
     ggml_backend_ptr backend { ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr) };
-    ggml_backend_buffer_ptr buf { ggml_backend_alloc_ctx_tensors(gctx, backend.get()) };
     ggml_backend_graph_compute(backend.get(), gf);
 
     ggml_tensor * alignment = dtw_and_backtrace(gctx, w);
