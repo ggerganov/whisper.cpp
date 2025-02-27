@@ -4,8 +4,17 @@
 
 // third-party utilities
 // use your favorite implementations
-#define DR_WAV_IMPLEMENTATION
-#include "dr_wav.h"
+#define STB_VORBIS_HEADER_ONLY
+#include "stb_vorbis.c"    /* Enables Vorbis decoding. */
+
+#define MA_NO_DEVICE_IO
+#define MA_NO_THREADING
+#define MA_NO_ENCODING
+#define MA_NO_GENERATION
+#define MA_NO_RESOURCE_MANAGER
+#define MA_NO_NODE_GRAPH
+#define MINIAUDIO_IMPLEMENTATION
+#include "miniaudio.h"
 
 #include <cmath>
 #include <cstring>
@@ -639,110 +648,94 @@ bool is_wav_buffer(const std::string buf) {
     return true;
 }
 
-bool read_wav(const std::string & fname, std::vector<float>& pcmf32, std::vector<std::vector<float>>& pcmf32s, bool stereo) {
-    drwav wav;
-    std::vector<uint8_t> wav_data; // used for pipe input from stdin or ffmpeg decoding output
+bool read_audio_data(const std::string & fname, std::vector<float>& pcmf32, std::vector<std::vector<float>>& pcmf32s, bool stereo) {
+    std::vector<uint8_t> audio_data; // used for pipe input from stdin or ffmpeg decoding output
+
+    ma_result result;
+    ma_decoder_config decoder_config;
+    ma_decoder decoder;
+
+    decoder_config = ma_decoder_config_init(ma_format_f32, stereo ? 2 : 1, COMMON_SAMPLE_RATE);
 
     if (fname == "-") {
-        {
-            #ifdef _WIN32
-            _setmode(_fileno(stdin), _O_BINARY);
-            #endif
+		#ifdef _WIN32
+		_setmode(_fileno(stdin), _O_BINARY);
+		#endif
 
-            uint8_t buf[1024];
-            while (true)
-            {
-                const size_t n = fread(buf, 1, sizeof(buf), stdin);
-                if (n == 0) {
-                    break;
-                }
-                wav_data.insert(wav_data.end(), buf, buf + n);
-            }
-        }
+		uint8_t buf[1024];
+		while (true)
+		{
+			const size_t n = fread(buf, 1, sizeof(buf), stdin);
+			if (n == 0) {
+				break;
+			}
+			audio_data.insert(audio_data.end(), buf, buf + n);
+		}
 
-        if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), nullptr) == false) {
-            fprintf(stderr, "error: failed to open WAV file from stdin\n");
-            return false;
-        }
+		if ((result = ma_decoder_init_memory(audio_data.data(), audio_data.size(), &decoder_config, &decoder)) != MA_SUCCESS) {
 
-        fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
+			fprintf(stderr, "Error: failed to open audio data from stdin (%s)\n", ma_result_description(result));
+
+			return false;
+		}
+
+		fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, audio_data.size());
     }
     else if (is_wav_buffer(fname)) {
-        if (drwav_init_memory(&wav, fname.c_str(), fname.size(), nullptr) == false) {
-            fprintf(stderr, "error: failed to open WAV file from fname buffer\n");
-            return false;
-        }
+			if ((result = ma_decoder_init_memory(audio_data.data(), audio_data.size(), &decoder_config, &decoder)) != MA_SUCCESS) {
+				fprintf(stderr, "Error: failed to open audio data from fname buffer (%s)\n", ma_result_description(result));
+
+				return false;
+			}
     }
-    else if (drwav_init_file(&wav, fname.c_str(), nullptr) == false) {
+    else if ((result = ma_decoder_init_file(fname.c_str(), &decoder_config, &decoder)) != MA_SUCCESS) {
 #if defined(WHISPER_FFMPEG)
-        if (ffmpeg_decode_audio(fname, wav_data) != 0) {
-            fprintf(stderr, "error: failed to ffmpeg decode '%s' \n", fname.c_str());
-            return false;
-        }
-        if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), nullptr) == false) {
-            fprintf(stderr, "error: failed to read wav data as wav \n");
-            return false;
-        }
+			if (ffmpeg_decode_audio(fname, audio_data) != 0) {
+				fprintf(stderr, "error: failed to ffmpeg decode '%s'\n", fname.c_str());
+
+				return false;
+			}
+
+			if ((result = ma_decoder_init_memory(audio_data.data(), audio_data.size(), &decoder_config, &decoder)) != MA_SUCCESS) {
+				fprintf(stderr, "error: failed to read audio data as wav (%s)\n", ma_result_description(result));
+
+				return false;
+			}
 #else
-        fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname.c_str());
-        return false;
+		fprintf(stderr, "error: failed to open '%s' file (%s)\n", fname.c_str(), ma_result_description(result));
+
+		return false;
 #endif
     }
 
-    if (wav.channels != 1 && wav.channels != 2) {
-        fprintf(stderr, "%s: WAV file '%s' must be mono or stereo\n", __func__, fname.c_str());
-        drwav_uninit(&wav);
-        return false;
+    ma_uint64 frame_count;
+    ma_uint64 frames_read;
+
+    if ((result = ma_decoder_get_length_in_pcm_frames(&decoder, &frame_count)) != MA_SUCCESS) {
+		fprintf(stderr, "error: failed to retrieve the length of the audio data (%s)\n", ma_result_description(result));
+
+		return false;
     }
 
-    if (stereo && wav.channels != 2) {
-        fprintf(stderr, "%s: WAV file '%s' must be stereo for diarization\n", __func__, fname.c_str());
-        drwav_uninit(&wav);
-        return false;
-    }
+    pcmf32.resize(stereo ? frame_count*2 : frame_count);
 
-    if (wav.sampleRate != COMMON_SAMPLE_RATE) {
-        fprintf(stderr, "%s: WAV file '%s' must be %i kHz\n", __func__, fname.c_str(), COMMON_SAMPLE_RATE/1000);
-        drwav_uninit(&wav);
-        return false;
-    }
+    if ((result = ma_decoder_read_pcm_frames(&decoder, pcmf32.data(), frame_count, &frames_read)) != MA_SUCCESS) {
+		fprintf(stderr, "error: failed to read the frames of the audio data (%s)\n", ma_result_description(result));
 
-    if (wav.bitsPerSample != 16) {
-        fprintf(stderr, "%s: WAV file '%s' must be 16-bit\n", __func__, fname.c_str());
-        drwav_uninit(&wav);
-        return false;
-    }
-
-    const uint64_t n = wav_data.empty() ? wav.totalPCMFrameCount : wav_data.size()/(wav.channels*wav.bitsPerSample/8);
-
-    std::vector<int16_t> pcm16;
-    pcm16.resize(n*wav.channels);
-    drwav_read_pcm_frames_s16(&wav, n, pcm16.data());
-    drwav_uninit(&wav);
-
-    // convert to mono, float
-    pcmf32.resize(n);
-    if (wav.channels == 1) {
-        for (uint64_t i = 0; i < n; i++) {
-            pcmf32[i] = float(pcm16[i])/32768.0f;
-        }
-    } else {
-        for (uint64_t i = 0; i < n; i++) {
-            pcmf32[i] = float(pcm16[2*i] + pcm16[2*i + 1])/65536.0f;
-        }
+		return false;
     }
 
     if (stereo) {
-        // convert to stereo, float
-        pcmf32s.resize(2);
-
-        pcmf32s[0].resize(n);
-        pcmf32s[1].resize(n);
-        for (uint64_t i = 0; i < n; i++) {
-            pcmf32s[0][i] = float(pcm16[2*i])/32768.0f;
-            pcmf32s[1][i] = float(pcm16[2*i + 1])/32768.0f;
-        }
+		pcmf32s.resize(2);
+		pcmf32s[0].resize(frame_count);
+		pcmf32s[1].resize(frame_count);
+		for (uint64_t i = 0; i < frame_count; i++) {
+			pcmf32s[0][i] = pcmf32[2*i];
+			pcmf32s[1][i] = pcmf32[2*i + 1];
+		}
     }
+
+    ma_decoder_uninit(&decoder);
 
     return true;
 }
@@ -909,3 +902,6 @@ bool speak_with_file(const std::string & command, const std::string & text, cons
     }
     return true;
 }
+
+#undef STB_VORBIS_HEADER_ONLY
+#include "stb_vorbis.c"
