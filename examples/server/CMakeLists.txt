@@ -1,6 +1,8 @@
 set(TARGET whisper-server)
 add_executable(${TARGET} server.cpp httplib.h)
 
+install(TARGETS ${TARGET} RUNTIME DESTINATION bin)
+
 include(DefaultTargetOptions)
 
 target_link_libraries(${TARGET} PRIVATE common json_cpp whisper ${CMAKE_THREAD_LIBS_INIT})
