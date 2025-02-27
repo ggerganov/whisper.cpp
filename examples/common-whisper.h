@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
 
 // Read WAV audio file and store the PCM data into pcmf32
 // fname can be a buffer of WAV data instead of a filename

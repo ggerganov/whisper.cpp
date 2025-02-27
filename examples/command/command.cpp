@@ -11,6 +11,7 @@
 #include "whisper.h"
 #include "grammar-parser.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <fstream>
