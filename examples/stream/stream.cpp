@@ -244,6 +244,11 @@ int main(int argc, char ** argv) {
 
         if (!use_vad) {
             while (true) {
+                // handle Ctrl + C
+                is_running = sdl_poll_events();
+                if (!is_running) {
+                    break;
+                }
                 audio.get(params.step_ms, pcmf32_new);
 
                 if ((int) pcmf32_new.size() > 2*n_samples_step) {
