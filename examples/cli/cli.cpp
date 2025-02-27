@@ -1,4 +1,5 @@
 #include "common.h"
+#include "common-whisper.h"
 
 #include "whisper.h"
 #include "grammar-parser.h"
@@ -6,7 +7,6 @@
 #include <cmath>
 #include <fstream>
 #include <cstdio>
-#include <regex>
 #include <string>
 #include <thread>
 #include <vector>

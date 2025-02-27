@@ -3,18 +3,19 @@
 
 #include "common-sdl.h"
 #include "common.h"
+#include "common-whisper.h"
 #include "whisper.h"
 #include "llama.h"
 
-#include <cassert>
+#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <regex>
+#include <regex>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
-#include <regex>
-#include <sstream>
 
 static std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos) {
     const llama_model * model = llama_get_model(ctx);
