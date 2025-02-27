@@ -16,12 +16,13 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 
+#include <algorithm>
 #include <cmath>
+#include <codecvt>
 #include <cstring>
 #include <fstream>
-#include <regex>
 #include <locale>
-#include <codecvt>
+#include <regex>
 #include <sstream>
 
 #if defined(_MSC_VER)
