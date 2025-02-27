@@ -226,6 +226,9 @@ add_library(ggml-base
             gguf.cpp)
 
 target_include_directories(ggml-base PRIVATE .)
+if (GGML_BACKEND_DL)
+    target_compile_definitions(ggml-base PUBLIC GGML_BACKEND_DL)
+endif()
 
 add_library(ggml
             ggml-backend-reg.cpp)
