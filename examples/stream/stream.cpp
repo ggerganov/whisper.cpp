@@ -4,6 +4,7 @@
 //
 #include "common-sdl.h"
 #include "common.h"
+#include "common-whisper.h"
 #include "whisper.h"
 
 #include <cassert>

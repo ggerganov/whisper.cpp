@@ -1,4 +1,5 @@
 #include "common.h"
+#include "common-whisper.h"
 
 #include "whisper.h"
 #include "httplib.h"
