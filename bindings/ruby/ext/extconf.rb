@@ -171,7 +171,9 @@ $OBJ_GGML <<
   'ggml/src/ggml-cpu/ggml-cpu-traits.o'
 
 $OBJ_WHISPER <<
-  'src/whisper.o'
+  'src/whisper.o' <<
+  'examples/common.o' <<
+  'examples/common-whisper.o'
 
 $objs = $OBJ_GGML + $OBJ_WHISPER + $OBJ_COMMON + $OBJ_SDL
 $objs <<

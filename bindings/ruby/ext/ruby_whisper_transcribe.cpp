@@ -1,7 +1,6 @@
 #include <ruby.h>
 #include "ruby_whisper.h"
-#define DR_WAV_IMPLEMENTATION
-#include "dr_wav.h"
+#include "common-whisper.h"
 #include <string>
 #include <vector>
 
@@ -47,84 +46,9 @@ ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
   std::vector<float> pcmf32; // mono-channel F32 PCM
   std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
-  // WAV input - this is directly from main.cpp example
-  {
-    drwav wav;
-    std::vector<uint8_t> wav_data; // used for pipe input from stdin
-
-    if (fname_inp == "-") {
-      {
-        uint8_t buf[1024];
-        while (true) {
-          const size_t n = fread(buf, 1, sizeof(buf), stdin);
-          if (n == 0) {
-            break;
-          }
-          wav_data.insert(wav_data.end(), buf, buf + n);
-        }
-      }
-
-      if (drwav_init_memory(&wav, wav_data.data(), wav_data.size(), nullptr) == false) {
-        fprintf(stderr, "error: failed to open WAV file from stdin\n");
-        return self;
-      }
-
-      fprintf(stderr, "%s: read %zu bytes from stdin\n", __func__, wav_data.size());
-    } else if (drwav_init_file(&wav, fname_inp.c_str(), nullptr) == false) {
-      fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname_inp.c_str());
-      return self;
-    }
-
-    if (wav.channels != 1 && wav.channels != 2) {
-      fprintf(stderr, "WAV file '%s' must be mono or stereo\n", fname_inp.c_str());
-      return self;
-    }
-
-    if (rwp->diarize && wav.channels != 2 && rwp->params.print_timestamps == false) {
-      fprintf(stderr, "WAV file '%s' must be stereo for diarization and timestamps have to be enabled\n", fname_inp.c_str());
-      return self;
-    }
-
-    if (wav.sampleRate != WHISPER_SAMPLE_RATE) {
-      fprintf(stderr, "WAV file '%s' must be %i kHz\n", fname_inp.c_str(), WHISPER_SAMPLE_RATE/1000);
-      return self;
-    }
-
-    if (wav.bitsPerSample != 16) {
-      fprintf(stderr, "WAV file '%s' must be 16-bit\n", fname_inp.c_str());
-      return self;
-    }
-
-    const uint64_t n = wav_data.empty() ? wav.totalPCMFrameCount : wav_data.size()/(wav.channels*wav.bitsPerSample/8);
-
-    std::vector<int16_t> pcm16;
-    pcm16.resize(n*wav.channels);
-    drwav_read_pcm_frames_s16(&wav, n, pcm16.data());
-    drwav_uninit(&wav);
-
-    // convert to mono, float
-    pcmf32.resize(n);
-    if (wav.channels == 1) {
-      for (uint64_t i = 0; i < n; i++) {
-        pcmf32[i] = float(pcm16[i])/32768.0f;
-      }
-    } else {
-      for (uint64_t i = 0; i < n; i++) {
-        pcmf32[i] = float((int32_t)pcm16[2*i] + pcm16[2*i + 1])/65536.0f;
-      }
-    }
-
-    if (rwp->diarize) {
-      // convert to stereo, float
-      pcmf32s.resize(2);
-
-      pcmf32s[0].resize(n);
-      pcmf32s[1].resize(n);
-      for (uint64_t i = 0; i < n; i++) {
-        pcmf32s[0][i] = float(pcm16[2*i])/32768.0f;
-        pcmf32s[1][i] = float(pcm16[2*i + 1])/32768.0f;
-      }
-    }
+  if (!read_audio_data(fname_inp, pcmf32, pcmf32s, rwp->diarize)) {
+    fprintf(stderr, "error: failed to open '%s' as WAV file\n", fname_inp.c_str());
+    return self;
   }
   {
     static bool is_aborted = false; // NOTE: this should be atomic to avoid data race
