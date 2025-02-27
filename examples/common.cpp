@@ -7,6 +7,12 @@
 #define STB_VORBIS_HEADER_ONLY
 #include "stb_vorbis.c"    /* Enables Vorbis decoding. */
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+    #define NOMINMAX
+#endif
+#endif
+
 #define MA_NO_DEVICE_IO
 #define MA_NO_THREADING
 #define MA_NO_ENCODING
@@ -16,7 +22,6 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 
-#include <algorithm>
 #include <cmath>
 #include <codecvt>
 #include <cstring>
