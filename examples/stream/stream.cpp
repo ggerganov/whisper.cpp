@@ -7,13 +7,12 @@
 #include "common-whisper.h"
 #include "whisper.h"
 
-#include <cassert>
+#include <chrono>
 #include <cstdio>
+#include <fstream>
 #include <string>
 #include <thread>
 #include <vector>
-#include <fstream>
-
 
 // command-line parameters
 struct whisper_params {

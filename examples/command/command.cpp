@@ -11,16 +11,14 @@
 #include "whisper.h"
 #include "grammar-parser.h"
 
-#include <sstream>
-#include <cassert>
+#include <chrono>
 #include <cstdio>
 #include <fstream>
-#include <mutex>
-#include <regex>
+#include <map>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
-#include <map>
 
 // command-line parameters
 struct whisper_params {
