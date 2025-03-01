@@ -1,5 +1,6 @@
 #include "napi.h"
 #include "common.h"
+#include "common-whisper.h"
 
 #include "whisper.h"
 
