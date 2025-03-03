@@ -1,20 +1,24 @@
 #include "clamp.cuh"
 
+static __device__ __forceinline__ float op_clamp(float x, float min, float max) {
+    return fminf(fmaxf(x, min), max);
+}
+
 template <class T>
-static __global__ void op_clamp(const T * x, T * dst, const T min, const T max, const int k) {
+static __global__ void op_clamp_kernel(const T * x, T * dst, const T min, const T max, const int k) {
     const int i = blockDim.x*blockIdx.x + threadIdx.x;
 
     if (i >= k) {
         return;
     }
 
-    dst[i] = x[i] < min ? min : (x[i] > max ? max : x[i]);
+    dst[i] = (T)op_clamp((float)x[i], (float)min, (float)max);
 }
 
 template <class T>
 static void clamp_cuda(const T * x, T * dst, const T min, const T max, const int k, cudaStream_t stream) {
     const int num_blocks = (k + CUDA_CLAMP_BLOCK_SIZE - 1) / CUDA_CLAMP_BLOCK_SIZE;
-    op_clamp<<<num_blocks, CUDA_CLAMP_BLOCK_SIZE, 0, stream>>>(x, dst, min, max, k);
+    op_clamp_kernel<<<num_blocks, CUDA_CLAMP_BLOCK_SIZE, 0, stream>>>(x, dst, min, max, k);
 }
 
 
