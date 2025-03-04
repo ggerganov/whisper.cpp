@@ -82,6 +82,7 @@ endif()
 
 add_library(whisper
             ../include/whisper.h
+            whisper-arch.h
             whisper.cpp
             )
 
