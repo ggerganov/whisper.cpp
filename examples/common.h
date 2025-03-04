@@ -134,9 +134,6 @@ gpt_vocab::id gpt_sample_top_k_top_p_repeat(
 // Audio utils
 //
 
-// Check if a buffer is a WAV audio file
-bool is_wav_buffer(const std::string buf);
-
 // Write PCM data into WAV audio file
 class wav_writer {
 private:
