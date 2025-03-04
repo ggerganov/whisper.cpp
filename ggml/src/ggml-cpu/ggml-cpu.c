@@ -247,9 +247,9 @@ typedef pthread_t ggml_thread_t;
 static const size_t CACHE_LINE_SIZE_F32 = CACHE_LINE_SIZE/sizeof(float);
 
 
-static void ggml_vec_dot_f32(int n, float * restrict s, size_t bs, const float * restrict x, size_t bx, const float * restrict y, size_t by, int nrc);
-static void ggml_vec_dot_f16(int n, float * restrict s, size_t bs, ggml_fp16_t * restrict x, size_t bx, ggml_fp16_t * restrict y, size_t by, int nrc);
-static void ggml_vec_dot_bf16(int n, float * restrict s, size_t bs, ggml_bf16_t * restrict x, size_t bx, ggml_bf16_t * restrict y, size_t by, int nrc);
+static void ggml_vec_dot_f32(int n, float * GGML_RESTRICT s, size_t bs, const float * GGML_RESTRICT x, size_t bx, const float * GGML_RESTRICT y, size_t by, int nrc);
+static void ggml_vec_dot_f16(int n, float * GGML_RESTRICT s, size_t bs, ggml_fp16_t * GGML_RESTRICT x, size_t bx, ggml_fp16_t * GGML_RESTRICT y, size_t by, int nrc);
+static void ggml_vec_dot_bf16(int n, float * GGML_RESTRICT s, size_t bs, ggml_bf16_t * GGML_RESTRICT x, size_t bx, ggml_bf16_t * GGML_RESTRICT y, size_t by, int nrc);
 
 static const struct ggml_type_traits_cpu type_traits_cpu[GGML_TYPE_COUNT] = {
     [GGML_TYPE_F32] = {
@@ -1451,7 +1451,7 @@ inline static void ggml_vec_div_f16 (const int n, ggml_fp16_t * z, const ggml_fp
     }
 }
 
-static void ggml_vec_dot_f32(int n, float * restrict s, size_t bs, const float * restrict x, size_t bx, const float * restrict y, size_t by, int nrc) {
+static void ggml_vec_dot_f32(int n, float * GGML_RESTRICT s, size_t bs, const float * GGML_RESTRICT x, size_t bx, const float * GGML_RESTRICT y, size_t by, int nrc) {
    assert(nrc == 1);
    UNUSED(nrc);
    UNUSED(bx);
@@ -1494,7 +1494,7 @@ static void ggml_vec_dot_f32(int n, float * restrict s, size_t bs, const float *
     *s = sumf;
 }
 
-static void ggml_vec_dot_bf16(int n, float * restrict s, size_t bs, ggml_bf16_t * restrict x, size_t bx, ggml_bf16_t * restrict y, size_t by, int nrc) {
+static void ggml_vec_dot_bf16(int n, float * GGML_RESTRICT s, size_t bs, ggml_bf16_t * GGML_RESTRICT x, size_t bx, ggml_bf16_t * GGML_RESTRICT y, size_t by, int nrc) {
     assert(nrc == 1);
     UNUSED(nrc);
     UNUSED(bx);
@@ -1562,7 +1562,7 @@ static void ggml_vec_dot_bf16(int n, float * restrict s, size_t bs, ggml_bf16_t 
     *s = sumf;
 }
 
-static void ggml_vec_dot_f16(int n, float * restrict s, size_t bs, ggml_fp16_t * restrict x, size_t bx, ggml_fp16_t * restrict y, size_t by, int nrc) {
+static void ggml_vec_dot_f16(int n, float * GGML_RESTRICT s, size_t bs, ggml_fp16_t * GGML_RESTRICT x, size_t bx, ggml_fp16_t * GGML_RESTRICT y, size_t by, int nrc) {
     assert(nrc == 1);
     UNUSED(nrc);
     UNUSED(bx);
@@ -1606,10 +1606,10 @@ static void ggml_vec_dot_f16(int n, float * restrict s, size_t bs, ggml_fp16_t *
 
 // compute GGML_VEC_DOT_UNROLL dot products at once
 // xs - x row stride in bytes
-inline static void ggml_vec_dot_f16_unroll(const int n, const int xs, float * restrict s, void * restrict xv, ggml_fp16_t * restrict y) {
+inline static void ggml_vec_dot_f16_unroll(const int n, const int xs, float * GGML_RESTRICT s, void * GGML_RESTRICT xv, ggml_fp16_t * GGML_RESTRICT y) {
     ggml_float sumf[GGML_VEC_DOT_UNROLL] = { 0.0 };
 
-    ggml_fp16_t * restrict x[GGML_VEC_DOT_UNROLL];
+    ggml_fp16_t * GGML_RESTRICT x[GGML_VEC_DOT_UNROLL];
 
     for (int i = 0; i < GGML_VEC_DOT_UNROLL; ++i) {
         x[i] = (ggml_fp16_t *) ((char *) xv + i*xs);
@@ -1659,7 +1659,7 @@ inline static void ggml_vec_dot_f16_unroll(const int n, const int xs, float * re
     }
 }
 
-inline static void ggml_vec_mad_f32(const int n, float * restrict y, const float * restrict x, const float v) {
+inline static void ggml_vec_mad_f32(const int n, float * GGML_RESTRICT y, const float * GGML_RESTRICT x, const float v) {
 #if defined(GGML_SIMD)
     const int np = (n & ~(GGML_F32_STEP - 1));
 
@@ -1690,7 +1690,7 @@ inline static void ggml_vec_mad_f32(const int n, float * restrict y, const float
 #endif
 }
 
-inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, const ggml_fp16_t * restrict x, const float v) {
+inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * GGML_RESTRICT y, const ggml_fp16_t * GGML_RESTRICT x, const float v) {
 #if defined(GGML_SIMD)
     const int np = (n & ~(GGML_F16_STEP - 1));
 
@@ -1722,10 +1722,10 @@ inline static void ggml_vec_mad_f16(const int n, ggml_fp16_t * restrict y, const
 }
 
 // xs and vs are byte strides of x and v
-inline static void ggml_vec_mad_f32_unroll(const int n, const int xs, const int vs, float * restrict y, const float * restrict xv, const float * restrict vv) {
+inline static void ggml_vec_mad_f32_unroll(const int n, const int xs, const int vs, float * GGML_RESTRICT y, const float * GGML_RESTRICT xv, const float * GGML_RESTRICT vv) {
 
-    const float * restrict x[GGML_VEC_MAD_UNROLL];
-    const float * restrict v[GGML_VEC_MAD_UNROLL];
+    const float * GGML_RESTRICT x[GGML_VEC_MAD_UNROLL];
+    const float * GGML_RESTRICT v[GGML_VEC_MAD_UNROLL];
 
     for (int i = 0; i < GGML_VEC_MAD_UNROLL; ++i) {
         x[i] = (const float *) ((const char *) xv + i*xs);

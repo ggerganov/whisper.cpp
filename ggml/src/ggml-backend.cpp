@@ -21,6 +21,7 @@
 #include <string.h>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #ifdef __APPLE__
 #include <sys/types.h>
