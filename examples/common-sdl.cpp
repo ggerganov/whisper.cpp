@@ -159,15 +159,11 @@ void audio_async::callback(uint8_t * stream, int len) {
 
             memcpy(&m_audio[m_audio_pos], stream, n0 * sizeof(float));
             memcpy(&m_audio[0], stream + n0 * sizeof(float), (n_samples - n0) * sizeof(float));
-
-            m_audio_pos = (m_audio_pos + n_samples) % m_audio.size();
-            m_audio_len = m_audio.size();
         } else {
             memcpy(&m_audio[m_audio_pos], stream, n_samples * sizeof(float));
-
-            m_audio_pos = (m_audio_pos + n_samples) % m_audio.size();
-            m_audio_len = std::min(m_audio_len + n_samples, m_audio.size());
         }
+        m_audio_pos = (m_audio_pos + n_samples) % m_audio.size();
+        m_audio_len = std::min(m_audio_len + n_samples, m_audio.size());
     }
 }
 
