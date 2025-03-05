@@ -467,11 +467,13 @@ struct ggml_backend_metal_context {
 //       for now it is easier to work in a separate file
 // static NSString * const msl_library_source = @"see metal.metal";
 
+#if !GGML_METAL_EMBED_LIBRARY
 // Here to assist with NSBundle Path Hack
 @interface GGMLMetalClass : NSObject
 @end
 @implementation GGMLMetalClass
 @end
+#endif
 
 static void * ggml_metal_host_malloc(size_t n) {
     void * data = NULL;
@@ -520,7 +522,7 @@ static struct ggml_backend_metal_context * ggml_metal_init(ggml_backend_dev_t de
 
     ctx->d_queue = dispatch_queue_create("ggml-metal", DISPATCH_QUEUE_CONCURRENT);
 
-    id<MTLLibrary> metal_library;
+    id<MTLLibrary> metal_library = nil;
 
     // load library
     //
@@ -529,19 +531,23 @@ static struct ggml_backend_metal_context * ggml_metal_init(ggml_backend_dev_t de
     // - if not found, load the source and compile it
     // - if that fails, return NULL
     {
-        NSBundle * bundle = nil;
-#ifdef SWIFT_PACKAGE
-        bundle = SWIFTPM_MODULE_BUNDLE;
-#else
-        bundle = [NSBundle bundleForClass:[GGMLMetalClass class]];
-#endif
-
         NSError * error = nil;
+        NSString * src = nil;
 
 #if GGML_METAL_EMBED_LIBRARY
-        const bool try_metallib = false;
+        GGML_LOG_INFO("%s: using embedded metal library\n", __func__);
+
+        extern const char ggml_metallib_start[];
+        extern const char ggml_metallib_end[];
+
+        src = [[NSString alloc] initWithBytes:ggml_metallib_start length:(ggml_metallib_end-ggml_metallib_start) encoding:NSUTF8StringEncoding];
+
 #else
-        const bool try_metallib = true;
+
+#ifdef SWIFT_PACKAGE
+        NSBundle * bundle = SWIFTPM_MODULE_BUNDLE;
+#else
+        NSBundle * bundle = [NSBundle bundleForClass:[GGMLMetalClass class]];
 #endif
 
         NSString * path_lib = [bundle pathForResource:@"default" ofType:@"metallib"];
@@ -574,7 +580,7 @@ static struct ggml_backend_metal_context * ggml_metal_init(ggml_backend_dev_t de
             path_lib = default_metallib_path;
         }
 
-        if (try_metallib && path_lib != nil) {
+        if (path_lib != nil) {
             // pre-compiled library found
             NSURL * libURL = [NSURL fileURLWithPath:path_lib];
             GGML_LOG_INFO("%s: loading '%s'\n", __func__, [path_lib UTF8String]);
@@ -585,14 +591,6 @@ static struct ggml_backend_metal_context * ggml_metal_init(ggml_backend_dev_t de
                 return NULL;
             }
         } else {
-#if GGML_METAL_EMBED_LIBRARY
-            GGML_LOG_INFO("%s: using embedded metal library\n", __func__);
-
-            extern const char ggml_metallib_start[];
-            extern const char ggml_metallib_end[];
-
-            NSString * src = [[NSString alloc] initWithBytes:ggml_metallib_start length:(ggml_metallib_end-ggml_metallib_start) encoding:NSUTF8StringEncoding];
-#else
             GGML_LOG_INFO("%s: default.metallib not found, loading from source\n", __func__);
 
             NSString * path_source;
@@ -613,13 +611,15 @@ static struct ggml_backend_metal_context * ggml_metal_init(ggml_backend_dev_t de
 
             GGML_LOG_INFO("%s: loading '%s'\n", __func__, [path_source UTF8String]);
 
-            NSString * src = [NSString stringWithContentsOfFile:path_source encoding:NSUTF8StringEncoding error:&error];
+            src = [NSString stringWithContentsOfFile:path_source encoding:NSUTF8StringEncoding error:&error];
             if (error) {
                 GGML_LOG_ERROR("%s: error: %s\n", __func__, [[error description] UTF8String]);
                 return NULL;
             }
-#endif // GGML_METAL_EMBED_LIBRARY
+        }
+#endif
 
+        if (!metal_library) {
             @autoreleasepool {
                 // dictionary of preprocessor macros
                 NSMutableDictionary * prep = [NSMutableDictionary dictionary];
@@ -647,10 +647,11 @@ static struct ggml_backend_metal_context * ggml_metal_init(ggml_backend_dev_t de
                 [options release];
 #endif
             }
-#if GGML_METAL_EMBED_LIBRARY
-            [src release];
-#endif // GGML_METAL_EMBED_LIBRARY
         }
+
+#if GGML_METAL_EMBED_LIBRARY
+        [src release];
+#endif // GGML_METAL_EMBED_LIBRARY
     }
 
     // print MTL GPU family:
