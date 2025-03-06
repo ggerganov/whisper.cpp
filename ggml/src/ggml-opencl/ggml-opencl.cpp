@@ -524,7 +524,10 @@ static ggml_backend_opencl_context * ggml_cl2_init(ggml_backend_dev_t dev) {
         return backend_ctx;
     }
 
-    CL_CHECK(clGetDeviceInfo(device, CL_DEVICE_MEM_BASE_ADDR_ALIGN, sizeof(cl_uint), &backend_ctx->alignment, NULL));
+    cl_uint base_align_in_bits;
+    CL_CHECK(clGetDeviceInfo(device, CL_DEVICE_MEM_BASE_ADDR_ALIGN, sizeof(cl_uint), &base_align_in_bits, NULL));
+    GGML_ASSERT(base_align_in_bits % 8u == 0);
+    backend_ctx->alignment = base_align_in_bits / 8u;
     GGML_LOG_INFO("ggml_opencl: mem base addr align: %u\n", backend_ctx->alignment);
 
     clGetDeviceInfo(device, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(size_t), &backend_ctx->max_alloc_size, NULL);
@@ -1198,17 +1201,14 @@ struct ggml_backend_opencl_buffer_context {
     std::string name;
 };
 
-static void * const cl_ptr_base = (void *)(uintptr_t) 0x1000;
-
 static void ggml_backend_opencl_buffer_free_buffer(ggml_backend_buffer_t buffer) {
     ggml_backend_opencl_buffer_context * ctx = (ggml_backend_opencl_buffer_context *) buffer->context;
     delete ctx;
 }
 
 static void * ggml_backend_opencl_buffer_get_base(ggml_backend_buffer_t buffer) {
-    return cl_ptr_base;
-
-    GGML_UNUSED(buffer);
+    ggml_backend_opencl_context * backend_ctx = ggml_cl2_init(buffer->buft->device);
+    return (void *) (uintptr_t) backend_ctx->alignment;
 }
 
 static enum ggml_status ggml_backend_opencl_buffer_init_tensor(ggml_backend_buffer_t buffer, ggml_tensor * tensor) {
@@ -1241,7 +1241,7 @@ static enum ggml_status ggml_backend_opencl_buffer_init_tensor(ggml_backend_buff
         tensor->extra = view_extra;
     } else {
         {
-            size_t offset = (char *)tensor->data - (char *)cl_ptr_base;
+            size_t offset = (char *) tensor->data - (char *) ggml_backend_opencl_buffer_get_base(buffer);
 
             ggml_tensor_extra_cl * extra = ctx->ggml_opencl_alloc_temp_tensor_extra();
             extra->offset = offset;
