@@ -3765,10 +3765,10 @@ static void ggml_cl_rope(ggml_backend_t backend, const ggml_tensor * src0, const
     const int  ne02 = src0 ? src0->ne[2] : 0;
     const int  ne03 = src0 ? src0->ne[3] : 0;
 
-    const int  nb00 = src0 ? src0->nb[0] : 0;
-    const int  nb01 = src0 ? src0->nb[1] : 0;
-    const int  nb02 = src0 ? src0->nb[2] : 0;
-    const int  nb03 = src0 ? src0->nb[3] : 0;
+    const cl_ulong  nb00 = src0 ? src0->nb[0] : 0;
+    const cl_ulong  nb01 = src0 ? src0->nb[1] : 0;
+    const cl_ulong  nb02 = src0 ? src0->nb[2] : 0;
+    const cl_ulong  nb03 = src0 ? src0->nb[3] : 0;
 
     const int ne10 = src1 ? src1->ne[0] : 0;
     const int ne11 = src1 ? src1->ne[1] : 0; UNUSED(ne11);
@@ -3780,10 +3780,10 @@ static void ggml_cl_rope(ggml_backend_t backend, const ggml_tensor * src0, const
     const int  ne2 = dst ? dst->ne[2] : 0;
     const int  ne3 = dst ? dst->ne[3] : 0;
 
-    const int  nb0 = dst ? dst->nb[0] : 0;
-    const int  nb1 = dst ? dst->nb[1] : 0;
-    const int  nb2 = dst ? dst->nb[2] : 0;
-    const int  nb3 = dst ? dst->nb[3] : 0;
+    const cl_ulong  nb0 = dst ? dst->nb[0] : 0;
+    const cl_ulong  nb1 = dst ? dst->nb[1] : 0;
+    const cl_ulong  nb2 = dst ? dst->nb[2] : 0;
+    const cl_ulong  nb3 = dst ? dst->nb[3] : 0;
 
     GGML_ASSERT(ne10 % ne02 == 0);
     GGML_ASSERT(ne10 >= ne02);
