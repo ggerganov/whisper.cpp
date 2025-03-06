@@ -106,6 +106,7 @@ option(GGML_CPU_KLEIDIAI     "ggml: use KleidiAI optimized kernels if applicable
 option(GGML_AVX              "ggml: enable AVX"              ${INS_ENB})
 option(GGML_AVX_VNNI         "ggml: enable AVX-VNNI"         OFF)
 option(GGML_AVX2             "ggml: enable AVX2"             ${INS_ENB})
+option(GGML_BMI2             "ggml: enable BMI2"             ${INS_ENB})
 option(GGML_AVX512           "ggml: enable AVX512F"          OFF)
 option(GGML_AVX512_VBMI      "ggml: enable AVX512-VBMI"      OFF)
 option(GGML_AVX512_VNNI      "ggml: enable AVX512-VNNI"      OFF)
