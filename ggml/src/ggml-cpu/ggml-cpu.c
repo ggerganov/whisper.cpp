@@ -15579,6 +15579,14 @@ int ggml_cpu_has_amx_int8(void) {
 #endif
 }
 
+int ggml_cpu_has_bmi2(void) {
+#if defined(__BMI2__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 int ggml_cpu_has_fma(void) {
 #if defined(__FMA__)
     return 1;
