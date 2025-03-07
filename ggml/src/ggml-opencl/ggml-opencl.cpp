@@ -1007,17 +1007,18 @@ static bool ggml_opencl_supports_op(ggml_backend_dev_t dev, const struct ggml_te
         case GGML_OP_ADD:
         case GGML_OP_SCALE:
         case GGML_OP_MUL:
-            return true;
+            return op->src[0]->type == GGML_TYPE_F32;
         case GGML_OP_UNARY:
             switch (ggml_get_unary_op(op)) {
                 case GGML_UNARY_OP_GELU:
                 case GGML_UNARY_OP_SILU:
                 case GGML_UNARY_OP_RELU:
-                   return ggml_is_contiguous(op->src[0]);
+                   return ggml_is_contiguous(op->src[0]) && op->src[0]->type == GGML_TYPE_F32;
                 default:
                     return false;
             }
         case GGML_OP_CLAMP:
+            return op->src[0]->type == GGML_TYPE_F32;
         case GGML_OP_SOFT_MAX:
         case GGML_OP_NORM:
         case GGML_OP_RMS_NORM:
@@ -2573,26 +2574,33 @@ static void ggml_cl_norm(ggml_backend_t backend, const ggml_tensor * src0, const
     memcpy(&eps, dst->op_params, sizeof(float));
 
     const int ne00 = src0 ? src0->ne[0] : 0;
-    const cl_ulong nb01 = src0 ? src0->nb[1] : 0;
+    const int ne01 = src0 ? src0->ne[1] : 0;
+    const int ne02 = src0 ? src0->ne[2] : 0;
+    const int ne03 = src0 ? src0->ne[3] : 0;
 
-    GGML_ASSERT(ggml_is_contiguous_1(src0));
+    const cl_ulong nb01 = src0 ? src0->nb[1] : 0;
+    const cl_ulong nb02 = src0 ? src0->nb[2] : 0;
+    const cl_ulong nb03 = src0 ? src0->nb[3] : 0;
 
     const int nth = MIN(64, ne00);
 
     cl_kernel kernel = backend_ctx->kernel_norm;
 
-    CL_CHECK(clSetKernelArg(kernel, 0, sizeof(cl_mem),    &extra0->data_device));
-    CL_CHECK(clSetKernelArg(kernel, 1, sizeof(cl_ulong),  &offset0));
-    CL_CHECK(clSetKernelArg(kernel, 2, sizeof(cl_mem),    &extrad->data_device));
-    CL_CHECK(clSetKernelArg(kernel, 3, sizeof(cl_ulong),  &offsetd));
-    CL_CHECK(clSetKernelArg(kernel, 4, sizeof(int),       &ne00));
-    CL_CHECK(clSetKernelArg(kernel, 5, sizeof(cl_ulong),  &nb01));
-    CL_CHECK(clSetKernelArg(kernel, 6, sizeof(float),     &eps));
-    CL_CHECK(clSetKernelArg(kernel, 7, sizeof(float)*nth, NULL));
+    CL_CHECK(clSetKernelArg(kernel,  0, sizeof(cl_mem),    &extra0->data_device));
+    CL_CHECK(clSetKernelArg(kernel,  1, sizeof(cl_ulong),  &offset0));
+    CL_CHECK(clSetKernelArg(kernel,  2, sizeof(cl_mem),    &extrad->data_device));
+    CL_CHECK(clSetKernelArg(kernel,  3, sizeof(cl_ulong),  &offsetd));
+    CL_CHECK(clSetKernelArg(kernel,  4, sizeof(int),       &ne00));
+    CL_CHECK(clSetKernelArg(kernel,  5, sizeof(int),       &ne01));
+    CL_CHECK(clSetKernelArg(kernel,  6, sizeof(int),       &ne02));
+    CL_CHECK(clSetKernelArg(kernel,  7, sizeof(int),       &ne03));
+    CL_CHECK(clSetKernelArg(kernel,  8, sizeof(cl_ulong),  &nb01));
+    CL_CHECK(clSetKernelArg(kernel,  9, sizeof(cl_ulong),  &nb02));
+    CL_CHECK(clSetKernelArg(kernel, 10, sizeof(cl_ulong),  &nb03));
+    CL_CHECK(clSetKernelArg(kernel, 11, sizeof(float),     &eps));
+    CL_CHECK(clSetKernelArg(kernel, 12, sizeof(float)*nth, NULL));
 
-    const int64_t nrows = ggml_nrows(src0);
-
-    size_t global_work_size[] = {(size_t)nrows*nth, 1, 1};
+    size_t global_work_size[] = {(size_t)ne01*nth, (size_t)ne02, (size_t)ne03};
     size_t local_work_size[] = {(size_t)nth, 1, 1};
 
 #ifdef GGML_OPENCL_PROFILING
@@ -2630,16 +2638,19 @@ static void ggml_cl_rms_norm(ggml_backend_t backend, const ggml_tensor * src0, c
     memcpy(&eps, dst->op_params, sizeof(float));
 
     const int ne00 = src0 ? src0->ne[0] : 0;
+    const int ne01 = src0 ? src0->ne[1] : 0;
+    const int ne02 = src0 ? src0->ne[2] : 0;
+    const int ne03 = src0 ? src0->ne[3] : 0;
+
     const cl_ulong nb01 = src0 ? src0->nb[1] : 0;
+    const cl_ulong nb02 = src0 ? src0->nb[2] : 0;
+    const cl_ulong nb03 = src0 ? src0->nb[3] : 0;
 
     GGML_ASSERT(ne00 % 4 == 0);
-    GGML_ASSERT(ggml_is_contiguous_1(src0));
 
     const int nth = MIN(64, ne00);
 
-    const int64_t nrows = ggml_nrows(src0);
-
-    size_t global_work_size[] = {(size_t)nrows*nth, 1, 1};
+    size_t global_work_size[] = {(size_t)ne01*nth, (size_t)ne02, (size_t)ne03};
     size_t local_work_size[] = {(size_t)nth, 1, 1};
 
     cl_kernel kernel = backend_ctx->kernel_rms_norm;
@@ -2654,15 +2665,20 @@ static void ggml_cl_rms_norm(ggml_backend_t backend, const ggml_tensor * src0, c
         sizeof(local_work_size), local_work_size,
         sizeof(size_t), &sgs, NULL));
 
-    CL_CHECK(clSetKernelArg(kernel, 0, sizeof(cl_mem),    &extra0->data_device));
-    CL_CHECK(clSetKernelArg(kernel, 1, sizeof(cl_ulong),  &offset0));
-    CL_CHECK(clSetKernelArg(kernel, 2, sizeof(cl_mem),    &extrad->data_device));
-    CL_CHECK(clSetKernelArg(kernel, 3, sizeof(cl_ulong),  &offsetd));
-    CL_CHECK(clSetKernelArg(kernel, 4, sizeof(int),       &ne00));
-    CL_CHECK(clSetKernelArg(kernel, 5, sizeof(cl_ulong),  &nb01));
-    CL_CHECK(clSetKernelArg(kernel, 6, sizeof(float),     &eps));
+    CL_CHECK(clSetKernelArg(kernel,  0, sizeof(cl_mem),    &extra0->data_device));
+    CL_CHECK(clSetKernelArg(kernel,  1, sizeof(cl_ulong),  &offset0));
+    CL_CHECK(clSetKernelArg(kernel,  2, sizeof(cl_mem),    &extrad->data_device));
+    CL_CHECK(clSetKernelArg(kernel,  3, sizeof(cl_ulong),  &offsetd));
+    CL_CHECK(clSetKernelArg(kernel,  4, sizeof(int),       &ne00));
+    CL_CHECK(clSetKernelArg(kernel,  5, sizeof(int),       &ne01));
+    CL_CHECK(clSetKernelArg(kernel,  6, sizeof(int),       &ne02));
+    CL_CHECK(clSetKernelArg(kernel,  7, sizeof(int),       &ne03));
+    CL_CHECK(clSetKernelArg(kernel,  8, sizeof(cl_ulong),  &nb01));
+    CL_CHECK(clSetKernelArg(kernel,  9, sizeof(cl_ulong),  &nb02));
+    CL_CHECK(clSetKernelArg(kernel, 10, sizeof(cl_ulong),  &nb03));
+    CL_CHECK(clSetKernelArg(kernel, 11, sizeof(float),     &eps));
     // This is local memory - the size depends on subgroup size.
-    CL_CHECK(clSetKernelArg(kernel, 7, sizeof(float)*nth/sgs,  NULL));
+    CL_CHECK(clSetKernelArg(kernel, 12, sizeof(float)*nth/sgs,  NULL));
 
 #ifdef GGML_OPENCL_PROFILING
     cl_event evt;
