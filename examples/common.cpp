@@ -609,21 +609,6 @@ gpt_vocab::id gpt_sample_top_k_top_p_repeat(
 
 }
 
-bool is_wav_buffer(const std::string buf) {
-    // RIFF ref: https://en.wikipedia.org/wiki/Resource_Interchange_File_Format
-    // WAV ref: https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
-    if (buf.size() < 12 || buf.substr(0, 4) != "RIFF" || buf.substr(8, 4) != "WAVE") {
-        return false;
-    }
-
-    uint32_t chunk_size = *reinterpret_cast<const uint32_t*>(buf.data() + 4);
-    if (chunk_size + 8 != buf.size()) {
-        return false;
-    }
-
-    return true;
-}
-
 void high_pass_filter(std::vector<float> & data, float cutoff, float sample_rate) {
     const float rc = 1.0f / (2.0f * M_PI * cutoff);
     const float dt = 1.0f / sample_rate;
