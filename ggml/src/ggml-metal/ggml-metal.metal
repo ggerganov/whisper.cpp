@@ -3,8 +3,7 @@
 #if defined(GGML_METAL_EMBED_LIBRARY)
 __embed_ggml-common.h__
 #else
-// TODO: this should not be a relative path, but can't figure out how to set Metal include paths in Package.swift
-#include "../ggml-common.h"
+#include "ggml-common.h"
 #endif
 #include "ggml-metal-impl.h"
 
