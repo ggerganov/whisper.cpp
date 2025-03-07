@@ -19,7 +19,12 @@ on:
       - ggml/**/*.m
       - ggml/**/*.metal
       - scripts/get-flags.mk
-      - examples/dr_wav.h
+      - examples/common.h
+      - examples/common.cpp
+      - examples/common-whisper.h
+      - examples/common-whisper.cpp
+      - examples/stb_vorbis.c
+      - examples/miniaudio.h
   pull_request:
     paths:
       - bindings/ruby/**
@@ -39,11 +44,16 @@ on:
       - ggml/**/*.m
       - ggml/**/*.metal
       - scripts/get-flags.mk
-      - examples/dr_wav.h
+      - examples/common.h
+      - examples/common.cpp
+      - examples/common-whisper.h
+      - examples/common-whisper.cpp
+      - examples/stb_vorbis.c
+      - examples/miniaudio.h
 
 jobs:
-  ubuntu-latest:
-    runs-on: ubuntu-latest
+  ubuntu-22:
+    runs-on: ubuntu-22.04
     defaults:
       run:
         working-directory: bindings/ruby

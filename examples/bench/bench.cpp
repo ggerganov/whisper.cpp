@@ -50,11 +50,11 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -t N,     --threads N   [%-7d] number of threads to use during computation\n", params.n_threads);
     fprintf(stderr, "  -m FNAME, --model FNAME [%-7s] model path\n",                                  params.model.c_str());
     fprintf(stderr, "  -w N,     --what N      [%-7d] what to benchmark:\n",                          params.what);
-    fprintf(stderr, "  -ng,      --no-gpu      [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
-    fprintf(stderr, "  -fa,      --flash-attn  [%-7s] enable flash attention\n",                      params.flash_attn ? "true" : "false");
     fprintf(stderr, "                           %-7s  0 - whisper\n",                                 "");
     fprintf(stderr, "                           %-7s  1 - memcpy\n",                                  "");
     fprintf(stderr, "                           %-7s  2 - ggml_mul_mat\n",                            "");
+    fprintf(stderr, "  -ng,      --no-gpu      [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
+    fprintf(stderr, "  -fa,      --flash-attn  [%-7s] enable flash attention\n",                      params.flash_attn ? "true" : "false");
     fprintf(stderr, "\n");
 }
 

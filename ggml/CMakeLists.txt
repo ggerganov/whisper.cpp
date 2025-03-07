@@ -58,7 +58,8 @@ else()
     set(GGML_BLAS_VENDOR_DEFAULT "Generic")
 endif()
 
-if (CMAKE_CROSSCOMPILING)
+if (CMAKE_CROSSCOMPILING OR DEFINED ENV{SOURCE_DATE_EPOCH})
+    message(STATUS "Setting GGML_NATIVE_DEFAULT to OFF")
     set(GGML_NATIVE_DEFAULT OFF)
 else()
     set(GGML_NATIVE_DEFAULT ON)
@@ -101,6 +102,7 @@ endif()
 
 option(GGML_CPU_HBM          "ggml: use memkind for CPU HBM" OFF)
 option(GGML_CPU_AARCH64      "ggml: use runtime weight conversion of Q4_0 to Q4_X_X" ON)
+option(GGML_CPU_KLEIDIAI     "ggml: use KleidiAI optimized kernels if applicable" OFF)
 option(GGML_AVX              "ggml: enable AVX"              ${INS_ENB})
 option(GGML_AVX_VNNI         "ggml: enable AVX-VNNI"         OFF)
 option(GGML_AVX2             "ggml: enable AVX2"             ${INS_ENB})
@@ -120,6 +122,7 @@ endif()
 option(GGML_LASX             "ggml: enable lasx"             ON)
 option(GGML_LSX              "ggml: enable lsx"              ON)
 option(GGML_RVV              "ggml: enable rvv"              ON)
+option(GGML_VXE              "ggml: enable vxe"              ON)
 
 option(GGML_CPU_ALL_VARIANTS "ggml: build all variants of the CPU backend (requires GGML_BACKEND_DL)" OFF)
 set(GGML_CPU_ARM_ARCH "" CACHE STRING "ggml: CPU architecture for ARM")
@@ -149,10 +152,13 @@ set   (GGML_CUDA_PEER_MAX_BATCH_SIZE "128" CACHE STRING
                                             "ggml: max. batch size for using peer access")
 option(GGML_CUDA_NO_PEER_COPY               "ggml: do not use peer to peer copies"            OFF)
 option(GGML_CUDA_NO_VMM                     "ggml: do not try to use CUDA VMM"                OFF)
+option(GGML_CUDA_FA                         "ggml: compile ggml FlashAttention CUDA kernels"  ON)
 option(GGML_CUDA_FA_ALL_QUANTS              "ggml: compile all quants for FlashAttention"     OFF)
 option(GGML_CUDA_GRAPHS                     "ggml: use CUDA graphs (llama.cpp only)"          ${GGML_CUDA_GRAPHS_DEFAULT})
 
 option(GGML_HIP                             "ggml: use HIP"                                   OFF)
+option(GGML_HIP_GRAPHS                      "ggml: use HIP graph, experimental, slow"         OFF)
+option(GGML_HIP_NO_VMM                      "ggml: do not try to use HIP VMM"                 ON)
 option(GGML_HIP_UMA                         "ggml: use HIP unified memory architecture"       OFF)
 option(GGML_VULKAN                          "ggml: use Vulkan"                                OFF)
 option(GGML_VULKAN_CHECK_RESULTS            "ggml: run Vulkan op checks"                      OFF)
@@ -184,6 +190,9 @@ option(GGML_OPENCL                          "ggml: use OpenCL"                  
 option(GGML_OPENCL_PROFILING                "ggml: use OpenCL profiling (increases overhead)" OFF)
 option(GGML_OPENCL_EMBED_KERNELS            "ggml: embed kernels"                             ON)
 option(GGML_OPENCL_USE_ADRENO_KERNELS       "ggml: use optimized kernels for Adreno"          ON)
+
+# toolchain for vulkan-shaders-gen
+set   (GGML_VULKAN_SHADERS_GEN_TOOLCHAIN "" CACHE FILEPATH "ggml: toolchain file for vulkan-shaders-gen")
 
 # extra artifacts
 option(GGML_BUILD_TESTS    "ggml: build tests"    ${GGML_STANDALONE})
@@ -261,3 +270,77 @@ if (GGML_STANDALONE)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ggml.pc
         DESTINATION share/pkgconfig)
 endif()
+
+#
+# Create CMake package
+#
+
+# Generate version info based on git commit.
+
+if(NOT DEFINED GGML_BUILD_NUMBER)
+    find_program(GIT_EXE NAMES git git.exe REQUIRED NO_CMAKE_FIND_ROOT_PATH)
+    execute_process(COMMAND ${GIT_EXE} rev-list --count HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE GGML_BUILD_NUMBER
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    if(GGML_BUILD_NUMBER EQUAL 1)
+        message(WARNING "GGML build version fixed at 1 likely due to a shallow clone.")
+    endif()
+
+    execute_process(COMMAND ${GIT_EXE} rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE GGML_BUILD_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+endif()
+
+
+# Capture variables prefixed with GGML_.
+
+set(variable_set_statements
+"
+####### Expanded from @GGML_VARIABLES_EXPANED@ by configure_package_config_file() #######
+####### Any changes to this file will be overwritten by the next CMake run        #######
+
+")
+
+set(GGML_SHARED_LIB ${BUILD_SHARED_LIBS})
+
+get_cmake_property(all_variables VARIABLES)
+foreach(variable_name IN LISTS all_variables)
+    if(variable_name MATCHES "^GGML_")
+        string(REPLACE ";" "\\;"
+               variable_value "${${variable_name}}")
+
+        set(variable_set_statements
+            "${variable_set_statements}set(${variable_name} \"${variable_value}\")\n")
+    endif()
+endforeach()
+
+set(GGML_VARIABLES_EXPANDED ${variable_set_statements})
+
+# Create the CMake package and set install location.
+
+set(GGML_INSTALL_VERSION 0.0.${GGML_BUILD_NUMBER})
+set(GGML_INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE PATH "Location of header  files")
+set(GGML_LIB_INSTALL_DIR     ${CMAKE_INSTALL_LIBDIR}     CACHE PATH "Location of library files")
+set(GGML_BIN_INSTALL_DIR     ${CMAKE_INSTALL_BINDIR}     CACHE PATH "Location of binary  files")
+
+configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ggml-config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/ggml-config.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ggml
+    PATH_VARS GGML_INCLUDE_INSTALL_DIR
+              GGML_LIB_INSTALL_DIR
+              GGML_BIN_INSTALL_DIR)
+
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/ggml-version.cmake
+    VERSION ${GGML_INSTALL_VERSION}
+    COMPATIBILITY SameMajorVersion)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ggml-config.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/ggml-version.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ggml)
