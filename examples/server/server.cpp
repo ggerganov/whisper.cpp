@@ -1,17 +1,18 @@
 #include "common.h"
+#include "common-whisper.h"
 
 #include "whisper.h"
 #include "httplib.h"
 #include "json.hpp"
 
+#include <chrono>
 #include <cmath>
-#include <fstream>
 #include <cstdio>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
-#include <cstring>
-#include <sstream>
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
@@ -722,8 +723,8 @@ int main(int argc, char ** argv) {
                 return;
             }
 
-            // read wav content into pcmf32
-            if (!::read_wav(temp_filename, pcmf32, pcmf32s, params.diarize))
+            // read audio content into pcmf32
+            if (!::read_audio_data(temp_filename, pcmf32, pcmf32s, params.diarize))
             {
                 fprintf(stderr, "error: failed to read WAV file '%s'\n", temp_filename.c_str());
                 const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
@@ -734,10 +735,10 @@ int main(int argc, char ** argv) {
             // remove temp file
             std::remove(temp_filename.c_str());
         } else {
-            if (!::read_wav(audio_file.content, pcmf32, pcmf32s, params.diarize))
+            if (!::read_audio_data(audio_file.content, pcmf32, pcmf32s, params.diarize))
             {
-                fprintf(stderr, "error: failed to read WAV file\n");
-                const std::string error_resp = "{\"error\":\"failed to read WAV file\"}";
+                fprintf(stderr, "error: failed to read audio data\n");
+                const std::string error_resp = "{\"error\":\"failed to read audio data\"}";
                 res.set_content(error_resp, "application/json");
                 return;
             }

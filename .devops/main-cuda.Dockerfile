@@ -17,7 +17,7 @@ ENV CUDA_DOCKER_ARCH=${CUDA_DOCKER_ARCH}
 ENV GGML_CUDA=1
 
 RUN apt-get update && \
-    apt-get install -y build-essential libsdl2-dev wget cmake \
+    apt-get install -y build-essential libsdl2-dev wget cmake git \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 # Ref: https://stackoverflow.com/a/53464012
@@ -33,7 +33,7 @@ ENV LD_LIBRARY_PATH /usr/local/cuda-${CUDA_MAIN_VERSION}/compat:$LD_LIBRARY_PATH
 WORKDIR /app
 
 RUN apt-get update && \
-  apt-get install -y curl ffmpeg wget cmake \
+  apt-get install -y curl ffmpeg wget cmake git \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 COPY --from=build /app /app

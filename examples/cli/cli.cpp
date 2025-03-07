@@ -1,4 +1,5 @@
 #include "common.h"
+#include "common-whisper.h"
 
 #include "whisper.h"
 #include "grammar-parser.h"
@@ -6,11 +7,15 @@
 #include <cmath>
 #include <fstream>
 #include <cstdio>
-#include <regex>
 #include <string>
 #include <thread>
 #include <vector>
 #include <cstring>
+
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
@@ -194,7 +199,8 @@ static bool whisper_params_parse(int argc, char ** argv, whisper_params & params
 
 static void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & params) {
     fprintf(stderr, "\n");
-    fprintf(stderr, "usage: %s [options] file0.wav file1.wav ...\n", argv[0]);
+    fprintf(stderr, "usage: %s [options] file0 file1 ...\n", argv[0]);
+    fprintf(stderr, "supported audio formats: flac, mp3, ogg, wav\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "options:\n");
     fprintf(stderr, "  -h,        --help              [default] show this help message and exit\n");
@@ -239,7 +245,7 @@ static void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params
     fprintf(stderr, "  -dl,       --detect-language   [%-7s] exit after automatically detecting language\n",    params.detect_language ? "true" : "false");
     fprintf(stderr, "             --prompt PROMPT     [%-7s] initial prompt (max n_text_ctx/2 tokens)\n",       params.prompt.c_str());
     fprintf(stderr, "  -m FNAME,  --model FNAME       [%-7s] model path\n",                                     params.model.c_str());
-    fprintf(stderr, "  -f FNAME,  --file FNAME        [%-7s] input WAV file path\n",                            "");
+    fprintf(stderr, "  -f FNAME,  --file FNAME        [%-7s] input audio file path\n",                            "");
     fprintf(stderr, "  -oved D,   --ov-e-device DNAME [%-7s] the OpenVINO device used for encode inference\n",  params.openvino_encode_device.c_str());
     fprintf(stderr, "  -dtw MODEL --dtw MODEL         [%-7s] compute token-level timestamps\n",                 params.dtw.c_str());
     fprintf(stderr, "  -ls,       --log-score         [%-7s] log best decoder scores of tokens\n",              params.log_score?"true":"false");
@@ -916,6 +922,13 @@ static bool output_lrc(struct whisper_context * ctx, const char * fname, const w
 static void cb_log_disable(enum ggml_log_level , const char * , void * ) { }
 
 int main(int argc, char ** argv) {
+#if defined(_WIN32)
+    // Set the console output code page to UTF-8, while command line arguments
+    // are still encoded in the system's code page. In this way, we can print
+    // non-ASCII characters to the console, and access files with non-ASCII paths.
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
     whisper_params params;
 
     // If the only argument starts with "@", read arguments line-by-line
@@ -1057,8 +1070,8 @@ int main(int argc, char ** argv) {
         std::vector<float> pcmf32;               // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
 
-        if (!::read_wav(fname_inp, pcmf32, pcmf32s, params.diarize)) {
-            fprintf(stderr, "error: failed to read WAV file '%s'\n", fname_inp.c_str());
+        if (!::read_audio_data(fname_inp, pcmf32, pcmf32s, params.diarize)) {
+            fprintf(stderr, "error: failed to read audio file '%s'\n", fname_inp.c_str());
             continue;
         }
 

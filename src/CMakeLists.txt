@@ -94,6 +94,10 @@ set_target_properties(whisper PROPERTIES
 target_include_directories(whisper PUBLIC . ../include)
 target_compile_features   (whisper PUBLIC cxx_std_11) # don't bump
 
+if (CMAKE_CXX_BYTE_ORDER STREQUAL "BIG_ENDIAN")
+    set(WHISPER_EXTRA_FLAGS ${WHISPER_EXTRA_FLAGS} -DWHISPER_BIG_ENDIAN)
+endif()
+
 if (WHISPER_EXTRA_FLAGS)
     target_compile_options(whisper PRIVATE ${WHISPER_EXTRA_FLAGS})
 endif()

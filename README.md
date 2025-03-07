@@ -7,6 +7,9 @@
 [![Conan Center](https://shields.io/conan/v/whisper-cpp)](https://conan.io/center/whisper-cpp)
 [![npm](https://img.shields.io/npm/v/whisper.cpp.svg)](https://www.npmjs.com/package/whisper.cpp/)
 
+> [!NOTE]
+> New maintenance roadmap: https://github.com/ggerganov/whisper.cpp/discussions/2788
+
 Stable: [v1.7.4](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.7.4) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
 
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
@@ -14,7 +17,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - Plain C/C++ implementation without dependencies
 - Apple Silicon first-class citizen - optimized via ARM NEON, Accelerate framework, Metal and [Core ML](#core-ml-support)
 - AVX intrinsics support for x86 architectures
-- VSX intrinsics support for POWER architectures
+- [VSX intrinsics support for POWER architectures](#power-vsx-intrinsics)
 - Mixed F16 / F32 precision
 - [Integer quantization support](#quantization)
 - Zero memory allocations at runtime
@@ -135,6 +138,20 @@ make -j large-v3-turbo
 | small  | 466 MiB | ~852 MB |
 | medium | 1.5 GiB | ~2.1 GB |
 | large  | 2.9 GiB | ~3.9 GB |
+
+## POWER VSX Intrinsics
+
+`whisper.cpp` supports POWER architectures and includes code which
+significantly speeds operation on Linux running on POWER9/10, making it
+capable of faster-than-realtime transcription on underclocked Raptor
+Talos II. Ensure you have a BLAS package installed, and replace the
+standard cmake setup with:
+
+```bash
+# build with GGML_BLAS defined
+cmake -B build -DGGML_BLAS=1
+cmake --build build --config Release
+./build/bin/whisper-cli [ .. etc .. ]
 
 ## Quantization
 

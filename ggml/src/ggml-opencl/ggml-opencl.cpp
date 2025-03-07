@@ -143,6 +143,7 @@ struct ggml_backend_opencl_context {
     cl_kernel kernel_rms_norm;
     cl_kernel kernel_diag_mask_inf, kernel_diag_mask_inf_8;
     cl_kernel kernel_soft_max, kernel_soft_max_4;
+    cl_kernel kernel_soft_max_f16, kernel_soft_max_4_f16;
     cl_kernel kernel_get_rows_f32, kernel_get_rows_f16, kernel_get_rows_q4_0;
     cl_kernel kernel_rope_norm_f32, kernel_rope_norm_f16, kernel_rope_neox_f32, kernel_rope_neox_f16;
     cl_kernel kernel_cpy_f16_f16, kernel_cpy_f16_f32, kernel_cpy_f32_f16, kernel_cpy_f32_f32;
@@ -443,19 +444,8 @@ static ggml_backend_opencl_context * ggml_cl2_init(ggml_backend_dev_t dev) {
         backend_ctx->gpu_family = GPU_FAMILY::ADRENO;
         backend_ctx->adreno_gen = get_adreno_gpu_gen(default_device->name);
 
-        // Default wave size is 128, A8x uses 64.
-        if (backend_ctx->adreno_gen == ADRENO_GPU_GEN::A8X) {
-            backend_ctx->adreno_wave_size = 64;
-        } else if (backend_ctx->adreno_gen == ADRENO_GPU_GEN::A7X ||
-                   backend_ctx->adreno_gen == ADRENO_GPU_GEN::X1E) {
-            backend_ctx->adreno_wave_size = 128;
-        } else {
-            backend_ctx->adreno_wave_size = 128;
-            GGML_LOG_WARN("ggml_opencl: Unsupported Adreno GPU: %s, "
-                "using wave size %d, "
-                "may not work as expected\n",
-                backend_ctx->device_name.c_str(), backend_ctx->adreno_wave_size);
-        }
+        // Use wave size of 64 for all Adreno GPUs.
+        backend_ctx->adreno_wave_size = 64;
     } else if (strstr(default_device->name, "Intel")) {
         backend_ctx->gpu_family = GPU_FAMILY::INTEL;
     } else {
@@ -614,6 +604,8 @@ static ggml_backend_opencl_context * ggml_cl2_init(ggml_backend_dev_t dev) {
     CL_CHECK((backend_ctx->kernel_diag_mask_inf_8    = clCreateKernel(backend_ctx->program, "kernel_diag_mask_inf_8", &err), err));
     CL_CHECK((backend_ctx->kernel_soft_max           = clCreateKernel(backend_ctx->program, "kernel_soft_max", &err), err));
     CL_CHECK((backend_ctx->kernel_soft_max_4         = clCreateKernel(backend_ctx->program, "kernel_soft_max_4", &err), err));
+    CL_CHECK((backend_ctx->kernel_soft_max_f16       = clCreateKernel(backend_ctx->program, "kernel_soft_max_f16", &err), err));
+    CL_CHECK((backend_ctx->kernel_soft_max_4_f16     = clCreateKernel(backend_ctx->program, "kernel_soft_max_4_f16", &err), err));
     CL_CHECK((backend_ctx->kernel_rope_norm_f32      = clCreateKernel(backend_ctx->program, "kernel_rope_norm_f32", &err), err));
     CL_CHECK((backend_ctx->kernel_rope_norm_f16      = clCreateKernel(backend_ctx->program, "kernel_rope_norm_f16", &err), err));
     CL_CHECK((backend_ctx->kernel_rope_neox_f32      = clCreateKernel(backend_ctx->program, "kernel_rope_neox_f32", &err), err));
@@ -1044,8 +1036,16 @@ static bool ggml_opencl_supports_op(ggml_backend_dev_t dev, const struct ggml_te
             return true;
         case GGML_OP_DIAG_MASK_INF:
             return op->ne[3] == 1;
-        case GGML_OP_ROPE:
+        case GGML_OP_ROPE: {
+            const int mode = ((const int32_t *) op->op_params)[2];
+            if (mode & GGML_ROPE_TYPE_MROPE) {
+                return false;
+            }
+            if (mode & GGML_ROPE_TYPE_VISION) {
+                return false;
+            }
             return true;
+        }
         default:
             return false;
     }
@@ -1365,6 +1365,11 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer, 
         int M = tensor->ne[1];   // ne01
         int K = tensor->ne[0];   // ne00
 
+        //For matrix-vector multiplication kernel, we assume K is a multiple of 32
+        GGML_ASSERT(K % 32 == 0);
+        //For transpose kernels, we assume K is a multiple of 4 (satisfied by prior assert), and M is a multiple of 4
+        GGML_ASSERT(M % 4 == 0);
+
         // transpose is out of place, so we need to allocate transposed buffers
         // <----------------------------------------------------------------------------------> //
         // use sub_buffer of max buffer size instead
@@ -1405,36 +1410,36 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer, 
         cl_mem qT_d_image1D;
         cl_mem dT_d_image1D;
 
-        cl_image_format img_fmt_1d = { CL_RGBA, CL_FLOAT };
+        cl_image_format img_fmt_1d = { CL_RGBA, CL_HALF_FLOAT };
         cl_image_desc img_desc_1d;
 
         memset(&img_desc_1d, 0, sizeof(img_desc_1d));
         img_desc_1d.image_type = CL_MEM_OBJECT_IMAGE1D_BUFFER;
-        img_desc_1d.image_width = M * K / 8 / 4;
+        img_desc_1d.image_width = M * K / 4 / 4;
         img_desc_1d.buffer = extra->q;
         q_d_image1D = clCreateImage(context, 0, &img_fmt_1d, &img_desc_1d, NULL, &err);
         CL_CHECK(err);
 
-        img_fmt_1d = { CL_RGBA, CL_FLOAT };
+        img_fmt_1d = { CL_RGBA, CL_HALF_FLOAT };
         memset(&img_desc_1d, 0, sizeof(img_desc_1d));
         img_desc_1d.image_type = CL_MEM_OBJECT_IMAGE1D_BUFFER;
-        img_desc_1d.image_width = M * K / 8 / 4;
+        img_desc_1d.image_width = M * K / 4 / 4;
         img_desc_1d.buffer = qT_d;
         qT_d_image1D = clCreateImage(context, 0, &img_fmt_1d, &img_desc_1d, NULL, &err);
         CL_CHECK(err);
 
-        img_fmt_1d = { CL_RGBA, CL_FLOAT };
+        img_fmt_1d = { CL_RGBA, CL_HALF_FLOAT };
         memset(&img_desc_1d, 0, sizeof(img_desc_1d));
         img_desc_1d.image_type = CL_MEM_OBJECT_IMAGE1D_BUFFER;
-        img_desc_1d.image_width = M * K / 32 / 4 / 2;
+        img_desc_1d.image_width = M * K / 32 / 4;
         img_desc_1d.buffer = extra->d;
         d_d_image1D = clCreateImage(context, 0, &img_fmt_1d, &img_desc_1d, NULL, &err);
         CL_CHECK(err);
 
-        img_fmt_1d = { CL_RGBA, CL_FLOAT };
+        img_fmt_1d = { CL_RGBA, CL_HALF_FLOAT };
         memset(&img_desc_1d, 0, sizeof(img_desc_1d));
         img_desc_1d.image_type = CL_MEM_OBJECT_IMAGE1D_BUFFER;
-        img_desc_1d.image_width = M * K / 32 / 4 / 2;
+        img_desc_1d.image_width = M * K / 32 / 4;
         img_desc_1d.buffer = dT_d;
         dT_d_image1D = clCreateImage(context, 0, &img_fmt_1d, &img_desc_1d, NULL, &err);
         CL_CHECK(err);
@@ -1443,8 +1448,8 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer, 
         // set up and call the transpose kernels
         // <----------------------------------------------------------------------------------> //
         // weights
-        int height_q = M / 8;
-        int width_q = K / 8 / 4;
+        int height_q = M / 4;
+        int width_q = K / 4 / 4;
         kernel = backend_ctx->kernel_transpose_16;
 
         CL_CHECK(clSetKernelArg(kernel, 0, sizeof(cl_mem), &q_d_image1D));
@@ -1458,8 +1463,8 @@ static void ggml_backend_opencl_buffer_set_tensor(ggml_backend_buffer_t buffer, 
         CL_CHECK(clWaitForEvents(1, &evt));
 
         // scales
-        int height_s = M / 8;
-        int width_s = K / 32 / 8;
+        int height_s = M / 4;
+        int width_s = K / 32 / 4;
 
         kernel = backend_ctx->kernel_transpose_16;
         CL_CHECK(clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_d_image1D));
@@ -1853,7 +1858,6 @@ static void dump_tensor(ggml_backend_t backend, const struct ggml_tensor * tenso
     void * buf_d;
 #endif
 
-#ifdef GGML_USE_OPENCL
     // Make sure everything is done.
     CL_CHECK(clFinish(queue));
 
@@ -1889,7 +1893,6 @@ static void dump_tensor(ggml_backend_t backend, const struct ggml_tensor * tenso
         extra->offset, ggml_nbytes(tensor), buf, 0, NULL, NULL));
     CL_CHECK(clFinish(queue));
 #endif // GGML_OPENCL_SOA_Q
-#endif // GGML_USE_OPENCL
 
     // Open file and dump.
     char fname[512];
@@ -2854,6 +2857,9 @@ static void ggml_cl_mul_mat(ggml_backend_t backend, const ggml_tensor * src0, co
             CL_CHECK(status);
 
             int height_B = N/4;
+            if (height_B == 0) {
+                height_B = 1;
+            }
             int width_B = K/4;
             int padded_height_B = (N + padding)/4;
 
@@ -3002,11 +3008,12 @@ static void ggml_cl_mul_mat(ggml_backend_t backend, const ggml_tensor * src0, co
         }
 
         if (N == 1) {
-            local_work_size[0] = backend_ctx->adreno_wave_size; // localsize
+            size_t wavesize = backend_ctx->adreno_wave_size;
+            local_work_size[0] = wavesize; // localsize
             local_work_size[1] = 4; // reduce factor
             local_work_size[2] = 1;
 
-            global_work_size[0] = M / 2;
+            global_work_size[0] = (((M / 2) + wavesize - 1) / wavesize) * wavesize;
             global_work_size[1] = 4; // reduce factor
             global_work_size[2] = 1;
         }
@@ -3666,6 +3673,8 @@ static void ggml_cl_soft_max(ggml_backend_t backend, const ggml_tensor * src0, c
     const float m0 = powf(2.0f, -(max_bias       ) / n_head_log2);
     const float m1 = powf(2.0f, -(max_bias / 2.0f) / n_head_log2);
 
+    const bool use_f16 = (src1 && src1->type == GGML_TYPE_F16);
+
     // Local size must be wave size. Each workgroup is a wave, working on a row,
     // where a row corresponds to leading dimension.
     int nth = MIN(32, ne00);
@@ -3683,9 +3692,17 @@ static void ggml_cl_soft_max(ggml_backend_t backend, const ggml_tensor * src0, c
     cl_kernel kernel;
 
     if (ne00%4 == 0) {
-        kernel = backend_ctx->kernel_soft_max_4;
+        if (use_f16) {
+            kernel = backend_ctx->kernel_soft_max_4_f16;
+        } else {
+            kernel = backend_ctx->kernel_soft_max_4;
+        }
     } else {
-        kernel = backend_ctx->kernel_soft_max;
+        if (use_f16) {
+            kernel = backend_ctx->kernel_soft_max_f16;
+        } else {
+            kernel = backend_ctx->kernel_soft_max;
+        }
     }
 
     CL_CHECK(clSetKernelArg(kernel,  0, sizeof(cl_mem),   &extra0->data_device));
@@ -3766,7 +3783,8 @@ static void ggml_cl_rope(ggml_backend_t backend, const ggml_tensor * src0, const
     const int  nb2 = dst ? dst->nb[2] : 0;
     const int  nb3 = dst ? dst->nb[3] : 0;
 
-    GGML_ASSERT(ne10 == ne02);
+    GGML_ASSERT(ne10 % ne02 == 0);
+    GGML_ASSERT(ne10 >= ne02);
 
     int nth = MIN(64, ne00);
 
