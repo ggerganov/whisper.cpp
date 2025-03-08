@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		1844471A2AB211A2007D6BFE /* ggml-alloc.c in Sources */ = {isa = PBXBuildFile; fileRef = 184447182AB211A2007D6BFE /* ggml-alloc.c */; };
-		1844471C2AB21655007D6BFE /* ggml-metal.m in Sources */ = {isa = PBXBuildFile; fileRef = 1844471B2AB21655007D6BFE /* ggml-metal.m */; settings = {COMPILER_FLAGS = "-framework Foundation -framework Metal -framework MetalKit -fno-objc-arc"; }; };
 		18627C7B29052BDF00BD2A04 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 18627C7A29052BDF00BD2A04 /* AppDelegate.m */; };
 		18627C7E29052BDF00BD2A04 /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 18627C7D29052BDF00BD2A04 /* SceneDelegate.m */; };
 		18627C8129052BDF00BD2A04 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 18627C8029052BDF00BD2A04 /* ViewController.m */; };
@@ -19,8 +18,6 @@
 		18627C9429052C4900BD2A04 /* whisper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18627C9329052C4900BD2A04 /* whisper.cpp */; settings = {COMPILER_FLAGS = "-DWHISPER_USE_COREML -DWHISPER_COREML_ALLOW_FALLBACK -DGGML_USE_METAL"; }; };
 		18627C9629052C5800BD2A04 /* ggml.c in Sources */ = {isa = PBXBuildFile; fileRef = 18627C9529052C5800BD2A04 /* ggml.c */; settings = {COMPILER_FLAGS = "-DGGML_USE_ACCELERATE -DGGML_USE_METAL"; }; };
 		18627C9B29052CFF00BD2A04 /* ggml-base.en.bin in Resources */ = {isa = PBXBuildFile; fileRef = 18627C9A29052CFF00BD2A04 /* ggml-base.en.bin */; };
-		18A276062C2A98A5001C8D37 /* ggml-metal.metal in Copy Files */ = {isa = PBXBuildFile; fileRef = 1844471D2AB2195F007D6BFE /* ggml-metal.metal */; };
-		18A2760B2C2A9B43001C8D37 /* ggml-metal.metal in Resources */ = {isa = PBXBuildFile; fileRef = 1844471D2AB2195F007D6BFE /* ggml-metal.metal */; };
 		18ABE15A2AF556340044A204 /* ggml-backend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE1572AF556340044A204 /* ggml-backend.cpp */; };
 		18ABE15B2AF556340044A204 /* ggml-quants.c in Sources */ = {isa = PBXBuildFile; fileRef = 18ABE1592AF556340044A204 /* ggml-quants.c */; };
 		18E864A92CE73C1E0094B8B3 /* ggml-cpu.c in Sources */ = {isa = PBXBuildFile; fileRef = 18E864A82CE73C1E0094B8B3 /* ggml-cpu.c */; };
@@ -44,7 +41,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 7;
 			files = (
-				18A276062C2A98A5001C8D37 /* ggml-metal.metal in Copy Files */,
 			);
 			name = "Copy Files";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -54,8 +50,6 @@
 /* Begin PBXFileReference section */
 		184447182AB211A2007D6BFE /* ggml-alloc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ggml-alloc.c"; path = "../../../ggml/src/ggml-alloc.c"; sourceTree = "<group>"; };
 		184447192AB211A2007D6BFE /* ggml-alloc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-alloc.h"; path = "../../../ggml/include/ggml-alloc.h"; sourceTree = "<group>"; };
-		1844471B2AB21655007D6BFE /* ggml-metal.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "ggml-metal.m"; path = "../../../ggml/src/ggml-metal/ggml-metal.m"; sourceTree = "<group>"; };
-		1844471D2AB2195F007D6BFE /* ggml-metal.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; name = "ggml-metal.metal"; path = "../../../ggml/src/ggml-metal/ggml-metal.metal"; sourceTree = "<group>"; };
 		18627C7629052BDF00BD2A04 /* whisper.objc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = whisper.objc.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		18627C7929052BDF00BD2A04 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		18627C7A29052BDF00BD2A04 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -73,7 +67,6 @@
 		18627C9529052C5800BD2A04 /* ggml.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ggml.c; path = ../../../ggml/src/ggml.c; sourceTree = "<group>"; };
 		18627C9729052C6600BD2A04 /* ggml.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ggml.h; path = ../../../ggml/include/ggml.h; sourceTree = "<group>"; };
 		18627C9A29052CFF00BD2A04 /* ggml-base.en.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; name = "ggml-base.en.bin"; path = "../../../models/ggml-base.en.bin"; sourceTree = "<group>"; };
-		18A275FE2C2A94DE001C8D37 /* ggml-metal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-metal.h"; path = "../../../ggml/include/ggml-metal.h"; sourceTree = "<group>"; };
 		18A275FF2C2A9563001C8D37 /* ggml-common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-common.h"; path = "../../../ggml/src/ggml-common.h"; sourceTree = "<group>"; };
 		18ABE1542AF556340044A204 /* ggml-quants.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-quants.h"; path = "../../../ggml/src/ggml-quants.h"; sourceTree = "<group>"; };
 		18ABE1552AF556340044A204 /* ggml-backend.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ggml-backend.h"; path = "../../../ggml/include/ggml-backend.h"; sourceTree = "<group>"; };
@@ -153,15 +146,12 @@
 				18E864AA2CE73C580094B8B3 /* ggml-cpu.h */,
 				18E864A82CE73C1E0094B8B3 /* ggml-cpu.c */,
 				18A275FF2C2A9563001C8D37 /* ggml-common.h */,
-				18A275FE2C2A94DE001C8D37 /* ggml-metal.h */,
 				18ABE1562AF556340044A204 /* ggml-backend-impl.h */,
 				18ABE1572AF556340044A204 /* ggml-backend.cpp */,
 				18ABE1552AF556340044A204 /* ggml-backend.h */,
 				18ABE1582AF556340044A204 /* ggml-impl.h */,
 				18ABE1592AF556340044A204 /* ggml-quants.c */,
 				18ABE1542AF556340044A204 /* ggml-quants.h */,
-				1844471D2AB2195F007D6BFE /* ggml-metal.metal */,
-				1844471B2AB21655007D6BFE /* ggml-metal.m */,
 				184447182AB211A2007D6BFE /* ggml-alloc.c */,
 				184447192AB211A2007D6BFE /* ggml-alloc.h */,
 				7FE3424E2A0C418A0015A058 /* ggml-base.en-encoder.mlmodelc */,
@@ -258,7 +248,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				18A2760B2C2A9B43001C8D37 /* ggml-metal.metal in Resources */,
 				18627C8929052BE000BD2A04 /* LaunchScreen.storyboard in Resources */,
 				7FE3424F2A0C418A0015A058 /* ggml-base.en-encoder.mlmodelc in Resources */,
 				18627C8629052BE000BD2A04 /* Assets.xcassets in Resources */,
@@ -293,7 +282,6 @@
 				18627C7E29052BDF00BD2A04 /* SceneDelegate.m in Sources */,
 				433188B82D3A187C00E3FE79 /* gguf.cpp in Sources */,
 				18F8C0BC2CEDF4DC00CAD607 /* ggml-threading.cpp in Sources */,
-				1844471C2AB21655007D6BFE /* ggml-metal.m in Sources */,
 				7FE3424B2A0C3FA20015A058 /* whisper-encoder-impl.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -443,6 +431,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = P8JZH34X63;
@@ -473,6 +462,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = P8JZH34X63;
