@@ -76,7 +76,14 @@ namespace fs = std::filesystem;
 static std::string path_str(const fs::path & path) {
     std::string u8path;
     try {
+#if defined(__cpp_lib_char8_t)
+        // C++20 and later: u8string() returns std::u8string
+        std::u8string u8str = path.u8string();
+        u8path = std::string(reinterpret_cast<const char*>(u8str.c_str()));
+#else
+        // C++17: u8string() returns std::string
         u8path = path.u8string();
+#endif
     } catch (...) {
     }
     return u8path;
