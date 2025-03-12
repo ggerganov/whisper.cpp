@@ -17,10 +17,25 @@
 		0AAC5D9F29539CD0003032C3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0AAC5D9E29539CD0003032C3 /* Assets.xcassets */; };
 		0AAC5DCE2953A05C003032C3 /* WhisperState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5DCD2953A05C003032C3 /* WhisperState.swift */; };
 		0AAC5DD12953A394003032C3 /* LibWhisper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AAC5DD02953A394003032C3 /* LibWhisper.swift */; };
+		5B3454FF2D8178F80005A3BC /* whisper.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B3454FE2D8178F80005A3BC /* whisper.xcframework */; };
+		5B3455002D8178F80005A3BC /* whisper.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5B3454FE2D8178F80005A3BC /* whisper.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7F79E0EE2CE0A78000ACD7BF /* DownloadButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F79E0ED2CE0A78000ACD7BF /* DownloadButton.swift */; };
 		7F79E0F02CE0C6F700ACD7BF /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F79E0EF2CE0C6F700ACD7BF /* Model.swift */; };
-		E3F92DC52AFA8E3800A6A9D4 /* whisper in Frameworks */ = {isa = PBXBuildFile; productRef = E3F92DC42AFA8E3800A6A9D4 /* whisper */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5B3455012D8178F80005A3BC /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				5B3455002D8178F80005A3BC /* whisper.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0A8E48FF2954B3F100704C1B /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -35,9 +50,9 @@
 		0AAC5DA029539CD0003032C3 /* WhisperCppDemo.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WhisperCppDemo.entitlements; sourceTree = "<group>"; };
 		0AAC5DCD2953A05C003032C3 /* WhisperState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperState.swift; sourceTree = "<group>"; };
 		0AAC5DD02953A394003032C3 /* LibWhisper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibWhisper.swift; sourceTree = "<group>"; };
+		5B3454FE2D8178F80005A3BC /* whisper.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = whisper.xcframework; path = "../../build-apple/whisper.xcframework"; sourceTree = "<group>"; };
 		7F79E0ED2CE0A78000ACD7BF /* DownloadButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadButton.swift; sourceTree = "<group>"; };
 		7F79E0EF2CE0C6F700ACD7BF /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
-		E3F92DC22AFA8DD800A6A9D4 /* whisper.cpp */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = whisper.cpp; path = ../..; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,7 +60,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E3F92DC52AFA8E3800A6A9D4 /* whisper in Frameworks */,
+				5B3454FF2D8178F80005A3BC /* whisper.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -82,7 +97,6 @@
 		0AAC5D8E29539CCF003032C3 = {
 			isa = PBXGroup;
 			children = (
-				E3F92DC22AFA8DD800A6A9D4 /* whisper.cpp */,
 				0A8E48FF2954B3F100704C1B /* README.md */,
 				0AAC5DCF2953A36C003032C3 /* whisper.cpp.swift */,
 				0AAC5D9929539CCF003032C3 /* whisper.swiftui.demo */,
@@ -141,6 +155,7 @@
 		E3F92DC32AFA8E3800A6A9D4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				5B3454FE2D8178F80005A3BC /* whisper.xcframework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -155,6 +170,7 @@
 				0AAC5D9329539CCF003032C3 /* Sources */,
 				0AAC5D9429539CCF003032C3 /* Frameworks */,
 				0AAC5D9529539CCF003032C3 /* Resources */,
+				5B3455012D8178F80005A3BC /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -162,7 +178,6 @@
 			);
 			name = whisper.swiftui;
 			packageProductDependencies = (
-				E3F92DC42AFA8E3800A6A9D4 /* whisper */,
 			);
 			productName = WhisperCppDemo;
 			productReference = 0AAC5D9729539CCF003032C3 /* whisper.swiftui.app */;
@@ -456,13 +471,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		E3F92DC42AFA8E3800A6A9D4 /* whisper */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = whisper;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0AAC5D8F29539CCF003032C3 /* Project object */;
 }
