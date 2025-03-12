@@ -777,7 +777,7 @@ void main() {
         [[unroll]] for (uint cm_col = 0; cm_col < cms_per_col; cm_col++) {
             coopMatStore(sums[cm_col * cms_per_row + cm_row], coopmat_stage, warp_i * TM * TN, TM, gl_CooperativeMatrixLayoutColumnMajor);
 
-            [[unroll]] for (uint col = 0; col < BN; col += storestride) {
+            [[unroll]] for (uint col = 0; col < TN; col += storestride) {
                 const uint row_i = dc + cm_col * TN + col + store_c;
                 if (row_i >= _ne1) break;
 
