@@ -61,7 +61,7 @@ add_library(${TARGET} STATIC
 
 include(DefaultTargetOptions)
 
-target_link_libraries(${TARGET} PRIVATE whisper ${COMMON_EXTRA_LIBS})
+target_link_libraries(${TARGET} PRIVATE whisper ${COMMON_EXTRA_LIBS} dl)
 
 set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
