@@ -158,10 +158,7 @@ struct ContentView: View {
                 .padding()
 
             // Display some param values to confirm the framework is working
-            Text("n_ctx: \(params.n_ctx)")
-                .font(.body)
-
-            Text("n_batch: \(params.n_batch)")
+            Text("dtw_n_top: \(params.dtw_n_top)")
                 .font(.body)
 
             Spacer()
