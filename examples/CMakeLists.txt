@@ -61,11 +61,7 @@ add_library(${TARGET} STATIC
 
 include(DefaultTargetOptions)
 
-if(UNIX AND NOT APPLE)
-  target_link_libraries(${TARGET} PRIVATE whisper ${COMMON_EXTRA_LIBS} dl)
-else()
-  target_link_libraries(${TARGET} PRIVATE whisper ${COMMON_EXTRA_LIBS})
-endif()
+target_link_libraries(${TARGET} PRIVATE whisper ${COMMON_EXTRA_LIBS} ${CMAKE_DL_LIBS})
 
 set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set_target_properties(${TARGET} PROPERTIES FOLDER "libs")
