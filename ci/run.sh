@@ -8,7 +8,7 @@
 # bash ./ci/run.sh ./tmp/results ./tmp/mnt
 #
 # # with CUDA support
-# GGML_CUDA=1 bash ./ci/run.sh ./tmp/results ./tmp/mnt
+# GG_BUILD_CUDA=1 bash ./ci/run.sh ./tmp/results ./tmp/mnt
 #
 
 if [ -z "$2" ]; then
@@ -36,8 +36,8 @@ BENCH_ENCODER_ONLY=0
 BENCH_FLASH_ATTN=0
 
 # check for user-specified models first. if not specified, use fast models
-if [ ! -z ${GGML_TEST_MODELS} ]; then
-    IFS=',' read -r -a MODELS <<< "${GGML_TEST_MODELS}"
+if [ ! -z ${GG_BUILD_TEST_MODELS} ]; then
+    IFS=',' read -r -a MODELS <<< "${GG_BUILD_TEST_MODELS}"
 else
     if [ ! -z ${GG_BUILD_LOW_PERF} ]; then
         MODELS=( "tiny" "base" "small" )
@@ -48,11 +48,11 @@ fi
 
 CMAKE_EXTRA="-DWHISPER_FATAL_WARNINGS=ON"
 
-if [ ! -z ${GGML_CUDA} ]; then
+if [ ! -z ${GG_BUILD_CUDA} ]; then
     CMAKE_EXTRA="${CMAKE_EXTRA} -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native"
 fi
 
-if [ ! -z ${GGML_SYCL} ]; then
+if [ ! -z ${GG_BUILD_SYCL} ]; then
     if [ -z ${ONEAPI_ROOT} ]; then
         echo "Not detected ONEAPI_ROOT, please install oneAPI base toolkit and enable it by:"
         echo "source /opt/intel/oneapi/setvars.sh"
@@ -62,23 +62,23 @@ if [ ! -z ${GGML_SYCL} ]; then
     CMAKE_EXTRA="${CMAKE_EXTRA} -DGGML_SYCL=ON -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DGGML_SYCL_F16=ON"
 fi
 
-if [ ! -z ${WHISPER_OPENVINO} ]; then
+if [ ! -z ${GG_BUILD_OPENVINO} ]; then
     CMAKE_EXTRA="${CMAKE_EXTRA} -DWHISPER_OPENVINO=ON"
 fi
 
-if [ ! -z ${GGML_METAL} ]; then
+if [ ! -z ${GG_BUILD_METAL} ]; then
     CMAKE_EXTRA="${CMAKE_EXTRA} -DGGML_METAL=ON"
 fi
 
-if [ ! -z ${GGML_VULKAN} ]; then
+if [ ! -z ${GG_BUILD_VULKAN} ]; then
     CMAKE_EXTRA="${CMAKE_EXTRA} -DGGML_VULKAN=ON"
 fi
 
-if [ ! -z ${GGML_BLAS} ]; then
+if [ ! -z ${GG_BUILD_BLAS} ]; then
     CMAKE_EXTRA="${CMAKE_EXTRA} -DGGML_BLAS=ON"
 fi
 
-if [ ! -z ${WHISPER_COREML} ]; then
+if [ ! -z ${GG_BUILD_COREML} ]; then
     CMAKE_EXTRA="${CMAKE_EXTRA} -DWHISPER_COREML=ON"
 fi
 
