@@ -7,7 +7,8 @@
 
 #import "ViewController.h"
 
-#import "whisper.h"
+#import <whisper/whisper.h>
+
 
 #define NUM_BYTES_PER_BUFFER 16*1024
 
