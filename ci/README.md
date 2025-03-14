@@ -21,7 +21,7 @@ mkdir tmp
 bash ./ci/run.sh ./tmp/results ./tmp/mnt
 
 # with CUDA support
-GGML_CUDA=1 bash ./ci/run.sh ./tmp/results ./tmp/mnt
+GG_BUILD_CUDA=1 bash ./ci/run.sh ./tmp/results ./tmp/mnt
 ```
 
 ## Environment Variables
@@ -30,12 +30,12 @@ The CI script supports several environment variables to control the build:
 
 | Variable | Description |
 |----------|-------------|
-| `GGML_CUDA` | Enable NVIDIA CUDA GPU acceleration |
-| `GGML_SYCL` | Enable Intel SYCL acceleration |
-| `GGML_VULKAN` | Enable Vulkan GPU acceleration |
-| `GGML_METAL` | Enable Metal acceleration on Apple Silicon |
-| `GGML_BLAS` | Enable BLAS CPU acceleration |
-| `WHISPER_OPENVINO` | Enable OpenVINO support |
-| `WHISPER_COREML` | Enable Core ML support for Apple Neural Engine |
+| `GG_BUILD_CUDA` | Enable NVIDIA CUDA GPU acceleration |
+| `GG_BUILD_SYCL` | Enable Intel SYCL acceleration |
+| `GG_BUILD_VULKAN` | Enable Vulkan GPU acceleration |
+| `GG_BUILD_METAL` | Enable Metal acceleration on Apple Silicon |
+| `GG_BUILD_BLAS` | Enable BLAS CPU acceleration |
+| `GG_BUILD_OPENVINO` | Enable OpenVINO support |
+| `GG_BUILD_COREML` | Enable Core ML support for Apple Neural Engine |
 | `GG_BUILD_LOW_PERF` | Limit tests for low-performance hardware |
-| `GGML_TEST_MODELS` | Comma-separated list of models to test (e.g. "tiny.en,tiny,base,medium", defaults to all models unless `GG_BUILD_LOW_PERF` is set) |
+| `GG_BUILD_TEST_MODELS` | Comma-separated list of models to test (e.g. "tiny.en,tiny,base,medium", defaults to all models unless `GG_BUILD_LOW_PERF` is set) |
