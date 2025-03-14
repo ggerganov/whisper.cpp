@@ -14,8 +14,13 @@ GGML_METAL_PATH_RESOURCES := $(abspath ../..)
 BUILD_DIR := build
 MODELS_DIR := models
 EXAMPLES_DIR := $(wildcard examples/*)
-INCLUDE_PATH := $(abspath ../..)
+INCLUDE_PATH := $(abspath ../../include):$(abspath ../../ggml/include)
 LIBRARY_PATH := $(abspath ../..)
+
+ifeq ($(GGML_CUDA),1)
+	LIBRARY_PATH := $(LIBRARY_PATH):$(CUDA_PATH)/targets/$(UNAME_M)-linux/lib/
+	BUILD_FLAGS := -ldflags "-extldflags '-lcudart -lcuda -lcublas'"
+endif
 
 ifeq ($(UNAME_S),Darwin)
 	EXT_LDFLAGS := -framework Foundation -framework Metal -framework MetalKit

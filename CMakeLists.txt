@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5) # for add_link_options and implicit target directories.
 project("whisper.cpp" C CXX)
-project("whisper.cpp" VERSION 1.6.2)
+project("whisper.cpp" VERSION 1.7.4)
 include(CheckIncludeFileCXX)
 
 set(SOVERSION 1)
@@ -120,7 +120,10 @@ whisper_option_depr(WARNING     WHISPER_SYCL_F16            GGML_SYCL_F16)
 # build the library
 #
 
-add_subdirectory(ggml)
+if (NOT TARGET ggml)
+    add_subdirectory(ggml)
+    # ... otherwise assume ggml is added by a parent CMakeLists.txt
+endif()
 add_subdirectory(src)
 
 #
@@ -160,18 +163,6 @@ write_basic_package_version_file(
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/whisper-config.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/whisper-version.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/whisper)
-
-install(
-    FILES convert-hf-to-gguf.py
-    PERMISSIONS
-        OWNER_READ
-        OWNER_WRITE
-        OWNER_EXECUTE
-        GROUP_READ
-        GROUP_EXECUTE
-        WORLD_READ
-        WORLD_EXECUTE
-    DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 configure_file(cmake/whisper.pc.in
         "${CMAKE_CURRENT_BINARY_DIR}/whisper.pc"

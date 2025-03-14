@@ -1,4 +1,5 @@
 #include "binbcast.cuh"
+#include <cstdint>
 
 static __device__ __forceinline__ float op_repeat(const float a, const float b) {
     return b;
@@ -7,6 +8,10 @@ static __device__ __forceinline__ float op_repeat(const float a, const float b) 
 
 static __device__ __forceinline__ float op_add(const float a, const float b) {
     return a + b;
+}
+
+static __device__ __forceinline__ float op_sub(const float a, const float b) {
+    return a - b;
 }
 
 static __device__ __forceinline__ float op_mul(const float a, const float b) {
@@ -84,6 +89,35 @@ static __global__ void k_bin_bcast_unravel(const src0_t * src0, const src1_t * s
 
     const int i10 = i0 % ne10;
     dst_row[i0] = (dst_t)bin_op(src0 ? (float)src0_row[i0] : 0.0f, (float)src1_row[i10]);
+}
+
+template <typename T>
+static __global__ void k_repeat_back(
+    const T * __restrict__ src, T * __restrict__ dst, const int64_t ne00, const int64_t ne01, const int64_t ne02, const int64_t ne03,
+    const size_t s00, const size_t s01, const size_t s02, const size_t s03,
+    const int64_t ne0, const int64_t ne1, const int64_t ne2, const int64_t ne3) {
+
+    const int64_t tid0  = int64_t(blockIdx.x)*blockDim.x + threadIdx.x;
+    const int64_t tid1  = int64_t(blockIdx.y)*blockDim.y + threadIdx.y;
+    const int64_t tid23 = int64_t(blockIdx.z)*blockDim.z + threadIdx.z;
+    const int64_t tid2  = tid23 % ne2;
+    const int64_t tid3  = tid23 / ne2;
+
+    if (tid0 >= ne0) {
+        return;
+    }
+
+    T sum = 0;
+    for (int64_t i3 = tid3; i3 < ne03; i3 += ne3) {
+        for (int64_t i2 = tid2; i2 < ne02; i2 += ne2) {
+            for (int64_t i1 = tid1; i1 < ne01; i1 += ne1) {
+                for (int64_t i0 = tid0; i0 < ne00; i0 += ne0) {
+                    sum += src[i3*s03 + i2*s02 + i1*s01 + i0*s00];
+                }
+            }
+        }
+    }
+    dst[tid3*ne2*ne1*ne0 + tid2*ne1*ne0 + tid1*ne0 + tid0] = sum;
 }
 
 template<float (*bin_op)(const float, const float)>
@@ -243,23 +277,37 @@ struct bin_bcast_cuda {
     }
 };
 
+template <typename T>
+static void repeat_back_cuda(
+    const T * src, T * dst, const int64_t ne00, const int64_t ne01, const int64_t ne02, const int64_t ne03,
+    const size_t s00, const size_t s01, const size_t s02, const size_t s03,
+    const int64_t ne0, const int64_t ne1, const int64_t ne2, const int64_t ne3, cudaStream_t stream) {
+
+    const dim3 block_dims(WARP_SIZE, 1, 1);
+    const dim3 block_nums((ne0 + WARP_SIZE - 1) / WARP_SIZE, ne1, ne2*ne3);
+    k_repeat_back<T><<<block_nums, block_dims, 0, stream>>>
+        (src, dst, ne00, ne01, ne02, ne03, s00, s01, s02, s03, ne0, ne1, ne2, ne3);
+}
+
 template<class op>
 static void ggml_cuda_op_bin_bcast(
     const ggml_tensor * src0, const ggml_tensor * src1, ggml_tensor * dst,
     const void * src0_dd, const void * src1_dd, void * dst_dd, cudaStream_t stream) {
 
-    GGML_ASSERT(src1->type == GGML_TYPE_F32);
+    GGML_ASSERT(src1->type == GGML_TYPE_F32 || src1->type == GGML_TYPE_F16);
 
     if (src0->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
         op()(src0, src1, dst, (const float *)src0_dd, (const float *)src1_dd, (float *)dst_dd, stream);
-    } else if (src0->type == GGML_TYPE_F16 && dst->type == GGML_TYPE_F16) {
+    } else if (src0->type == GGML_TYPE_F16 && src1->type == GGML_TYPE_F16 && dst->type == GGML_TYPE_F16) {
+        op()(src0, src1, dst, (const half *) src0_dd, (const half *)src1_dd, (half *) dst_dd, stream);
+    } else if (src0->type == GGML_TYPE_F16 && src1->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F16) {
         op()(src0, src1, dst, (const half *) src0_dd, (const float *)src1_dd, (half *) dst_dd, stream);
     } else if (src0->type == GGML_TYPE_F16 && dst->type == GGML_TYPE_F32) {
         op()(src0, src1, dst, (const half *) src0_dd, (const float *)src1_dd, (float *)dst_dd, stream);
     } else {
         fprintf(stderr, "%s: unsupported types: dst: %s, src0: %s, src1: %s\n", __func__,
             ggml_type_name(dst->type), ggml_type_name(src0->type), ggml_type_name(src1->type));
-        GGML_ASSERT(false);
+        GGML_ABORT("fatal error");
     }
 }
 
@@ -271,10 +319,45 @@ void ggml_cuda_op_add(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     ggml_cuda_op_bin_bcast<bin_bcast_cuda<op_add>>(dst->src[0], dst->src[1], dst, dst->src[0]->data, dst->src[1]->data, dst->data, ctx.stream());
 }
 
+void ggml_cuda_op_sub(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    ggml_cuda_op_bin_bcast<bin_bcast_cuda<op_sub>>(dst->src[0], dst->src[1], dst, dst->src[0]->data, dst->src[1]->data, dst->data, ctx.stream());
+}
+
 void ggml_cuda_op_mul(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     ggml_cuda_op_bin_bcast<bin_bcast_cuda<op_mul>>(dst->src[0], dst->src[1], dst, dst->src[0]->data, dst->src[1]->data, dst->data, ctx.stream());
 }
 
 void ggml_cuda_op_div(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     ggml_cuda_op_bin_bcast<bin_bcast_cuda<op_div>>(dst->src[0], dst->src[1], dst, dst->src[0]->data, dst->src[1]->data, dst->data, ctx.stream());
+}
+
+void ggml_cuda_op_repeat_back(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    const ggml_tensor * src0 = dst->src[0];
+
+    GGML_ASSERT(src0->type == dst->type);
+    GGML_ASSERT(ggml_is_contiguous(dst));
+    GGML_ASSERT(ggml_can_repeat(dst, src0));
+
+    cudaStream_t stream = ctx.stream();
+
+    GGML_TENSOR_UNARY_OP_LOCALS;
+
+    GGML_ASSERT(ne2*ne3 <= (1 << 15));
+
+    const size_t ts = ggml_type_size(src0->type);
+    const size_t s00 = nb00 / ts;
+    const size_t s01 = nb01 / ts;
+    const size_t s02 = nb02 / ts;
+    const size_t s03 = nb03 / ts;
+
+    switch (dst->type) {
+        case GGML_TYPE_F32: {
+            const float * src0_d = (const float *) src0->data;
+            float       * dst_d  = (float       *) dst->data;
+            repeat_back_cuda(src0_d, dst_d, ne00, ne01, ne02, ne03, s00, s01, s02, s03, ne0, ne1, ne2, ne3, stream);
+        } break;
+        default: {
+            GGML_ASSERT(false);
+        } break;
+    }
 }

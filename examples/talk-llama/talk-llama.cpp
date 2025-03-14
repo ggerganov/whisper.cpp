@@ -3,29 +3,31 @@
 
 #include "common-sdl.h"
 #include "common.h"
+#include "common-whisper.h"
 #include "whisper.h"
 #include "llama.h"
 
-#include <cassert>
+#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <regex>
+#include <regex>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
-#include <regex>
-#include <sstream>
 
 static std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const std::string & text, bool add_bos) {
-    auto * model = llama_get_model(ctx);
+    const llama_model * model = llama_get_model(ctx);
+    const llama_vocab * vocab = llama_model_get_vocab(model);
 
     // upper limit for the number of tokens
     int n_tokens = text.length() + add_bos;
     std::vector<llama_token> result(n_tokens);
-    n_tokens = llama_tokenize(model, text.data(), text.length(), result.data(), result.size(), add_bos, false);
+    n_tokens = llama_tokenize(vocab, text.data(), text.length(), result.data(), result.size(), add_bos, false);
     if (n_tokens < 0) {
         result.resize(-n_tokens);
-        int check = llama_tokenize(model, text.data(), text.length(), result.data(), result.size(), add_bos, false);
+        int check = llama_tokenize(vocab, text.data(), text.length(), result.data(), result.size(), add_bos, false);
         GGML_ASSERT(check == -n_tokens);
     } else {
         result.resize(n_tokens);
@@ -34,11 +36,14 @@ static std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const
 }
 
 static std::string llama_token_to_piece(const struct llama_context * ctx, llama_token token) {
+    const llama_model * model = llama_get_model(ctx);
+    const llama_vocab * vocab = llama_model_get_vocab(model);
+
     std::vector<char> result(8, 0);
-    const int n_tokens = llama_token_to_piece(llama_get_model(ctx), token, result.data(), result.size(), false);
+    const int n_tokens = llama_token_to_piece(vocab, token, result.data(), result.size(), 0, false);
     if (n_tokens < 0) {
         result.resize(-n_tokens);
-        int check = llama_token_to_piece(llama_get_model(ctx), token, result.data(), result.size(), false);
+        int check = llama_token_to_piece(vocab, token, result.data(), result.size(), 0, false);
         GGML_ASSERT(check == -n_tokens);
     } else {
         result.resize(n_tokens);
@@ -304,21 +309,22 @@ int main(int argc, char ** argv) {
         lmparams.n_gpu_layers = params.n_gpu_layers;
     }
 
-    struct llama_model * model_llama = llama_load_model_from_file(params.model_llama.c_str(), lmparams);
+    struct llama_model * model_llama = llama_model_load_from_file(params.model_llama.c_str(), lmparams);
     if (!model_llama) {
         fprintf(stderr, "No llama.cpp model specified. Please provide using -ml <modelfile>\n");
         return 1;
     }
 
+    const llama_vocab * vocab_llama = llama_model_get_vocab(model_llama);
+
     llama_context_params lcparams = llama_context_default_params();
 
     // tune these to your liking
     lcparams.n_ctx      = 2048;
-    lcparams.seed       = 1;
     lcparams.n_threads  = params.n_threads;
     lcparams.flash_attn = params.flash_attn;
 
-    struct llama_context * ctx_llama = llama_new_context_with_model(model_llama, lcparams);
+    struct llama_context * ctx_llama = llama_init_from_model(model_llama, lcparams);
 
     // print some info about the processing
     {
@@ -402,6 +408,26 @@ int main(int argc, char ** argv) {
 
     llama_batch batch = llama_batch_init(llama_n_ctx(ctx_llama), 0, 1);
 
+    // init sampler
+    const float top_k = 5;
+    const float top_p = 0.80f;
+    const float temp  = 0.30f;
+
+    const int seed = 0;
+
+    auto sparams = llama_sampler_chain_default_params();
+
+    llama_sampler * smpl = llama_sampler_chain_init(sparams);
+
+    if (temp > 0.0f) {
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_k(top_k));
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_p(top_p, 1));
+        llama_sampler_chain_add(smpl, llama_sampler_init_temp (temp));
+        llama_sampler_chain_add(smpl, llama_sampler_init_dist (seed));
+    } else {
+        llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
+    }
+
     // init session
     std::string path_session = params.path_session;
     std::vector<llama_token> session_tokens;
@@ -417,7 +443,7 @@ int main(int argc, char ** argv) {
 
             session_tokens.resize(llama_n_ctx(ctx_llama));
             size_t n_token_count_out = 0;
-            if (!llama_load_session_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.capacity(), &n_token_count_out)) {
+            if (!llama_state_load_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.capacity(), &n_token_count_out)) {
                 fprintf(stderr, "%s: error: failed to load session file '%s'\n", __func__, path_session.c_str());
                 return 1;
             }
@@ -700,56 +726,15 @@ int main(int argc, char ** argv) {
 
                     {
                         // out of user input, sample next token
-                        const float top_k          = 5;
-                        const float top_p          = 0.80f;
-                        const float temp           = 0.30f;
-                        const float repeat_penalty = 1.1764f;
-
-                        const int repeat_last_n    = 256;
 
                         if (!path_session.empty() && need_to_save_session) {
                             need_to_save_session = false;
-                            llama_save_session_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.size());
+                            llama_state_save_file(ctx_llama, path_session.c_str(), session_tokens.data(), session_tokens.size());
                         }
 
-                        llama_token id = 0;
+                        const llama_token id = llama_sampler_sample(smpl, ctx_llama, -1);
 
-                        {
-                            auto logits = llama_get_logits(ctx_llama);
-                            auto n_vocab = llama_n_vocab(model_llama);
-
-                            logits[llama_token_eos(model_llama)] = 0;
-
-                            std::vector<llama_token_data> candidates;
-                            candidates.reserve(n_vocab);
-                            for (llama_token token_id = 0; token_id < n_vocab; token_id++) {
-                                candidates.emplace_back(llama_token_data{token_id, logits[token_id], 0.0f});
-                            }
-
-                            llama_token_data_array candidates_p = { candidates.data(), candidates.size(), false };
-
-                            // apply repeat penalty
-                            const float nl_logit = logits[llama_token_nl(model_llama)];
-
-                            llama_sample_repetition_penalties(ctx_llama, &candidates_p,
-                                    embd_inp.data() + std::max(0, n_past - repeat_last_n),
-                                    repeat_last_n, repeat_penalty, 0.0, 0.0f);
-
-                            logits[llama_token_nl(model_llama)] = nl_logit;
-
-                            if (temp <= 0) {
-                                // Greedy sampling
-                                id = llama_sample_token_greedy(ctx_llama, &candidates_p);
-                            } else {
-                                // Temperature sampling
-                                llama_sample_top_k(ctx_llama, &candidates_p, top_k, 1);
-                                llama_sample_top_p(ctx_llama, &candidates_p, top_p, 1);
-                                llama_sample_temp (ctx_llama, &candidates_p, temp);
-                                id = llama_sample_token(ctx_llama, &candidates_p);
-                            }
-                        }
-
-                        if (id != llama_token_eos(model_llama)) {
+                        if (id != llama_vocab_eos(vocab_llama)) {
                             // add it to the context
                             embd.push_back(id);
 
@@ -797,8 +782,14 @@ int main(int argc, char ** argv) {
     whisper_print_timings(ctx_wsp);
     whisper_free(ctx_wsp);
 
-    llama_print_timings(ctx_llama);
+    llama_perf_sampler_print(smpl);
+    llama_perf_context_print(ctx_llama);
+
+    llama_sampler_free(smpl);
+    llama_batch_free(batch);
     llama_free(ctx_llama);
+
+    llama_backend_free();
 
     return 0;
 }

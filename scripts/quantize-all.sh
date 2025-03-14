@@ -19,8 +19,8 @@ for i in `ls ./models | grep ^ggml-.*.bin | grep -v "\-q"`; do
     m="models/$i"
     if [ -f "$m" ]; then
         if [ "${m##*.}" == "bin" ]; then
-            ./quantize "${m}" "${m::${#m}-4}-${qtype1}.bin" ${qtype1};
-            ./quantize "${m}" "${m::${#m}-4}-${qtype0}.bin" ${qtype0};
+            ./build/bin/whisper-quantize "${m}" "${m::${#m}-4}-${qtype1}.bin" ${qtype1};
+            ./build/bin/whisper-quantize "${m}" "${m::${#m}-4}-${qtype0}.bin" ${qtype0};
             filedex+=( "${m::${#m}-4}-${qtype1}.bin" "${m::${#m}-4}-${qtype0}.bin" )
         fi
     fi

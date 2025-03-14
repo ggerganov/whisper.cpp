@@ -10,8 +10,8 @@ on:
       - whisper.h
 
 jobs:
-  addon_node-ubuntu-latest:
-    runs-on: ubuntu-latest
+  addon_node-ubuntu-22:
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         node-version: [ 16.x, 18.x ]
@@ -22,7 +22,7 @@ jobs:
       - name: Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install build-essential
+          sudo apt-get install build-essential git
           sudo apt-get install cmake
           sudo apt-get install libsdl2-dev
 

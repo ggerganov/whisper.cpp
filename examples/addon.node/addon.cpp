@@ -1,5 +1,6 @@
 #include "napi.h"
 #include "common.h"
+#include "common-whisper.h"
 
 #include "whisper.h"
 
@@ -171,8 +172,8 @@ int run(whisper_params &params, std::vector<std::vector<std::string>> &result) {
 
         // read the input audio file if params.pcmf32 is not provided
         if (params.pcmf32.empty()) {
-            if (!::read_wav(fname_inp, pcmf32, pcmf32s, params.diarize)) {
-                fprintf(stderr, "error: failed to read WAV file '%s'\n", fname_inp.c_str());
+            if (!::read_audio_data(fname_inp, pcmf32, pcmf32s, params.diarize)) {
+                fprintf(stderr, "error: failed to read audio file '%s'\n", fname_inp.c_str());
                 continue;
             }
         } else {
@@ -330,6 +331,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   bool no_timestamps = whisper_params.Get("no_timestamps").As<Napi::Boolean>();
   int32_t audio_ctx = whisper_params.Get("audio_ctx").As<Napi::Number>();
   bool comma_in_time = whisper_params.Get("comma_in_time").As<Napi::Boolean>();
+  int32_t max_len = whisper_params.Get("max_len").As<Napi::Number>();
 
   Napi::Value pcmf32Value = whisper_params.Get("pcmf32");
   std::vector<float> pcmf32_vec;
@@ -352,6 +354,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   params.audio_ctx = audio_ctx;
   params.pcmf32 = pcmf32_vec;
   params.comma_in_time = comma_in_time;
+  params.max_len = max_len;
 
   Napi::Function callback = info[1].As<Napi::Function>();
   Worker* worker = new Worker(callback, params);

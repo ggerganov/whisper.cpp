@@ -4,52 +4,90 @@ import (
 	"os"
 	"testing"
 
-	// Packages
-	whisper "github.com/ggerganov/whisper.cpp/bindings/go/pkg/whisper"
+	"github.com/ggerganov/whisper.cpp/bindings/go/pkg/whisper"
+	"github.com/go-audio/wav"
 	assert "github.com/stretchr/testify/assert"
 )
 
-const (
-	ModelPath  = "../../models/ggml-tiny.bin"
-	SamplePath = "../../samples/jfk.wav"
-)
-
-func Test_Whisper_000(t *testing.T) {
+func TestSetLanguage(t *testing.T) {
 	assert := assert.New(t)
-	if _, err := os.Stat(ModelPath); os.IsNotExist(err) {
-		t.Skip("Skipping test, model not found:", ModelPath)
-	}
-	if _, err := os.Stat(SamplePath); os.IsNotExist(err) {
-		t.Skip("Skipping test, sample not found:", SamplePath)
-	}
 
-	// Load model
-	model, err := whisper.New(ModelPath)
-	assert.NoError(err)
-	assert.NotNil(model)
-	assert.NoError(model.Close())
-
-	t.Log("languages=", model.Languages())
-}
-
-func Test_Whisper_001(t *testing.T) {
-	assert := assert.New(t)
-	if _, err := os.Stat(ModelPath); os.IsNotExist(err) {
-		t.Skip("Skipping test, model not found:", ModelPath)
-	}
-	if _, err := os.Stat(SamplePath); os.IsNotExist(err) {
-		t.Skip("Skipping test, sample not found:", SamplePath)
-	}
-
-	// Load model
 	model, err := whisper.New(ModelPath)
 	assert.NoError(err)
 	assert.NotNil(model)
 	defer model.Close()
 
-	// Get context for decoding
-	ctx, err := model.NewContext()
+	context, err := model.NewContext()
 	assert.NoError(err)
-	assert.NotNil(ctx)
 
+	// This returns an error since
+	// the model 'models/ggml-small.en.bin'
+	// that is loaded is not multilingual
+	err = context.SetLanguage("en")
+	assert.Error(err)
+}
+
+func TestContextModelIsMultilingual(t *testing.T) {
+	assert := assert.New(t)
+
+	model, err := whisper.New(ModelPath)
+	assert.NoError(err)
+	assert.NotNil(model)
+	defer model.Close()
+
+	context, err := model.NewContext()
+	assert.NoError(err)
+
+	isMultilingual := context.IsMultilingual()
+
+	// This returns false since
+	// the model 'models/ggml-small.en.bin'
+	// that is loaded is not multilingual
+	assert.False(isMultilingual)
+}
+
+func TestLanguage(t *testing.T) {
+	assert := assert.New(t)
+
+	model, err := whisper.New(ModelPath)
+	assert.NoError(err)
+	assert.NotNil(model)
+	defer model.Close()
+
+	context, err := model.NewContext()
+	assert.NoError(err)
+
+	// This always returns en since
+	// the model 'models/ggml-small.en.bin'
+	// that is loaded is not multilingual
+	expectedLanguage := "en"
+	actualLanguage := context.Language()
+	assert.Equal(expectedLanguage, actualLanguage)
+}
+
+func TestProcess(t *testing.T) {
+	assert := assert.New(t)
+
+	fh, err := os.Open(SamplePath)
+	assert.NoError(err)
+	defer fh.Close()
+
+	// Decode the WAV file - load the full buffer
+	dec := wav.NewDecoder(fh)
+	buf, err := dec.FullPCMBuffer()
+	assert.NoError(err)
+	assert.Equal(uint16(1), dec.NumChans)
+
+	data := buf.AsFloat32Buffer().Data
+
+	model, err := whisper.New(ModelPath)
+	assert.NoError(err)
+	assert.NotNil(model)
+	defer model.Close()
+
+	context, err := model.NewContext()
+	assert.NoError(err)
+
+	err = context.Process(data, nil, nil)
+	assert.NoError(err)
 }

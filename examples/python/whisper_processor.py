@@ -21,7 +21,7 @@ def process_audio(wav_file, model_name="base.en"):
     if not os.path.exists(wav_file):
         raise FileNotFoundError(f"WAV file not found: {wav_file}")
 
-    full_command = f"./main -m {model} -f {wav_file} -np -nt"
+    full_command = f"./main -m {model} -f {wav_file} -nt"
 
     # Execute the command
     process = subprocess.Popen(full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

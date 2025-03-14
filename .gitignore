@@ -1,13 +1,16 @@
 *.o
 *.a
+*.d
 .cache/
 .coreml/
 .test/
+.venv/
 .vs/
 .vscode/
 .DS_Store
 .vimspector.json
 /CMakeSettings.json
+/talk-llama.dSYM/
 
 build/
 build-*/
@@ -16,6 +19,9 @@ build-*/
 .build/
 .swiftpm
 *.metallib
+
+ggml-metal-embed.metal
+ggml-metal-embed.metal.tmp
 
 /main
 /stream
@@ -52,3 +58,5 @@ cmake-build-debug/
 .cxx/
 .gradle/
 local.properties
+.log
+.exe

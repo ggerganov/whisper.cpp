@@ -14,7 +14,7 @@ model="base.en"
 
 check_requirements()
 {
-    if ! command -v ./main &>/dev/null; then
+    if ! command -v ./build/bin/whisper-cli &>/dev/null; then
         echo "whisper.cpp main executable is required (make)"
         exit 1
     fi
@@ -48,7 +48,7 @@ if [ -n "$3" ]; then
 fi
 
 # Whisper models
-models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large-v2" "large-v3" )
+models=( "tiny.en" "tiny" "base.en" "base" "small.en" "small" "medium.en" "medium" "large-v1" "large-v2" "large-v3" "large-v3-turbo" )
 
 # list available models
 function list_models {
@@ -100,7 +100,7 @@ while [ $running -eq 1 ]; do
         err=$(cat /tmp/whisper-live.err | wc -l)
     done
 
-    ./main -t 8 -m ./models/ggml-${model}.bin -f /tmp/whisper-live.wav --no-timestamps -otxt 2> /tmp/whispererr | tail -n 1
+    ./build/bin/whisper-cli -t 8 -m ./models/ggml-${model}.bin -f /tmp/whisper-live.wav --no-timestamps -otxt 2> /tmp/whispererr | tail -n 1
 
     while [ $SECONDS -lt $((($i+1)*$step_s)) ]; do
         sleep 1
@@ -109,4 +109,4 @@ while [ $running -eq 1 ]; do
 done
 
 killall -v ffmpeg
-killall -v main
+killall -v whisper-cli

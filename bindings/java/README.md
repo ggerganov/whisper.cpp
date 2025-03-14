@@ -67,5 +67,5 @@ copy /y ..\..\build\bin\Release\whisper.dll build\generated\resources\main\win32
 
 ## License
 
-The license for the Go bindings is the same as the license for the rest of the whisper.cpp project, which is the MIT License. See the `LICENSE` file for more details.
+The license for the Java bindings is the same as the license for the rest of the whisper.cpp project, which is the MIT License. See the `LICENSE` file for more details.
 

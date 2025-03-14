@@ -1,12 +1,66 @@
 require 'rake/clean'
-  require 'rubygems/package'
+require "bundler/gem_tasks"
+require "rake/testtask"
+require_relative "extsources"
 
-desc 'Build gem'
-task :package do
-  spec_source = File.read File.join(File.dirname(__FILE__),'whispercpp.gemspec')
-  spec = nil
-  # see: http://gist.github.com/16215
-  Thread.new { spec = eval("#{spec_source}") }.join
-  spec.validate
-  Gem::Package.build(spec)
+SOURCES = FileList[]
+
+EXTSOURCES.each do |src|
+  basename = src.pathmap("%f")
+  dest = basename == "LICENSE" ? basename : src.pathmap("%{../..,ext}p")
+  dir = dest.pathmap("%d")
+  file src
+  directory dir
+  file dest => [src, dir] do |t|
+    cp t.source, t.name
+  end
+  SOURCES.include dest
 end
+
+CLEAN.include SOURCES
+CLEAN.include FileList["ext/**/*.o", "ext/**/*.metal", "ext/**/*.tmp", "ext/whisper.{so,bundle,dll}"]
+
+SRC = FileList["ext/*.{c,cpp,h}"]
+
+task build: SOURCES
+
+directory "pkg"
+CLOBBER.include "pkg"
+
+LIB_NAME = "whisper".ext(RbConfig::CONFIG["DLEXT"])
+SO_FILE = File.join("ext", LIB_NAME)
+LIB_FILE = File.join("lib", LIB_NAME)
+
+file "ext/Makefile" => SRC + ["ext/extconf.rb"] + SOURCES do |t|
+  chdir "ext" do
+    ruby "extconf.rb"
+  end
+end
+
+file SO_FILE => "ext/Makefile" do |t|
+  chdir "ext" do
+    sh "make"
+  end
+end
+CLEAN.include SO_FILE
+
+directory "lib"
+file LIB_FILE => [SO_FILE, "lib"] do |t|
+  copy t.source, t.name
+end
+CLEAN.include LIB_FILE
+
+Rake::TestTask.new do |t|
+  t.test_files = FileList["tests/test_*.rb"]
+end
+
+TEST_MEMORY_VIEW = "tests/jfk_reader/jfk_reader.#{RbConfig::CONFIG['DLEXT']}"
+file TEST_MEMORY_VIEW => "tests/jfk_reader/jfk_reader.c" do |t|
+  chdir "tests/jfk_reader" do
+    ruby "extconf.rb"
+    sh "make"
+  end
+end
+CLEAN.include "tests/jfk_reader/jfk_reader.{o,#{RbConfig::CONFIG['DLEXT']}}"
+
+task test: [LIB_FILE, TEST_MEMORY_VIEW]

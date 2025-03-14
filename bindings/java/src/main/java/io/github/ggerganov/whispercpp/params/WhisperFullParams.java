@@ -181,11 +181,11 @@ public class WhisperFullParams extends Structure {
     }
 
     /** Flag to suppress non-speech tokens. */
-    public CBool suppress_non_speech_tokens;
+    public CBool suppress_nst;
 
     /** Flag to suppress non-speech tokens. */
     public void suppressNonSpeechTokens(boolean enable) {
-        suppress_non_speech_tokens = enable ? CBool.TRUE : CBool.FALSE;
+        suppress_nst = enable ? CBool.TRUE : CBool.FALSE;
     }
 
     /** Initial decoding temperature. */
@@ -315,7 +315,7 @@ public class WhisperFullParams extends Structure {
                 "print_special", "print_progress", "print_realtime", "print_timestamps",  "token_timestamps",
                 "thold_pt", "thold_ptsum", "max_len", "split_on_word", "max_tokens", "audio_ctx",
                 "tdrz_enable", "suppress_regex", "initial_prompt", "prompt_tokens", "prompt_n_tokens", "language", "detect_language",
-                "suppress_blank", "suppress_non_speech_tokens", "temperature", "max_initial_ts", "length_penalty",
+                "suppress_blank", "suppress_nst", "temperature", "max_initial_ts", "length_penalty",
                 "temperature_inc", "entropy_thold", "logprob_thold", "no_speech_thold", "greedy", "beam_search",
                 "new_segment_callback", "new_segment_callback_user_data",
                 "progress_callback", "progress_callback_user_data",

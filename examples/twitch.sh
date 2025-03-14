@@ -21,7 +21,7 @@ help()
     echo "Usage: ./twitch.sh -s [step] -m [model] -t [threads] [url]"
     echo "options:"
     echo "-s       Step in seconds (default is $step)."
-    echo "-m       Choose model, options are: 'tiny.en' 'tiny' 'base.en' 'base' 'small.en' 'small' 'medium.en' 'medium' 'large-v1' 'large-v2' 'large-v3' (default is '$model')."
+    echo "-m       Choose model, options are: 'tiny.en' 'tiny' 'base.en' 'base' 'small.en' 'small' 'medium.en' 'medium' 'large-v1' 'large-v2' 'large-v3' 'large-v3-turbo' (default is '$model')."
     echo "-t       Number of threads to use."
     echo "-h       Print this help page."
     echo
@@ -29,7 +29,7 @@ help()
 
 check_requirements()
 {
-    if ! command -v ./main &>/dev/null; then
+    if ! command -v ./build/bin/whisper-cli &>/dev/null; then
         echo "whisper.cpp main executable is required (make)"
         exit 1
     fi
@@ -100,7 +100,7 @@ do
         err=$(cat /tmp/whisper-live.err | wc -l)
     done
 
-    ./main -t $threads -m ./models/ggml-$model.bin -f /tmp/whisper-live.wav --no-timestamps -otxt 2> /tmp/whispererr | tail -n 1
+    ./build/bin/whisper-cli -t $threads -m ./models/ggml-$model.bin -f /tmp/whisper-live.wav --no-timestamps -otxt 2> /tmp/whispererr | tail -n 1
 
     while [ $SECONDS -lt $((($i+1)*$step)) ]; do
         sleep 1

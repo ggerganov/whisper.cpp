@@ -15,6 +15,7 @@
 
 #include <sycl/sycl.hpp>
 #include <sycl/half_type.hpp>
+#include <syclcompat/math.hpp>
 #include <oneapi/mkl.hpp>
 #include <map>
 
@@ -80,6 +81,14 @@ inline std::string get_device_backend_and_type(const sycl::device &device) {
     device_type <<  backend << ":" << get_device_type_name(device);
     return device_type.str();
 }
+
+template <typename Ts> struct matrix_info_t {
+    oneapi::mkl::transpose transpose_info[2];
+    Ts                     value_info[2];
+    std::int64_t           size_info[3];
+    std::int64_t           ld_info[3];
+    std::int64_t           groupsize_info;
+};
 
 namespace dpct
 {
@@ -255,7 +264,7 @@ namespace dpct
         void set_pitch(size_t pitch) { _pitch = pitch; }
 
         size_t get_x() { return _x; }
-        void set_x(size_t x) { _x = x; };
+        void set_x(size_t x) { _x = x; }
 
         size_t get_y() { return _y; }
         void set_y(size_t y) { _y = y; }
@@ -588,7 +597,7 @@ namespace dpct
         out = prop;
     }
 
-   /// dpct device extension
+    /// dpct device extension
     class device_ext : public sycl::device {
       typedef std::mutex mutex_type;
 
@@ -697,7 +706,7 @@ namespace dpct
         std::unique_lock<mutex_type> lock(m_mutex);
         lock.unlock();
         for (auto &q : _queues) {
-          q.wait_and_throw();
+            q.wait_and_throw();
         }
         // Guard the destruct of current_queues to make sure the ref count is
         // safe.
@@ -734,7 +743,12 @@ namespace dpct
 
       void destroy_queue(sycl::queue queue) {
         std::lock_guard<mutex_type> lock(m_mutex);
-        _queues.clear();
+        _queues.erase(std::remove_if(_queues.begin(), _queues.end(),
+                                    [=](const sycl::queue &q) -> bool
+                                    {
+                                        return q == queue;
+                                    }),
+                    _queues.end());
       }
       void set_saved_queue(sycl::queue q) {
         std::lock_guard<mutex_type> lock(m_mutex);
@@ -764,13 +778,13 @@ namespace dpct
         if (enable_exception_handler) {
           eh = exception_handler;
         }
-        auto q = sycl::queue(*this, eh,
-                             sycl::property_list(
+        _queues.push_back(sycl::queue(
+            *this, eh,
+            sycl::property_list(
 #ifdef DPCT_PROFILING_ENABLED
-                                 sycl::property::queue::enable_profiling(),
+                sycl::property::queue::enable_profiling(),
 #endif
-                                 properties...));
-        _queues.push_back(q);
+                properties...)));
 
         return _queues.back();
       }
@@ -783,8 +797,8 @@ namespace dpct
         if (enable_exception_handler) {
           eh = exception_handler;
         }
-        _queues.push_back(
-            sycl::queue(device, eh,
+        _queues.push_back(sycl::queue(
+            device, eh,
                         sycl::property_list(
 #ifdef DPCT_PROFILING_ENABLED
                             sycl::property::queue::enable_profiling(),
@@ -855,15 +869,88 @@ namespace dpct
         unsigned int get_device_id(const sycl::device &dev)
         {
             unsigned int id = 0;
-            for (auto dev_item : _devs)
+            for (auto &dev_item : _devs)
             {
                 if (*dev_item == dev)
                 {
-                    break;
+                    return id;
                 }
                 id++;
             }
-            return id;
+            return -1;
+        }
+
+        inline std::string get_preferred_gpu_platform_name() {
+            std::string result;
+
+            std::string filter = "";
+            char* env = getenv("ONEAPI_DEVICE_SELECTOR");
+            if (env) {
+                if (std::strstr(env, "level_zero")) {
+                    filter = "level-zero";
+                }
+                else if (std::strstr(env, "opencl")) {
+                    filter = "opencl";
+                }
+                else if (std::strstr(env, "cuda")) {
+                    filter = "cuda";
+                }
+                else if (std::strstr(env, "hip")) {
+                    filter = "hip";
+                }
+                else {
+                    throw std::runtime_error("invalid device filter: " + std::string(env));
+                }
+            } else {
+                auto default_device = sycl::device(sycl::default_selector_v);
+                auto default_platform_name = default_device.get_platform().get_info<sycl::info::platform::name>();
+
+                if (std::strstr(default_platform_name.c_str(), "Level-Zero") || default_device.is_cpu()) {
+                    filter = "level-zero";
+                }
+                else if (std::strstr(default_platform_name.c_str(), "CUDA")) {
+                    filter = "cuda";
+                }
+                else if (std::strstr(default_platform_name.c_str(), "HIP")) {
+                    filter = "hip";
+                }
+            }
+
+            auto platform_list = sycl::platform::get_platforms();
+
+            for (const auto& platform : platform_list) {
+                auto devices = platform.get_devices();
+                auto gpu_dev = std::find_if(devices.begin(), devices.end(), [](const sycl::device& d) {
+                    return d.is_gpu();
+                });
+
+                if (gpu_dev == devices.end()) {
+                    // cout << "platform [" << platform_name
+                    //      << "] does not contain GPU devices, skipping\n";
+                    continue;
+                }
+
+                auto platform_name = platform.get_info<sycl::info::platform::name>();
+                std::string platform_name_low_case;
+                platform_name_low_case.resize(platform_name.size());
+
+                std::transform(
+                    platform_name.begin(), platform_name.end(), platform_name_low_case.begin(), ::tolower);
+
+                if (platform_name_low_case.find(filter) == std::string::npos) {
+                    // cout << "platform [" << platform_name
+                    //      << "] does not match with requested "
+                    //      << filter << ", skipping\n";
+                    continue;
+                }
+
+                result = platform_name;
+            }
+
+            if (result.empty())
+                throw std::runtime_error("can not find preferred GPU platform");
+
+            return result;
         }
 
         template <class DeviceSelector>
@@ -910,7 +997,7 @@ namespace dpct
             if (backend == "opencl:cpu") return 4;
             if (backend == "opencl:acc") return 5;
             printf("convert_backend_index: can't handle backend=%s\n", backend.c_str());
-            GGML_ASSERT(false);
+            GGML_ABORT("fatal error");
         }
         static bool compare_backend(std::string &backend1, std::string &backend2) {
             return convert_backend_index(backend1) < convert_backend_index(backend2);
@@ -930,10 +1017,15 @@ namespace dpct
             // Keep track of the number of devices per backend
             std::map<sycl::backend, size_t> DeviceNums;
             std::map<std::string, std::vector<sycl::device>> backend_devices;
+            auto preferred_platform_name = get_preferred_gpu_platform_name();
 
             while (!Platforms.empty()) {
                 auto Platform = Platforms.back();
                 Platforms.pop_back();
+                auto platform_name = Platform.get_info<sycl::info::platform::name>();
+                if (platform_name.compare(preferred_platform_name) != 0) {
+                    continue;
+                }
                 auto devices = Platform.get_devices();
                 std::string backend_type = get_device_backend_and_type(devices[0]);
                 for (const auto &device : devices) {
@@ -1056,7 +1148,7 @@ namespace dpct
 #error "Only support Windows and Linux."
 #endif
                 next_free = mapped_address_space;
-            };
+            }
 
         public:
             using buffer_id_t = int;
@@ -1077,7 +1169,7 @@ namespace dpct
 #else
 #error "Only support Windows and Linux."
 #endif
-            };
+            }
 
             mem_mgr(const mem_mgr &) = delete;
             mem_mgr &operator=(const mem_mgr &) = delete;
@@ -1153,7 +1245,7 @@ namespace dpct
 
             std::map<byte_t *, allocation>::iterator get_map_iterator(const void *ptr)
             {
-                auto it = m_map.upper_bound((byte_t *)ptr);
+                auto it = m_map.upper_bound(const_cast<byte_t *>(reinterpret_cast<const byte_t *>(ptr)));
                 if (it == m_map.end())
                 {
                     // Not a virtual pointer.
@@ -1605,9 +1697,14 @@ namespace dpct
             auto data_a = get_memory<const Ta>(a);
             auto data_b = get_memory<const Tb>(b);
             auto data_c = get_memory<Tc>(c);
-            oneapi::mkl::blas::column_major::gemm(
-                q, a_trans, b_trans, m, n, k, alpha_value, data_a, lda,
-                data_b, ldb, beta_value, data_c, ldc);
+#ifdef GGML_SYCL_NVIDIA
+            oneapi::mkl::blas::column_major::gemm(oneapi::mkl::backend_selector<oneapi::mkl::backend::cublas>{ q },
+                                                  a_trans, b_trans, m, n, k, alpha_value, data_a, lda, data_b, ldb,
+                                                  beta_value, data_c, ldc);
+#else
+            oneapi::mkl::blas::column_major::gemm(q, a_trans, b_trans, m, n, k, alpha_value, data_a, lda, data_b, ldb,
+                                                  beta_value, data_c, ldc);
+#endif
         }
 
         template <typename VecT, class BinaryOperation, class = void>
@@ -1638,26 +1735,13 @@ namespace dpct
         };
 
         template <class Ta, class Tb, class Tc, class Ts>
-        inline void gemm_batch_impl(sycl::queue &q, oneapi::mkl::transpose a_trans,
-                                    oneapi::mkl::transpose b_trans, int m, int n, int k,
-                                    const void *alpha, const void **a, int lda,
-                                    const void **b, int ldb, const void *beta, void **c,
-                                    int ldc, int batch_size)
-        {
-            struct matrix_info_t
-            {
-                oneapi::mkl::transpose transpose_info[2];
-                Ts value_info[2];
-                std::int64_t size_info[3];
-                std::int64_t ld_info[3];
-                std::int64_t groupsize_info;
-            };
-
+        inline void gemm_batch_impl(sycl::queue & q, oneapi::mkl::transpose a_trans, oneapi::mkl::transpose b_trans,
+                                    int m, int n, int k, const void * alpha, const void ** a, int lda, const void ** b,
+                                    int ldb, const void * beta, void ** c, int ldc, int batch_size,
+                                    matrix_info_t<float> * matrix_info) {
             Ts alpha_value = dpct::get_value(reinterpret_cast<const Ts *>(alpha), q);
             Ts beta_value = dpct::get_value(reinterpret_cast<const Ts *>(beta), q);
 
-            matrix_info_t *matrix_info =
-                (matrix_info_t *)std::malloc(sizeof(matrix_info_t));
             matrix_info->transpose_info[0] = a_trans;
             matrix_info->transpose_info[1] = b_trans;
             matrix_info->value_info[0] = alpha_value;
@@ -1670,19 +1754,22 @@ namespace dpct
             matrix_info->ld_info[2] = ldc;
             matrix_info->groupsize_info = batch_size;
 
+#ifdef GGML_SYCL_NVIDIA
             sycl::event e = oneapi::mkl::blas::column_major::gemm_batch(
-                q, matrix_info->transpose_info, matrix_info->transpose_info + 1,
-                matrix_info->size_info, matrix_info->size_info + 1,
-                matrix_info->size_info + 2, matrix_info->value_info,
-                reinterpret_cast<const Ta **>(a), matrix_info->ld_info,
-                reinterpret_cast<const Tb **>(b), matrix_info->ld_info + 1,
-                matrix_info->value_info + 1, reinterpret_cast<Tc **>(c),
-                matrix_info->ld_info + 2, 1, &(matrix_info->groupsize_info));
-
-            q.submit([&](sycl::handler &cgh)
-                     {
-    cgh.depends_on(e);
-    cgh.host_task([=] { std::free(matrix_info); }); });
+                oneapi::mkl::backend_selector<oneapi::mkl::backend::cublas>{ q }, matrix_info->transpose_info,
+                matrix_info->transpose_info + 1, matrix_info->size_info, matrix_info->size_info + 1,
+                matrix_info->size_info + 2, reinterpret_cast<Ts *>(matrix_info->value_info),
+                reinterpret_cast<const Ta **>(a), matrix_info->ld_info, reinterpret_cast<const Tb **>(b),
+                matrix_info->ld_info + 1, reinterpret_cast<Ts *>(matrix_info->value_info + 1),
+                reinterpret_cast<Tc **>(c), matrix_info->ld_info + 2, 1, &(matrix_info->groupsize_info));
+#else
+            sycl::event e = oneapi::mkl::blas::column_major::gemm_batch(
+                q, matrix_info->transpose_info, matrix_info->transpose_info + 1, matrix_info->size_info,
+                matrix_info->size_info + 1, matrix_info->size_info + 2, reinterpret_cast<Ts *>(matrix_info->value_info),
+                reinterpret_cast<const Ta **>(a), matrix_info->ld_info, reinterpret_cast<const Tb **>(b),
+                matrix_info->ld_info + 1, reinterpret_cast<Ts *>(matrix_info->value_info + 1),
+                reinterpret_cast<Tc **>(c), matrix_info->ld_info + 2, 1, &(matrix_info->groupsize_info));
+#endif
         }
 
         template <class Ta, class Tb, class Tc, class Ts>
@@ -1699,10 +1786,16 @@ namespace dpct
             auto data_a = get_memory<const Ta>(a);
             auto data_b = get_memory<const Tb>(b);
             auto data_c = get_memory<Tc>(c);
+#ifdef GGML_SYCL_NVIDIA
             oneapi::mkl::blas::column_major::gemm_batch(
-                q, a_trans, b_trans, m, n, k, alpha_value, data_a, lda,
-                stride_a, data_b, ldb, stride_b, beta_value,
-                data_c, ldc, stride_c, batch_size);
+                oneapi::mkl::backend_selector<oneapi::mkl::backend::cublas>{ q }, a_trans, b_trans, m, n, k,
+                alpha_value, data_a, lda, stride_a, data_b, ldb, stride_b, beta_value, data_c, ldc, stride_c,
+                batch_size);
+#else
+            oneapi::mkl::blas::column_major::gemm_batch(q, a_trans, b_trans, m, n, k, alpha_value, data_a, lda,
+                                                        stride_a, data_b, ldb, stride_b, beta_value, data_c, ldc,
+                                                        stride_c, batch_size);
+#endif
         }
 
     } // namespace detail
@@ -1747,31 +1840,10 @@ namespace dpct
                                            : id);
     }
 
-    template <typename T>
-    sycl::vec<T, 4> extract_and_sign_or_zero_extend4(T val)
-    {
-        return sycl::vec<T, 1>(val)
-            .template as<sycl::vec<
-                std::conditional_t<std::is_signed_v<T>, int8_t, uint8_t>, 4>>()
-            .template convert<T>();
-    }
-
-    template <typename T1, typename T2>
-    using dot_product_acc_t =
-        std::conditional_t<std::is_unsigned_v<T1> && std::is_unsigned_v<T2>,
-                           uint32_t, int32_t>;
-
     template <typename T1, typename T2, typename T3>
     inline auto dp4a(T1 a, T2 b, T3 c)
     {
-        dot_product_acc_t<T1, T2> res = c;
-        auto va = extract_and_sign_or_zero_extend4(a);
-        auto vb = extract_and_sign_or_zero_extend4(b);
-        res += va[0] * vb[0];
-        res += va[1] * vb[1];
-        res += va[2] * vb[2];
-        res += va[3] * vb[3];
-        return res;
+        return syclcompat::dp4a(a, b, c);
     }
 
     struct sub_sat
@@ -1987,6 +2059,11 @@ namespace dpct
     static inline device_ext &get_current_device()
     {
         return dev_mgr::instance().current_device();
+    }
+
+    static inline device_ext &get_device(unsigned int id)
+    {
+        return dev_mgr::instance().get_device(id);
     }
 
     static inline sycl::queue &get_in_order_queue()
@@ -2335,25 +2412,11 @@ namespace dpct
     /// \param [in] ldc Leading dimension of C.
     /// \param [in] batch_size Specifies the number of matrix multiply operations to perform.
     /// \param [in] scaling_type Data type of the scaling factors.
-    inline void gemm_batch(sycl::queue &q, oneapi::mkl::transpose a_trans,
-                           oneapi::mkl::transpose b_trans, int m, int n, int k,
-                           const void *alpha, const void *a[],
-                           library_data_t a_type, int lda, const void *b[],
-                           library_data_t b_type, int ldb, const void *beta,
-                           void *c[], library_data_t c_type, int ldc,
-                           int batch_size, library_data_t scaling_type)
-    {
-        if (scaling_type == library_data_t::real_float &&
-            c_type == library_data_t::complex_float)
-        {
-            scaling_type = library_data_t::complex_float;
-        }
-        else if (scaling_type == library_data_t::real_double &&
-                 c_type == library_data_t::complex_double)
-        {
-            scaling_type = library_data_t::complex_double;
-        }
-
+    inline void gemm_batch(sycl::queue & q, oneapi::mkl::transpose a_trans, oneapi::mkl::transpose b_trans, int m,
+                           int n, int k, const void * alpha, const void * a[], library_data_t a_type, int lda,
+                           const void * b[], library_data_t b_type, int ldb, const void * beta, void * c[],
+                           library_data_t c_type, int ldc, int batch_size, library_data_t scaling_type,
+                           matrix_info_t<float> * matrix_info) {
         std::uint64_t key =
             detail::get_type_combination_id(a_type, b_type, c_type, scaling_type);
         switch (key)
@@ -2362,48 +2425,24 @@ namespace dpct
             library_data_t::real_float, library_data_t::real_float,
             library_data_t::real_float, library_data_t::real_float):
         {
-            detail::gemm_batch_impl<float, float, float, float>(
-                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc,
-                batch_size);
+            detail::gemm_batch_impl<float, float, float, float>(q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb,
+                                                                beta, c, ldc, batch_size, matrix_info);
             break;
         }
         case detail::get_type_combination_id(
             library_data_t::real_double, library_data_t::real_double,
             library_data_t::real_double, library_data_t::real_double):
         {
-            detail::gemm_batch_impl<double, double, double, double>(
-                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc,
-                batch_size);
-            break;
-        }
-        case detail::get_type_combination_id(
-            library_data_t::complex_float, library_data_t::complex_float,
-            library_data_t::complex_float, library_data_t::complex_float):
-        {
-            detail::gemm_batch_impl<std::complex<float>, std::complex<float>,
-                                    std::complex<float>, std::complex<float>>(
-                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc,
-                batch_size);
-            break;
-        }
-        case detail::get_type_combination_id(
-            library_data_t::complex_double, library_data_t::complex_double,
-            library_data_t::complex_double, library_data_t::complex_double):
-        {
-            detail::gemm_batch_impl<std::complex<double>, std::complex<double>,
-                                    std::complex<double>, std::complex<double>>(
-                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc,
-                batch_size);
+            detail::gemm_batch_impl<double, double, double, double>(q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb,
+                                                                    beta, c, ldc, batch_size, matrix_info);
             break;
         }
         case detail::get_type_combination_id(
             library_data_t::real_half, library_data_t::real_half,
             library_data_t::real_half, library_data_t::real_half):
         {
-            detail::gemm_batch_impl<sycl::half, sycl::half, sycl::half,
-                                    sycl::half>(q, a_trans, b_trans, m, n, k, alpha,
-                                                a, lda, b, ldb, beta, c, ldc,
-                                                batch_size);
+            detail::gemm_batch_impl<sycl::half, sycl::half, sycl::half, sycl::half>(
+                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, batch_size, matrix_info);
             break;
         }
 #ifdef __INTEL_MKL__
@@ -2411,21 +2450,19 @@ namespace dpct
             library_data_t::real_bfloat16, library_data_t::real_bfloat16,
             library_data_t::real_bfloat16, library_data_t::real_float):
         {
-            detail::gemm_batch_impl<oneapi::mkl::bfloat16, oneapi::mkl::bfloat16,
-                                    oneapi::mkl::bfloat16, float>(
-                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc,
-                batch_size);
+            detail::gemm_batch_impl<oneapi::mkl::bfloat16, oneapi::mkl::bfloat16, oneapi::mkl::bfloat16, float>(
+                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, batch_size, matrix_info);
             break;
         }
         case detail::get_type_combination_id(
             library_data_t::real_bfloat16, library_data_t::real_bfloat16,
             library_data_t::real_float, library_data_t::real_float):
         {
-            detail::gemm_batch_impl<oneapi::mkl::bfloat16, oneapi::mkl::bfloat16, float,
-                                    float>(q, a_trans, b_trans, m, n, k, alpha, a, lda,
-                                           b, ldb, beta, c, ldc, batch_size);
+            detail::gemm_batch_impl<oneapi::mkl::bfloat16, oneapi::mkl::bfloat16, float, float>(
+                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, batch_size, matrix_info);
             break;
         }
+#endif
         case detail::get_type_combination_id(
             library_data_t::real_int8, library_data_t::real_int8,
             library_data_t::real_int32, library_data_t::real_int32):
@@ -2434,10 +2471,9 @@ namespace dpct
                 dpct::get_value(reinterpret_cast<const std::int32_t *>(alpha), q);
             float beta_float =
                 dpct::get_value(reinterpret_cast<const std::int32_t *>(beta), q);
-            detail::gemm_batch_impl<std::int8_t, std::int8_t, std::int32_t,
-                                    float>(q, a_trans, b_trans, m, n, k, &alpha_float,
-                                           a, lda, b, ldb, &beta_float, c, ldc,
-                                           batch_size);
+            detail::gemm_batch_impl<std::int8_t, std::int8_t, std::int32_t, float>(
+                q, a_trans, b_trans, m, n, k, &alpha_float, a, lda, b, ldb, &beta_float, c, ldc, batch_size,
+                matrix_info);
             break;
         }
         case detail::get_type_combination_id(
@@ -2445,8 +2481,7 @@ namespace dpct
             library_data_t::real_float, library_data_t::real_float):
         {
             detail::gemm_batch_impl<std::int8_t, std::int8_t, float, float>(
-                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc,
-                batch_size);
+                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, batch_size, matrix_info);
             break;
         }
         case detail::get_type_combination_id(
@@ -2454,11 +2489,9 @@ namespace dpct
             library_data_t::real_float, library_data_t::real_float):
         {
             detail::gemm_batch_impl<sycl::half, sycl::half, float, float>(
-                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc,
-                batch_size);
+                q, a_trans, b_trans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, batch_size, matrix_info);
             break;
         }
-#endif
         case detail::get_type_combination_id(
             library_data_t::real_half, library_data_t::real_half,
             library_data_t::real_half, library_data_t::real_float):
@@ -2470,8 +2503,7 @@ namespace dpct
             sycl::half alpha_half(alpha_value);
             sycl::half beta_half(beta_value);
             detail::gemm_batch_impl<sycl::half, sycl::half, sycl::half, sycl::half>(
-                q, a_trans, b_trans, m, n, k, &alpha_half, a, lda, b, ldb, &beta_half, c, ldc,
-                batch_size);
+                q, a_trans, b_trans, m, n, k, &alpha_half, a, lda, b, ldb, &beta_half, c, ldc, batch_size, matrix_info);
             break;
         }
         default:
@@ -2595,6 +2627,7 @@ namespace dpct
                                            stride_c, batch_size);
             break;
         }
+#endif
         case detail::get_type_combination_id(
             library_data_t::real_int8, library_data_t::real_int8,
             library_data_t::real_int32, library_data_t::real_int32):
@@ -2623,7 +2656,6 @@ namespace dpct
                 beta, c, ldc, stride_c, batch_size);
             break;
         }
-#endif
         case detail::get_type_combination_id(
             library_data_t::real_half, library_data_t::real_half,
             library_data_t::real_half, library_data_t::real_float):

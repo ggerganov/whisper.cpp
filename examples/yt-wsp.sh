@@ -55,7 +55,7 @@ MODEL_PATH="${MODEL_PATH:-${SCRIPT_DIR}/../models/ggml-base.en.bin}"
 # Where to find the whisper.cpp executable.  default to the examples directory
 # which holds this script in source control
 ################################################################################
-WHISPER_EXECUTABLE="${WHISPER_EXECUTABLE:-${SCRIPT_DIR}/../main}";
+WHISPER_EXECUTABLE="${WHISPER_EXECUTABLE:-${SCRIPT_DIR}/../build/bin/whisper-cli}";
 
 # Set to desired language to be translated into english
 WHISPER_LANG="${WHISPER_LANG:-en}";

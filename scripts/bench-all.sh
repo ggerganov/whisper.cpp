@@ -2,7 +2,7 @@
 
 # Helper script to run the bench tool on all models and print the results in share-able format
 
-printf "Usage: ./bench.sh [n_threads] [encoder-only] [flash-attn]\n"
+printf "Usage: ./scripts/bench-all.sh [n_threads] [encoder-only] [flash-attn]\n"
 
 if [ -z "$1" ]; then
     n_threads=4
@@ -30,6 +30,7 @@ models=(                                                                        
      "small"    "small-q4_0"    "small-q4_1"    "small-q5_0"    "small-q5_1"    "small-q8_0"                \
     "medium"   "medium-q4_0"   "medium-q4_1"   "medium-q5_0"   "medium-q5_1"   "medium-q8_0"   "medium-dis" \
   "large-v2" "large-v2-q4_0" "large-v2-q4_1" "large-v2-q5_0" "large-v2-q5_1" "large-v2-q8_0" "large-v2-dis" \
+  "large-v3-turbo"                           "large-v3-turbo-q5_0"           "large-v3-turbo-q8_0"          \
 )
 
 if [ "$encoder_only" -eq 0 ]; then
@@ -37,13 +38,13 @@ if [ "$encoder_only" -eq 0 ]; then
     printf "Running memcpy benchmark\n"
     printf "\n"
 
-    ./bench -w 1 -t $n_threads 2>&1
+    ./build/bin/whisper-bench -w 1 -t $n_threads 2>&1
 
     printf "\n"
     printf "Running ggml_mul_mat benchmark with $n_threads threads\n"
     printf "\n"
 
-    ./bench -w 2 -t $n_threads 2>&1
+    ./build/bin/whisper-bench -w 2 -t $n_threads 2>&1
 
     printf "\n"
     printf "Running benchmark for all models\n"
@@ -63,7 +64,7 @@ printf "| %6s | %6s | %16s | %13s | %3s | %3s | %7s | %7s | %7s | %7s | %7s |\n"
 for model in "${models[@]}"; do
     # actual run
     # store stderr output in a variable in order to parse it later
-    output=$(./bench -m ./models/ggml-$model.bin -t $n_threads $fattn 2>&1)
+    output=$(./build/bin/whisper-bench -m ./models/ggml-$model.bin -t $n_threads $fattn 2>&1)
     ret=$?
 
     # parse the output:

@@ -14,7 +14,7 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
     private var recordedFile: URL? = nil
     private var audioPlayer: AVAudioPlayer?
     
-    private var modelUrl: URL? {
+    private var builtInModelUrl: URL? {
         Bundle.main.url(forResource: "ggml-base.en", withExtension: "bin", subdirectory: "models")
     }
     
@@ -28,23 +28,59 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
     
     override init() {
         super.init()
+        loadModel()
+    }
+    
+    func loadModel(path: URL? = nil, log: Bool = true) {
         do {
-            try loadModel()
+            whisperContext = nil
+            if (log) { messageLog += "Loading model...\n" }
+            let modelUrl = path ?? builtInModelUrl
+            if let modelUrl {
+                whisperContext = try WhisperContext.createContext(path: modelUrl.path())
+                if (log) { messageLog += "Loaded model \(modelUrl.lastPathComponent)\n" }
+            } else {
+                if (log) { messageLog += "Could not locate model\n" }
+            }
             canTranscribe = true
         } catch {
             print(error.localizedDescription)
-            messageLog += "\(error.localizedDescription)\n"
+            if (log) { messageLog += "\(error.localizedDescription)\n" }
         }
     }
-    
-    private func loadModel() throws {
-        messageLog += "Loading model...\n"
-        if let modelUrl {
-            whisperContext = try WhisperContext.createContext(path: modelUrl.path())
-            messageLog += "Loaded model \(modelUrl.lastPathComponent)\n"
-        } else {
-            messageLog += "Could not locate model\n"
+
+    func benchCurrentModel() async {
+        if whisperContext == nil {
+            messageLog += "Cannot bench without loaded model\n"
+            return
         }
+        messageLog += "Running benchmark for loaded model\n"
+        let result = await whisperContext?.benchFull(modelName: "<current>", nThreads: Int32(min(4, cpuCount())))
+        if (result != nil) { messageLog += result! + "\n" }
+    }
+
+    func bench(models: [Model]) async {
+        let nThreads = Int32(min(4, cpuCount()))
+
+//        messageLog += "Running memcpy benchmark\n"
+//        messageLog += await WhisperContext.benchMemcpy(nThreads: nThreads) + "\n"
+//
+//        messageLog += "Running ggml_mul_mat benchmark with \(nThreads) threads\n"
+//        messageLog += await WhisperContext.benchGgmlMulMat(nThreads: nThreads) + "\n"
+
+        messageLog += "Running benchmark for all downloaded models\n"
+        messageLog += "| CPU | OS | Config | Model | Th | FA | Enc. | Dec. | Bch5 | PP | Commit |\n"
+        messageLog += "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+        for model in models {
+            loadModel(path: model.fileURL, log: false)
+            if whisperContext == nil {
+                messageLog += "Cannot bench without loaded model\n"
+                break
+            }
+            let result = await whisperContext?.benchFull(modelName: model.name, nThreads: nThreads)
+            if (result != nil) { messageLog += result! + "\n" }
+        }
+        messageLog += "Benchmarking completed\n"
     }
     
     func transcribeSample() async {
@@ -159,4 +195,9 @@ class WhisperState: NSObject, ObservableObject, AVAudioRecorderDelegate {
     private func onDidFinishRecording() {
         isRecording = false
     }
+}
+
+
+fileprivate func cpuCount() -> Int {
+    ProcessInfo.processInfo.processorCount
 }

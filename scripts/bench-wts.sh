@@ -22,7 +22,7 @@ echo "Input file duration: ${DURATION}s"
 
 for model in $models; do
     echo "Running $model"
-    COMMAND="./main -m models/ggml-$model.bin -owts -f $1 -of $1.$model"
+    COMMAND="./build/bin/whisper-cli -m models/ggml-$model.bin -owts -f $1 -of $1.$model"
 
     if [ ! -z "$2" ]; then
         COMMAND="$COMMAND -fp $2"

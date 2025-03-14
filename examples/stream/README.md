@@ -1,11 +1,11 @@
-# stream
+# whisper.cpp/examples/stream
 
 This is a naive example of performing real-time inference on audio from your microphone.
-The `stream` tool samples the audio every half a second and runs the transcription continously.
+The `whisper-stream` tool samples the audio every half a second and runs the transcription continously.
 More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
 
 ```bash
-./stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
+./build/bin/whisper-stream -m ./models/ggml-base.en.bin -t 8 --step 500 --length 5000
 ```
 
 https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a80f-28ba83be7d09.mp4
@@ -15,7 +15,7 @@ https://user-images.githubusercontent.com/1991296/194935793-76afede7-cfa8-48d8-a
 Setting the `--step` argument to `0` enables the sliding window mode:
 
 ```bash
- ./stream -m ./models/ggml-small.en.bin -t 6 --step 0 --length 30000 -vth 0.6
+ ./build/bin/whisper-stream -m ./models/ggml-base.en.bin -t 6 --step 0 --length 30000 -vth 0.6
 ```
 
 In this mode, the tool will transcribe only after some speech activity is detected. A very
@@ -27,7 +27,7 @@ a transcription block that is suitable for parsing.
 
 ## Building
 
-The `stream` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
+The `whisper-stream` tool depends on SDL2 library to capture audio from the microphone. You can build it like this:
 
 ```bash
 # Install SDL2
@@ -40,21 +40,10 @@ sudo dnf install SDL2 SDL2-devel
 # Install SDL2 on Mac OS
 brew install sdl2
 
-make stream
-```
+cmake -B build -DWHISPER_SDL2=ON
+cmake --build build --config Release
 
-Ensure you are at the root of the repo when running `make stream`. Not within the `examples/stream` dir
-as the libraries needed like `common-sdl.h` are located within `examples`. Attempting to compile within
-`examples/steam` means your compiler cannot find them and it gives an error it cannot find the file.
-
-```bash
-whisper.cpp/examples/stream$ make stream
-g++     stream.cpp   -o stream
-stream.cpp:6:10: fatal error: common/sdl.h: No such file or directory
-    6 | #include "common/sdl.h"
-      |          ^~~~~~~~~~~~~~
-compilation terminated.
-make: *** [<builtin>: stream] Error 1
+./build/bin/whisper-stream
 ```
 
 ## Web version

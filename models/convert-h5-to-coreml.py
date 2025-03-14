@@ -78,14 +78,14 @@ def convert_hf_whisper(hf_model_name_or_path: str, whisper_state_path: str):
 # Ported from models/convert-whisper-to-coreml.py
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, help="name of model to convert (e.g. tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large-v1, large-v2, large-v3)", required=True)
+    parser.add_argument("--model-name", type=str, help="name of model to convert (e.g. tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large-v1, large-v2, large-v3, large-v3-turbo)", required=True)
     parser.add_argument("--model-path", type=str, help="path to the model (e.g. if published on HuggingFace: Oblivion208/whisper-tiny-cantonese)", required=True)
     parser.add_argument("--encoder-only", type=bool, help="only convert encoder", default=False)
     parser.add_argument("--quantize",     type=bool, help="quantize weights to F16", default=False)
     parser.add_argument("--optimize-ane", type=bool, help="optimize for ANE execution (currently broken)", default=False)
     args = parser.parse_args()
 
-    if args.model_name not in ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large-v1", "large-v2", "large-v3"]:
+    if args.model_name not in ["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large-v1", "large-v2", "large-v3", "large-v3-turbo"]:
         raise ValueError("Invalid model name")
 
     pt_target_path = f"models/hf-{args.model_name}.pt"

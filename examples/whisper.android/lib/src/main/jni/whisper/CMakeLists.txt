@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.10)
 
 project(whisper.cpp)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(WHISPER_LIB_DIR ${CMAKE_SOURCE_DIR}/../../../../../../..)
 
 # Path to external GGML, otherwise uses the copy in whisper.cpp.
-option(GGML_HOME       "whisper: Path to external GGML source" OFF)
+option(GGML_HOME "whisper: Path to external GGML source" OFF)
 
 set(
     SOURCE_FILES
@@ -14,14 +14,24 @@ set(
     ${CMAKE_SOURCE_DIR}/jni.c
     )
 
+# TODO: this needs to be updated to work with the new ggml CMakeLists
+
 if (NOT GGML_HOME)
     set(
         SOURCE_FILES
         ${SOURCE_FILES}
         ${WHISPER_LIB_DIR}/ggml/src/ggml.c
         ${WHISPER_LIB_DIR}/ggml/src/ggml-alloc.c
-        ${WHISPER_LIB_DIR}/ggml/src/ggml-backend.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-backend.cpp
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-backend-reg.cpp
         ${WHISPER_LIB_DIR}/ggml/src/ggml-quants.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-threading.cpp
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu.cpp
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-hbm.cpp
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-quants.c
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-traits.cpp
         )
 endif()
 
@@ -79,3 +89,5 @@ include_directories(${WHISPER_LIB_DIR}/src)
 include_directories(${WHISPER_LIB_DIR}/include)
 include_directories(${WHISPER_LIB_DIR}/ggml/include)
 include_directories(${WHISPER_LIB_DIR}/ggml/src)
+include_directories(${WHISPER_LIB_DIR}/ggml/src/ggml-cpu)
+

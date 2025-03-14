@@ -1,13 +1,31 @@
 if (WHISPER_SDL2)
-    # talk-llama
-    set(TARGET talk-llama)
-    add_executable(${TARGET} talk-llama.cpp llama.cpp unicode.cpp unicode-data.cpp)
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    set(TARGET whisper-talk-llama)
+    add_executable(${TARGET} talk-llama.cpp
+        llama.cpp
+        llama-adapter.cpp
+        llama-arch.cpp
+        llama-batch.cpp
+        llama-chat.cpp
+        llama-context.cpp
+        llama-cparams.cpp
+        llama-grammar.cpp
+        llama-hparams.cpp
+        llama-impl.cpp
+        llama-kv-cache.cpp
+        llama-mmap.cpp
+        llama-model-loader.cpp
+        llama-model.cpp
+        llama-quant.cpp
+        llama-sampling.cpp
+        llama-vocab.cpp
+        unicode.cpp
+        unicode-data.cpp)
     target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS})
 
-    if (WHISPER_CLBLAST)
-        set(CLBLAST_LIBNAME clblast)
-    endif ()
-    target_link_libraries(${TARGET} PRIVATE common common-sdl whisper ${SDL2_LIBRARIES} ${CLBLAST_LIBNAME} ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(${TARGET} PRIVATE common common-sdl whisper ${SDL2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
     if(WIN32)
         # It requires Windows 8.1 or later for PrefetchVirtualMemory

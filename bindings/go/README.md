@@ -62,6 +62,12 @@ This will compile a static `libwhisper.a` in a `build` folder, download a model 
 make examples
 ```
 
+To build using cuda support add `GGML_CUDA=1`:
+
+```bash
+GGML_CUDA=1 make examples
+```
+
 The examples are placed in the `build` directory. Once built, you can download all the models with the following command:
 
 ```bash

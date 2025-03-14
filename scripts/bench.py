@@ -64,6 +64,7 @@ models = [
     "ggml-large-v1.bin",
     "ggml-large-v2.bin",
     "ggml-large-v3.bin",
+    "ggml-large-v3-turbo.bin",
 ]
 
 
@@ -147,7 +148,7 @@ for model in filtered_models:
     for thread in threads:
         for processor_count in processors:
             # Construct the command to run
-            cmd = f"./main -m models/{model} -t {thread} -p {processor_count} -f {sample_file}"
+            cmd = f"./build/bin/whisper-cli -m models/{model} -t {thread} -p {processor_count} -f {sample_file}"
             # Run the command and get the output
             process = subprocess.Popen(
                 cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
