@@ -163,7 +163,7 @@ Java_com_whispercpp_whisper_WhisperLib_00024Companion_freeContext(
 
 JNIEXPORT void JNICALL
 Java_com_whispercpp_whisper_WhisperLib_00024Companion_fullTranscribe(
-        JNIEnv *env, jobject thiz, jlong context_ptr, jint num_threads, jfloatArray audio_data) {
+        JNIEnv *env, jobject thiz, jlong context_ptr, jint num_threads, jfloatArray audio_data, jboolean token_timestamps, jboolean split_on_word, jint max_len) {
     UNUSED(thiz);
     struct whisper_context *context = (struct whisper_context *) context_ptr;
     jfloat *audio_data_arr = (*env)->GetFloatArrayElements(env, audio_data, NULL);
@@ -181,6 +181,9 @@ Java_com_whispercpp_whisper_WhisperLib_00024Companion_fullTranscribe(
     params.offset_ms = 0;
     params.no_context = true;
     params.single_segment = false;
+    params.token_timestamps = token_timestamps;
+    params.split_on_word = split_on_word;
+    params.max_len = max_len;
 
     whisper_reset_timings(context);
 
