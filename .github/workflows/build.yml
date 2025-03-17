@@ -590,6 +590,13 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
 
+      - name: Install ccache
+        uses: hendrikmuhs/ccache-action@v1.2.16
+        with:
+          key: ${{ github.job }}-${{ matrix.cuda-toolkit }}-${{ matrix.build }}
+          variant: sccache
+          evict-old-files: 1d
+
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
