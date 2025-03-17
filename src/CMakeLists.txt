@@ -18,8 +18,8 @@ if (WHISPER_ALL_WARNINGS)
         list(APPEND C_FLAGS   ${WARNING_FLAGS})
         list(APPEND CXX_FLAGS ${WARNING_FLAGS})
 
-        add_compile_options("$<$<COMPILE_LANGUAGE:C>:${C_FLAGS};${GF_C_FLAGS}>"
-                            "$<$<COMPILE_LANGUAGE:CXX>:${CXX_FLAGS};${GF_CXX_FLAGS}>")
+        add_compile_options("$<$<COMPILE_LANGUAGE:C>:${C_FLAGS}>"
+                            "$<$<COMPILE_LANGUAGE:CXX>:${CXX_FLAGS}>")
     else()
         # todo : msvc
         set(C_FLAGS   "")
