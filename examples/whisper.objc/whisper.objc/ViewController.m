@@ -6,8 +6,8 @@
 //
 
 #import "ViewController.h"
+#import <whisper/whisper.h>
 
-#import "whisper.h"
 
 #define NUM_BYTES_PER_BUFFER 16*1024
 
@@ -83,6 +83,19 @@ void AudioInputCallback(void * inUserData,
         stateInp.n_samples = 0;
         stateInp.audioBufferI16 = malloc(MAX_AUDIO_SEC*SAMPLE_RATE*sizeof(int16_t));
         stateInp.audioBufferF32 = malloc(MAX_AUDIO_SEC*SAMPLE_RATE*sizeof(float));
+        // Set up audio session
+        NSError *error = nil;
+
+        [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryRecord error:&error];
+        if (error) {
+            NSLog(@"Error setting audio session category: %@", error);
+        }
+
+        [[AVAudioSession sharedInstance] setActive:YES error:&error];
+        if (error) {
+            NSLog(@"Error activating audio session: %@", error);
+        }
+
     }
 
     stateInp.isTranscribing = false;
