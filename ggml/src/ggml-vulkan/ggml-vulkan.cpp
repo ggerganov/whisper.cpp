@@ -1597,33 +1597,33 @@ static void ggml_vk_load_shaders(vk_device& device) {
     uint32_t l_align, m_align, s_align;
     if (device->coopmat2) {
         // spec constants and tile sizes for non-quant matmul/matmul_id
-        l_warptile = { 256, 128, 256, 64 };
-        m_warptile = { 256, 128, 128, 64 };
-        s_warptile = { 128,  64,  64, 64 };
+        l_warptile = { 256, 128, 256, 64, 1 };
+        m_warptile = { 256, 128, 128, 64, 0 };
+        s_warptile = { 128,  64,  64, 64, 0 };
         l_wg_denoms = {128, 256, 1 };
         m_wg_denoms = {128, 128, 1 };
         s_wg_denoms = { 64,  64, 1 };
 
         // spec constants and tile sizes for quant matmul (non-Qi_K)
-        l_warptile_mmq = { 256, 128, 256, 64 };
-        m_warptile_mmq = { 256, 128, 128, 64 };
-        s_warptile_mmq = { 256, 32,  64, 128 };
+        l_warptile_mmq = { 256, 128, 256, 64, 1 };
+        m_warptile_mmq = { 256, 128, 128, 64, 1 };
+        s_warptile_mmq = { 256, 32,  64, 128, 0 };
         l_mmq_wg_denoms = { 128, 256, 1 };
         m_mmq_wg_denoms = { 128, 128, 1 };
         s_mmq_wg_denoms = { 32,  64,  1 };
 
         // spec constants and tile sizes for quant matmul (Qi_K)
-        l_warptile_mmq_k = { 256, 64, 128, 64 };
-        m_warptile_mmq_k = { 256, 32,  64, 64 };
-        s_warptile_mmq_k = { 256, 32,  32, 128 };
+        l_warptile_mmq_k = { 256, 64, 128, 64,  1 };
+        m_warptile_mmq_k = { 256, 32,  64, 64,  0 };
+        s_warptile_mmq_k = { 256, 32,  32, 128, 0 };
         l_mmq_wg_denoms_k = { 64, 128, 1 };
         m_mmq_wg_denoms_k = { 32,  64, 1 };
         s_mmq_wg_denoms_k = { 32,  32, 1 };
 
         // spec constants and tile sizes for quant matmul_id
-        l_warptile_mmqid = { 256, 128, 64, 16 };
-        m_warptile_mmqid = { 256, 128, 64, 16 };
-        s_warptile_mmqid = { 256, 128, 64, 16 };
+        l_warptile_mmqid = { 256, 128, 64, 16, 0 };
+        m_warptile_mmqid = { 256, 128, 64, 16, 0 };
+        s_warptile_mmqid = { 256, 128, 64, 16, 0 };
         l_mmqid_wg_denoms = { 128, 64, 1 };
         m_mmqid_wg_denoms = { 128, 64, 1 };
         s_mmqid_wg_denoms = { 128, 64, 1 };
