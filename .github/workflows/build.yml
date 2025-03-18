@@ -604,6 +604,7 @@ jobs:
           echo "CUDA_CACHE_MAXSIZE=4294967296" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install Cuda Toolkit 11.8.0
+        id: cuda-toolkit
         if: ${{ matrix.cuda-toolkit == '11.8.0' }}
         run: |
           mkdir -p "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8.0"
@@ -632,6 +633,7 @@ jobs:
           echo "CUDA_PATH_V11_8=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8.0" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Install Cuda Toolkit 12.2
+        id: cuda-toolkit
         if: ${{ matrix.cuda-toolkit == '12.2.0' }}
         run: |
           mkdir -p "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0"
