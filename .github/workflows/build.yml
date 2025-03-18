@@ -655,6 +655,7 @@ jobs:
           xcopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0\visual_studio_integration-windows-x86_64-12.2.140-archive\*" "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0" /E /I /H /Y
           xcopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0\cuda_nvprof-windows-x86_64-12.2.142-archive\*" "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0" /E /I /H /Y
           xcopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0\cuda_cccl-windows-x86_64-12.2.140-archive\*" "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0" /E /I /H /Y
+          xcopy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0\visual_studio_integration-windows-x86_64-12.2.140-archive\visual_studio_integration\MSBuildExtensions\*" "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Microsoft\VC\v160\BuildCustomizations" /E /I /H /Y
           echo "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0\libnvvp" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2.0" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
