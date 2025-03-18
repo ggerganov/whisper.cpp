@@ -684,6 +684,7 @@ jobs:
       - name: Configure CMake
         shell: cmd
         run: |
+          set "CUDACXX=sccache %CUDA_PATH%\bin\nvcc.exe"
           cmake -S . -B ./build -A ${{ matrix.arch }} ^
             -DCMAKE_BUILD_TYPE=${{ matrix.build }} ^
             -DGGML_CUDA=${{ matrix.cublas }} ^
@@ -695,6 +696,10 @@ jobs:
             -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded ^
             -DCMAKE_POLICY_CMP0141=NEW ^
             -DSDL2_DIR="%SDL2_DIR%"
+
+      - name: Check sccache status after build
+        run: |
+          sccache --show-stats
 
       - name: Build Project
         shell: cmd
