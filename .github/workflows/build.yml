@@ -597,6 +597,12 @@ jobs:
           variant: sccache
           evict-old-files: 1d
 
+      - name: Install CUDA Toolkit
+        id: cuda-toolkit
+        uses: Jimver/cuda-toolkit@v0.2.15
+        with:
+          cuda: '${{ matrix.cuda-toolkit }}'
+
       - name: Configure CUDA compilation cache
         run: |
           New-Item -Path "${{ github.workspace }}\cuda_cache" -ItemType Directory -Force
@@ -613,12 +619,6 @@ jobs:
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
-
-      - name: Install CUDA Toolkit
-        id: cuda-toolkit
-        uses: Jimver/cuda-toolkit@v0.2.15
-        with:
-          cuda: '${{ matrix.cuda-toolkit }}'
 
       - name: Install 7-Zip
         run: choco install 7zip -y
