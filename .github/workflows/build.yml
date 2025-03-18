@@ -630,6 +630,9 @@ jobs:
           echo "CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8.0" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "CUDA_PATH_V11_8=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8.0" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
+          mkdir -p "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Microsoft\VC\v160\BuildCustomizations"
+          xcopy "%CUDA_PATH%\visual_studio_integration-windows-x86_64*\MSBuildExtensions\*" "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Microsoft\VC\v160\BuildCustomizations" /E /I /H /Y
+
       - name: Install Cuda Toolkit 12.2
         if: ${{ matrix.cuda-toolkit == '12.2.0' }}
         run: |
