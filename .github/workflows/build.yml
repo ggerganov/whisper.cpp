@@ -597,6 +597,20 @@ jobs:
           variant: sccache
           evict-old-files: 1d
 
+      - name: Configure CUDA compilation cache
+        run: |
+          New-Item -Path "${{ github.workspace }}/cuda_cache" -ItemType Directory -Force
+          echo "CUDA_CACHE_PATH=${{ github.workspace }}/cuda_cache" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CUDA_CACHE_MAXSIZE=4294967296" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Cache CUDA compilation results
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/cuda_cache
+          key: cuda-cache-${{ runner.os }}-${{ matrix.cuda-toolkit }}-${{ hashFiles('**/*.cu', '**/*.cuh') }}
+          restore-keys: |
+            cuda-cache-${{ runner.os }}-${{ matrix.cuda-toolkit }}-
+
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
@@ -631,7 +645,7 @@ jobs:
         shell: cmd
         run: |
           cd ./build
-          cmake --build . --config ${{ matrix.build }}
+          cmake --build . --config ${{ matrix.build }} -j %NUMBER_OF_PROCESSORS%
 
       - name: Copy CUDA DLLs
         run: |
