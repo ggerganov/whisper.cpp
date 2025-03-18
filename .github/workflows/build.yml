@@ -32,6 +32,7 @@ permissions:
   contents: write  # for creating release
 
 env:
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
   ubuntu_image: "ubuntu:22.04"
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
