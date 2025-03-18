@@ -639,6 +639,11 @@ jobs:
             -DGGML_CUDA=${{ matrix.cublas }} ^
             -DCMAKE_CUDA_ARCHITECTURES=all  ^
             -DWHISPER_SDL2=${{ matrix.sdl2 }} ^
+            -DCMAKE_CUDA_COMPILER_LAUNCHER=sccache ^
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
+            -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded ^
+            -DCMAKE_POLICY_CMP0141=NEW ^
             -DSDL2_DIR="%SDL2_DIR%"
 
       - name: Build Project
