@@ -684,6 +684,7 @@ jobs:
       - name: Configure CMake
         shell: cmd
         run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           set "CUDACXX=sccache %CUDA_PATH%\bin\nvcc.exe"
           cmake -S . -B ./build -A ${{ matrix.arch }} ^
             -DCMAKE_BUILD_TYPE=${{ matrix.build }} ^
@@ -704,6 +705,7 @@ jobs:
       - name: Build Project
         shell: cmd
         run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           cd ./build
           cmake --build . --config ${{ matrix.build }} -j %NUMBER_OF_PROCESSORS%
 
