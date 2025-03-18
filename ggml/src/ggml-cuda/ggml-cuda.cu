@@ -262,6 +262,8 @@ static ggml_cuda_device_info ggml_cuda_init() {
                       id, prop.name, prop.gcnArchName, info.devices[id].cc & 0xffff,
                       device_vmm ? "yes" : "no", prop.warpSize);
 #elif defined(GGML_USE_MUSA)
+        // FIXME: Ensure compatibility with varying warp sizes across different MUSA archs.
+        info.devices[id].warp_size = 32;
         // TODO: refine the .cc to reflect MUSA's actual CC capabilities
         info.devices[id].smpbo = prop.sharedMemPerBlockOptin;
         info.devices[id].cc = 100*prop.major + 10*prop.minor;
