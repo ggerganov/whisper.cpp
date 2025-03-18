@@ -7,6 +7,26 @@ if (WIN32)
     endif()
 endif()
 
+
+if (WHISPER_ALL_WARNINGS)
+    if (NOT MSVC)
+        list(APPEND WARNING_FLAGS -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function)
+        list(APPEND C_FLAGS       -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes
+                                  -Werror=implicit-int -Werror=implicit-function-declaration)
+        list(APPEND CXX_FLAGS     -Wmissing-declarations -Wmissing-noreturn)
+
+        list(APPEND C_FLAGS   ${WARNING_FLAGS})
+        list(APPEND CXX_FLAGS ${WARNING_FLAGS})
+
+        add_compile_options("$<$<COMPILE_LANGUAGE:C>:${C_FLAGS}>"
+                            "$<$<COMPILE_LANGUAGE:CXX>:${CXX_FLAGS}>")
+    else()
+        # todo : msvc
+        set(C_FLAGS   "")
+        set(CXX_FLAGS "")
+    endif()
+endif()
+
 if (WHISPER_COREML)
     find_library(FOUNDATION_FRAMEWORK Foundation)
     find_library(COREML_FRAMEWORK CoreML)
