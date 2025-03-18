@@ -599,8 +599,8 @@ jobs:
 
       - name: Configure CUDA compilation cache
         run: |
-          New-Item -Path "${{ github.workspace }}/cuda_cache" -ItemType Directory -Force
-          echo "CUDA_CACHE_PATH=${{ github.workspace }}/cuda_cache" | Out-File -FilePath $env:GITHUB_ENV -Append
+          New-Item -Path "${{ github.workspace }}\cuda_cache" -ItemType Directory -Force
+          echo "CUDA_CACHE_PATH=${{ github.workspace }}\cuda_cache" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "CUDA_CACHE_MAXSIZE=4294967296" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Cache CUDA compilation results
