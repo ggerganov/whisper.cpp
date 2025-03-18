@@ -2524,13 +2524,9 @@ static vk_device ggml_vk_get_device(size_t idx) {
 
         if (GGML_VK_SUBALLOCATION_BLOCK_SIZE != nullptr) {
             device->suballocation_block_size = std::stoul(GGML_VK_SUBALLOCATION_BLOCK_SIZE);
-#if defined(_WIN32)
-        } else if (device->vendor_id == VK_VENDOR_ID_NVIDIA) {
+        } else {
             // Limit batching of allocations to 1GB by default to avoid fragmentation issues
             device->suballocation_block_size = 1024*1024*1024;
-#endif
-        } else {
-            device->suballocation_block_size = device->max_memory_allocation_size;
         }
         device->suballocation_block_size = std::min(device->suballocation_block_size, device->max_memory_allocation_size);
 
