@@ -206,7 +206,7 @@ static ggml_tensor * whisper_set_f32(struct ggml_tensor * t, float v) {
     GGML_ASSERT(t->type == GGML_TYPE_F32);
     GGML_ASSERT(ggml_is_contiguous(t));
     size_t nels = ggml_nelements(t);
-    for (int64_t i = 0; i < nels; ++i) {
+    for (size_t i = 0; i < nels; ++i) {
         ((float *) t->data)[i] = v;
     }
     return t;
@@ -216,7 +216,7 @@ static ggml_tensor * whisper_set_i32(struct ggml_tensor * t, int32_t v) {
     GGML_ASSERT(t->type == GGML_TYPE_I32);
     GGML_ASSERT(ggml_is_contiguous(t));
     size_t nels = ggml_nelements(t);
-    for (int64_t i = 0; i < nels; ++i) {
+    for (size_t i = 0; i < nels; ++i) {
         ((int32_t *) t->data)[i] = v;
     }
     return t;
