@@ -46,6 +46,7 @@
 static bool g_sycl_loaded = false;
 int g_ggml_sycl_debug = 0;
 int g_ggml_sycl_disable_optimize = 0;
+int g_ggml_sycl_disable_graph = 0;
 
 static ggml_sycl_device_info ggml_sycl_init() {
     ggml_sycl_device_info info = {};
@@ -191,10 +192,12 @@ static void ggml_check_sycl() try {
     if (!initialized) {
         g_ggml_sycl_debug = get_sycl_env("GGML_SYCL_DEBUG", 0);
         g_ggml_sycl_disable_optimize= get_sycl_env("GGML_SYCL_DISABLE_OPT", 0);
+        g_ggml_sycl_disable_graph = get_sycl_env("GGML_SYCL_DISABLE_GRAPH", 1);
         GGML_SYCL_DEBUG("[SYCL] call ggml_check_sycl\n");
         GGML_LOG_INFO("Running with Environment Variables:\n");
         GGML_LOG_INFO("  GGML_SYCL_DEBUG: %d\n", g_ggml_sycl_debug);
         GGML_LOG_INFO("  GGML_SYCL_DISABLE_OPT: %d\n", g_ggml_sycl_disable_optimize);
+        GGML_LOG_INFO("  GGML_SYCL_DISABLE_GRAPH: %d\n", g_ggml_sycl_disable_graph);
         GGML_LOG_INFO("Build with Macros:\n");
 #if defined(GGML_SYCL_FORCE_MMQ)
         GGML_LOG_INFO("  GGML_SYCL_FORCE_MMQ: yes\n");
@@ -3699,10 +3702,9 @@ static void optimize_graph_once(ggml_cgraph * cgraph, ggml_backend_sycl_context 
         if (ctx->opt_feature.reorder) opt_for_reorder(cgraph->nodes[i], stream);
     }
 }
-static ggml_status ggml_backend_sycl_graph_compute(ggml_backend_t backend, ggml_cgraph * cgraph) {
-    ggml_backend_sycl_context * sycl_ctx = (ggml_backend_sycl_context *)backend->context;
-    ggml_sycl_set_main_device(sycl_ctx->device);
 
+static void ggml_backend_sycl_graph_compute_impl(ggml_backend_sycl_context * sycl_ctx, ggml_cgraph * cgraph) {
+    ggml_sycl_set_main_device(sycl_ctx->device);
     if (!g_ggml_sycl_disable_optimize) optimize_graph_once(cgraph, sycl_ctx);
 
     for (int i = 0; i < cgraph->n_nodes; i++) {
@@ -3724,7 +3726,46 @@ static ggml_status ggml_backend_sycl_graph_compute(ggml_backend_t backend, ggml_
         }
         GGML_ASSERT(ok);
     }
+}
 
+static ggml_status ggml_backend_sycl_graph_compute(ggml_backend_t backend, ggml_cgraph * cgraph) {
+    auto * sycl_ctx = static_cast<ggml_backend_sycl_context *>(backend->context);
+
+#ifdef GGML_SYCL_GRAPH
+    if (!g_ggml_sycl_disable_graph) {
+        if (!sycl_ctx->exec_graph && !dpct::get_device(sycl_ctx->device).has(sycl::aspect::ext_oneapi_graph)) {
+            GGML_SYCL_DEBUG("[SYCL-GRAPH] can not use graphs on device:%d\n", sycl_ctx->device);
+            ggml_backend_sycl_graph_compute_impl(sycl_ctx, cgraph);
+            return GGML_STATUS_SUCCESS;
+        }
+
+        sycl_ex::command_graph model_sycl_graph(*(sycl_ctx->stream()));
+        model_sycl_graph.begin_recording(*(sycl_ctx->stream()));
+        ggml_backend_sycl_graph_compute_impl(sycl_ctx, cgraph);
+        model_sycl_graph.end_recording();
+
+        if (!sycl_ctx->exec_graph) {
+            auto exec_graph = model_sycl_graph.finalize({sycl_ex::property::graph::updatable{}});
+            sycl_ctx->exec_graph = std::make_unique<
+                sycl_ex::command_graph<sycl_ex::graph_state::executable>>(exec_graph);
+        } else {
+            try {
+                sycl_ctx->exec_graph->update(model_sycl_graph);
+                GGML_SYCL_DEBUG("[SYCL-GRAPH] update success\n");
+            } catch (sycl::exception const & e) {
+                GGML_SYCL_DEBUG("[SYCL-GRAPH] Exception when updating graph, %s\n", e.what());
+                auto exec_graph = model_sycl_graph.finalize({sycl_ex::property::graph::updatable{}});
+                sycl_ctx->exec_graph = std::make_unique<
+                    sycl_ex::command_graph<sycl_ex::graph_state::executable>>(exec_graph);
+            }
+        }
+
+        sycl_ctx->stream()->ext_oneapi_graph(*(sycl_ctx->exec_graph));
+    } else
+#endif
+    {
+        ggml_backend_sycl_graph_compute_impl(sycl_ctx, cgraph);
+    }
     return GGML_STATUS_SUCCESS;
 }
 
