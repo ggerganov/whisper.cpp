@@ -19,7 +19,7 @@ make -j libcommand
 ```
 The example can then be started by running a local HTTP server:
 ```console
-python3 -m http.server 8000 --directory bin
+python3 examples/server.py
 ```
 And then opening a browser to the following URL:
 http://localhost:8000/command.wasm/
