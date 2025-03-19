@@ -1,0 +1,39 @@
+name: Recreate Release from Existing Artifacts
+
+on:
+  workflow_dispatch:  # 仅手动触发
+
+jobs:
+  recreate-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download previous artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: addon-*
+          merge-multiple: true
+          path: artifacts
+
+      - name: Rename corrupted CUDA files
+        shell: bash
+        run: |
+          # 这里需要根据实际错误文件名编写重命名逻辑
+          # 示例：假设旧文件名都是 addon-.node
+          find artifacts -name "addon-.node" | while read -r file; do
+            parent_dir=$(basename $(dirname "$file"))
+            cuda_version=$(echo "$parent_dir" | cut -d'-' -f2-3)  # 解析目录名中的版本信息
+            build_type=$(echo "$parent_dir" | cut -d'-' -f4)
+            new_name="addon-windows-cuda-${cuda_version}-${build_type}.node"
+            mv "$file" "artifacts/$new_name"
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: latest
+          name: "Fixed whisper.cpp builds"
+          body: "Release with corrected filenames"
+          files: |
+            artifacts/*.node
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
