@@ -248,14 +248,37 @@ std::map<std::string, int32_t> json_parse(const std::string & fname) {
 }
 
 std::string convert_to_utf8(const std::wstring & input) {
+#if defined(__clang__)
+    // disable C++17 deprecation warning for std::codecvt_utf8
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    return converter.to_bytes(input);
+    auto result = converter.to_bytes(input);
+
+#if defined(__clang__)
+#    pragma clang diagnostic pop
+#endif
+
+    return result;
 }
 
-
 std::wstring convert_to_wstring(const std::string & input) {
+#if defined(__clang__)
+    // disable C++17 deprecation warning for std::codecvt_utf8
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    return converter.from_bytes(input);
+    auto result = converter.from_bytes(input);
+
+#if defined(__clang__)
+#    pragma clang diagnostic pop
+#endif
+
+    return result;
 }
 
 void gpt_split_words(std::string str, std::vector<std::string>& words) {
