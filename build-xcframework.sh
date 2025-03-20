@@ -246,7 +246,7 @@ combine_static_libraries() {
         "${base_dir}/${build_dir}/ggml/src/ggml-blas/${release_dir}/libggml-blas.a"
     )
     if [[ "$platform" == "macos" || "$platform" == "ios" ]]; then
-        echo "Adding libwhisper.coreml library the build."
+        echo "Adding libwhisper.coreml library to the build."
         libs+=(
             "${base_dir}/${build_dir}/src/${release_dir}/libwhisper.coreml.a"
         )
