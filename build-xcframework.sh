@@ -108,7 +108,7 @@ setup_framework_structure() {
     fi
 
     # Copy all required headers (common for all platforms)
-    cp include/whisper.h             ${header_path}
+    cp include/whisper.h           ${header_path}
     cp ggml/include/ggml.h         ${header_path}
     cp ggml/include/ggml-alloc.h   ${header_path}
     cp ggml/include/ggml-backend.h ${header_path}
@@ -245,9 +245,16 @@ combine_static_libraries() {
         "${base_dir}/${build_dir}/ggml/src/ggml-metal/${release_dir}/libggml-metal.a"
         "${base_dir}/${build_dir}/ggml/src/ggml-blas/${release_dir}/libggml-blas.a"
     )
+    if [[ "$platform" == "macos" || "$platform" == "ios" ]]; then
+        echo "Adding libwhisper.coreml library to the build."
+        libs+=(
+            "${base_dir}/${build_dir}/src/${release_dir}/libwhisper.coreml.a"
+        )
+    fi
 
     # Create temporary directory for processing
     local temp_dir="${base_dir}/${build_dir}/temp"
+    echo "Creating temporary directory: ${temp_dir}"
     mkdir -p "${temp_dir}"
 
     # Since we have multiple architectures libtool will find object files that do not
@@ -259,6 +266,7 @@ combine_static_libraries() {
     local archs=""
     local min_version_flag=""
     local install_name=""
+    local frameworks="-framework Foundation -framework Metal -framework Accelerate"
 
     case "$platform" in
         "ios")
@@ -272,12 +280,14 @@ combine_static_libraries() {
                 min_version_flag="-mios-version-min=${IOS_MIN_OS_VERSION}"
             fi
             install_name="@rpath/whisper.framework/whisper"
+            frameworks+=" -framework CoreML"
             ;;
         "macos")
             sdk="macosx"
             archs="arm64 x86_64"
             min_version_flag="-mmacosx-version-min=${MACOS_MIN_OS_VERSION}"
             install_name="@rpath/whisper.framework/Versions/Current/whisper"
+            frameworks+=" -framework CoreML"
             ;;
         "visionos")
             if [[ "$is_simulator" == "true" ]]; then
@@ -319,7 +329,7 @@ combine_static_libraries() {
         $arch_flags \
         $min_version_flag \
         -Wl,-force_load,"${temp_dir}/combined.a" \
-        -framework Foundation -framework Metal -framework Accelerate \
+        $frameworks \
         -install_name "$install_name" \
         -o "${base_dir}/${output_lib}"
 
@@ -399,6 +409,8 @@ cmake -B build-ios-sim -G Xcode \
     -DCMAKE_XCODE_ATTRIBUTE_SUPPORTED_PLATFORMS=iphonesimulator \
     -DCMAKE_C_FLAGS="${COMMON_C_FLAGS}" \
     -DCMAKE_CXX_FLAGS="${COMMON_CXX_FLAGS}" \
+    -DWHISPER_COREML="ON" \
+    -DWHISPER_COREML_ALLOW_FALLBACK="ON" \
     -S .
 cmake --build build-ios-sim --config Release -- -quiet
 
@@ -411,6 +423,8 @@ cmake -B build-ios-device -G Xcode \
     -DCMAKE_XCODE_ATTRIBUTE_SUPPORTED_PLATFORMS=iphoneos \
     -DCMAKE_C_FLAGS="${COMMON_C_FLAGS}" \
     -DCMAKE_CXX_FLAGS="${COMMON_CXX_FLAGS}" \
+    -DWHISPER_COREML="ON" \
+    -DWHISPER_COREML_ALLOW_FALLBACK="ON" \
     -S .
 cmake --build build-ios-device --config Release -- -quiet
 
@@ -421,6 +435,8 @@ cmake -B build-macos -G Xcode \
     -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
     -DCMAKE_C_FLAGS="${COMMON_C_FLAGS}" \
     -DCMAKE_CXX_FLAGS="${COMMON_CXX_FLAGS}" \
+    -DWHISPER_COREML="ON" \
+    -DWHISPER_COREML_ALLOW_FALLBACK="ON" \
     -S .
 cmake --build build-macos --config Release -- -quiet
 
