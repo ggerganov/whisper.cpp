@@ -677,18 +677,17 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
 
+      - name: Install Ninja
+        id: install_ninja
+        run: |
+          choco install ninja
+
       - name: Install ccache
         uses: hendrikmuhs/ccache-action@v1.2.16
         with:
           key: ${{ github.job }}-${{ matrix.cuda-toolkit }}-${{ matrix.build }}
           variant: sccache
           evict-old-files: 1d
-
-      - name: Configure CUDA compilation cache
-        run: |
-          New-Item -Path "${{ github.workspace }}\cuda_cache" -ItemType Directory -Force
-          echo "CUDA_CACHE_PATH=${{ github.workspace }}\cuda_cache" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "CUDA_CACHE_MAXSIZE=4294967296" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install Cuda Toolkit 11.8.0
         if: ${{ matrix.cuda-toolkit == '11.8.0' }}
@@ -781,7 +780,7 @@ jobs:
           curl -O "$CUDA_DOWNLOAD/cuda_cccl/windows-x86_64/cuda_cccl-windows-x86_64-${CCCL_VER}-archive.zip"
 
           # Extract all the downloaded files to the CUDA Toolkit directory
-          unzip '*.zip' -d $CUDA_TOOLKIT_DIR
+          unzip -q '*.zip' -d $CUDA_TOOLKIT_DIR
 
           # Copy all the extracted files to the main CUDA Toolkit directory
           xcopy "$CUDA_TOOLKIT_DIR\cuda_cudart-windows-x86_64-${CUDART_VER}-archive\*" "$CUDA_TOOLKIT_DIR" /E /I /H /Y
@@ -803,14 +802,6 @@ jobs:
           echo "CUDA_PATH=$CUDA_TOOLKIT_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "CUDA_PATH_V12_2=$CUDA_TOOLKIT_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Cache CUDA compilation results
-        uses: actions/cache@v3
-        with:
-          path: ${{ github.workspace }}/cuda_cache
-          key: cuda-cache-${{ runner.os }}-${{ matrix.cuda-toolkit }}-${{ hashFiles('**/*.cu', '**/*.cuh') }}
-          restore-keys: |
-            cuda-cache-${{ runner.os }}-${{ matrix.cuda-toolkit }}-
-
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
@@ -825,33 +816,27 @@ jobs:
           echo "SDL2_DIR=${{ github.workspace }}\SDL2-${{ matrix.sdl2_ver }}\cmake" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "${{ github.workspace }}\SDL2-${{ matrix.sdl2_ver }}\cmake" > SDL2_PATH.txt
 
-      - name: Configure CMake
-        shell: cmd
-        run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          set "CUDACXX=sccache %CUDA_PATH%\bin\nvcc.exe"
-          cmake -S . -B ./build -A ${{ matrix.arch }} ^
-            -DCMAKE_BUILD_TYPE=${{ matrix.build }} ^
-            -DGGML_CUDA=${{ matrix.cublas }} ^
-            -DCMAKE_CUDA_ARCHITECTURES=all  ^
-            -DWHISPER_SDL2=${{ matrix.sdl2 }} ^
-            -DCMAKE_CUDA_COMPILER_LAUNCHER=sccache ^
-            -DCMAKE_C_COMPILER_LAUNCHER=sccache ^
-            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache ^
-            -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded ^
-            -DCMAKE_POLICY_CMP0141=NEW ^
-            -DSDL2_DIR="%SDL2_DIR%"
-
-      - name: Check sccache status after build
-        run: |
-          sccache --show-stats
+      - name: Install cmake
+        run: choco install cmake
 
       - name: Build Project
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cd ./build
-          cmake --build . --config ${{ matrix.build }} -j %NUMBER_OF_PROCESSORS%
+          cmake --version
+          where cmake
+          cmake -S . -B build -G "Ninja Multi-Config" ^
+            -DCMAKE_BUILD_TYPE=${{ matrix.build }} ^
+            -DGGML_CUDA=${{ matrix.cublas }} ^
+            -DCMAKE_CUDA_ARCHITECTURES=all  ^
+            -DWHISPER_SDL2=${{ matrix.sdl2 }} ^
+            -DSDL2_DIR="%SDL2_DIR%"
+          set /A NINJA_JOBS=%NUMBER_OF_PROCESSORS%-1
+          cmake --build build --config ${{ matrix.build }} -j %NUMBER_OF_PROCESSORS%
+
+      - name: Check sccache status after build
+        run: |
+          sccache --show-stats
 
       - name: Copy CUDA DLLs
         run: |
