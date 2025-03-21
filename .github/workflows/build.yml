@@ -687,7 +687,7 @@ jobs:
         with:
           key: ${{ github.job }}-${{ matrix.cuda-toolkit }}-${{ matrix.build }}
           variant: sccache
-          evict-old-files: 1d
+          evict-old-files: 5d
 
       - name: Install Cuda Toolkit 11.8.0
         if: ${{ matrix.cuda-toolkit == '11.8.0' }}
