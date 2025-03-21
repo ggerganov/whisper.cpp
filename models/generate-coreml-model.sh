@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # Usage: ./generate-coreml-model.sh <model-name>
 if [ $# -eq 0 ]; then
   echo "No model name supplied"
