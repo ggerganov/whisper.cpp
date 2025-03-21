@@ -33,6 +33,19 @@ sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
 
 **Note:** Pay attention to the folder path: `whisper.swiftui.demo/Resources/models` is the appropriate directory to place resources whilst `whisper.swiftui.demo/Models` is related to actual code.
 
+### Core ML support
+1. Follow all the steps in the `Usage` section, including adding the ggml model file.
+2. Follow the [`Core ML support` section of readme](../../README.md#core-ml-support) to convert the
+model.
+3. Add the Core ML model (`models/ggml-base.en-encoder.mlmodelc/`) to `whisper.swiftui.demo/Resources/models` **via Xcode**.
+
+When the example starts running you should now see that it is using the Core ML model:
+```console
+whisper_init_state: loading Core ML model from '/Library/Developer/CoreSimulator/Devices/25E8C27D-0253-4281-AF17-C3F2A4D1D8F4/data/Containers/Bundle/Application/3ADA7D59-7B9C-43B4-A7E1-A87183FC546A/whisper.swiftui.app/models/ggml-base.en-encoder.mlmodelc'
+whisper_init_state: first run on a device may take a while ...
+whisper_init_state: Core ML model loaded
+```
+
 [^1]: I recommend the tiny, base or small models for running on an iOS device.
 
 [^2]: The `Release` build can boost performance of transcription. In this project, it also added `-O3 -DNDEBUG` to `Other C Flags`, but adding flags to app proj is not ideal in real world (applies to all C/C++ files), consider splitting xcodeproj in workspace in your own project.
