@@ -22,7 +22,15 @@ get_script_path() {
     fi
 }
 
-models_path="${2:-$(get_script_path)}"
+script_path="$(get_script_path)"
+
+# Check if the script is inside a /bin/ directory
+case "$script_path" in
+    */bin) default_download_path="$PWD" ;;  # Use current directory as default download path if in /bin/
+    *) default_download_path="$script_path" ;;  # Otherwise, use script directory
+esac
+
+models_path="${2:-$default_download_path}"
 
 # Whisper models
 models="tiny
