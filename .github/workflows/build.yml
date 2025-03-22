@@ -828,7 +828,6 @@ jobs:
           cmake -S . -B build -G "Ninja Multi-Config" ^
             -DCMAKE_BUILD_TYPE=${{ matrix.build }} ^
             -DGGML_CUDA=${{ matrix.cublas }} ^
-            -DCMAKE_CUDA_ARCHITECTURES=all  ^
             -DWHISPER_SDL2=${{ matrix.sdl2 }} ^
             -DSDL2_DIR="%SDL2_DIR%"
           set /A NINJA_JOBS=%NUMBER_OF_PROCESSORS%-1
