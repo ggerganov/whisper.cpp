@@ -5528,7 +5528,7 @@ int whisper_full_with_state(
         decoder.logprobs.resize(ctx->vocab.n_vocab);
         decoder.logits_id.reserve(ctx->model.hparams.n_vocab);
 
-        decoder.rng = std::mt19937(0);
+        decoder.rng = std::mt19937(j);
     }
 
     // the accumulated text context so far
