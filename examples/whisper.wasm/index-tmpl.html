@@ -614,7 +614,7 @@
             var nthreads = 8;
 
             function changeThreads(value) {
-                nthreads = value;
+                nthreads = parseInt(value, 10);
                 document.getElementById('threads-value').innerHTML = nthreads;
             }
 
