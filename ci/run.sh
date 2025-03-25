@@ -10,6 +10,8 @@
 # # with CUDA support
 # GG_BUILD_CUDA=1 bash ./ci/run.sh ./tmp/results ./tmp/mnt
 #
+# # with SYCL support
+# GG_BUILD_SYCL=1 bash ./ci/run.sh ./tmp/results ./tmp/mnt
 
 if [ -z "$2" ]; then
     echo "usage: $0 <output-dir> <mnt-dir>"
@@ -324,8 +326,9 @@ ret=0
 for model in "${MODELS[@]}"; do
     test $ret -eq 0 && gg_download_model ${model}
 done
-
-test $ret -eq 0 && gg_run ctest debug
+if [ -z ${GG_BUILD_SYCL}]; then
+    test $ret -eq 0 && gg_run ctest debug
+fi
 test $ret -eq 0 && gg_run ctest release
 
 test $ret -eq 0 && gg_run bench
