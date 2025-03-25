@@ -44,6 +44,8 @@ function(build_library target_name)
         ${SOURCE_FILES}
     )
 
+    target_compile_definitions(${target_name} PUBLIC GGML_USE_CPU)
+
     if (${target_name} STREQUAL "whisper_v8fp16_va")
         target_compile_options(${target_name} PRIVATE -march=armv8.2-a+fp16)
         set(GGML_COMPILE_OPTIONS                      -march=armv8.2-a+fp16)
