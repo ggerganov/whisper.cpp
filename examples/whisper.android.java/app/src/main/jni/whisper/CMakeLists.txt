@@ -31,6 +31,7 @@ function(build_library target_name)
     )
 
     target_link_libraries(${target_name} ${LOG_LIB} android)
+    target_compile_definitions(${target_name} PUBLIC GGML_USE_CPU)
 
     if (${target_name} STREQUAL "whisper_v8fp16_va")
         target_compile_options(${target_name} PRIVATE -march=armv8.2-a+fp16)
