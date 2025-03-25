@@ -2,15 +2,21 @@ cmake_minimum_required(VERSION 3.10)
 
 project(whisper.cpp)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(WHISPER_LIB_DIR ${CMAKE_SOURCE_DIR}/../../../../../../../)
 
 set(SOURCE_FILES
     ${WHISPER_LIB_DIR}/ggml/src/ggml.c
-    ${WHISPER_LIB_DIR}/ggml/src/ggml-aarch64.c
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu.c
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-traits.cpp
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-quants.c
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu.cpp
     ${WHISPER_LIB_DIR}/ggml/src/ggml-alloc.c
     ${WHISPER_LIB_DIR}/ggml/src/ggml-backend.cpp
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-backend-reg.cpp
     ${WHISPER_LIB_DIR}/ggml/src/ggml-quants.c
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-threading.cpp
     ${WHISPER_LIB_DIR}/src/whisper.cpp
     ${CMAKE_SOURCE_DIR}/jni.c
     )
@@ -25,6 +31,7 @@ function(build_library target_name)
     )
 
     target_link_libraries(${target_name} ${LOG_LIB} android)
+    target_compile_definitions(${target_name} PUBLIC GGML_USE_CPU)
 
     if (${target_name} STREQUAL "whisper_v8fp16_va")
         target_compile_options(${target_name} PRIVATE -march=armv8.2-a+fp16)
@@ -57,3 +64,4 @@ include_directories(${WHISPER_LIB_DIR}/src)
 include_directories(${WHISPER_LIB_DIR}/include)
 include_directories(${WHISPER_LIB_DIR}/ggml/include)
 include_directories(${WHISPER_LIB_DIR}/ggml/src)
+include_directories(${WHISPER_LIB_DIR}/ggml/src/ggml-cpu)
