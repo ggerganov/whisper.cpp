@@ -367,6 +367,13 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   int32_t audio_ctx = whisper_params.Get("audio_ctx").As<Napi::Number>();
   bool comma_in_time = whisper_params.Get("comma_in_time").As<Napi::Boolean>();
   int32_t max_len = whisper_params.Get("max_len").As<Napi::Number>();
+  
+  // support prompt
+  std::string prompt = "";
+  if (whisper_params.Has("prompt") && whisper_params.Get("prompt").IsString()) {
+    prompt = whisper_params.Get("prompt").As<Napi::String>();
+  }
+  
   // Add support for print_progress
   bool print_progress = false;
   if (whisper_params.Has("print_progress")) {
@@ -401,6 +408,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   params.comma_in_time = comma_in_time;
   params.max_len = max_len;
   params.print_progress = print_progress;
+  params.prompt = prompt;
 
   Napi::Function callback = info[1].As<Napi::Function>();
   // Create a new Worker class with progress callback support
