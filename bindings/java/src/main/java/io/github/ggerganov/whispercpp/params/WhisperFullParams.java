@@ -5,6 +5,7 @@ import io.github.ggerganov.whispercpp.callbacks.WhisperEncoderBeginCallback;
 import io.github.ggerganov.whispercpp.callbacks.WhisperLogitsFilterCallback;
 import io.github.ggerganov.whispercpp.callbacks.WhisperNewSegmentCallback;
 import io.github.ggerganov.whispercpp.callbacks.WhisperProgressCallback;
+import io.github.ggerganov.whispercpp.callbacks.GgmlAbortCallback;
 
 import java.util.Arrays;
 import java.util.List;
@@ -16,10 +17,12 @@ import java.util.List;
  */
 public class WhisperFullParams extends Structure {
 
+    public WhisperFullParams() {
+        super();
+    }
+
     public WhisperFullParams(Pointer p) {
         super(p);
-//        super(p, ALIGN_MSVC);
-//        super(p, ALIGN_GNUC);
     }
 
     /** Sampling strategy for whisper_full() function. */
@@ -69,10 +72,10 @@ public class WhisperFullParams extends Structure {
         single_segment = single ? CBool.TRUE : CBool.FALSE;
     }
 
-    /** Flag to print special tokens (e.g., &lt;SOT>, &lt;EOT>, &lt;BEG>, etc.). (default = false) */
+    /** Flag to print special tokens (e.g., &lt;SOT&gt;, &lt;EOT&gt;, &lt;BEG&gt;, etc.). (default = false) */
     public CBool print_special;
 
-    /** Flag to print special tokens (e.g., &lt;SOT>, &lt;EOT>, &lt;BEG>, etc.). (default = false) */
+    /** Flag to print special tokens (e.g., &lt;SOT&gt;, &lt;EOT&gt;, &lt;BEG&gt;, etc.). (default = false) */
     public void printSpecial(boolean enable) {
         print_special = enable ? CBool.TRUE : CBool.FALSE;
     }
@@ -128,6 +131,14 @@ public class WhisperFullParams extends Structure {
 
     /** Maximum tokens per segment (0, default = no limit) */
     public int max_tokens;
+
+    /** [EXPERIMENTAL] Enable debug mode for extra info */
+    public CBool debug_mode;
+
+    /** Enable debug mode */
+    public void enableDebugMode(boolean enable) {
+        debug_mode = enable ? CBool.TRUE : CBool.FALSE;
+    }
 
     /** Overwrite the audio context size (0 = use default). */
     public int audio_ctx;
@@ -274,6 +285,16 @@ public class WhisperFullParams extends Structure {
      */
     public Pointer encoder_begin_callback_user_data;
 
+    /** Callback used to abort GGML computation */
+    public Pointer abort_callback;
+
+    /** User data for the abort_callback */
+    public Pointer abort_callback_user_data;
+
+    public void setAbortCallback(GgmlAbortCallback callback) {
+        abort_callback = CallbackReference.getFunctionPointer(callback);
+    }
+
     /**
      * Callback by each decoder to filter obtained logits.
      * WhisperLogitsFilterCallback
@@ -310,17 +331,28 @@ public class WhisperFullParams extends Structure {
 
     @Override
     protected List<String> getFieldOrder() {
-        return Arrays.asList("strategy", "n_threads", "n_max_text_ctx", "offset_ms", "duration_ms", "translate",
-                "no_context", "single_segment", "no_timestamps",
-                "print_special", "print_progress", "print_realtime", "print_timestamps",  "token_timestamps",
-                "thold_pt", "thold_ptsum", "max_len", "split_on_word", "max_tokens", "audio_ctx",
-                "tdrz_enable", "suppress_regex", "initial_prompt", "prompt_tokens", "prompt_n_tokens", "language", "detect_language",
-                "suppress_blank", "suppress_nst", "temperature", "max_initial_ts", "length_penalty",
-                "temperature_inc", "entropy_thold", "logprob_thold", "no_speech_thold", "greedy", "beam_search",
-                "new_segment_callback", "new_segment_callback_user_data",
+        return Arrays.asList("strategy", "n_threads", "n_max_text_ctx",
+                "offset_ms", "duration_ms", "translate", "no_context",
+                "no_timestamps", "single_segment", "print_special",
+                "print_progress", "print_realtime", "print_timestamps",
+                "token_timestamps", "thold_pt", "thold_ptsum", "max_len",
+                "split_on_word", "max_tokens", "debug_mode", "audio_ctx", 
+                "tdrz_enable", "suppress_regex", "initial_prompt",
+                "prompt_tokens", "prompt_n_tokens", "language", "detect_language",
+                "suppress_blank", "suppress_nst", "temperature",
+                "max_initial_ts", "length_penalty", "temperature_inc",
+                "entropy_thold", "logprob_thold", "no_speech_thold", "greedy",
+                "beam_search", "new_segment_callback", "new_segment_callback_user_data",
                 "progress_callback", "progress_callback_user_data",
                 "encoder_begin_callback", "encoder_begin_callback_user_data",
+                "abort_callback", "abort_callback_user_data",
                 "logits_filter_callback", "logits_filter_callback_user_data",
                 "grammar_rules", "n_grammar_rules", "i_start_rule", "grammar_penalty");
     }
+
+    public static class ByValue extends WhisperFullParams implements Structure.ByValue {
+        public ByValue() { super(); }
+        public ByValue(Pointer p) { super(p); }
+    }
+
 }

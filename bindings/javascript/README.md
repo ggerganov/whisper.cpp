@@ -33,6 +33,9 @@ mkdir build-em && cd build-em
 emcmake cmake .. && make -j
 
 # run test
+node ../tests/test-whisper.js
+
+# For Node.js versions prior to v16.4.0, experimental features need to be enabled:
 node --experimental-wasm-threads --experimental-wasm-simd ../tests/test-whisper.js
 
 # publish npm package

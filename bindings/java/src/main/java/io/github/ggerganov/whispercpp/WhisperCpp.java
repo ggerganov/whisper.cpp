@@ -43,11 +43,11 @@ public class WhisperCpp implements AutoCloseable {
      * @param modelPath - absolute path, or just the name (eg: "base", "base-en" or "base.en")
      * @param params - params to use when initialising the context
      */
-    public void initContext(String modelPath, WhisperContextParams params) throws FileNotFoundException {
+    public void initContext(String modelPath, WhisperContextParams.ByValue params) throws FileNotFoundException {
         initContextImpl(modelPath, params);
     }
 
-    private void initContextImpl(String modelPath, WhisperContextParams params) throws FileNotFoundException {
+    private void initContextImpl(String modelPath, WhisperContextParams.ByValue params) throws FileNotFoundException {
         if (ctx != null) {
             lib.whisper_free(ctx);
         }
@@ -69,15 +69,13 @@ public class WhisperCpp implements AutoCloseable {
 
     /**
      * Provides default params which can be used with `whisper_init_from_file_with_params()` etc.
-     * Because this function allocates memory for the params, the caller must call either:
-     * - call `whisper_free_context_params()`
-     * - `Native.free(Pointer.nativeValue(pointer));`
+     * Returns a ByValue instance to ensure proper parameter passing to native code.
      */
-    public WhisperContextParams getContextDefaultParams() {
-        paramsPointer = lib.whisper_context_default_params_by_ref();
-        WhisperContextParams params = new WhisperContextParams(paramsPointer);
-        params.read();
-        return params;
+    public WhisperContextParams.ByValue getContextDefaultParams() {
+        WhisperContextParams.ByValue valueParams = new WhisperContextParams.ByValue(
+            lib.whisper_context_default_params_by_ref());
+        valueParams.read();
+        return valueParams;
     }
     
     /**
@@ -88,7 +86,7 @@ public class WhisperCpp implements AutoCloseable {
      *
      * @param strategy - GREEDY
      */
-    public WhisperFullParams getFullDefaultParams(WhisperSamplingStrategy strategy) {
+    public WhisperFullParams.ByValue getFullDefaultParams(WhisperSamplingStrategy strategy) {
         Pointer pointer;
 
         // whisper_full_default_params_by_ref allocates memory which we need to delete, so only create max 1 pointer for each strategy.
@@ -104,7 +102,7 @@ public class WhisperCpp implements AutoCloseable {
             pointer = beamParamsPointer;
         }
 
-        WhisperFullParams params = new WhisperFullParams(pointer);
+        WhisperFullParams.ByValue params = new WhisperFullParams.ByValue(pointer);
         params.read();
         return params;
     }
@@ -138,14 +136,20 @@ public class WhisperCpp implements AutoCloseable {
     }
 
     /**
-     * Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text.
+     * Run the entire model: PCM -&gt; log mel spectrogram -&gt; encoder -&gt; decoder -&gt; text.
      * Not thread safe for same context
      * Uses the specified decoding strategy to obtain the text.
      */
-    public String fullTranscribe(WhisperFullParams whisperParams, float[] audioData) throws IOException {
+    public String fullTranscribe(WhisperFullParams.ByValue whisperParams, float[] audioData) throws IOException {
         if (ctx == null) {
             throw new IllegalStateException("Model not initialised");
         }
+
+        /*
+        WhisperFullParams.ByValue valueParams = new WhisperFullParams.ByValue(
+            lib.whisper_full_default_params_by_ref(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH.ordinal()));
+        valueParams.read();
+        */
 
         if (lib.whisper_full(ctx, whisperParams, audioData, audioData.length) != 0) {
             throw new IOException("Failed to process audio");
@@ -163,12 +167,17 @@ public class WhisperCpp implements AutoCloseable {
 
         return str.toString().trim();
     }
+
     public List<WhisperSegment> fullTranscribeWithTime(WhisperFullParams whisperParams, float[] audioData) throws IOException {
         if (ctx == null) {
             throw new IllegalStateException("Model not initialised");
         }
 
-        if (lib.whisper_full(ctx, whisperParams, audioData, audioData.length) != 0) {
+        WhisperFullParams.ByValue valueParams = new WhisperFullParams.ByValue(
+            lib.whisper_full_default_params_by_ref(WhisperSamplingStrategy.WHISPER_SAMPLING_BEAM_SEARCH.ordinal()));
+        valueParams.read();
+
+        if (lib.whisper_full(ctx, valueParams, audioData, audioData.length) != 0) {
             throw new IOException("Failed to process audio");
         }
 
