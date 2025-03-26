@@ -36,12 +36,16 @@
 std::mutex lock;
 std::vector<std::pair<std::string, std::string>> shader_fnames;
 
-// Default glslc path, can be overridden by --glslc command line argument
-#ifndef VULKAN_GLSLC_EXECUTABLE
-    #define VULKAN_GLSLC_EXECUTABLE "glslc"
+// Default glslc path, can be overridden at compile time or runtime 
+#ifdef VULKAN_GLSLC_EXECUTABLE
+    // If VULKAN_GLSLC_EXECUTABLE is defined at compile time, use it
+    #define DEFAULT_GLSLC_EXECUTABLE VULKAN_GLSLC_EXECUTABLE
+#else
+    // Otherwise default to "glslc"
+    #define DEFAULT_GLSLC_EXECUTABLE "glslc"
 #endif
 
-std::string GLSLC = VULKAN_GLSLC_EXECUTABLE;
+std::string GLSLC = DEFAULT_GLSLC_EXECUTABLE;
 std::string input_dir = "vulkan-shaders";
 std::string output_dir = "/tmp";
 std::string target_hpp = "ggml-vulkan-shaders.hpp";
