@@ -26,7 +26,7 @@ sourceSets {
 
 tasks.register('copyLibwhisperDynlib', Copy) {
     from '../../build/src'
-    include 'libwhisper.dynlib'
+    include 'libwhisper.dylib'
     into 'build/generated/resources/main/darwin'
 }
 
