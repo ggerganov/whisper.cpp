@@ -1,5 +1,6 @@
 
 
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -35,7 +36,12 @@
 std::mutex lock;
 std::vector<std::pair<std::string, std::string>> shader_fnames;
 
-std::string GLSLC = "glslc";
+// Default glslc path, can be overridden by --glslc command line argument
+#ifndef VULKAN_GLSLC_EXECUTABLE
+    #define VULKAN_GLSLC_EXECUTABLE "glslc"
+#endif
+
+std::string GLSLC = VULKAN_GLSLC_EXECUTABLE;
 std::string input_dir = "vulkan-shaders";
 std::string output_dir = "/tmp";
 std::string target_hpp = "ggml-vulkan-shaders.hpp";

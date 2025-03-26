@@ -3,6 +3,14 @@ cmake_policy(SET CMP0114 NEW)
 
 find_package(Vulkan COMPONENTS glslc REQUIRED)
 
+# Allow explicitly specifying glslc executable for cross-compilation scenarios
+if(DEFINED GGML_VULKAN_GLSLC_EXECUTABLE)
+    set(VULKAN_GLSLC_EXECUTABLE_OVERRIDE ${GGML_VULKAN_GLSLC_EXECUTABLE})
+    message(STATUS "Using explicitly provided glslc: ${VULKAN_GLSLC_EXECUTABLE_OVERRIDE}")
+else()
+    set(VULKAN_GLSLC_EXECUTABLE_OVERRIDE ${Vulkan_GLSLC_EXECUTABLE})
+endif()
+
 function(detect_host_compiler)
     if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
         find_program(HOST_C_COMPILER NAMES cl gcc clang NO_CMAKE_FIND_ROOT_PATH)
@@ -26,7 +34,7 @@ if (Vulkan_FOUND)
     # Compile a test shader to determine whether GL_KHR_cooperative_matrix is supported.
     # If it's not, there will be an error to stderr.
     # If it's supported, set a define to indicate that we should compile those shaders
-    execute_process(COMMAND ${Vulkan_GLSLC_EXECUTABLE} -o - -fshader-stage=compute --target-env=vulkan1.3 "${CMAKE_CURRENT_SOURCE_DIR}/vulkan-shaders/test_coopmat_support.comp"
+    execute_process(COMMAND ${VULKAN_GLSLC_EXECUTABLE_OVERRIDE} -o - -fshader-stage=compute --target-env=vulkan1.3 "${CMAKE_CURRENT_SOURCE_DIR}/vulkan-shaders/test_coopmat_support.comp"
                     OUTPUT_VARIABLE glslc_output
                     ERROR_VARIABLE glslc_error)
 
@@ -42,7 +50,7 @@ if (Vulkan_FOUND)
     # Compile a test shader to determine whether GL_NV_cooperative_matrix2 is supported.
     # If it's not, there will be an error to stderr.
     # If it's supported, set a define to indicate that we should compile those shaders
-    execute_process(COMMAND ${Vulkan_GLSLC_EXECUTABLE} -o - -fshader-stage=compute --target-env=vulkan1.3 "${CMAKE_CURRENT_SOURCE_DIR}/vulkan-shaders/test_coopmat2_support.comp"
+    execute_process(COMMAND ${VULKAN_GLSLC_EXECUTABLE_OVERRIDE} -o - -fshader-stage=compute --target-env=vulkan1.3 "${CMAKE_CURRENT_SOURCE_DIR}/vulkan-shaders/test_coopmat2_support.comp"
                     OUTPUT_VARIABLE glslc_output
                     ERROR_VARIABLE glslc_error)
 
@@ -125,6 +133,7 @@ if (Vulkan_FOUND)
                     -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}
                     -DGGML_VULKAN_COOPMAT_GLSLC_SUPPORT=${GGML_VULKAN_COOPMAT_GLSLC_SUPPORT}
                     -DGGML_VULKAN_COOPMAT2_GLSLC_SUPPORT=${GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT}
+                    -DGGML_VULKAN_GLSLC_EXECUTABLE=${VULKAN_GLSLC_EXECUTABLE_OVERRIDE}
             BUILD_COMMAND ${CMAKE_COMMAND} --build .
             INSTALL_COMMAND ${CMAKE_COMMAND} --install .
             INSTALL_DIR ${CMAKE_BINARY_DIR}
@@ -150,7 +159,7 @@ if (Vulkan_FOUND)
                 ${_ggml_vk_source}
 
         COMMAND ${_ggml_vk_genshaders_cmd}
-            --glslc      ${Vulkan_GLSLC_EXECUTABLE}
+            --glslc      ${VULKAN_GLSLC_EXECUTABLE_OVERRIDE}
             --input-dir  ${_ggml_vk_input_dir}
             --output-dir ${_ggml_vk_output_dir}
             --target-hpp ${_ggml_vk_header}
