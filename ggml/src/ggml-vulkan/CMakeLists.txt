@@ -22,54 +22,36 @@ if (Vulkan_FOUND)
                              ggml-vulkan.cpp
                              ../../include/ggml-vulkan.h
                             )
-    if (CMAKE_CROSSCOMPILING)
-        # Make this configurable for cross builds
-        option(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT "Enable coopmat shaders" OFF)
-        option(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT "Enable coopmat2 shaders" OFF)
+
+    # Compile a test shader to determine whether GL_KHR_cooperative_matrix is supported.
+    # If it's not, there will be an error to stderr.
+    # If it's supported, set a define to indicate that we should compile those shaders
+    execute_process(COMMAND ${Vulkan_GLSLC_EXECUTABLE} -o - -fshader-stage=compute --target-env=vulkan1.3 "${CMAKE_CURRENT_SOURCE_DIR}/vulkan-shaders/test_coopmat_support.comp"
+                    OUTPUT_VARIABLE glslc_output
+                    ERROR_VARIABLE glslc_error)
+
+    if (${glslc_error} MATCHES ".*extension not supported: GL_KHR_cooperative_matrix.*")
+        message(STATUS "GL_KHR_cooperative_matrix not supported by glslc")
+        set(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT OFF CACHE INTERNAL "Not enable coopmat shaders")
     else()
-        # Compile a test shader to determine whether GL_KHR_cooperative_matrix is supported.
-        # If it's not, there will be an error to stderr.
-        # If it's supported, set a define to indicate that we should compile those shaders
-        execute_process(COMMAND ${Vulkan_GLSLC_EXECUTABLE} -o - -fshader-stage=compute --target-env=vulkan1.3 "${CMAKE_CURRENT_SOURCE_DIR}/vulkan-shaders/test_coopmat_support.comp"
-                        OUTPUT_VARIABLE glslc_output
-                        ERROR_VARIABLE glslc_error)
-
-        if (${glslc_error} MATCHES ".*extension not supported: GL_KHR_cooperative_matrix.*")
-            message(STATUS "GL_KHR_cooperative_matrix not supported by glslc")
-            set(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT OFF CACHE INTERNAL "Not enable coopmat shaders")
-        else()
-            message(STATUS "GL_KHR_cooperative_matrix supported by glslc")
-            set(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT ON CACHE INTERNAL "Enable coopmat shaders")
-        endif()
-
-        # Compile a test shader to determine whether GL_NV_cooperative_matrix2 is supported.
-        # If it's not, there will be an error to stderr.
-        # If it's supported, set a define to indicate that we should compile those shaders
-        execute_process(COMMAND ${Vulkan_GLSLC_EXECUTABLE} -o - -fshader-stage=compute --target-env=vulkan1.3 "${CMAKE_CURRENT_SOURCE_DIR}/vulkan-shaders/test_coopmat2_support.comp"
-                        OUTPUT_VARIABLE glslc_output
-                        ERROR_VARIABLE glslc_error)
-
-        if (${glslc_error} MATCHES ".*extension not supported: GL_NV_cooperative_matrix2.*")
-            message(STATUS "GL_NV_cooperative_matrix2 not supported by glslc")
-            set(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT OFF CACHE INTERNAL "Not enable coopmat2 shaders")
-        else()
-            message(STATUS "GL_NV_cooperative_matrix2 supported by glslc")
-            set(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT ON CACHE INTERNAL "Enable coopmat2 shaders")
-        endif()
-    endif()
-
-    if (GGML_VULKAN_COOPMAT_GLSLC_SUPPORT)
-        message(STATUS "GGML_VULKAN_COOPMAT_GLSLC_SUPPORT enabled")
+        message(STATUS "GL_KHR_cooperative_matrix supported by glslc")
         add_compile_definitions(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT)
-    else()
-        message(STATUS "GGML_VULKAN_COOPMAT_GLSLC_SUPPORT disabled")
+        set(GGML_VULKAN_COOPMAT_GLSLC_SUPPORT ON CACHE INTERNAL "Enable coopmat shaders")
     endif()
 
-    if (GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT)
-        message(STATUS "GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT enabled")
-        add_compile_definitions(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT)
+    # Compile a test shader to determine whether GL_NV_cooperative_matrix2 is supported.
+    # If it's not, there will be an error to stderr.
+    # If it's supported, set a define to indicate that we should compile those shaders
+    execute_process(COMMAND ${Vulkan_GLSLC_EXECUTABLE} -o - -fshader-stage=compute --target-env=vulkan1.3 "${CMAKE_CURRENT_SOURCE_DIR}/vulkan-shaders/test_coopmat2_support.comp"
+                    OUTPUT_VARIABLE glslc_output
+                    ERROR_VARIABLE glslc_error)
+
+    if (${glslc_error} MATCHES ".*extension not supported: GL_NV_cooperative_matrix2.*")
+        message(STATUS "GL_NV_cooperative_matrix2 not supported by glslc")
     else()
-        message(STATUS "GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT disabled")
+        message(STATUS "GL_NV_cooperative_matrix2 supported by glslc")
+        set(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT ON CACHE INTERNAL "Enable coopmat2 shaders")
+        add_compile_definitions(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT)
     endif()
 
     target_link_libraries(ggml-vulkan PRIVATE Vulkan::Vulkan)
