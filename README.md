@@ -427,7 +427,8 @@ For detailed instructions on how to use Conan, please refer to the [Conan docume
 
 This is a naive example of performing real-time inference on audio from your microphone.
 The [stream](examples/stream) tool samples the audio every half a second and runs the transcription continuously.
-More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10).
+More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10). 
+You will need to have [sdl2](https://wiki.libsdl.org/SDL2/Installation) installed for it to work properly. 
 
 ```bash
 cmake -B build -DWHISPER_SDL2=ON

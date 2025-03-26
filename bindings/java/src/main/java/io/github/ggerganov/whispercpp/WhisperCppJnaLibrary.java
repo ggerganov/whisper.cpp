@@ -38,7 +38,7 @@ public interface WhisperCppJnaLibrary extends Library {
      * @param params     Pointer to whisper_context_params
      * @return Whisper context on success, null on failure
      */
-    Pointer whisper_init_from_file_with_params(String path_model, WhisperContextParams params);
+    Pointer whisper_init_from_file_with_params(String path_model, WhisperContextParams.ByValue params);
 
     /**
      * Allocate (almost) all memory needed for the model by loading from a buffer.
@@ -180,12 +180,12 @@ public interface WhisperCppJnaLibrary extends Library {
     /**
      * @return the id of the specified language, returns -1 if not found.
      * Examples:
-     *   "de" -> 2
-     *   "german" -> 2
+     *   "de" -&gt; 2
+     *   "german" -&gt; 2
      */
     int whisper_lang_id(String lang);
 
-    /** @return the short string of the specified language id (e.g. 2 -> "de"), returns nullptr if not found */
+    /** @return the short string of the specified language id (e.g. 2 -&gt; "de"), returns nullptr if not found */
     String whisper_lang_str(int id);
 
     /**
@@ -268,20 +268,21 @@ public interface WhisperCppJnaLibrary extends Library {
     void whisper_free_params(Pointer params);
 
     /**
-     * Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text
+     * Run the entire model: PCM -&gt; log mel spectrogram -&gt; encoder -&gt; decoder -&gt; text
      * Not thread safe for same context
      * Uses the specified decoding strategy to obtain the text.
      */
-    int whisper_full(Pointer ctx, WhisperFullParams params, final float[] samples, int n_samples);
+    int whisper_full(Pointer ctx, WhisperFullParams.ByValue params, final float[] samples, int n_samples);
 
-    int whisper_full_with_state(Pointer ctx, Pointer state, WhisperFullParams params, final float[] samples, int n_samples);
+    public int whisper_full_with_state(Pointer ctx, Pointer state, WhisperFullParams.ByValue params, float[] samples, int n_samples);
+    //int whisper_full_with_state(Pointer ctx, Pointer state, WhisperFullParams params, final float[] samples, int n_samples);
 
     // Split the input audio in chunks and process each chunk separately using whisper_full_with_state()
     // Result is stored in the default state of the context
     // Not thread safe if executed in parallel on the same context.
     // It seems this approach can offer some speedup in some cases.
     // However, the transcription accuracy can be worse at the beginning and end of each chunk.
-    int whisper_full_parallel(Pointer ctx, WhisperFullParams params, final float[] samples, int n_samples, int n_processors);
+    int whisper_full_parallel(Pointer ctx, WhisperFullParams.ByValue params, final float[] samples, int n_samples, int n_processors);
 
     /**
      * Number of generated text segments.
