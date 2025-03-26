@@ -136,7 +136,7 @@ public class WhisperCpp implements AutoCloseable {
     }
 
     /**
-     * Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text.
+     * Run the entire model: PCM -&gt; log mel spectrogram -&gt; encoder -&gt; decoder -&gt; text.
      * Not thread safe for same context
      * Uses the specified decoding strategy to obtain the text.
      */

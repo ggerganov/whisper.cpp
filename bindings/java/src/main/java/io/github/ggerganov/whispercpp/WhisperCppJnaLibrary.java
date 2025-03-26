@@ -180,12 +180,12 @@ public interface WhisperCppJnaLibrary extends Library {
     /**
      * @return the id of the specified language, returns -1 if not found.
      * Examples:
-     *   "de" -> 2
-     *   "german" -> 2
+     *   "de" -&gt; 2
+     *   "german" -&gt; 2
      */
     int whisper_lang_id(String lang);
 
-    /** @return the short string of the specified language id (e.g. 2 -> "de"), returns nullptr if not found */
+    /** @return the short string of the specified language id (e.g. 2 -&gt; "de"), returns nullptr if not found */
     String whisper_lang_str(int id);
 
     /**
@@ -268,7 +268,7 @@ public interface WhisperCppJnaLibrary extends Library {
     void whisper_free_params(Pointer params);
 
     /**
-     * Run the entire model: PCM -> log mel spectrogram -> encoder -> decoder -> text
+     * Run the entire model: PCM -&gt; log mel spectrogram -&gt; encoder -&gt; decoder -&gt; text
      * Not thread safe for same context
      * Uses the specified decoding strategy to obtain the text.
      */

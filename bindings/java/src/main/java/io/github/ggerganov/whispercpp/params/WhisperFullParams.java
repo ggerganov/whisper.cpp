@@ -72,10 +72,10 @@ public class WhisperFullParams extends Structure {
         single_segment = single ? CBool.TRUE : CBool.FALSE;
     }
 
-    /** Flag to print special tokens (e.g., &lt;SOT>, &lt;EOT>, &lt;BEG>, etc.). (default = false) */
+    /** Flag to print special tokens (e.g., &lt;SOT&gt;, &lt;EOT&gt;, &lt;BEG&gt;, etc.). (default = false) */
     public CBool print_special;
 
-    /** Flag to print special tokens (e.g., &lt;SOT>, &lt;EOT>, &lt;BEG>, etc.). (default = false) */
+    /** Flag to print special tokens (e.g., &lt;SOT&gt;, &lt;EOT&gt;, &lt;BEG&gt;, etc.). (default = false) */
     public void printSpecial(boolean enable) {
         print_special = enable ? CBool.TRUE : CBool.FALSE;
     }
