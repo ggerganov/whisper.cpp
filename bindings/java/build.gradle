@@ -73,6 +73,7 @@ tasks.withType(Test) {
 }
 
 test.dependsOn copyLibs
+processResources.dependsOn copyLibs
 
 dependencies {
     implementation "net.java.dev.jna:jna:5.13.0"
