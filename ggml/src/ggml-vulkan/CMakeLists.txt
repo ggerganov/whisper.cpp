@@ -48,6 +48,7 @@ if (Vulkan_FOUND)
 
     if (${glslc_error} MATCHES ".*extension not supported: GL_NV_cooperative_matrix2.*")
         message(STATUS "GL_NV_cooperative_matrix2 not supported by glslc")
+        set(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT OFF CACHE INTERNAL "Not enable coopmat2 shaders")
     else()
         message(STATUS "GL_NV_cooperative_matrix2 supported by glslc")
         set(GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT ON CACHE INTERNAL "Enable coopmat2 shaders")
