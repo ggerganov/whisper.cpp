@@ -25,13 +25,13 @@ sourceSets {
 }
 
 tasks.register('copyLibwhisperDynlib', Copy) {
-    from '../../build'
-    include 'libwhisper.dynlib'
+    from '../../build/src'
+    include 'libwhisper.dylib'
     into 'build/generated/resources/main/darwin'
 }
 
 tasks.register('copyLibwhisperSo', Copy) {
-    from '../../build'
+    from '../../build/src'
     include 'libwhisper.so'
     into 'build/generated/resources/main/linux-x86-64'
 }
@@ -55,7 +55,12 @@ java {
     withJavadocJar()
 }
 
+sourcesJar() {
+    dependsOn copyLibs
+}
+
 jar {
+    dependsOn copyLibs
     exclude '**/whisper_java.exp', '**/whisper_java.lib'
 }
 
@@ -66,6 +71,9 @@ javadoc {
 tasks.withType(Test) {
     useJUnitPlatform()
 }
+
+test.dependsOn copyLibs
+processResources.dependsOn copyLibs
 
 dependencies {
     implementation "net.java.dev.jna:jna:5.13.0"
