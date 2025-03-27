@@ -3,9 +3,7 @@ require "stringio"
 require "etc"
 
 # Exists to detect memory-related bug
-# TODO(danbev) Investigate how this works as it currently causes a segfault
-# when enabled.
-#Whisper.log_set ->(level, buffer, user_data) {}, nil
+Whisper.log_set ->(level, buffer, user_data) {}, nil
 
 class TestWhisper < TestBase
   def setup
