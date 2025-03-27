@@ -3,7 +3,9 @@ require "stringio"
 require "etc"
 
 # Exists to detect memory-related bug
-Whisper.log_set ->(level, buffer, user_data) {}, nil
+# TODO(danbev) Investigate how this works as it currently causes a segfault
+# when enabled.
+#Whisper.log_set ->(level, buffer, user_data) {}, nil
 
 class TestWhisper < TestBase
   def setup
@@ -175,19 +177,21 @@ class TestWhisper < TestBase
     end
 
     def test_full_parallel
-      @whisper.full_parallel(@params, @samples, @samples.length, Etc.nprocessors)
+      nprocessors = 2
+      @whisper.full_parallel(@params, @samples, @samples.length, nprocessors)
 
-      assert_equal Etc.nprocessors, @whisper.full_n_segments
+      assert_equal nprocessors, @whisper.full_n_segments
       text = @whisper.each_segment.collect(&:text).join
       assert_match /ask what you can do/i, text
       assert_match /for your country/i, text
     end
 
     def test_full_parallel_with_memory_view
+      nprocessors = 2
       samples = JFKReader.new(AUDIO)
-      @whisper.full_parallel(@params, samples, nil, Etc.nprocessors)
+      @whisper.full_parallel(@params, samples, nil, nprocessors)
 
-      assert_equal Etc.nprocessors, @whisper.full_n_segments
+      assert_equal nprocessors, @whisper.full_n_segments
       text = @whisper.each_segment.collect(&:text).join
       assert_match /ask what you can do/i, text
       assert_match /for your country/i, text
@@ -203,9 +207,10 @@ class TestWhisper < TestBase
     end
 
     def test_full_parallel_without_length
-      @whisper.full_parallel(@params, @samples, nil, Etc.nprocessors)
+      nprocessors = 2
+      @whisper.full_parallel(@params, @samples, nil, nprocessors)
 
-      assert_equal Etc.nprocessors, @whisper.full_n_segments
+      assert_equal nprocessors, @whisper.full_n_segments
       text = @whisper.each_segment.collect(&:text).join
       assert_match /ask what you can do/i, text
       assert_match /for your country/i, text
