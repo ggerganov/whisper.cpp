@@ -1013,11 +1013,25 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: win32-x86-64_whisper.dll
-          path: bindings/java/build/generated/resources/main/
 
-      - name: Rename DLL
+      - name: List downloaded files
+        shell: pwsh
         run: |
-          ren "bindings\java\build\generated\resources\main\win32-x86-64_whisper.dll" "whisper.dll"
+          Get-ChildItem -Path "." -Recurse -Filter "*.dll"
+
+      - name: Move DLL to correct location
+        shell: pwsh
+        run: |
+          $dllPath = Get-ChildItem -Path "." -Recurse -Filter "*.dll" | Select-Object -First 1 -ExpandProperty FullName
+          if ($dllPath) {
+            $targetDir = "bindings\java\build\generated\resources\main"
+            New-Item -Path $targetDir -ItemType Directory -Force
+            Copy-Item -Path $dllPath -Destination "$targetDir\whisper.dll" -Force
+            Write-Host "Copied from $dllPath to $targetDir\whisper.dll"
+          } else {
+            Write-Host "No DLL found in the downloaded artifact"
+            exit 1
+          }
 
       - name: Build
         run: |
