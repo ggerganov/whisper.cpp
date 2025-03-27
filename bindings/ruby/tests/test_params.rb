@@ -162,7 +162,7 @@ class TestParams < TestBase
   end
 
   def test_length_penalty
-    assert_equal -1.0, @params.length_penalty
+    assert_equal(-1.0, @params.length_penalty)
     @params.length_penalty = 0.5
     assert_equal 0.5, @params.length_penalty
   end
@@ -180,9 +180,9 @@ class TestParams < TestBase
   end
 
   def test_logprob_thold
-    assert_in_delta -1.0, @params.logprob_thold
+    assert_in_delta(-1.0, @params.logprob_thold)
     @params.logprob_thold = -0.5
-    assert_in_delta -0.5, @params.logprob_thold
+    assert_in_delta(-0.5, @params.logprob_thold)
   end
 
   def test_no_speech_thold

@@ -25,7 +25,7 @@ class TestCallback < TestBase
         assert start_time >= 0
         assert_kind_of Integer, end_time
         assert end_time > 0
-        assert_match /ask not what your country can do for you, ask what you can do for your country/, text if i_segment == 0
+        assert_match(/ask not what your country can do for you, ask what you can do for your country/, text) if i_segment == 0
       end
     }
 
@@ -145,9 +145,9 @@ class TestCallback < TestBase
 
   def test_abort_on
     do_abort = false
-    aborted_from_callback = false
+    _aborted_from_callback = false
     @params.on_new_segment do |segment|
-      do_abort = true if segment.text.match? /ask/
+      do_abort = true if segment.text.match?(/ask/)
     end
     i = 0
     @params.abort_on do

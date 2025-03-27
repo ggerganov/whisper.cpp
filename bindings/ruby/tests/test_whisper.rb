@@ -18,7 +18,7 @@ class TestWhisper < TestBase
     params.print_timestamps = false
 
     @whisper.transcribe(AUDIO, params) {|text|
-      assert_match /ask not what your country can do for you, ask what you can do for your country/, text
+      assert_match(/ask not what your country can do for you, ask what you can do for your country/, text)
     }
   end
 
@@ -34,7 +34,7 @@ class TestWhisper < TestBase
     def test_full_get_segment
       segment = whisper.full_get_segment(0)
       assert_equal 0, segment.start_time
-      assert_match /ask not what your country can do for you, ask what you can do for your country/, segment.text
+      assert_match(/ask not what your country can do for you, ask what you can do for your country/, segment.text)
     end
 
     def test_full_get_segment_t0
@@ -61,7 +61,7 @@ class TestWhisper < TestBase
     end
 
     def test_full_get_segment_text
-      assert_match /ask not what your country can do for you, ask what you can do for your country/, whisper.full_get_segment_text(0)
+      assert_match(/ask not what your country can do for you, ask what you can do for your country/, whisper.full_get_segment_text(0))
     end
 
     def test_full_get_segment_no_speech_prob
@@ -136,14 +136,14 @@ class TestWhisper < TestBase
       @whisper.full(@params, @samples, @samples.length)
 
       assert_equal 1, @whisper.full_n_segments
-      assert_match /ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text
+      assert_match(/ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text)
     end
 
     def test_full_without_length
       @whisper.full(@params, @samples)
 
       assert_equal 1, @whisper.full_n_segments
-      assert_match /ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text
+      assert_match(/ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text)
     end
 
     def test_full_enumerator
@@ -151,7 +151,7 @@ class TestWhisper < TestBase
       @whisper.full(@params, samples, @samples.length)
 
       assert_equal 1, @whisper.full_n_segments
-      assert_match /ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text
+      assert_match(/ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text)
     end
 
     def test_full_enumerator_without_length
@@ -173,7 +173,7 @@ class TestWhisper < TestBase
       @whisper.full(@params, samples)
 
       assert_equal 1, @whisper.full_n_segments
-      assert_match /ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text
+      assert_match(/ask not what your country can do for you, ask what you can do for your country/, @whisper.each_segment.first.text)
     end
 
     def test_full_parallel
@@ -182,8 +182,8 @@ class TestWhisper < TestBase
 
       assert_equal nprocessors, @whisper.full_n_segments
       text = @whisper.each_segment.collect(&:text).join
-      assert_match /ask what you can do/i, text
-      assert_match /for your country/i, text
+      assert_match(/ask what you can do/i, text)
+      assert_match(/for your country/i, text)
     end
 
     def test_full_parallel_with_memory_view
@@ -193,8 +193,8 @@ class TestWhisper < TestBase
 
       assert_equal nprocessors, @whisper.full_n_segments
       text = @whisper.each_segment.collect(&:text).join
-      assert_match /ask what you can do/i, text
-      assert_match /for your country/i, text
+      assert_match(/ask what you can do/i, text)
+      assert_match(/for your country/i, text)
     end
 
     def test_full_parallel_without_length_and_n_processors
@@ -202,8 +202,8 @@ class TestWhisper < TestBase
 
       assert_equal 1, @whisper.full_n_segments
       text = @whisper.each_segment.collect(&:text).join
-      assert_match /ask what you can do/i, text
-      assert_match /for your country/i, text
+      assert_match(/ask what you can do/i, text)
+      assert_match(/for your country/i, text)
     end
 
     def test_full_parallel_without_length
@@ -212,8 +212,8 @@ class TestWhisper < TestBase
 
       assert_equal nprocessors, @whisper.full_n_segments
       text = @whisper.each_segment.collect(&:text).join
-      assert_match /ask what you can do/i, text
-      assert_match /for your country/i, text
+      assert_match(/ask what you can do/i, text)
+      assert_match(/for your country/i, text)
     end
 
     def test_full_parallel_without_n_processors
@@ -221,8 +221,8 @@ class TestWhisper < TestBase
 
       assert_equal 1, @whisper.full_n_segments
       text = @whisper.each_segment.collect(&:text).join
-      assert_match /ask what you can do/i, text
-      assert_match /for your country/i, text
+      assert_match(/ask what you can do/i, text)
+      assert_match(/for your country/i, text)
     end
   end
 end
