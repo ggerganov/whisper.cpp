@@ -570,6 +570,12 @@ jobs:
         if: matrix.sdl2 == 'ON'
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
 
+      - name: Upload SDL2.dll
+        uses: actions/upload-artifact@v4
+        with:
+          name: SDL2-dll
+          path: build/bin/${{ matrix.build }}/SDL2.dll
+
       - name: Upload dll
         uses: actions/upload-artifact@v4
         with:
@@ -845,12 +851,6 @@ jobs:
       - name: Copy SDL2.dll
         if: matrix.sdl2 == 'ON'
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.arch }}/SDL2.dll" build/bin/${{ matrix.build }}
-
-      - name: Upload SDL2.dll
-        uses: actions/upload-artifact@v4
-        with:
-          name: SDL2-dll
-          path: build/bin/${{ matrix.build }}/SDL2.dll
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
