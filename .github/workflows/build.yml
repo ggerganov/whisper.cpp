@@ -571,9 +571,10 @@ jobs:
         run: copy "$env:SDL2_DIR/../lib/${{ matrix.s2arc }}/SDL2.dll" build/bin/${{ matrix.build }}
 
       - name: Upload SDL2.dll
+        if: matrix.sdl2 == 'ON'
         uses: actions/upload-artifact@v4
         with:
-          name: SDL2-dll
+          name: ${{ matrix.s2arc }}_SDL2.dll
           path: build/bin/${{ matrix.build }}/SDL2.dll
 
       - name: Upload dll
@@ -1023,7 +1024,7 @@ jobs:
       - name: Download SDL2.dll
         uses: actions/download-artifact@v4
         with:
-          name: SDL2-dll
+          name: x64_SDL2.dll
 
       - name: List downloaded files
         shell: pwsh
@@ -1044,8 +1045,8 @@ jobs:
             exit 1
           }
 
-          Copy-Item -Path "SDL2.dll" -Destination "bindings\java\build\generated\resources\main\SDL2.dll" -Force
-          Write-Host "Copied SDL2.dll to resources directory"
+          Copy-Item -Path "x64_SDL2.dll" -Destination "bindings\java\build\generated\resources\main\SDL2.dll" -Force
+          Write-Host "Copied x64_SDL2.dll to resources directory"
 
       - name: Build
         run: |
