@@ -42,8 +42,14 @@ tasks.register('copyWhisperDll', Copy) {
     into 'build/generated/resources/main'
 }
 
+tasks.register('copySDL2Dll', Copy) {
+    from '../../build/Release'
+    include 'SDL2.dll'
+    into 'build/generated/resources/main'
+}
+
 tasks.register('copyLibs') {
-    dependsOn copyLibwhisperDynlib, copyLibwhisperSo, copyWhisperDll
+    dependsOn copyLibwhisperDynlib, copyLibwhisperSo, copyWhisperDll, copySDL2Dll
 }
 
 test {
