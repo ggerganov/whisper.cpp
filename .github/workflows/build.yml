@@ -1022,12 +1022,12 @@ jobs:
       - name: Move DLL to correct location
         shell: pwsh
         run: |
+          New-Item -Path "build\Release" -ItemType Directory -Force
+
           $dllPath = Get-ChildItem -Path "." -Recurse -Filter "*.dll" | Select-Object -First 1 -ExpandProperty FullName
           if ($dllPath) {
-            $targetDir = "bindings\java\build\generated\resources\main"
-            New-Item -Path $targetDir -ItemType Directory -Force
-            Copy-Item -Path $dllPath -Destination "$targetDir\whisper.dll" -Force
-            Write-Host "Copied from $dllPath to $targetDir\whisper.dll"
+            Copy-Item -Path $dllPath -Destination "build\Release\whisper.dll" -Force
+            Write-Host "Copied from $dllPath to build\Release\whisper.dll"
           } else {
             Write-Host "No DLL found in the downloaded artifact"
             exit 1
