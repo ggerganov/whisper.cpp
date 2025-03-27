@@ -1045,8 +1045,8 @@ jobs:
             exit 1
           }
 
-          Copy-Item -Path "x64_SDL2.dll" -Destination "bindings\java\build\generated\resources\main\SDL2.dll" -Force
-          Write-Host "Copied x64_SDL2.dll to resources directory"
+          Copy-Item -Path "SDL2.dll" -Destination "bindings\java\build\generated\resources\main\SDL2.dll" -Force
+          Write-Host "Copied SDL2.dll to resources directory"
 
       - name: Build
         run: |
