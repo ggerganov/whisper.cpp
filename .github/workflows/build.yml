@@ -1013,7 +1013,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: win32-x86-64_whisper.dll
-          path: bindings/java/build/generated/resources/main/win32-x86-64
+          path: bindings/java/build/generated/resources/main/windows-x86-64
 
       - name: Build
         run: |
