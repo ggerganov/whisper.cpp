@@ -8,7 +8,21 @@ import io.github.ggerganov.whispercpp.model.WhisperTokenData;
 import io.github.ggerganov.whispercpp.params.WhisperContextParams;
 import io.github.ggerganov.whispercpp.params.WhisperFullParams;
 
+class JnaDebugHelper {
+    static {
+        System.out.println("JNA Library Path: " + System.getProperty("jna.library.path"));
+        System.out.println("Working directory: " + System.getProperty("user.dir"));
+
+        if (System.getProperty("jna.library.path") != null) {
+            java.io.File libraryFile = new java.io.File(System.getProperty("jna.library.path"), System.mapLibraryName("whisper"));
+            System.out.println("Library file exists: " + libraryFile.exists() + " at " + libraryFile.getAbsolutePath());
+        }
+    }
+}
+
 public interface WhisperCppJnaLibrary extends Library {
+    JnaDebugHelper DEBUG_HELPER = new JnaDebugHelper();
+
     WhisperCppJnaLibrary instance = Native.load("whisper", WhisperCppJnaLibrary.class);
 
     String whisper_print_system_info();

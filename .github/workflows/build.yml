@@ -1038,7 +1038,7 @@ jobs:
           models\download-ggml-model.cmd tiny.en
           cd bindings/java
           chmod +x ./gradlew
-          ./gradlew build
+          ./gradlew build --info
 
       - name: Upload jar
         uses: actions/upload-artifact@v4
