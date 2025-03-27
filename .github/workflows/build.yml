@@ -996,6 +996,8 @@ jobs:
 #          ./gradlew assembleRelease
 
   bindings-java:
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' ||
+            github.event.inputs.run_type == 'full-ci' }}
     needs: ['windows']
     runs-on: windows-latest
     steps:
