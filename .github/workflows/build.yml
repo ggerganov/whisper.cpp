@@ -581,7 +581,7 @@ jobs:
       - name: Upload dll
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.jnaPath }}_whisper.dll
+          name: whisper_${{ matrix.arch }}.dll
           path: build/bin/${{ matrix.build }}/whisper.dll
 
       - name: Upload binaries
@@ -1020,7 +1020,7 @@ jobs:
       - name: Download Windows lib
         uses: actions/download-artifact@v4
         with:
-          name: win32-x86-64_whisper.dll
+          name: whisper_x64.dll
 
       - name: Download SDL2.dll
         uses: actions/download-artifact@v4
@@ -1037,8 +1037,8 @@ jobs:
         run: |
           New-Item -Path "build\Release" -ItemType Directory -Force
 
-          Copy-Item -Path "whisper.dll" -Destination "build\Release\whisper.dll" -Force
-          Write-Host "Copied whisper.dll to build\Release\whisper.dll directory"
+          Copy-Item -Path "whisper_x64.dll" -Destination "build\Release\whisper.dll" -Force
+          Write-Host "Copied whisper_x64.dll to build\Release\whisper.dll directory"
 
           Copy-Item -Path "SDL2.dll" -Destination "build\Release\SDL2.dll" -Force
           Write-Host "Copied SDL2.dll to build\Release\SDL2.dll directory"

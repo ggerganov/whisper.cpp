@@ -10,6 +10,7 @@ import io.github.ggerganov.whispercpp.params.WhisperFullParams;
 
 class JnaDebugHelper {
     static {
+        System.setProperty("jna.debug_load", "true");
         System.out.println("JNA Library Path: " + System.getProperty("jna.library.path"));
         System.out.println("Working directory: " + System.getProperty("user.dir"));
 
