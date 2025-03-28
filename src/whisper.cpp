@@ -1370,8 +1370,6 @@ static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_pa
         }
     }
 
-    GGML_UNUSED(params);
-
     ggml_backend_t backend_cpu = ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr);
     if (backend_cpu == nullptr) {
         throw std::runtime_error("failed to initialize CPU backend");
