@@ -27,6 +27,7 @@ type Model interface {
 
 	// Return a new speech-to-text context.
 	NewContext() (Context, error)
+	NewContextWithStrategy(SamplingStrategy) (Context, error)
 
 	// Return true if the model is multilingual.
 	IsMultilingual() bool

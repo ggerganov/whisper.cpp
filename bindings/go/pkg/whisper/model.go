@@ -20,6 +20,13 @@ type model struct {
 // Make sure model adheres to the interface
 var _ Model = (*model)(nil)
 
+type SamplingStrategy whisper.SamplingStrategy
+
+const (
+	SAMPLING_GREEDY      SamplingStrategy = (SamplingStrategy)(whisper.SAMPLING_GREEDY)
+	SAMPLING_BEAM_SEARCH SamplingStrategy = (SamplingStrategy)(whisper.SAMPLING_BEAM_SEARCH)
+)
+
 ///////////////////////////////////////////////////////////////////////////////
 // LIFECYCLE
 
@@ -82,12 +89,17 @@ func (model *model) Languages() []string {
 }
 
 func (model *model) NewContext() (Context, error) {
+	// By default, specify the greedy strategy
+	return model.NewContextWithStrategy(SAMPLING_GREEDY)
+}
+
+func (model *model) NewContextWithStrategy(strategy SamplingStrategy) (Context, error) {
 	if model.ctx == nil {
 		return nil, ErrInternalAppError
 	}
 
 	// Create new context
-	params := model.ctx.Whisper_full_default_params(whisper.SAMPLING_GREEDY)
+	params := model.ctx.Whisper_full_default_params((whisper.SamplingStrategy)(strategy))
 	params.SetTranslate(false)
 	params.SetPrintSpecial(false)
 	params.SetPrintProgress(false)
