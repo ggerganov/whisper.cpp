@@ -1046,7 +1046,7 @@ jobs:
       - name: List build release files
         shell: pwsh
         run: |
-          Get-ChildItem -Path "build\Release -Recurse -Filter "*.dll"
+          Get-ChildItem -Path "build\Release" -Recurse -Filter "*.dll"
 
       - name: Build
         run: |
