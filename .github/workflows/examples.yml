@@ -2,6 +2,8 @@ name: Examples Tests
 on:
   push:
     paths:
+      - src/**
+      - include/**
       - examples/addon.node/**
       - whisper.h
       - examples/command.wasm/**
@@ -10,6 +12,8 @@ on:
       - examples/whisper.wasm/**
   pull_request:
     paths:
+      - src/**
+      - include/**
       - examples/addon.node/**
       - whisper.h
       - examples/command.wasm/**
