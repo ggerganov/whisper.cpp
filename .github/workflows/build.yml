@@ -1037,17 +1037,16 @@ jobs:
         run: |
           New-Item -Path "build\Release" -ItemType Directory -Force
 
-          $dllPath = Get-ChildItem -Path "." -Recurse -Filter "*.dll" | Select-Object -First 1 -ExpandProperty FullName
-          if ($dllPath) {
-            Copy-Item -Path $dllPath -Destination "build\Release\whisper.dll" -Force
-            Write-Host "Copied from $dllPath to build\Release\whisper.dll"
-          } else {
-            Write-Host "No DLL found in the downloaded artifact"
-            exit 1
-          }
+          Copy-Item -Path "whisper.dll" -Destination "build\Release\whisper.dll" -Force
+          Write-Host "Copied whisper.dll to build\Release\whisper.dll directory"
 
           Copy-Item -Path "SDL2.dll" -Destination "build\Release\SDL2.dll" -Force
           Write-Host "Copied SDL2.dll to build\Release\SDL2.dll directory"
+
+      - name: List build release files
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path "build\Release -Recurse -Filter "*.dll"
 
       - name: Build
         run: |
