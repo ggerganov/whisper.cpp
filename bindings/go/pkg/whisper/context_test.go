@@ -91,3 +91,34 @@ func TestProcess(t *testing.T) {
 	err = context.Process(data, nil, nil, nil)
 	assert.NoError(err)
 }
+
+func TestDetectedLanguage(t *testing.T) {
+	assert := assert.New(t)
+
+	fh, err := os.Open(SamplePath)
+	assert.NoError(err)
+	defer fh.Close()
+
+	// Decode the WAV file - load the full buffer
+	dec := wav.NewDecoder(fh)
+	buf, err := dec.FullPCMBuffer()
+	assert.NoError(err)
+	assert.Equal(uint16(1), dec.NumChans)
+
+	data := buf.AsFloat32Buffer().Data
+
+	model, err := whisper.New(ModelPath)
+	assert.NoError(err)
+	assert.NotNil(model)
+	defer model.Close()
+
+	context, err := model.NewContext()
+	assert.NoError(err)
+
+	err = context.Process(data, nil, nil, nil)
+	assert.NoError(err)
+
+	expectedLanguage := "en"
+	actualLanguage := context.DetectedLanguage()
+	assert.Equal(expectedLanguage, actualLanguage)
+}

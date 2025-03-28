@@ -41,6 +41,7 @@ type Context interface {
 	SetTranslate(bool)        // Set translate flag
 	IsMultilingual() bool     // Return true if the model is multilingual.
 	Language() string         // Get language
+	DetectedLanguage() string // Get detected language
 
 	SetOffset(time.Duration)          // Set offset
 	SetDuration(time.Duration)        // Set duration

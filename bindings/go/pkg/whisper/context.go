@@ -71,6 +71,10 @@ func (context *context) Language() string {
 	return whisper.Whisper_lang_str(context.params.Language())
 }
 
+func (context *context) DetectedLanguage() string {
+	return whisper.Whisper_lang_str(context.model.ctx.Whisper_full_lang_id())
+}
+
 // Set translate flag
 func (context *context) SetTranslate(v bool) {
 	context.params.SetTranslate(v)
