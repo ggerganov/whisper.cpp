@@ -30,3 +30,5 @@ to the server's HTTP path:
 cp bin/command.wasm/*       /path/to/html/
 cp bin/libcommand.worker.js /path/to/html/
 ```
+
+Remove me!! Just a dummy line to test CI.
