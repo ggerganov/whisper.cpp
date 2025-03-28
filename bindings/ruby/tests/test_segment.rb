@@ -49,13 +49,13 @@ class TestSegment < TestBase
       if index == 0
         seg = segment
         assert_equal 0, segment.start_time
-        assert_match /ask not what your country can do for you, ask what you can do for your country/, segment.text
+        assert_match(/ask not what your country can do for you, ask what you can do for your country/, segment.text)
       end
       index += 1
     end
     whisper.transcribe(AUDIO, params)
     assert_equal 0, seg.start_time
-    assert_match /ask not what your country can do for you, ask what you can do for your country/, seg.text
+    assert_match(/ask not what your country can do for you, ask what you can do for your country/, seg.text)
   end
 
   def test_on_new_segment_twice
