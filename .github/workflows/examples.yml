@@ -4,10 +4,18 @@ on:
     paths:
       - examples/addon.node/**
       - whisper.h
+      - examples/command.wasm/**
+      - examples/bench.wasm/**
+      - examples/stream.wasm/**
+      - examples/whisper.wasm/**
   pull_request:
     paths:
       - examples/addon.node/**
       - whisper.h
+      - examples/command.wasm/**
+      - examples/bench.wasm/**
+      - examples/stream.wasm/**
+      - examples/whisper.wasm/**
 
 jobs:
   addon_node-ubuntu-22:
@@ -46,3 +54,22 @@ jobs:
         run: |
           cd examples/addon.node
           npm run test
+
+  wasm-ubuntu-22:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v1
+
+      - name: Setup emsdk
+        uses: mymindstorm/setup-emsdk@v14
+
+      - name: Verify
+        run: emcc -v
+
+      - name: Build
+        run: |
+          mkdir build-em && cd build-em
+          emcmake cmake ..
+          make -j
