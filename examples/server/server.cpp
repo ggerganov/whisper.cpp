@@ -1024,6 +1024,11 @@ int main(int argc, char ** argv) {
         // check if the model is in the file system
     });
 
+    svr.Get(sparams.request_path + "/health", [&](const Request &, Response &res){
+        const std::string health_response = "{\"status\":\"ok\"}";
+        res.set_content(health_response, "application/json");
+    });
+
     svr.set_exception_handler([](const Request &, Response &res, std::exception_ptr ep) {
         const char fmt[] = "500 Internal Server Error\n%s";
         char buf[BUFSIZ];
