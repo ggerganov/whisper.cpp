@@ -168,7 +168,9 @@ $OBJ_GGML <<
   'ggml/src/ggml-cpu/ggml-cpu-aarch64.o' <<
   'ggml/src/ggml-cpu/ggml-cpu-hbm.o' <<
   'ggml/src/ggml-cpu/ggml-cpu-quants.o' <<
-  'ggml/src/ggml-cpu/ggml-cpu-traits.o'
+  'ggml/src/ggml-cpu/ggml-cpu-traits.o' <<
+  'ggml/src/ggml-cpu/unary-ops.o' <<
+  'ggml/src/ggml-cpu/binary-ops.o'
 
 $OBJ_WHISPER <<
   'src/whisper.o' <<
