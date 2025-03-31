@@ -190,8 +190,8 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/whisper.pc"
 #
 
 if (WHISPER_BUILD_TESTS AND NOT CMAKE_JS_VERSION)
-    #include(CTest)
-    #add_subdirectory(tests)
+    include(CTest)
+    add_subdirectory(tests)
 endif ()
 
 if (WHISPER_BUILD_EXAMPLES)
