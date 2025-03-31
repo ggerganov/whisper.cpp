@@ -74,7 +74,7 @@ jobs:
           cp ${build_dir}/libmain.js ${target_dir}
 
           # Copy Cross-Origin Isolation service worker
-          cp -v examples/whisper.wasm/coi-serviceworker.js staging/
+          cp -v examples/coi-serviceworker.js staging/
 
       - name: List files in staging directory (for debugging)
         run: |
