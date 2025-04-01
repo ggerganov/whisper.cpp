@@ -367,7 +367,9 @@ jobs:
             set -e
             apt update
             apt install -y build-essential cmake git
-            cmake . -DCMAKE_BUILD_TYPE=Debug -DWHISPER_SANITIZE_${{ matrix.sanitizer }}=ON
+            cmake . -DCMAKE_BUILD_TYPE=Debug \
+              -DWHISPER_SANITIZE_${{ matrix.sanitizer }}=ON \
+              -DGGML_OPENMP=OFF
             make
             ctest -L gh --output-on-failure'
 
