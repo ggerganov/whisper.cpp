@@ -1064,6 +1064,7 @@ jobs:
     needs:
       - determine-tag
       - ios-xcode-build
+      - coreml-base-en
 
     steps:
       - name: Clone
@@ -1119,3 +1120,42 @@ jobs:
                 });
               }
             }
+
+  coreml-base-en:
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+            github.event.inputs.create_release == 'true' ||
+            github.event.inputs.pre_release_tag != '' }}
+    runs-on: macos-latest
+    needs: determine-tag
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: set_vars
+        run: |
+          echo "MODEL_NAME=base.en" >> $GITHUB_ENV
+          echo "GEN_MODEL_NAME=whisper-${{ needs.determine-tag.outputs.tag_name }}-ggml-base.en-encoder.mlmodelc" >> $GITHUB_ENV
+
+      - name: Download model
+        run: |
+          ./models/download-ggml-model.sh ${{ env.MODEL_NAME }}
+
+      - name: Generate CoreML model
+        run: |
+          python3.11 -m venv venv
+          source venv/bin/activate
+          pip install ane_transformers openai-whisper coremltools
+          ./models/generate-coreml-model.sh ${{ env.MODEL_NAME }}
+
+      - name: Pack CoreML model
+        id: pack_artifacts
+        run: |
+          zip --symlinks -r ${{ env.GEN_MODEL_NAME }}.zip models/ggml-${{env.MODEL_NAME}}-encoder.mlmodelc
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${{ env.GEN_MODEL_NAME }}.zip
+          name: ${{ env.GEN_MODEL_NAME }}
