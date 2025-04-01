@@ -1064,7 +1064,6 @@ jobs:
     needs:
       - determine-tag
       - ios-xcode-build
-      - coreml-base-en
 
     steps:
       - name: Clone
@@ -1148,14 +1147,3 @@ jobs:
           source venv/bin/activate
           pip install ane_transformers openai-whisper coremltools
           ./models/generate-coreml-model.sh ${{ env.MODEL_NAME }}
-
-      - name: Pack CoreML model
-        id: pack_artifacts
-        run: |
-          zip --symlinks -r ${{ env.GEN_MODEL_NAME }}.zip models/ggml-${{env.MODEL_NAME}}-encoder.mlmodelc
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          path: ${{ env.GEN_MODEL_NAME }}.zip
-          name: ${{ env.GEN_MODEL_NAME }}
