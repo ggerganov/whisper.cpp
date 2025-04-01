@@ -367,7 +367,9 @@ jobs:
             set -e
             apt update
             apt install -y build-essential cmake git
-            cmake . -DCMAKE_BUILD_TYPE=Debug -DWHISPER_SANITIZE_${{ matrix.sanitizer }}=ON
+            cmake . -DCMAKE_BUILD_TYPE=Debug \
+              -DWHISPER_SANITIZE_${{ matrix.sanitizer }}=ON \
+              -DGGML_OPENMP=OFF
             make
             ctest -L gh --output-on-failure'
 
@@ -1119,3 +1121,31 @@ jobs:
                 });
               }
             }
+
+  coreml-base-en:
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+            github.event.inputs.create_release == 'true' ||
+            github.event.inputs.pre_release_tag != '' }}
+    runs-on: macos-latest
+    needs: determine-tag
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: set_vars
+        run: |
+          echo "MODEL_NAME=base.en" >> $GITHUB_ENV
+          echo "GEN_MODEL_NAME=whisper-${{ needs.determine-tag.outputs.tag_name }}-ggml-base.en-encoder.mlmodelc" >> $GITHUB_ENV
+
+      - name: Download model
+        run: |
+          ./models/download-ggml-model.sh ${{ env.MODEL_NAME }}
+
+      - name: Generate CoreML model
+        run: |
+          python3.11 -m venv venv
+          source venv/bin/activate
+          pip install ane_transformers openai-whisper coremltools
+          ./models/generate-coreml-model.sh ${{ env.MODEL_NAME }}
