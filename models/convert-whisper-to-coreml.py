@@ -12,6 +12,15 @@ from coremltools.models.neural_network.quantization_utils import quantize_weight
 from whisper.model import Whisper, AudioEncoder, TextDecoder, ResidualAttentionBlock, MultiHeadAttention, ModelDimensions
 from whisper import load_model
 
+# Disable PyTorch Scaled Dot-Product Attention (SDPA) to avoid compatibility issues.
+# The Whisper implementation expects a specific behavior from
+# torch.nn.functional.scaled_dot_product_attention that differs between PyTorch
+# versions. Setting use_sdpa=False forces Whisper to use its manual attention
+# implementation instead, which is more stable across different PyTorch versions
+# (2.5.0 required by coremltools vs newer versions).
+import whisper.model
+whisper.model.MultiHeadAttention.use_sdpa = False
+
 # Use for changing dim of input in encoder and decoder embeddings
 def linear_to_conv2d_map(state_dict, prefix, local_metadata, strict,
                          missing_keys, unexpected_keys, error_msgs):
