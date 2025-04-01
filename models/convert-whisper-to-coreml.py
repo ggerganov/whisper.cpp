@@ -269,10 +269,11 @@ def convert_decoder(hparams, model, quantize=False):
     model.eval()
 
     tokens_shape = (1, 1)
-    audio_shape = (1, hparams.n_audio_state, 1, 1500)
+    audio_shape = (1, hparams.n_audio_ctx, hparams.n_audio_state)
 
     audio_data = torch.randn(audio_shape)
-    token_data = torch.randint(50257, tokens_shape).long()
+    token_data = torch.randint(hparams.n_vocab, tokens_shape).long()
+
     traced_model = torch.jit.trace(model, (token_data, audio_data))
 
     model = ct.convert(
