@@ -13,7 +13,7 @@ https://user-images.githubusercontent.com/1991296/204126266-ce4177c6-6eca-4bd9-b
 
 This example uses the whisper.xcframework which needs to be built first using the following command:
 ```bash
-./build_xcframework.sh
+./build-xcframework.sh
 ```
 
 A model is also required to be downloaded and can be done using the following command:
