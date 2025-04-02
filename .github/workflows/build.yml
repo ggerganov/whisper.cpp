@@ -1057,9 +1057,7 @@ jobs:
           ./build/bin/quantize models/ggml-tiny.en.bin models/ggml-tiny.en-q4_0.bin q4_0
 
   release:
-    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
-            github.event.inputs.create_release == 'true' ||
-            github.event.inputs.pre_release_tag != '' }}
+    if: ${{ github.event.inputs.create_release == 'true' || github.event.inputs.pre_release_tag != '' }}
 
     runs-on: ubuntu-latest
 
