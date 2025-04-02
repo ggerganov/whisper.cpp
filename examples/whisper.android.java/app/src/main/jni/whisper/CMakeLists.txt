@@ -14,6 +14,8 @@ set(SOURCE_FILES
     ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu.cpp
     ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/unary-ops.cpp
     ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/binary-ops.cpp
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/vec.cpp
+    ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ops.cpp
     ${WHISPER_LIB_DIR}/ggml/src/ggml-alloc.c
     ${WHISPER_LIB_DIR}/ggml/src/ggml-backend.cpp
     ${WHISPER_LIB_DIR}/ggml/src/ggml-backend-reg.cpp
