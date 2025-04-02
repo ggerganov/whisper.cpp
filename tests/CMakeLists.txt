@@ -24,7 +24,7 @@ add_test(NAME ${TEST_TARGET}
     COMMAND $<TARGET_FILE:whisper-cli>
     -m ${PROJECT_SOURCE_DIR}/models/for-tests-ggml-tiny.en.bin
     -f ${PROJECT_SOURCE_DIR}/samples/jfk.wav)
-set_tests_properties(${TEST_TARGET} PROPERTIES LABELS "tiny;en;gh")
+set_tests_properties(${TEST_TARGET} PROPERTIES LABELS "tiny;en")
 
 set(TEST_TARGET test-whisper-cli-base)
 add_test(NAME ${TEST_TARGET}
