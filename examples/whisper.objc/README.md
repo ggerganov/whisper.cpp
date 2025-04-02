@@ -30,4 +30,6 @@ mkdir models/ggml-base.en-encoder.mlmodelc
 
 Follow the [`Core ML support` section of readme](../../README.md#core-ml-support) to convert the model.
 That is all the needs to be done to use the Core ML model in the app. The converted model is a
-resource in the project and will be used if it is available.
+resource in the project and will be used if it is available. Note that the Core ML model is only
+used for the encoder, the decoder which is in the ggml model is still required so both need to
+be available.
