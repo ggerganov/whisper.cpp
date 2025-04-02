@@ -34,7 +34,9 @@ sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
 **Note:** Pay attention to the folder path: `whisper.swiftui.demo/Resources/models` is the appropriate directory to place resources whilst `whisper.swiftui.demo/Models` is related to actual code.
 
 ### Core ML support
-1. Follow all the steps in the `Usage` section, including adding the ggml model file.
+1. Follow all the steps in the `Usage` section, including adding the ggml model file.  
+The ggml model file is required as the Core ML model is only used for the encoder. The
+decoder which is in the ggml model is still required.
 2. Follow the [`Core ML support` section of readme](../../README.md#core-ml-support) to convert the
 model.
 3. Add the Core ML model (`models/ggml-base.en-encoder.mlmodelc/`) to `whisper.swiftui.demo/Resources/models` **via Xcode**.
