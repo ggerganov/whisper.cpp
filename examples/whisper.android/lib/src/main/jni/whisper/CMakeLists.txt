@@ -34,6 +34,8 @@ if (NOT GGML_HOME)
         ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ggml-cpu-traits.cpp
         ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/unary-ops.cpp
         ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/binary-ops.cpp
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/vec.cpp
+        ${WHISPER_LIB_DIR}/ggml/src/ggml-cpu/ops.cpp
         )
 endif()
 
