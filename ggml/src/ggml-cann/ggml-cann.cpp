@@ -1704,7 +1704,6 @@ static bool ggml_backend_cann_supports_op(ggml_backend_dev_t dev,
             switch (op->src[0]->type) {
                 case GGML_TYPE_F32:
                 case GGML_TYPE_F16:
-                case GGML_TYPE_Q4_0:
                 case GGML_TYPE_Q8_0:
                     return true;
                 default:
@@ -1712,16 +1711,21 @@ static bool ggml_backend_cann_supports_op(ggml_backend_dev_t dev,
             }
         } break;
         case GGML_OP_CPY: {
-            switch (op->type) {
-                case GGML_TYPE_F32:
-                case GGML_TYPE_F16:
-                case GGML_TYPE_Q8_0:
-                case GGML_TYPE_Q4_0:
-                    return true;
-                default:
-                    return false;
+            ggml_tensor *src = op->src[0];
+            if ((op->type != GGML_TYPE_F32 && op->type != GGML_TYPE_F16) ||
+                  (src->type != GGML_TYPE_F32 &&
+                    src->type != GGML_TYPE_F16)) {
+                // only support F32 and F16.
+                return false;
             }
-        }
+
+            if (!ggml_are_same_shape(op, src) && !ggml_is_contiguous(op)) {
+                // unsupport dst is not contiguous.
+                return false;
+            }
+
+            return true;
+        } break;
         case GGML_OP_CONT: {
             // TODO: support GGML_TYPE_BF16
             switch (op->src[0]->type) {
@@ -1762,9 +1766,9 @@ static bool ggml_backend_cann_supports_op(ggml_backend_dev_t dev,
             }
             return true;
         }
+        case GGML_OP_DUP:
         case GGML_OP_IM2COL:
         case GGML_OP_CONCAT:
-        case GGML_OP_DUP:
         case GGML_OP_REPEAT:
         case GGML_OP_NONE:
         case GGML_OP_RESHAPE:
