@@ -7,10 +7,7 @@
 [![Conan Center](https://shields.io/conan/v/whisper-cpp)](https://conan.io/center/whisper-cpp)
 [![npm](https://img.shields.io/npm/v/whisper.cpp.svg)](https://www.npmjs.com/package/whisper.cpp/)
 
-> [!NOTE]
-> New maintenance roadmap: https://github.com/ggerganov/whisper.cpp/discussions/2788
-
-Stable: [v1.7.5](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.7.5) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
+Stable: [v1.7.5](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.7.5) / [Roadmap](https://github.com/users/ggerganov/projects/16/)
 
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
