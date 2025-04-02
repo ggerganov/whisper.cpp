@@ -10,7 +10,7 @@
 > [!NOTE]
 > New maintenance roadmap: https://github.com/ggerganov/whisper.cpp/discussions/2788
 
-Stable: [v1.7.4](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.7.4) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
+Stable: [v1.7.5](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.7.5) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)
 
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
