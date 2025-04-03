@@ -228,7 +228,7 @@ The second argument `samples` may be an array, an object with `length` and `each
 Development
 -----------
 
-    % git clone https://github.com/ggerganov/whisper.cpp.git
+    % git clone --recurse-submodules https://github.com/ggerganov/whisper.cpp.git
     % cd whisper.cpp/bindings/ruby
     % rake test
 

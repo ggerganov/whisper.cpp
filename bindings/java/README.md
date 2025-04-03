@@ -52,7 +52,7 @@ public class Example {
 In order to build, you need to have the JDK 8 or higher installed. Run the tests with:
 
 ```bash
-git clone https://github.com/ggerganov/whisper.cpp.git
+git clone --recurse-submodules https://github.com/ggerganov/whisper.cpp.git
 cd whisper.cpp/bindings/java
 
 ./gradlew build

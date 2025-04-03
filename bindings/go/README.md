@@ -51,7 +51,7 @@ func main() {
 In order to build, you need to have the Go compiler installed. You can get it from [here](https://golang.org/dl/). Run the tests with:
 
 ```bash
-git clone https://github.com/ggerganov/whisper.cpp.git
+git clone --recurse-submodules https://github.com/ggerganov/whisper.cpp.git
 cd whisper.cpp/bindings/go
 make test
 ```
