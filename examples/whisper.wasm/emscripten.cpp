@@ -65,13 +65,14 @@ EMSCRIPTEN_BINDINGS(whisper) {
         }
 
         struct whisper_full_params params = whisper_full_default_params(whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
+        bool is_multilingual = whisper_is_multilingual(g_contexts[index]);
 
         params.print_realtime   = true;
         params.print_progress   = false;
         params.print_timestamps = true;
         params.print_special    = false;
         params.translate        = translate;
-        params.language         = whisper_is_multilingual(g_contexts[index]) ? lang.c_str() : "en";
+        params.language         = is_multilingual ? strdup(lang.c_str()) : "en";
         params.n_threads        = std::min(nthreads, std::min(16, mpow2(std::thread::hardware_concurrency())));
         params.offset_ms        = 0;
 
@@ -102,10 +103,13 @@ EMSCRIPTEN_BINDINGS(whisper) {
 
         // run the worker
         {
-            g_worker = std::thread([index, params, pcmf32 = std::move(pcmf32)]() {
+            g_worker = std::thread([index, params, pcmf32 = std::move(pcmf32), is_multilingual]() {
                 whisper_reset_timings(g_contexts[index]);
                 whisper_full(g_contexts[index], params, pcmf32.data(), pcmf32.size());
                 whisper_print_timings(g_contexts[index]);
+                if (is_multilingual) {
+                    free((void*)params.language);
+                }
             });
         }
 
