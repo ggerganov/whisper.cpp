@@ -71,7 +71,7 @@ EMSCRIPTEN_BINDINGS(whisper) {
         params.print_timestamps = true;
         params.print_special    = false;
         params.translate        = translate;
-        params.language         = whisper_is_multilingual(g_contexts[index]) ? lang.c_str() : "en";
+        params.language         = whisper_is_multilingual(g_contexts[index]) ? strdup(lang.c_str()) : "en";
         params.n_threads        = std::min(nthreads, std::min(16, mpow2(std::thread::hardware_concurrency())));
         params.offset_ms        = 0;
 
@@ -106,6 +106,9 @@ EMSCRIPTEN_BINDINGS(whisper) {
                 whisper_reset_timings(g_contexts[index]);
                 whisper_full(g_contexts[index], params, pcmf32.data(), pcmf32.size());
                 whisper_print_timings(g_contexts[index]);
+                if (params.language != nullptr && strcmp(params.language, "en") != 0) {
+                    free((void*)params.language);
+                }
             });
         }
 
