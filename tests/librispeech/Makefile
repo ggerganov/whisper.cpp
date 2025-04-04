@@ -8,13 +8,6 @@ eval:
 clean:
 	$(MAKE) -f eval.mk clean
 
-setup-venv:
-	python3 -m venv venv
-	./venv/bin/pip install -r requirements.txt
-
-clean-venv:
-	rm -r venv
-
 get-audio:
 	wget -c $(TAR_URL)
 	tar -xf test-clean.tar.gz
