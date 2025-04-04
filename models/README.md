@@ -24,7 +24,7 @@ You can now use it like this:
 
 `ggml` models are available from the following locations:
 
-- https://huggingface.co/ggml-org/whisper.cpp/tree/main
+- https://huggingface.co/ggerganov/whisper.cpp/tree/main
 
 ### 3. Convert with [convert-pt-to-ggml.py](convert-pt-to-ggml.py)
 
