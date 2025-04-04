@@ -19,7 +19,7 @@ For sample usage check [tests/test-whisper.js](/tests/test-whisper.js)
 source /path/to/emsdk/emsdk_env.sh
 
 # clone repo
-git clone https://github.com/ggerganov/whisper.cpp
+git clone https://github.com/ggerganov/whisper.cpp.git
 cd whisper.cpp
 
 # grab base.en model

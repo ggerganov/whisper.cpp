@@ -47,6 +47,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: true
 
       - name: Determine tag name
         id: tag
@@ -91,6 +92,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -119,6 +122,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -147,6 +152,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -175,6 +182,8 @@ jobs:
       - name: Clone
         id: checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.16
@@ -206,6 +215,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Build
         uses: cross-platform-actions/action@v0.27.0
@@ -232,6 +243,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -262,6 +275,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -292,6 +307,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -325,6 +342,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -355,6 +374,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -391,6 +412,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: add oneAPI to apt
         shell: bash
@@ -415,6 +438,8 @@ jobs:
       - name: Clone
         id: checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Build
         id: cmake_build
@@ -443,6 +468,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: add oneAPI to apt
         shell: bash
@@ -467,6 +494,8 @@ jobs:
       - name: Clone
         id: checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Build
         id: cmake_build
@@ -492,6 +521,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Setup ${{ matrix.sys }}
         uses: msys2/setup-msys2@v2
@@ -546,6 +577,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
@@ -607,6 +640,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@v7
@@ -678,6 +713,8 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Install Ninja
         id: install_ninja
@@ -866,6 +903,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Setup emsdk
         uses: mymindstorm/setup-emsdk@v14
@@ -889,6 +928,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Configure
         run: |
@@ -950,6 +991,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: whisper
+          submodules: true
 
       - name: Install Java
         uses: actions/setup-java@v4
@@ -977,6 +1019,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: set up JDK 11
         uses: actions/setup-java@v4
@@ -1002,6 +1046,8 @@ jobs:
 #    runs-on: windows-latest
 #    steps:
 #      - uses: actions/checkout@v4
+#        with:
+#          submodules: true
 #
 #      - name: Install Java
 #        uses: actions/setup-java@v4
@@ -1048,6 +1094,8 @@ jobs:
     steps:
       - name: Clone
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Test quantize
         run: |
@@ -1071,6 +1119,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: true
 
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.16
@@ -1130,6 +1179,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set environment variables
         id: set_vars

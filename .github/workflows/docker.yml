@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
+        with:
+          submodules: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

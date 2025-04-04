@@ -58,7 +58,7 @@ https://github.com/ggerganov/whisper.cpp/assets/1991296/c82e8f86-60dc-49f2-b048-
 First clone the repository:
 
 ```bash
-git clone https://github.com/ggerganov/whisper.cpp.git
+git clone --recurse-submodules https://github.com/ggerganov/whisper.cpp.git
 ```
 
 Navigate into the directory:

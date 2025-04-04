@@ -18,7 +18,7 @@ https://user-images.githubusercontent.com/1991296/198382564-784e9663-2037-4d04-9
 - Clone this repo and build the `stream` tool:
 
   ```
-  git clone https://github.com/ggerganov/whisper.cpp
+  git clone --recurse-submodules https://github.com/ggerganov/whisper.cpp.git
   cd whisper.cpp
   make stream
   ```

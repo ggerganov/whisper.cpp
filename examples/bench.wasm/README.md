@@ -10,7 +10,7 @@ Terminal version: [examples/bench](/examples/bench)
 
 ```bash
 # build using Emscripten (v3.1.2)
-git clone https://github.com/ggerganov/whisper.cpp
+git clone --recurse-submodules https://github.com/ggerganov/whisper.cpp.git
 cd whisper.cpp
 mkdir build-em && cd build-em
 emcmake cmake ..

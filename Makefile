@@ -56,3 +56,8 @@ tiny.en tiny base.en base small.en small medium.en medium large-v1 large-v2 larg
 		./build/bin/whisper-cli -m models/ggml-$@.bin -f $$f ; \
 		echo "" ; \
 	done
+
+.PHONY: update-ggml
+update-ggml:
+	echo "Updating ggml submodule..."
+	git submodule update --remote ggml
