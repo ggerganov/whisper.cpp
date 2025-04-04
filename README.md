@@ -2,12 +2,12 @@
 
 ![whisper.cpp](https://user-images.githubusercontent.com/1991296/235238348-05d0f6a4-da44-4900-a1de-d0707e75b763.jpeg)
 
-[![Actions Status](https://github.com/ggerganov/whisper.cpp/workflows/CI/badge.svg)](https://github.com/ggerganov/whisper.cpp/actions)
+[![Actions Status](https://github.com/ggml-org/whisper.cpp/workflows/CI/badge.svg)](https://github.com/ggml-org/whisper.cpp/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Conan Center](https://shields.io/conan/v/whisper-cpp)](https://conan.io/center/whisper-cpp)
 [![npm](https://img.shields.io/npm/v/whisper.cpp.svg)](https://www.npmjs.com/package/whisper.cpp/)
 
-Stable: [v1.7.5](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.7.5) / [Roadmap](https://github.com/users/ggerganov/projects/16/)
+Stable: [v1.7.5](https://github.com/ggml-org/whisper.cpp/releases/tag/v1.7.5) / [Roadmap](https://github.com/orgs/ggml-org/projects/4/)
 
 High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:
 
@@ -23,7 +23,7 @@ High-performance inference of [OpenAI's Whisper](https://github.com/openai/whisp
 - [Efficient GPU support for NVIDIA](#nvidia-gpu-support)
 - [OpenVINO Support](#openvino-support)
 - [Ascend NPU Support](#ascend-npu-support)
-- [C-style API](https://github.com/ggerganov/whisper.cpp/blob/master/include/whisper.h)
+- [C-style API](https://github.com/ggml-org/whisper.cpp/blob/master/include/whisper.h)
 
 Supported platforms:
 
@@ -31,14 +31,14 @@ Supported platforms:
 - [x] [iOS](examples/whisper.objc)
 - [x] [Android](examples/whisper.android)
 - [x] [Java](bindings/java/README.md)
-- [x] Linux / [FreeBSD](https://github.com/ggerganov/whisper.cpp/issues/56#issuecomment-1350920264)
+- [x] Linux / [FreeBSD](https://github.com/ggml-org/whisper.cpp/issues/56#issuecomment-1350920264)
 - [x] [WebAssembly](examples/whisper.wasm)
-- [x] Windows ([MSVC](https://github.com/ggerganov/whisper.cpp/blob/master/.github/workflows/build.yml#L117-L144) and [MinGW](https://github.com/ggerganov/whisper.cpp/issues/168)]
-- [x] [Raspberry Pi](https://github.com/ggerganov/whisper.cpp/discussions/166)
-- [x] [Docker](https://github.com/ggerganov/whisper.cpp/pkgs/container/whisper.cpp)
+- [x] Windows ([MSVC](https://github.com/ggml-org/whisper.cpp/blob/master/.github/workflows/build.yml#L117-L144) and [MinGW](https://github.com/ggml-org/whisper.cpp/issues/168)]
+- [x] [Raspberry Pi](https://github.com/ggml-org/whisper.cpp/discussions/166)
+- [x] [Docker](https://github.com/ggml-org/whisper.cpp/pkgs/container/whisper.cpp)
 
 The entire high-level implementation of the model is contained in [whisper.h](include/whisper.h) and [whisper.cpp](src/whisper.cpp).
-The rest of the code is part of the [`ggml`](https://github.com/ggerganov/ggml) machine learning library.
+The rest of the code is part of the [`ggml`](https://github.com/ggml-org/ggml) machine learning library.
 
 Having such a lightweight implementation of the model allows to easily integrate it in different platforms and applications.
 As an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device: [whisper.objc](examples/whisper.objc)
@@ -51,14 +51,14 @@ https://user-images.githubusercontent.com/1991296/204038393-2f846eae-c255-4099-a
 
 On Apple Silicon, the inference runs fully on the GPU via Metal:
 
-https://github.com/ggerganov/whisper.cpp/assets/1991296/c82e8f86-60dc-49f2-b048-d2fdbd6b5225
+https://github.com/ggml-org/whisper.cpp/assets/1991296/c82e8f86-60dc-49f2-b048-d2fdbd6b5225
 
 ## Quick start
 
 First clone the repository:
 
 ```bash
-git clone https://github.com/ggerganov/whisper.cpp.git
+git clone https://github.com/ggml-org/whisper.cpp.git
 ```
 
 Navigate into the directory:
@@ -222,7 +222,7 @@ speed-up - more than x3 faster compared with CPU-only execution. Here are the in
   The first run on a device is slow, since the ANE service compiles the Core ML model to some device-specific format.
   Next runs are faster.
 
-For more information about the Core ML implementation please refer to PR [#566](https://github.com/ggerganov/whisper.cpp/pull/566).
+For more information about the Core ML implementation please refer to PR [#566](https://github.com/ggml-org/whisper.cpp/pull/566).
 
 ## OpenVINO support
 
@@ -307,7 +307,7 @@ This can result in significant speedup in encoder performance. Here are the inst
   The first time run on an OpenVINO device is slow, since the OpenVINO framework will compile the IR (Intermediate Representation) model to a device-specific 'blob'. This device-specific blob will get
   cached for the next run.
 
-For more information about the OpenVINO implementation please refer to PR [#1037](https://github.com/ggerganov/whisper.cpp/pull/1037).
+For more information about the OpenVINO implementation please refer to PR [#1037](https://github.com/ggml-org/whisper.cpp/pull/1037).
 
 ## NVIDIA GPU support
 
@@ -385,8 +385,8 @@ Run the inference examples as usual, for example:
 
 We have two Docker images available for this project:
 
-1. `ghcr.io/ggerganov/whisper.cpp:main`: This image includes the main executable file as well as `curl` and `ffmpeg`. (platforms: `linux/amd64`, `linux/arm64`)
-2. `ghcr.io/ggerganov/whisper.cpp:main-cuda`: Same as `main` but compiled with CUDA support. (platforms: `linux/amd64`)
+1. `ghcr.io/ggml-org/whisper.cpp:main`: This image includes the main executable file as well as `curl` and `ffmpeg`. (platforms: `linux/amd64`, `linux/arm64`)
+2. `ghcr.io/ggml-org/whisper.cpp:main-cuda`: Same as `main` but compiled with CUDA support. (platforms: `linux/amd64`)
 
 ### Usage
 
@@ -424,8 +424,8 @@ For detailed instructions on how to use Conan, please refer to the [Conan docume
 
 This is a naive example of performing real-time inference on audio from your microphone.
 The [stream](examples/stream) tool samples the audio every half a second and runs the transcription continuously.
-More info is available in [issue #10](https://github.com/ggerganov/whisper.cpp/issues/10). 
-You will need to have [sdl2](https://wiki.libsdl.org/SDL2/Installation) installed for it to work properly. 
+More info is available in [issue #10](https://github.com/ggml-org/whisper.cpp/issues/10).
+You will need to have [sdl2](https://wiki.libsdl.org/SDL2/Installation) installed for it to work properly.
 
 ```bash
 cmake -B build -DWHISPER_SDL2=ON
@@ -513,7 +513,7 @@ main: processing './samples/jfk.wav' (176000 samples, 11.0 sec), 4 threads, 1 pr
 
 ## Speaker segmentation via tinydiarize (experimental)
 
-More information about this approach is available here: https://github.com/ggerganov/whisper.cpp/pull/1058
+More information about this approach is available here: https://github.com/ggml-org/whisper.cpp/pull/1058
 
 Sample usage:
 
@@ -577,7 +577,7 @@ https://user-images.githubusercontent.com/1991296/199337538-b7b0c7a3-2753-4a88-a
 
 ## Video comparison of different models
 
-Use the [scripts/bench-wts.sh](https://github.com/ggerganov/whisper.cpp/blob/master/scripts/bench-wts.sh) script to generate a video in the following format:
+Use the [scripts/bench-wts.sh](https://github.com/ggml-org/whisper.cpp/blob/master/scripts/bench-wts.sh) script to generate a video in the following format:
 
 ```bash
 ./scripts/bench-wts.sh samples/jfk.wav
@@ -594,7 +594,7 @@ In order to have an objective comparison of the performance of the inference acr
 use the [whisper-bench](examples/bench) tool. The tool simply runs the Encoder part of the model and prints how much time it
 took to execute it. The results are summarized in the following Github issue:
 
-[Benchmark results](https://github.com/ggerganov/whisper.cpp/issues/89)
+[Benchmark results](https://github.com/ggml-org/whisper.cpp/issues/89)
 
 Additionally a script to run whisper.cpp with different models and audio files is provided [bench.py](scripts/bench.py).
 
@@ -621,25 +621,24 @@ You can download the converted models using the [models/download-ggml-model.sh](
 or manually from here:
 
 - https://huggingface.co/ggerganov/whisper.cpp
-- https://ggml.ggerganov.com
 
 For more details, see the conversion script [models/convert-pt-to-ggml.py](models/convert-pt-to-ggml.py) or [models/README.md](models/README.md).
 
-## [Bindings](https://github.com/ggerganov/whisper.cpp/discussions/categories/bindings)
+## [Bindings](https://github.com/ggml-org/whisper.cpp/discussions/categories/bindings)
 
-- [x] Rust: [tazz4843/whisper-rs](https://github.com/tazz4843/whisper-rs) | [#310](https://github.com/ggerganov/whisper.cpp/discussions/310)
-- [x] JavaScript: [bindings/javascript](bindings/javascript) | [#309](https://github.com/ggerganov/whisper.cpp/discussions/309)
+- [x] Rust: [tazz4843/whisper-rs](https://github.com/tazz4843/whisper-rs) | [#310](https://github.com/ggml-org/whisper.cpp/discussions/310)
+- [x] JavaScript: [bindings/javascript](bindings/javascript) | [#309](https://github.com/ggml-org/whisper.cpp/discussions/309)
   - React Native (iOS / Android): [whisper.rn](https://github.com/mybigday/whisper.rn)
-- [x] Go: [bindings/go](bindings/go) | [#312](https://github.com/ggerganov/whisper.cpp/discussions/312)
+- [x] Go: [bindings/go](bindings/go) | [#312](https://github.com/ggml-org/whisper.cpp/discussions/312)
 - [x] Java:
   - [GiviMAD/whisper-jni](https://github.com/GiviMAD/whisper-jni)
-- [x] Ruby: [bindings/ruby](bindings/ruby) | [#507](https://github.com/ggerganov/whisper.cpp/discussions/507)
-- [x] Objective-C / Swift: [ggerganov/whisper.spm](https://github.com/ggerganov/whisper.spm) | [#313](https://github.com/ggerganov/whisper.cpp/discussions/313)
+- [x] Ruby: [bindings/ruby](bindings/ruby) | [#507](https://github.com/ggml-org/whisper.cpp/discussions/507)
+- [x] Objective-C / Swift: [ggml-org/whisper.spm](https://github.com/ggml-org/whisper.spm) | [#313](https://github.com/ggml-org/whisper.cpp/discussions/313)
   - [exPHAT/SwiftWhisper](https://github.com/exPHAT/SwiftWhisper)
-- [x] .NET: | [#422](https://github.com/ggerganov/whisper.cpp/discussions/422)
+- [x] .NET: | [#422](https://github.com/ggml-org/whisper.cpp/discussions/422)
   - [sandrohanea/whisper.net](https://github.com/sandrohanea/whisper.net)
   - [NickDarvey/whisper](https://github.com/NickDarvey/whisper)
-- [x] Python: | [#9](https://github.com/ggerganov/whisper.cpp/issues/9)
+- [x] Python: | [#9](https://github.com/ggml-org/whisper.cpp/issues/9)
   - [stlukey/whispercpp.py](https://github.com/stlukey/whispercpp.py) (Cython)
   - [AIWintermuteAI/whispercpp](https://github.com/AIWintermuteAI/whispercpp) (Updated fork of aarnphm/whispercpp)
   - [aarnphm/whispercpp](https://github.com/aarnphm/whispercpp) (Pybind11)
@@ -667,7 +666,7 @@ let package = Package(
             ]),
         .binaryTarget(
             name: "WhisperFramework",
-            url: "https://github.com/ggerganov/whisper.cpp/releases/download/v1.7.5/whisper-v1.7.5-xcframework.zip",
+            url: "https://github.com/ggml-org/whisper.cpp/releases/download/v1.7.5/whisper-v1.7.5-xcframework.zip",
             checksum: "c7faeb328620d6012e130f3d705c51a6ea6c995605f2df50f6e1ad68c59c6c4a"
         )
     ]
@@ -692,13 +691,13 @@ Some of the examples are even ported to run in the browser using WebAssembly. Ch
 | [whisper.android](examples/whisper.android)         |                                       | Android mobile application using whisper.cpp                                                                                    |
 | [whisper.nvim](examples/whisper.nvim)               |                                       | Speech-to-text plugin for Neovim                                                                                                |
 | [generate-karaoke.sh](examples/generate-karaoke.sh) |                                       | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture                           |
-| [livestream.sh](examples/livestream.sh)             |                                       | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185)                                           |
+| [livestream.sh](examples/livestream.sh)             |                                       | [Livestream audio transcription](https://github.com/ggml-org/whisper.cpp/issues/185)                                            |
 | [yt-wsp.sh](examples/yt-wsp.sh)                     |                                       | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |
 | [wchess](examples/wchess)                           | [wchess.wasm](examples/wchess)        | Voice-controlled chess                                                                                                          |
 
-## [Discussions](https://github.com/ggerganov/whisper.cpp/discussions)
+## [Discussions](https://github.com/ggml-org/whisper.cpp/discussions)
 
 If you have any kind of feedback about this project feel free to use the Discussions section and open a new topic.
-You can use the [Show and tell](https://github.com/ggerganov/whisper.cpp/discussions/categories/show-and-tell) category
+You can use the [Show and tell](https://github.com/ggml-org/whisper.cpp/discussions/categories/show-and-tell) category
 to share your own projects that use `whisper.cpp`. If you have a question, make sure to check the
-[Frequently asked questions (#126)](https://github.com/ggerganov/whisper.cpp/discussions/126) discussion.
+[Frequently asked questions (#126)](https://github.com/ggml-org/whisper.cpp/discussions/126) discussion.

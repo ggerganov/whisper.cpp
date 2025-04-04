@@ -30,7 +30,7 @@ Link: https://ggerganov.github.io/whisper.cpp/
 
 ```bash (v3.1.2)
 # build using Emscripten
-git clone https://github.com/ggerganov/whisper.cpp
+git clone https://github.com/ggml-org/whisper.cpp
 cd whisper.cpp
 mkdir build-em && cd build-em
 emcmake cmake ..

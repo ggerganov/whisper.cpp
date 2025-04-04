@@ -2,7 +2,7 @@
 #
 # Transcribe audio livestream by feeding ffmpeg output to whisper.cpp at regular intervals
 # Idea by @semiformal-net
-# ref: https://github.com/ggerganov/whisper.cpp/issues/185
+# ref: https://github.com/ggml-org/whisper.cpp/issues/185
 #
 
 set -eo pipefail

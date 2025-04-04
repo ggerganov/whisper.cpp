@@ -5,7 +5,7 @@
 # This simple script is called by Neovim to capture audio from the microphone and transcribe it with Whisper.
 # In order for this to work, you need to clone the whisper.cpp repo and build the 'stream' tool
 #
-#   git clone https://github.com/ggerganov/whisper.cpp
+#   git clone https://github.com/ggml-org/whisper.cpp
 #   cd whisper.cpp
 #   make stream
 #
@@ -31,7 +31,7 @@
 model="base.en"
 
 # export the path to the whisper.cpp repo in the WHISPER_CPP_HOME env variable
-# https://github.com/ggerganov/whisper.cpp
+# https://github.com/ggml-org/whisper.cpp
 cd "${WHISPER_CPP_HOME}"
 
 if [ ! -f ./stream ] ; then

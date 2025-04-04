@@ -24,8 +24,7 @@ You can now use it like this:
 
 `ggml` models are available from the following locations:
 
-- https://huggingface.co/ggerganov/whisper.cpp/tree/main
-- https://ggml.ggerganov.com
+- https://huggingface.co/ggml-org/whisper.cpp/tree/main
 
 ### 3. Convert with [convert-pt-to-ggml.py](convert-pt-to-ggml.py)
 
@@ -78,7 +77,7 @@ OpenAI format. To read the HF models you can use the [convert-h5-to-ggml.py](con
 
 ```bash
 git clone https://github.com/openai/whisper
-git clone https://github.com/ggerganov/whisper.cpp
+git clone https://github.com/ggml-org/whisper.cpp
 
 # clone HF fine-tuned model (this is just an example)
 git clone https://huggingface.co/openai/whisper-medium
@@ -96,7 +95,7 @@ Currently, the chunk-based transcription strategy is not implemented, so there c
 ```bash
 # clone OpenAI whisper and whisper.cpp
 git clone https://github.com/openai/whisper
-git clone https://github.com/ggerganov/whisper.cpp
+git clone https://github.com/ggml-org/whisper.cpp
 
 # get the models
 cd whisper.cpp/models

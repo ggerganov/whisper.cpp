@@ -5529,7 +5529,7 @@ int whisper_full_with_state(
 
     // if length of spectrogram is less than 1.0s (100 frames), then return
     // basically don't process anything that is less than 1.0s
-    // see issue #39: https://github.com/ggerganov/whisper.cpp/issues/39
+    // see issue #39: https://github.com/ggml-org/whisper.cpp/issues/39
     if (seek_end < seek_start + 100) {
         WHISPER_LOG_WARN("%s: input is too short - %d ms < 1000 ms. consider padding the input audio with silence\n", __func__, (seek_end - seek_start)*10);
         return 0;
@@ -6375,7 +6375,7 @@ int whisper_full_with_state(
                 }
             }
 
-            // ref: https://github.com/ggerganov/whisper.cpp/pull/2629
+            // ref: https://github.com/ggml-org/whisper.cpp/pull/2629
             const bool single_timestamp_ending = tokens_cur.size() > 1 &&
                 tokens_cur[tokens_cur.size() - 2].id < whisper_token_beg(ctx) &&
                 tokens_cur[tokens_cur.size() - 1].id > whisper_token_beg(ctx);

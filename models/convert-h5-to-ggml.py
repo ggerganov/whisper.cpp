@@ -3,7 +3,7 @@
 # Usage:
 #
 #   git clone https://github.com/openai/whisper
-#   git clone https://github.com/ggerganov/whisper.cpp
+#   git clone https://github.com/ggml-org/whisper.cpp
 #   git clone https://huggingface.co/openai/whisper-medium
 #
 #   python3 ./whisper.cpp/models/convert-h5-to-ggml.py ./whisper-medium/ ./whisper .
@@ -12,7 +12,7 @@
 #
 # For more info:
 #
-#   https://github.com/ggerganov/whisper.cpp/issues/157
+#   https://github.com/ggml-org/whisper.cpp/issues/157
 #
 
 import io

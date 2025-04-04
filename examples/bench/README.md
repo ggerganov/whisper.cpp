@@ -4,7 +4,7 @@ A very basic tool for benchmarking the inference performance on your device. The
 the transformer on some random audio data and records the execution time. This way we can have an objective comparison
 of the performance of the model for various setups.
 
-Benchmark results are tracked in the following Github issue: https://github.com/ggerganov/whisper.cpp/issues/89
+Benchmark results are tracked in the following Github issue: https://github.com/ggml-org/whisper.cpp/issues/89
 
 ```bash
 # run the bench too on the small.en model using 4 threads
@@ -40,7 +40,7 @@ system_info: n_threads = 4 | AVX2 = 0 | AVX512 = 0 | NEON = 1 | FP16_VA = 1 | WA
 
 If you wish, you can submit these results here:
 
-  https://github.com/ggerganov/whisper.cpp/issues/89
+  https://github.com/ggml-org/whisper.cpp/issues/89
 
 Please include the following information:
 
