@@ -31,10 +31,10 @@ public class Example {
             var whisperParams = whisper.getFullDefaultParams(WhisperSamplingStrategy.WHISPER_SAMPLING_GREEDY);
             // custom configuration if required
             whisperParams.temperature_inc = 0f;
-            
+
             var samples = readAudio(); // divide each value by 32767.0f
             whisper.fullTranscribe(whisperParams, samples);
-            
+
             int segmentCount = whisper.getTextSegmentCount(context);
             for (int i = 0; i < segmentCount; i++) {
                 String text = whisper.getTextSegment(context, i);
@@ -52,7 +52,7 @@ public class Example {
 In order to build, you need to have the JDK 8 or higher installed. Run the tests with:
 
 ```bash
-git clone https://github.com/ggerganov/whisper.cpp.git
+git clone https://github.com/ggml-org/whisper.cpp.git
 cd whisper.cpp/bindings/java
 
 ./gradlew build

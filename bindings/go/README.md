@@ -51,7 +51,7 @@ func main() {
 In order to build, you need to have the Go compiler installed. You can get it from [here](https://golang.org/dl/). Run the tests with:
 
 ```bash
-git clone https://github.com/ggerganov/whisper.cpp.git
+git clone https://github.com/ggml-org/whisper.cpp.git
 cd whisper.cpp/bindings/go
 make test
 ```
@@ -98,7 +98,7 @@ The API Documentation:
 
 Getting help:
 
-  * Follow the discussion for the go bindings [here](https://github.com/ggerganov/whisper.cpp/discussions/312)
+  * Follow the discussion for the go bindings [here](https://github.com/ggml-org/whisper.cpp/discussions/312)
 
 ## License
 

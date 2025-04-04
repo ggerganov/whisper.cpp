@@ -2,7 +2,7 @@
 #
 # Transcribe twitch.tv livestream by feeding audio input to whisper.cpp at regular intervals
 # Thanks to @keyehzy
-# ref: https://github.com/ggerganov/whisper.cpp/issues/209
+# ref: https://github.com/ggml-org/whisper.cpp/issues/209
 #
 # The script currently depends on the third-party tool "streamlink"
 # On Mac OS, you can install it via "brew install streamlink"

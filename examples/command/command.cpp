@@ -3,7 +3,7 @@
 // Speak short text commands to the microphone.
 // This program will detect your voice command and convert them to text.
 //
-// ref: https://github.com/ggerganov/whisper.cpp/issues/171
+// ref: https://github.com/ggml-org/whisper.cpp/issues/171
 //
 
 #include "common-sdl.h"
