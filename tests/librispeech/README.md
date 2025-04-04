@@ -11,7 +11,14 @@ performance of whisper.cpp on LibriSpeech corpus.
 1. (Pre-requirement) Compile `whisper-cli` and prepare the Whisper
    model in `ggml` format.
 
-   - Consult [whisper.cpp/README.md](../../README.md).
+   ```
+   $ # Execute the commands below in the project root dir.
+   $ cmake -B build
+   $ cmake --build build --config Release
+   $ ./models/download-ggml-model.sh tiny
+   ```
+
+   Consult [whisper.cpp/README.md](../../README.md) for more details.
 
 2. Download the audio files from LibriSpeech project.
 
