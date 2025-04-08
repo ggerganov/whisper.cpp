@@ -34,7 +34,7 @@ module Whisper
                when /darwin/
                  Pathname(Dir.home)/"Library/Caches"
                else
-                 ENV.key?("XDG_CACHE_HOME") ? ENV["XDG_CACHE_HOME"] : Pathname(Dir.home)/".cache"
+                 ENV.key?("XDG_CACHE_HOME") ? Pathname(ENV["XDG_CACHE_HOME"]) : Pathname(Dir.home)/".cache"
                end
         base/"whisper.cpp"
       end
