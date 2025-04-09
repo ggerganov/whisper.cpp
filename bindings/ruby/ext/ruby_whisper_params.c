@@ -918,7 +918,7 @@ ruby_whisper_params_initialize(int argc, VALUE *argv, VALUE self)
     return self;
   }
 
-  rb_get_kwargs(kw_hash, &param_names, 0, RUBY_WHISPER_PARAMS_PARAM_NAMES_COUNT, &values);
+  rb_get_kwargs(kw_hash, param_names, 0, RUBY_WHISPER_PARAMS_PARAM_NAMES_COUNT, values);
   Data_Get_Struct(self, ruby_whisper_params, rwp);
 
   for (i = 0; i < RUBY_WHISPER_PARAMS_PARAM_NAMES_COUNT; i++) {
