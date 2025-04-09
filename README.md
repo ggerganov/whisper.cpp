@@ -149,6 +149,7 @@ standard cmake setup with:
 cmake -B build -DGGML_BLAS=1
 cmake --build build --config Release
 ./build/bin/whisper-cli [ .. etc .. ]
+```
 
 ## Quantization
 
