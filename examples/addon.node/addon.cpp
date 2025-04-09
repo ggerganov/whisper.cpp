@@ -368,6 +368,12 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   bool comma_in_time = whisper_params.Get("comma_in_time").As<Napi::Boolean>();
   int32_t max_len = whisper_params.Get("max_len").As<Napi::Number>();
   
+  // Add support for max_context
+  int32_t max_context = -1;
+  if (whisper_params.Has("max_context") && whisper_params.Get("max_context").IsNumber()) {
+    max_context = whisper_params.Get("max_context").As<Napi::Number>();
+  }
+  
   // support prompt
   std::string prompt = "";
   if (whisper_params.Has("prompt") && whisper_params.Get("prompt").IsString()) {
@@ -407,6 +413,7 @@ Napi::Value whisper(const Napi::CallbackInfo& info) {
   params.pcmf32 = pcmf32_vec;
   params.comma_in_time = comma_in_time;
   params.max_len = max_len;
+  params.max_context = max_context;
   params.print_progress = print_progress;
   params.prompt = prompt;
 
