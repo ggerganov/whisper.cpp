@@ -4346,6 +4346,48 @@ const char * whisper_print_system_info(void) {
     return s.c_str();
 }
 
+// whisper_get_system_info_json
+// Returns system info as json, useful for ports
+// NOTE : While testing features->value always returned a numeric so it is currently unquoted
+//        If strings are likely then something slightly more type-aware will be required
+const char * whisper_get_system_info_json(void) {
+    static std::string s;
+
+    whisper_load_backends();
+
+    s  = "{";
+    s += "\"WHISPER\":{";
+    s += "\"COREML\":"    + std::to_string(whisper_has_coreml())     + ",";
+    s += "\"OPENVINO\":"  + std::to_string(whisper_has_openvino())   + "}";
+
+    for (size_t i = 0; i < ggml_backend_reg_count(); i++) {
+        auto * reg = ggml_backend_reg_get(i);
+        auto * get_features_fn = (ggml_backend_get_features_t) ggml_backend_reg_get_proc_address(reg, "ggml_backend_get_features");
+        if (get_features_fn) {
+            ggml_backend_feature * features = get_features_fn(reg);
+            s += ",\"";
+            s += ggml_backend_reg_name(reg);
+            s += "\":{";
+			auto first = true;
+            for (; features->name; features++) {
+				if(first) {
+					first = false;
+				} else {
+					s += ",";
+				}
+                s += "\"";
+                s += features->name;
+                s += "\":";
+                s += features->value;
+            }
+            s += "}";
+        }
+    }
+    s += "}";
+	
+    return s.c_str();
+}
+
 //////////////////////////////////
 // Grammar - ported from llama.cpp
 //////////////////////////////////

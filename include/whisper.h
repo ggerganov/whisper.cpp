@@ -437,6 +437,7 @@ extern "C" {
 
     // Print system information
     WHISPER_API const char * whisper_print_system_info(void);
+	WHISPER_API const char * whisper_get_system_info_json(void);
 
     ////////////////////////////////////////////////////////////////////////////
 
