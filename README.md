@@ -375,6 +375,37 @@ Run the inference examples as usual, for example:
 - If you have trouble with Ascend NPU device, please create a issue with **[CANN]** prefix/tag.
 - If you run successfully with your Ascend NPU device, please help update the table `Verified devices`.
 
+## FFmpeg support (Linux only)
+
+If you want to support more audio formats (such as Opus and AAC), you can turn on the `WHISPER_FFMPEG` build flag to enable FFmpeg integration.
+
+First, you need to install required libraries:
+
+```bash
+# Debian/Ubuntu
+sudo apt install libavcodec-dev libavformat-dev libavutil-dev
+
+# RHEL/Fedora
+sudo dnf install libavcodec-free-devel libavformat-free-devel libavutil-free-devel
+```
+
+Then you can build the project as follows:
+
+```bash
+cmake -B build -D WHISPER_FFMPEG=yes
+cmake --build build
+```
+
+Run the following example to confirm it's working:
+
+```bash
+# Convert an audio file to Opus format
+ffmpeg -i samples/jfk.wav jfk.opus
+
+# Transcribe the audio file
+./build/bin/whisper-cli --model models/ggml-base.en.bin --file jfk.opus
+```
+
 ## Docker
 
 ### Prerequisites
