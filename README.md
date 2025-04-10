@@ -322,6 +322,12 @@ cmake -B build -DGGML_CUDA=1
 cmake --build build -j --config Release
 ```
 
+or for newer NVIDIA GPU's (RTX 5000 series):
+```
+cmake -B build -DGGML_CUDA=1 -DCMAKE_CUDA_ARCHITECTURES="86"
+cmake --build build -j --config Release
+```
+
 ## Vulkan GPU support
 Cross-vendor solution which allows you to accelerate workload on your GPU.
 First, make sure your graphics card driver provides support for Vulkan API.
