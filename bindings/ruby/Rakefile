@@ -3,11 +3,15 @@ require "bundler/gem_tasks"
 require "rake/testtask"
 require_relative "extsources"
 
+SOURCES_DIR = "ext/sources"
+
 SOURCES = FileList[]
 
 EXTSOURCES.each do |src|
   basename = src.pathmap("%f")
-  dest = basename == "LICENSE" ? basename : src.pathmap("%{../..,ext}p")
+  dest = basename == "LICENSE" ? basename
+                               : src.pathmap("%{\\.\\./\\.\\.,#{SOURCES_DIR}}p")
+                                    .pathmap("%{\\.\\./javascript,#{SOURCES_DIR}/bindings/javascript}p")
   dir = dest.pathmap("%d")
   file src
   directory dir
@@ -18,7 +22,6 @@ EXTSOURCES.each do |src|
 end
 
 CLEAN.include SOURCES
-CLEAN.include FileList["ext/**/*.o", "ext/**/*.metal", "ext/**/*.tmp", "ext/whisper.{so,bundle,dll}"]
 
 SRC = FileList["ext/*.{c,cpp,h}"]
 
@@ -35,6 +38,20 @@ file "ext/Makefile" => SRC + ["ext/extconf.rb"] + SOURCES do |t|
   chdir "ext" do
     ruby "extconf.rb"
   end
+end
+if File.exist? "ext/Makefile"
+  task :make_clean do
+    cd "ext" do
+      sh "make", "clean"
+    end
+  end
+  task clean: :make_clean
+  task :make_distclean do
+    cd "ext" do
+      sh "make", "distclean"
+    end
+  end
+  task clobber: :make_distclean
 end
 
 file SO_FILE => "ext/Makefile" do |t|
