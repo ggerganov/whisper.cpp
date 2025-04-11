@@ -5527,11 +5527,13 @@ int whisper_full_with_state(
     const int seek_start = params.offset_ms/10;
     const int seek_end = params.duration_ms == 0 ? whisper_n_len_from_state(state) : seek_start + params.duration_ms/10;
 
-    // if length of spectrogram is less than 1.0s (100 frames), then return
-    // basically don't process anything that is less than 1.0s
-    // see issue #39: https://github.com/ggml-org/whisper.cpp/issues/39
-    if (seek_end < seek_start + 100) {
-        WHISPER_LOG_WARN("%s: input is too short - %d ms < 1000 ms. consider padding the input audio with silence\n", __func__, (seek_end - seek_start)*10);
+    // if length of spectrogram is less than 100ms (10 frames), then return
+    // basically don't process anything that is less than 100ms
+    // ref: https://github.com/ggml-org/whisper.cpp/issues/2065
+    const int delta_min = 10;
+
+    if (seek_end < seek_start + delta_min) {
+        WHISPER_LOG_WARN("%s: input is too short - %d ms < 100 ms. consider padding the input audio with silence\n", __func__, (seek_end - seek_start)*10);
         return 0;
     }
 
@@ -5675,8 +5677,8 @@ int whisper_full_with_state(
                 ctx, state, progress_cur, params.progress_callback_user_data);
         }
 
-        // if only 1 second left, then stop
-        if (seek + 100 >= seek_end) {
+        // if only 100ms left, then stop
+        if (seek + delta_min >= seek_end) {
             break;
         }
 
@@ -6023,10 +6025,10 @@ int whisper_full_with_state(
                         // end of segment
                         if (token.id == whisper_token_eot(ctx) ||               // end of text token
                            (params.max_tokens > 0 && i >= params.max_tokens) || // max tokens per segment reached
-                           (has_ts && seek + seek_delta + 100 >= seek_end)      // end of audio reached
+                           (has_ts && seek + seek_delta + delta_min >= seek_end)       // end of audio reached (100ms)
                            ) {
                             if (result_len == 0 && !params.no_timestamps) {
-                                if (seek + seek_delta + 100 >= seek_end) {
+                                if (seek + seek_delta + delta_min >= seek_end) {
                                     result_len = i + 1;
                                 } else {
                                     WHISPER_LOG_DEBUG("%s: decoder %d failed (result_len = 0)\n", __func__, j);
