@@ -19,7 +19,7 @@ create_makefile "whisper" do |conf|
     $(TARGET_SO): #{libs.join(" ")}
     #{libs.join(" ")}: cmake-targets
     cmake-targets:
-    #{"\t"}#{cmake} -S sources -B build -D BUILD_SHARED_LIBS=OFF -D CMAKE_ARCHIVE_OUTPUT_DIRECTORY=#{__dir__}
+    #{"\t"}#{cmake} -S sources -B build -D BUILD_SHARED_LIBS=OFF -D CMAKE_ARCHIVE_OUTPUT_DIRECTORY=#{__dir__} -D CMAKE_POSITION_INDEPENDENT_CODE=ON
     #{"\t"}#{cmake} --build build --config Release --target common whisper
   EOF
 end
