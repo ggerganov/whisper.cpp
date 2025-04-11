@@ -19,6 +19,12 @@ const whisperParamsMock = {
   no_timestamps: false,
   audio_ctx: 0,
   max_len: 0,
+  prompt: "",
+  print_progress: false,
+  progress_callback: (progress) => {
+    console.log(`Progress: ${progress}`);
+  },
+  max_context: -1
 };
 
 describe("Run whisper.node", () => {
