@@ -4,8 +4,8 @@ require_relative "jfk_reader/jfk_reader"
 
 puts "ls"
 puts `ls`
-puts "cat Makefile"
-puts `cat Makefile`
+puts "cat ext/Makefile"
+puts `cat ext/Makefile`
 puts "nm lib/whisper.so"
 puts `nm lib/whisper.so`
 
