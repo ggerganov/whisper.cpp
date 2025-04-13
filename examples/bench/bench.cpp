@@ -60,6 +60,9 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
 
 static int whisper_bench_full(const whisper_params & params) {
     // whisper init
+    #ifdef GGML_BACKEND_DL
+    whisper_load_backends();
+    #endif
 
     struct whisper_context_params cparams = whisper_context_default_params();
 

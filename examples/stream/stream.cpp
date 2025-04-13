@@ -155,6 +155,10 @@ int main(int argc, char ** argv) {
         exit(0);
     }
 
+    #ifdef GGML_BACKEND_DL
+    whisper_load_backends();
+    #endif
+
     struct whisper_context_params cparams = whisper_context_default_params();
 
     cparams.use_gpu    = params.use_gpu;
