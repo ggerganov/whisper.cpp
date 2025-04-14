@@ -15,7 +15,8 @@ Gem::Specification.new do |s|
                 if s.extra_rdoc_files.include?(basename)
                   basename
                 else
-                  file.sub("../..", "ext")
+                  file.sub("../..", "ext/sources")
+                      .sub("../javascript", "ext/sources/bindings/javascript")
                 end
               }
 

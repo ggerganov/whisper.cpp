@@ -1,55 +1,11 @@
 name: Bindings Tests (Ruby)
+
 on:
   push:
-    paths:
-      - bindings/ruby/**
-      - src/**/*.c
-      - src/**/*.cpp
-      - src/**/*.h
-      - src/**/*.m
-      - src/**/*.metal
-      - include/**/*.c
-      - include/**/*.cpp
-      - include/**/*.h
-      - include/**/*.m
-      - include/**/*.metal
-      - ggml/**/*.c
-      - ggml/**/*.cpp
-      - ggml/**/*.h
-      - ggml/**/*.m
-      - ggml/**/*.metal
-      - scripts/get-flags.mk
-      - examples/common.h
-      - examples/common.cpp
-      - examples/common-whisper.h
-      - examples/common-whisper.cpp
-      - examples/stb_vorbis.c
-      - examples/miniaudio.h
+    branches:
+      - master
   pull_request:
-    paths:
-      - bindings/ruby/**
-      - src/**/*.c
-      - src/**/*.cpp
-      - src/**/*.h
-      - src/**/*.m
-      - src/**/*.metal
-      - include/**/*.c
-      - include/**/*.cpp
-      - include/**/*.h
-      - include/**/*.m
-      - include/**/*.metal
-      - ggml/**/*.c
-      - ggml/**/*.cpp
-      - ggml/**/*.h
-      - ggml/**/*.m
-      - ggml/**/*.metal
-      - scripts/get-flags.mk
-      - examples/common.h
-      - examples/common.cpp
-      - examples/common-whisper.h
-      - examples/common-whisper.cpp
-      - examples/stb_vorbis.c
-      - examples/miniaudio.h
+    types: [opened, synchronize, reopened]
 
 jobs:
   ubuntu-22:
@@ -60,6 +16,6 @@ jobs:
     steps:
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.1'
+          ruby-version: '3.2'
       - uses: actions/checkout@v4
       - run: rake test
