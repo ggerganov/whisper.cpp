@@ -260,7 +260,9 @@ extern "C" {
     WHISPER_API void whisper_free_context_params(struct whisper_context_params * params);
 
 	// Required for GGML_BACKEND_DL
+    #ifdef GGML_BACKEND_DL
 	WHISPER_API void whisper_load_backends();
+    #endif
 	
     // Convert RAW PCM audio to log mel spectrogram.
     // The resulting spectrogram is stored inside the default state of the provided whisper context.
