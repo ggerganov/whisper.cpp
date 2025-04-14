@@ -4,6 +4,8 @@ require "mkmf"
 
 cmake = find_executable("cmake") || abort
 
+have_library("gomp") rescue nil
+
 prefix = File.join("build", "whisper.cpp.dot")
 system cmake, "-S", "sources", "-B", "build", "--graphviz", prefix, "-D", "BUILD_SHARED_LIBS=OFF", exception: true
 libs = Dir["#{prefix}.*"].collect {|file|
