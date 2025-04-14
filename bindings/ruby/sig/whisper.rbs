@@ -23,7 +23,7 @@ module Whisper
   def self.log_set: (log_callback, Object? user_data) -> log_callback
 
   class Context
-    def self.new: (string | _ToPath | ::URI::HTTP) -> instance
+    def self.new: (path | ::URI::HTTP) -> instance
     def transcribe: (string, Params) -> self
                   | (string, Params) { (String) -> void } -> self
     def model_n_vocab: () -> Integer
