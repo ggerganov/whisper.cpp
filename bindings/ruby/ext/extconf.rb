@@ -43,8 +43,6 @@ libs = depends.tsort.filter_map {|node|
  .reverse
  .join(" ")
 
-$CFLAGS << " -std=c11 -fPIC"
-$CXXFLAGS << " -std=c++17 -O3 -DNDEBUG"
 $INCFLAGS << " -Isources/include -Isources/ggml/include -Isources/examples"
 $LOCAL_LIBS << " #{libs}"
 $cleanfiles << " build #{libs}"
