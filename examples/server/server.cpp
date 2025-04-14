@@ -919,6 +919,11 @@ int main(int argc, char ** argv) {
         } else if (params.response_format == vjson_format) {
             /* try to match openai/whisper's Python format */
             std::string results = output_str(ctx, params, pcmf32s);
+            
+            // Get language probabilities
+            std::vector<float> lang_probs(whisper_lang_max_id() + 1, 0.0f);
+            const auto detected_lang_id = whisper_lang_auto_detect(ctx, 0, params.n_threads, lang_probs.data());
+            
             json jres = json{
                 {"task", params.translate ? "translate" : "transcribe"},
                 {"language", whisper_lang_str_full(whisper_full_lang_id(ctx))},
@@ -926,6 +931,22 @@ int main(int argc, char ** argv) {
                 {"text", results},
                 {"segments", json::array()}
             };
+
+            // Always include language detection info
+            json lang_info = json::object();
+            // Include the probability of the detected language
+            lang_info["probability"] = lang_probs[detected_lang_id];
+            
+            // Add all language probabilities
+            json all_lang_probs = json::object();
+            for (int i = 0; i <= whisper_lang_max_id(); ++i) {
+                if (lang_probs[i] > 0.001f) { // Only include non-negligible probabilities
+                    all_lang_probs[whisper_lang_str(i)] = lang_probs[i];
+                }
+            }
+            lang_info["language_probabilities"] = all_lang_probs;
+            jres["language_detection"] = lang_info;
+
             const int n_segments = whisper_full_n_segments(ctx);
             for (int i = 0; i < n_segments; ++i)
             {
