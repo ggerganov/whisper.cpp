@@ -167,7 +167,7 @@ module Whisper
     def type: () -> String
 
     class URI
-      def self.new: (string | ::URI::HTTP) -> self
+      def self.new: (string | ::URI::HTTP) -> instance
       def to_path: -> String
       def clear_cache: -> void
     end
