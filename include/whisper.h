@@ -437,7 +437,6 @@ extern "C" {
 
     // Print system information
     WHISPER_API const char * whisper_print_system_info(void);
-	WHISPER_API const char * whisper_get_system_info_json(void);
 
     ////////////////////////////////////////////////////////////////////////////
 
@@ -669,6 +668,17 @@ extern "C" {
     // Get the no_speech probability for the specified segment
     WHISPER_API float whisper_full_get_segment_no_speech_prob           (struct whisper_context * ctx, int i_segment);
     WHISPER_API float whisper_full_get_segment_no_speech_prob_from_state(struct whisper_state * state, int i_segment);
+
+    // Return System Information formatted as a JSON string
+    WHISPER_API const char * whisper_get_system_info_json(void);
+
+    // Returns whisper_state for a supplied whisper_context pointer
+    WHISPER_API struct whisper_state * whisper_get_state_from_context(struct whisper_context * ctx);
+    
+    // A version of whisper_get_timings that takes state as a parameter
+    WHISPER_API struct whisper_timings * whisper_get_timings_with_state(struct whisper_state * state);
+
+
 #ifdef __cplusplus
 }
 #endif
