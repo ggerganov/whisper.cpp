@@ -1,6 +1,4 @@
 class Options
-  attr_reader :options
-
   def initialize
     @options = {}
     @pending_options = []
