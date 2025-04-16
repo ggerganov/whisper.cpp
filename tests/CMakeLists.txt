@@ -85,3 +85,11 @@ if (WHISPER_FFMPEG)
     set_tests_properties(${TEST_TARGET} PROPERTIES LABELS "tiny;mp3")
 endif()
 
+find_package(Threads REQUIRED)
+
+# WER Unit Test
+add_executable(test-wer test-wer.cpp)
+target_include_directories(test-wer PRIVATE ../examples)
+target_link_libraries(test-wer PRIVATE common ${CMAKE_THREAD_LIBS_INIT})
+add_test(NAME test-wer COMMAND test-wer)
+set_tests_properties(test-wer PROPERTIES LABELS "unit")

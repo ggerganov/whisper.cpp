@@ -56,6 +56,8 @@ add_library(${TARGET} STATIC
     common-whisper.cpp
     grammar-parser.h
     grammar-parser.cpp
+    wer.h
+    wer.cpp
     ${COMMON_SOURCES_FFMPEG}
     )
 
@@ -114,6 +116,7 @@ else()
             add_subdirectory(sycl)
         endif()
     endif (WHISPER_SDL2)
+    add_subdirectory(wer)
 
     add_subdirectory(deprecation-warning)
 endif()
