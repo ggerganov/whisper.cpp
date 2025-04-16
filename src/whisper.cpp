@@ -1313,8 +1313,10 @@ static size_t aheads_masks_nbytes(struct whisper_aheads_masks & aheads_masks) {
 static ggml_backend_t whisper_backend_init_gpu(const whisper_context_params & params) {
     ggml_log_set(g_state.log_callback, g_state.log_callback_user_data);
 
+    #ifndef GGML_BACKEND_DL
     whisper_load_backends();
-
+    #eneif
+    
     ggml_backend_dev_t dev = nullptr;
 
     int cnt = 0;
@@ -4321,7 +4323,9 @@ static int whisper_has_openvino(void) {
 const char * whisper_print_system_info(void) {
     static std::string s;
 
+    #ifndef GGML_BACKEND_DL
     whisper_load_backends();
+    #eneif
 
     s  = "";
     s += "WHISPER : ";
@@ -6776,7 +6780,9 @@ WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads) {
 }
 
 WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads) {
+    #ifndef GGML_BACKEND_DL
     whisper_load_backends();
+    #eneif
 
     static std::string s;
     s = "";
