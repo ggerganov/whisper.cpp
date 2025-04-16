@@ -1,46 +1,11 @@
 require "mkmf"
-require "tsort"
 require_relative "options"
+require_relative "dependencies"
 
 cmake = find_executable("cmake") || abort
 options = Options.new
 have_library("gomp") rescue nil
-
-prefix = File.join("build", "whisper.cpp.dot")
-system cmake, "-S", "sources", "-B", "build", "--graphviz", prefix, "-D", "BUILD_SHARED_LIBS=OFF", options.to_s, exception: true
-
-static_lib_shape = nil
-nodes = {}
-depends = {}
-class << depends
-  include TSort
-  alias tsort_each_node each_key
-  def tsort_each_child(node, &block)
-    fetch(node, []).each(&block)
-  end
-end
-File.open(File.join("build", "whisper.cpp.dot")).each_line do |line|
-  case line
-  when /\[\s*label\s*=\s*"Static Library"\s*,\s*shape\s*=\s*(?<shape>\w+)\s*\]/
-    static_lib_shape = $~[:shape]
-  when /\A\s*"(?<node>\w+)"\s*\[\s*label\s*=\s*"(?<label>\S+)"\s*,\s*shape\s*=\s*(?<shape>\w+)\s*\]\s*;\s*\z/
-    node = $~[:node]
-    label = $~[:label]
-    shape = $~[:shape]
-    nodes[node] = [label, shape]
-  when /\A\s*"(?<depender>\w+)"\s*->\s*"(?<dependee>\w+)"/
-    depender = $~[:depender]
-    dependee = $~[:dependee]
-    depends[depender] ||= []
-    depends[depender] << dependee
-  end
-end
-libs = depends.tsort.filter_map {|node|
-  label, shape = nodes[node]
-  shape == static_lib_shape ? label : nil
-}.collect {|lib| "lib#{lib}.a"}
- .reverse
- .join(" ")
+libs = Dependencies.new(cmake, options)
 
 $INCFLAGS << " -Isources/include -Isources/ggml/include -Isources/examples"
 $LOCAL_LIBS << " #{libs}"
