@@ -346,7 +346,18 @@ bool ggml_backend_offload_op(ggml_backend_t backend, const struct ggml_tensor * 
     return ggml_backend_dev_offload_op(backend->device, op);
 }
 
+void print_error_no_device(void) {
+    fprintf(stderr, "You are attampting to use a null backend.\n");
+    fprintf(stderr, "Please verify the backend is loaded before you try to use one\n");
+    fprintf(stderr, "See bench.cpp / cli.cpp / stream.cpp for example\n");
+}
+
 ggml_backend_dev_t ggml_backend_get_device(ggml_backend_t backend) {
+    #ifdef GGML_BACKEND_DL
+    if (backend == nullptr) {
+        print_error_no_device();
+    }
+    #endif
     return backend->device;
 }
 
@@ -469,6 +480,11 @@ void ggml_backend_dev_get_props(ggml_backend_dev_t device, struct ggml_backend_d
 }
 
 ggml_backend_reg_t ggml_backend_dev_backend_reg(ggml_backend_dev_t device) {
+    #ifdef GGML_BACKEND_DL
+    if (device == nullptr) {
+        print_error_no_device();
+    }
+    #endif
     return device->reg;
 }
 
