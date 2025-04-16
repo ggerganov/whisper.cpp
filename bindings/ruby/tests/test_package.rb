@@ -21,12 +21,9 @@ class TestPackage < TestBase
       match_data = `rake -Tbuild`.match(/(whispercpp-(.+)\.gem)/)
       filename = match_data[1]
       version = match_data[2]
-      basename = "whisper.#{RbConfig::CONFIG["DLEXT"]}"
       Dir.mktmpdir do |dir|
         system "gem", "install", "--install-dir", dir.shellescape, "--no-document", "pkg/#{filename.shellescape}", exception: true
-        assert_path_exist File.join(dir, "gems/whispercpp-#{version}/lib", basename)
-        assert_path_exist File.join(dir, "gems/whispercpp-#{version}/LICENSE")
-        assert_path_not_exist File.join(dir, "gems/whispercpp-#{version}/ext/build")
+        assert_installed dir, version
       end
     end
 
