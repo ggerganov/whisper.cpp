@@ -7604,7 +7604,6 @@ const char * whisper_get_system_info_json(void) {
 // has embedded C++ specific types (e.g. maps and vectors)
 struct whisper_state * whisper_get_state_from_context(struct whisper_context * ctx) {
     if (!ctx->state) {
-        whisper_free(ctx);
         return nullptr;
     }
 
