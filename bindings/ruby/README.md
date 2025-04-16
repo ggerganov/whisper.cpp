@@ -20,6 +20,8 @@ You can pass build options for whisper.cpp, for instance:
 
     $ bundle config build.whispercpp --enable-ggml-cuda
 
+or,
+
     $ gem install whispercpp -- --enable-ggml-cuda
 
 See whisper.cpp's [README](https://github.com/ggml-org/whisper.cpp/blob/master/README.md) for available options. You need convert options present the README to Ruby-style options.  
