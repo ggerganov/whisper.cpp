@@ -1,16 +1,16 @@
 class Options
-  attr_reader :configs
+  attr_reader :options
 
   def initialize
-    @configs = {}
-    @pending_configs = []
-    @ignored_configs = []
+    @options = {}
+    @pending_options = []
+    @ignored_options = []
 
     configure
   end
 
   def help
-    @configs
+    @options
       .collect_concat {|name, (type, value)|
         option = option_name(name)
         if type == :bool
@@ -23,7 +23,7 @@ class Options
   end
 
   def to_s
-    @configs
+    @options
       .reject {|name, (type, value)| value.nil?}
       .collect {|name, (type, value)| "-D #{name}=#{value == true ? "ON" : value == false ? "OFF" : value.shellescape}"}
       .join(" ")
@@ -51,11 +51,11 @@ class Options
 
   def missing_options
     cmake_options.collect {|name, type, value| name} -
-      @configs.keys - @pending_configs - @ignored_configs
+      @options.keys - @pending_options - @ignored_options
   end
 
   def extra_options
-    @configs.keys + @pending_configs - @ignored_configs -
+    @options.keys + @pending_options - @ignored_options -
       cmake_options.collect {|name, type, value| name}
   end
 
@@ -192,14 +192,14 @@ class Options
   def bool(name)
     option = option_name(name)
     value = enable_config(option)
-    @configs[name] = [:bool, value]
+    @options[name] = [:bool, value]
   end
 
   def string(name, type=:string)
     option = "--#{option_name(name)}"
     value = arg_config(option)
     raise "String expected for #{option}" if value == true || value&.empty?
-    @configs[name] = [type, value]
+    @options[name] = [type, value]
   end
 
   def path(name)
@@ -211,10 +211,10 @@ class Options
   end
 
   def pending(name)
-    @pending_configs << name
+    @pending_options << name
   end
 
   def ignored(name)
-    @ignored_configs << name
+    @ignored_options << name
   end
 end
