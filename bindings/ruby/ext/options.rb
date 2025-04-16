@@ -3,6 +3,8 @@ class Options
 
   def initialize
     @configs = {}
+    @pending_configs = []
+    @ignored_configs = []
 
     configure
   end
@@ -25,6 +27,36 @@ class Options
       .reject {|name, (type, value)| value.nil?}
       .collect {|name, (type, value)| "-D #{name}=#{value == true ? "ON" : value == false ? "OFF" : value.shellescape}"}
       .join(" ")
+  end
+
+  def cmake_options
+    return @cmake_options if @cmake_options
+
+    output = nil
+    Dir.chdir __dir__ do
+      output = `cmake -S sources -B build -L`
+    end
+    started = false
+    @cmake_options = output.lines.filter_map {|line|
+      if line.chomp == "-- Cache values"
+        started = true
+        next
+      end
+      next unless started
+      option, value = line.chomp.split("=", 2)
+      name, type = option.split(":", 2)
+      [name, type, value]
+    }
+  end
+
+  def missing_options
+    cmake_options.collect {|name, type, value| name} -
+      @configs.keys - @pending_configs - @ignored_configs
+  end
+
+  def extra_options
+    @configs.keys + @pending_configs - @ignored_configs -
+      cmake_options.collect {|name, type, value| name}
   end
 
   private
@@ -179,8 +211,10 @@ class Options
   end
 
   def pending(name)
+    @pending_configs << name
   end
 
   def ignored(name)
+    @ignored_configs << name
   end
 end
