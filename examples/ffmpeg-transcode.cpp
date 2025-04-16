@@ -249,6 +249,20 @@ static int decode_audio(struct audio_buffer *audio_buf, s16 **data, int *size)
 	/* prepare resampler */
 	swr = swr_alloc();
 
+#if LIBAVCODEC_VERSION_MAJOR > 60
+	AVChannelLayout in_ch_layout = codec->ch_layout;
+	AVChannelLayout out_ch_layout = AV_CHANNEL_LAYOUT_MONO;
+
+	/* Set the source audio layout as-is */
+	av_opt_set_chlayout(swr, "in_chlayout", &in_ch_layout, 0);
+	av_opt_set_int(swr, "in_sample_rate", codec->sample_rate, 0);
+	av_opt_set_sample_fmt(swr, "in_sample_fmt", codec->sample_fmt, 0);
+
+	/* Convert it into 16khz Mono */
+	av_opt_set_chlayout(swr, "out_chlayout", &out_ch_layout, 0);
+	av_opt_set_int(swr, "out_sample_rate", WAVE_SAMPLE_RATE, 0);
+	av_opt_set_sample_fmt(swr, "out_sample_fmt", AV_SAMPLE_FMT_S16, 0);
+#else
 	av_opt_set_int(swr, "in_channel_count", codec->channels, 0);
 	av_opt_set_int(swr, "out_channel_count", 1, 0);
 	av_opt_set_int(swr, "in_channel_layout", codec->channel_layout, 0);
@@ -257,6 +271,7 @@ static int decode_audio(struct audio_buffer *audio_buf, s16 **data, int *size)
 	av_opt_set_int(swr, "out_sample_rate", WAVE_SAMPLE_RATE, 0);
 	av_opt_set_sample_fmt(swr, "in_sample_fmt", codec->sample_fmt, 0);
 	av_opt_set_sample_fmt(swr, "out_sample_fmt", AV_SAMPLE_FMT_S16, 0);
+#endif
 
 	swr_init(swr);
 	if (!swr_is_initialized(swr)) {
