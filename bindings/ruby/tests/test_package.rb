@@ -29,6 +29,14 @@ class TestPackage < TestBase
         assert_path_not_exist File.join(dir, "gems/whispercpp-#{version}/ext/build")
       end
     end
+
+    private
+
+    def assert_installed(dir, version)
+      assert_path_exist File.join(dir, "gems/whispercpp-#{version}/lib", "whisper.#{RbConfig::CONFIG["DLEXT"]}")
+      assert_path_exist File.join(dir, "gems/whispercpp-#{version}/LICENSE")
+      assert_path_not_exist File.join(dir, "gems/whispercpp-#{version}/ext/build")
+    end
   end
 
   def test_build_options
