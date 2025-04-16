@@ -1,14 +1,13 @@
 require "mkmf"
 require "tsort"
-
-# TODO: options such as CoreML
+require_relative "options"
 
 cmake = find_executable("cmake") || abort
-
+options = Options.new
 have_library("gomp") rescue nil
 
 prefix = File.join("build", "whisper.cpp.dot")
-system cmake, "-S", "sources", "-B", "build", "--graphviz", prefix, "-D", "BUILD_SHARED_LIBS=OFF", exception: true
+system cmake, "-S", "sources", "-B", "build", "--graphviz", prefix, "-D", "BUILD_SHARED_LIBS=OFF", options.to_s, exception: true
 
 static_lib_shape = nil
 nodes = {}
@@ -52,7 +51,7 @@ create_makefile "whisper" do |conf|
     $(TARGET_SO): #{libs}
     #{libs}: cmake-targets
     cmake-targets:
-    #{"\t"}#{cmake} -S sources -B build -D BUILD_SHARED_LIBS=OFF -D CMAKE_ARCHIVE_OUTPUT_DIRECTORY=#{__dir__} -D CMAKE_POSITION_INDEPENDENT_CODE=ON
+    #{"\t"}#{cmake} -S sources -B build -D BUILD_SHARED_LIBS=OFF -D CMAKE_ARCHIVE_OUTPUT_DIRECTORY=#{__dir__} -D CMAKE_POSITION_INDEPENDENT_CODE=ON #{options}
     #{"\t"}#{cmake} --build build --config Release --target common whisper
   EOF
 end
