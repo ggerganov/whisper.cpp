@@ -209,12 +209,12 @@ static bool ggml_graph_compute_helper(
 }
 
 static void whisper_load_backends() {
-#ifdef GGML_BACKEND_DL
+    #ifndef GGML_BACKEND_DL
     static std::once_flag flag;
     std::call_once(flag, []() {
         ggml_backend_load_all();
     });
-#endif
+    #endif
 }
 
 // TODO: move these functions to ggml-base with support for ggml-backend?
@@ -1315,7 +1315,7 @@ static ggml_backend_t whisper_backend_init_gpu(const whisper_context_params & pa
 
     #ifndef GGML_BACKEND_DL
     whisper_load_backends();
-    #eneif
+    #endif
     
     ggml_backend_dev_t dev = nullptr;
 
@@ -4325,7 +4325,7 @@ const char * whisper_print_system_info(void) {
 
     #ifndef GGML_BACKEND_DL
     whisper_load_backends();
-    #eneif
+    #endif
 
     s  = "";
     s += "WHISPER : ";
@@ -6782,7 +6782,7 @@ WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads) {
 WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads) {
     #ifndef GGML_BACKEND_DL
     whisper_load_backends();
-    #eneif
+    #endif
 
     static std::string s;
     s = "";

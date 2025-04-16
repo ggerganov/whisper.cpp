@@ -160,7 +160,7 @@ int main(int argc, char ** argv) {
     // Failure to do this will result in attempts to query null devices
     #ifdef GGML_BACKEND_DL
     ggml_backend_load_all();
-    #eneif
+    #endif
 
     struct whisper_context_params cparams = whisper_context_default_params();
 

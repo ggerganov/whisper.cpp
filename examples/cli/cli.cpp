@@ -1007,7 +1007,7 @@ int main(int argc, char ** argv) {
     // Failure to do this will result in attempts to query null devices
     #ifdef GGML_BACKEND_DL
     ggml_backend_load_all();
-    #eneif
+    #endif
 
     // whisper init
 
