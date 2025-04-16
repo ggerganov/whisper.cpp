@@ -61,6 +61,13 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
 static int whisper_bench_full(const whisper_params & params) {
     // whisper init
 
+    // If we're using a GGML_BACKEND_DL build we need to load backends before
+    // the model is initialised in whisper_init_from_file_with_params
+    // Failure to do this will result in attempts to query null devices
+    #ifdef GGML_BACKEND_DL
+    ggml_backend_load_all();
+    #eneif
+
     struct whisper_context_params cparams = whisper_context_default_params();
 
     cparams.use_gpu    = params.use_gpu;
