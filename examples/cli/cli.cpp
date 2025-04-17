@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 #include <cstring>
 
@@ -1066,8 +1067,45 @@ int main(int argc, char ** argv) {
     }
 
     for (int f = 0; f < (int) params.fname_inp.size(); ++f) {
-        const auto fname_inp = params.fname_inp[f];
-		const auto fname_out = f < (int) params.fname_out.size() && !params.fname_out[f].empty() ? params.fname_out[f] : params.fname_inp[f];
+        const auto & fname_inp = params.fname_inp[f];
+        class FnameOutFactory {
+            std::string buf;
+            const size_t basename_length;
+            bool used_stdout;
+
+        public:
+            const bool is_stdout;
+            decltype(whisper_print_segment_callback) * const print_segment_callback;
+
+            FnameOutFactory(const std::string & fname_out, const std::string & fname_inp, whisper_params & params) :
+                    buf{!fname_out.empty() ? fname_out : fname_inp},
+                    basename_length{buf.size()},
+                    is_stdout{buf == "-"}, used_stdout{params.diarize},
+                    print_segment_callback{is_stdout && !used_stdout ? nullptr : whisper_print_segment_callback} {
+                if (!print_segment_callback) {
+                    params.no_timestamps = true;
+                    params.print_progress = false;
+                }
+            }
+
+            const char * create(bool enable, const char * ext) {
+                if (!enable) return nullptr;
+                if (is_stdout) {
+                    if (std::exchange(used_stdout, true)) {
+                        fprintf(stderr, "Not appending multiple file formats to stdout\n");
+                        return nullptr;
+                    }
+#ifdef _WIN32
+                    return "CON";
+#else
+                    return "/dev/stdout";
+#endif
+                }
+                buf.resize(basename_length);
+                buf += ext;
+                return buf.c_str();
+            }
+        } fname_out_factory{f < (int) params.fname_out.size() ? params.fname_out[f] : "", fname_inp, params};
 
         std::vector<float> pcmf32;               // mono-channel F32 PCM
         std::vector<std::vector<float>> pcmf32s; // stereo-channel F32 PCM
@@ -1172,7 +1210,7 @@ int main(int argc, char ** argv) {
 
             // this callback is called on each new segment
             if (!wparams.print_realtime) {
-                wparams.new_segment_callback           = whisper_print_segment_callback;
+                wparams.new_segment_callback           = fname_out_factory.print_segment_callback;
                 wparams.new_segment_callback_user_data = &user_data;
             }
 
@@ -1214,54 +1252,44 @@ int main(int argc, char ** argv) {
 
         // output stuff
         {
-            printf("\n");
-
             // output to text file
-            if (params.output_txt) {
-                const auto fname_txt = fname_out + ".txt";
-                output_txt(ctx, fname_txt.c_str(), params, pcmf32s);
+            if (auto fname_out = fname_out_factory.create(params.output_txt, ".txt")) {
+                output_txt(ctx, fname_out, params, pcmf32s);
             }
 
             // output to VTT file
-            if (params.output_vtt) {
-                const auto fname_vtt = fname_out + ".vtt";
-                output_vtt(ctx, fname_vtt.c_str(), params, pcmf32s);
+            if (auto fname_out = fname_out_factory.create(params.output_vtt, ".vtt")) {
+                output_vtt(ctx, fname_out, params, pcmf32s);
             }
 
             // output to SRT file
-            if (params.output_srt) {
-                const auto fname_srt = fname_out + ".srt";
-                output_srt(ctx, fname_srt.c_str(), params, pcmf32s);
+            if (auto fname_out = fname_out_factory.create(params.output_srt, ".srt")) {
+                output_srt(ctx, fname_out, params, pcmf32s);
             }
 
             // output to WTS file
-            if (params.output_wts) {
-                const auto fname_wts = fname_out + ".wts";
-                output_wts(ctx, fname_wts.c_str(), fname_inp.c_str(), params, float(pcmf32.size() + 1000)/WHISPER_SAMPLE_RATE, pcmf32s);
+            if (auto fname_out = fname_out_factory.create(params.output_wts, ".wts")) {
+                output_wts(ctx, fname_out, fname_inp.c_str(), params, float(pcmf32.size() + 1000)/WHISPER_SAMPLE_RATE, pcmf32s);
             }
 
             // output to CSV file
-            if (params.output_csv) {
-                const auto fname_csv = fname_out + ".csv";
-                output_csv(ctx, fname_csv.c_str(), params, pcmf32s);
+            if (auto fname_out = fname_out_factory.create(params.output_csv, ".csv")) {
+                output_csv(ctx, fname_out, params, pcmf32s);
             }
 
             // output to JSON file
-            if (params.output_jsn) {
-                const auto fname_jsn = fname_out + ".json";
-                output_json(ctx, fname_jsn.c_str(), params, pcmf32s, params.output_jsn_full);
+            if (auto fname_out = fname_out_factory.create(params.output_jsn, ".json")) {
+                output_json(ctx, fname_out, params, pcmf32s, params.output_jsn_full);
             }
 
             // output to LRC file
-            if (params.output_lrc) {
-                const auto fname_lrc = fname_out + ".lrc";
-                output_lrc(ctx, fname_lrc.c_str(), params, pcmf32s);
+            if (auto fname_out = fname_out_factory.create(params.output_lrc, ".lrc")) {
+                output_lrc(ctx, fname_out, params, pcmf32s);
             }
 
             // output to score file
-            if (params.log_score) {
-                const auto fname_score = fname_out + ".score.txt";
-                output_score(ctx, fname_score.c_str(), params, pcmf32s);
+            if (auto fname_out = fname_out_factory.create(params.log_score, ".score.txt")) {
+                output_score(ctx, fname_out, params, pcmf32s);
             }
         }
     }
