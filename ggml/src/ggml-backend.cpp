@@ -353,7 +353,7 @@ void print_error_no_device(void) {
 }
 
 ggml_backend_dev_t ggml_backend_get_device(ggml_backend_t backend) {
-    #ifdef WHISPER_BACKEND_DL
+    #ifdef GGML_BACKEND_DL
     if (backend == nullptr) {
         print_error_no_device();
     }
@@ -480,7 +480,7 @@ void ggml_backend_dev_get_props(ggml_backend_dev_t device, struct ggml_backend_d
 }
 
 ggml_backend_reg_t ggml_backend_dev_backend_reg(ggml_backend_dev_t device) {
-    #ifdef WHISPER_BACKEND_DL
+    #ifdef GGML_BACKEND_DL
     if (device == nullptr) {
         print_error_no_device();
     }
