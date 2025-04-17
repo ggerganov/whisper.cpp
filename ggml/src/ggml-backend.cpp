@@ -1471,7 +1471,9 @@ ggml_backend_sched_t ggml_backend_sched_new(
         bool parallel) {
     GGML_ASSERT(n_backends > 0);
     GGML_ASSERT(n_backends <= GGML_SCHED_MAX_BACKENDS);
+#ifndef GGML_BACKEND_DL // What's wrong with a GPU here ?
     GGML_ASSERT(ggml_backend_dev_type(ggml_backend_get_device(backends[n_backends - 1])) == GGML_BACKEND_DEVICE_TYPE_CPU);
+#endif
 
     struct ggml_backend_sched * sched = (ggml_backend_sched *) calloc(1, sizeof(struct ggml_backend_sched));
 

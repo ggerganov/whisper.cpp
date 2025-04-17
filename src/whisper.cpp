@@ -1361,6 +1361,10 @@ static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_pa
 
     ggml_backend_t backend_cpu = ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr);
     if (backend_cpu == nullptr) {
+        #ifdef GGML_BACKEND_DL
+        // If not using a load_all it is possible CPU is null
+        return result;
+        #endif  
         throw std::runtime_error("failed to initialize CPU backend");
     }
     result.push_back(backend_cpu);
@@ -1396,6 +1400,12 @@ static buft_list_t make_buft_list(whisper_context_params & params) {
 
     // CPU Extra
     auto * cpu_dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+    #ifdef GGML_BACKEND_DL
+    // If not using a load_all it is possible CPU is null
+    if(cpu_dev == nullptr) {
+        return buft_list;
+    }
+    #endif
     auto * cpu_reg = ggml_backend_dev_backend_reg(cpu_dev);
     auto get_extra_bufts_fn = (ggml_backend_dev_get_extra_bufts_t)
         ggml_backend_reg_get_proc_address(cpu_reg, "ggml_backend_dev_get_extra_bufts");
