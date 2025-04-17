@@ -346,18 +346,7 @@ bool ggml_backend_offload_op(ggml_backend_t backend, const struct ggml_tensor * 
     return ggml_backend_dev_offload_op(backend->device, op);
 }
 
-void print_error_no_device(void) {
-    fprintf(stderr, "You are attampting to use a null backend.\n");
-    fprintf(stderr, "Please verify the backend is loaded before you try to use one\n");
-    fprintf(stderr, "See bench.cpp / cli.cpp / stream.cpp for example\n");
-}
-
 ggml_backend_dev_t ggml_backend_get_device(ggml_backend_t backend) {
-    #ifdef GGML_BACKEND_DL
-    if (backend == nullptr) {
-        print_error_no_device();
-    }
-    #endif
     return backend->device;
 }
 
@@ -480,11 +469,6 @@ void ggml_backend_dev_get_props(ggml_backend_dev_t device, struct ggml_backend_d
 }
 
 ggml_backend_reg_t ggml_backend_dev_backend_reg(ggml_backend_dev_t device) {
-    #ifdef GGML_BACKEND_DL
-    if (device == nullptr) {
-        print_error_no_device();
-    }
-    #endif
     return device->reg;
 }
 
@@ -1471,9 +1455,7 @@ ggml_backend_sched_t ggml_backend_sched_new(
         bool parallel) {
     GGML_ASSERT(n_backends > 0);
     GGML_ASSERT(n_backends <= GGML_SCHED_MAX_BACKENDS);
-#ifndef GGML_BACKEND_DL // What's wrong with a GPU here ?
     GGML_ASSERT(ggml_backend_dev_type(ggml_backend_get_device(backends[n_backends - 1])) == GGML_BACKEND_DEVICE_TYPE_CPU);
-#endif
 
     struct ggml_backend_sched * sched = (ggml_backend_sched *) calloc(1, sizeof(struct ggml_backend_sched));
 
