@@ -1006,7 +1006,7 @@ int main(int argc, char ** argv) {
     // the model is initialised in whisper_init_from_file_with_params
     // Failure to do this will result in attempts to query null devices
     #ifdef GGML_BACKEND_DL
-    ggml_backend_load_all();
+    whisper_backend_load_all();
     #endif
 
     // whisper init

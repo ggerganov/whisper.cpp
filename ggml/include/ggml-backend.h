@@ -349,7 +349,7 @@ extern "C" {
     GGML_API ggml_backend_buffer_t      ggml_backend_cpu_buffer_from_ptr(void * ptr, size_t size);
     GGML_API ggml_backend_buffer_type_t ggml_backend_cpu_buffer_type(void);
     
-    // Temp fix now
+    // Expose ggml_backend_load_best for external use
     GGML_API ggml_backend_reg_t ggml_backend_load_best(const char * name, bool silent, const char * user_search_path);
 
 #ifdef  __cplusplus

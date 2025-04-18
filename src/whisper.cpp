@@ -7545,3 +7545,9 @@ static void whisper_log_callback_default(ggml_log_level level, const char * text
     fputs(text, stderr);
     fflush(stderr);
 }
+
+#ifdef GGML_BACKEND_DL
+static void whisper_backend_load_all(void) {
+    ggml_backend_load_all();
+}
+#endif

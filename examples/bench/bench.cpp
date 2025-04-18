@@ -11,9 +11,6 @@ struct whisper_params {
     int32_t what = 0; // what to benchmark: 0 - whisper encoder, 1 - memcpy, 2 - ggml_mul_mat
 
     std::string model = "models/ggml-base.en.bin";
-    #ifdef GGML_BACKEND_DL
-    std::string device = "";
-    #endif
 
     bool use_gpu    = true;
     bool flash_attn = false;
@@ -31,9 +28,6 @@ static bool whisper_params_parse(int argc, char ** argv, whisper_params & params
         }
         else if (arg == "-t"  || arg == "--threads")    { params.n_threads  = std::stoi(argv[++i]); }
         else if (arg == "-m"  || arg == "--model")      { params.model      = argv[++i]; }
-        #ifdef GGML_BACKEND_DL
-        else if (arg == "-d"  || arg == "--device")     { params.device     = argv[++i]; }
-        #endif
         else if (arg == "-w"  || arg == "--what")       { params.what       = atoi(argv[++i]); }
         else if (arg == "-ng" || arg == "--no-gpu")     { params.use_gpu    = false; }
         else if (arg == "-fa" || arg == "--flash-attn") { params.flash_attn = true; }
@@ -55,12 +49,6 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "  -h,       --help           [default] show this help message and exit\n");
     fprintf(stderr, "  -t N,     --threads N      [%-7d] number of threads to use during computation\n", params.n_threads);
     fprintf(stderr, "  -m FNAME, --model FNAME    [%-7s] model path\n",                                  params.model.c_str());
-    #ifdef GGML_BACKEND_DL
-    fprintf(stderr, "  -d DEVICE, --device DEVICE [%-7s] device type\n"                                , params.device.c_str());
-    fprintf(stderr, "                              valid devices : blas, cann, cpu, cuda, hip, kompute,\n");
-    fprintf(stderr, "                                              musa, opencl, rpc, sycl and vulkan\n");
-    fprintf(stderr, "                                              Optional libraries must be supplied\n");
-    #endif
     fprintf(stderr, "  -w N,     --what N         [%-7d] what to benchmark:\n",                          params.what);
     fprintf(stderr, "                              %-7s  0 - whisper\n",                                 "");
     fprintf(stderr, "                              %-7s  1 - memcpy\n",                                  "");
@@ -77,28 +65,12 @@ static int whisper_bench_full(const whisper_params & params) {
     // the model is initialised in whisper_init_from_file_with_params
     // Failure to do this will result in attempts to query null devices
     #ifdef GGML_BACKEND_DL
-    // If params.device is "" then load all devices otherwise just load named 
-    // device (and hope they got it right). Really should check against valid 
-    // device names
-    if (params.device.empty()) {
-        ggml_backend_load_all();
-    } else {
-        if(ggml_backend_load_best(params.device.c_str(), true, nullptr) == nullptr) {
-            fprintf(stderr, "error: could not load device %s\n", params.device.c_str());
-            return 5;
-        }
-        ggml_backend_load_best("cpu", true, nullptr);
-    }
+    whisper_backend_load_all();
     #endif
 
     struct whisper_context_params cparams = whisper_context_default_params();
 
-    #ifdef GGML_BACKEND_DL
-    // Always allow GPU if GGML_BACKEND_DL as it can be overriden or only choice
-    cparams.use_gpu    = true;
-    #else
     cparams.use_gpu    = params.use_gpu;
-    #endif
     cparams.flash_attn = params.flash_attn;
 
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
