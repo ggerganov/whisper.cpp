@@ -87,6 +87,7 @@ static int whisper_bench_full(const whisper_params & params) {
             fprintf(stderr, "error: could not load device %s\n", params.device.c_str());
             return 5;
         }
+        ggml_backend_load_best("cpu", true, nullptr);
     }
     #endif
 

@@ -7,10 +7,12 @@
 #include "whisper.h"
 #include "llama.h"
 
+#include <iostream>
+#include <iomanip>
+#include <ctime>
 #include <chrono>
 #include <cstdio>
 #include <fstream>
-#include <regex>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -33,6 +35,15 @@ static std::vector<llama_token> llama_tokenize(struct llama_context * ctx, const
         result.resize(n_tokens);
     }
     return result;
+}
+
+static std::string llama_time_now(void) {
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%H:%M:%S");
+    return oss.str(); 
 }
 
 static std::string llama_token_to_piece(const struct llama_context * ctx, llama_token token) {
@@ -285,6 +296,13 @@ int main(int argc, char ** argv) {
         exit(0);
     }
 
+    // If we're using a GGML_BACKEND_DL build we need to load backends before
+    // the model is initialised in whisper_init_from_file_with_params
+    // Failure to do this will result in attempts to query null devices
+    #ifdef GGML_BACKEND_DL
+    ggml_backend_load_all();
+    #endif
+
     // whisper init
 
     struct whisper_context_params cparams = whisper_context_default_params();
@@ -524,7 +542,7 @@ int main(int argc, char ** argv) {
     }
 
     printf("\n");
-    printf("%s%s", params.person.c_str(), chat_symb.c_str());
+    printf("%s[%s]%s", params.person.c_str(), llama_time_now().c_str(), chat_symb.c_str());
     fflush(stdout);
 
     // clear audio buffer
@@ -636,7 +654,7 @@ int main(int argc, char ** argv) {
                 force_speak = false;
 
                 text_heard.insert(0, 1, ' ');
-                text_heard += "\n" + params.bot_name + chat_symb;
+                text_heard += "\n" + params.bot_name + "[" + llama_time_now().c_str() + "]" + chat_symb;
                 fprintf(stdout, "%s%s%s", "\033[1m", text_heard.c_str(), "\033[0m");
                 fflush(stdout);
 
