@@ -46,20 +46,27 @@ void whisper_print_usage(int /*argc*/, char ** argv, const whisper_params & para
     fprintf(stderr, "usage: %s [options]\n", argv[0]);
     fprintf(stderr, "\n");
     fprintf(stderr, "options:\n");
-    fprintf(stderr, "  -h,       --help        [default] show this help message and exit\n");
-    fprintf(stderr, "  -t N,     --threads N   [%-7d] number of threads to use during computation\n", params.n_threads);
-    fprintf(stderr, "  -m FNAME, --model FNAME [%-7s] model path\n",                                  params.model.c_str());
-    fprintf(stderr, "  -w N,     --what N      [%-7d] what to benchmark:\n",                          params.what);
-    fprintf(stderr, "                           %-7s  0 - whisper\n",                                 "");
-    fprintf(stderr, "                           %-7s  1 - memcpy\n",                                  "");
-    fprintf(stderr, "                           %-7s  2 - ggml_mul_mat\n",                            "");
-    fprintf(stderr, "  -ng,      --no-gpu      [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
-    fprintf(stderr, "  -fa,      --flash-attn  [%-7s] enable flash attention\n",                      params.flash_attn ? "true" : "false");
+    fprintf(stderr, "  -h,       --help           [default] show this help message and exit\n");
+    fprintf(stderr, "  -t N,     --threads N      [%-7d] number of threads to use during computation\n", params.n_threads);
+    fprintf(stderr, "  -m FNAME, --model FNAME    [%-7s] model path\n",                                  params.model.c_str());
+    fprintf(stderr, "  -w N,     --what N         [%-7d] what to benchmark:\n",                          params.what);
+    fprintf(stderr, "                              %-7s  0 - whisper\n",                                 "");
+    fprintf(stderr, "                              %-7s  1 - memcpy\n",                                  "");
+    fprintf(stderr, "                              %-7s  2 - ggml_mul_mat\n",                            "");
+    fprintf(stderr, "  -ng,      --no-gpu         [%-7s] disable GPU\n",                                 params.use_gpu ? "false" : "true");
+    fprintf(stderr, "  -fa,      --flash-attn     [%-7s] enable flash attention\n",                      params.flash_attn ? "true" : "false");
     fprintf(stderr, "\n");
 }
 
 static int whisper_bench_full(const whisper_params & params) {
     // whisper init
+
+    // If we're using a GGML_BACKEND_DL build we need to load backends before
+    // the model is initialised in whisper_init_from_file_with_params
+    // Failure to do this will result in attempts to query null devices
+    #ifdef GGML_BACKEND_DL
+    whisper_backend_load_all();
+    #endif
 
     struct whisper_context_params cparams = whisper_context_default_params();
 

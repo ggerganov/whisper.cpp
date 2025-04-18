@@ -208,15 +208,6 @@ static bool ggml_graph_compute_helper(
     return t;
 }
 
-static void whisper_load_backends() {
-#ifdef GGML_BACKEND_DL
-    static std::once_flag flag;
-    std::call_once(flag, []() {
-        ggml_backend_load_all();
-    });
-#endif
-}
-
 // TODO: move these functions to ggml-base with support for ggml-backend?
 
 static ggml_tensor * whisper_set_f32(struct ggml_tensor * t, float v) {
@@ -1313,8 +1304,6 @@ static size_t aheads_masks_nbytes(struct whisper_aheads_masks & aheads_masks) {
 static ggml_backend_t whisper_backend_init_gpu(const whisper_context_params & params) {
     ggml_log_set(g_state.log_callback, g_state.log_callback_user_data);
 
-    whisper_load_backends();
-
     ggml_backend_dev_t dev = nullptr;
 
     int cnt = 0;
@@ -1372,6 +1361,10 @@ static std::vector<ggml_backend_t> whisper_backend_init(const whisper_context_pa
 
     ggml_backend_t backend_cpu = ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr);
     if (backend_cpu == nullptr) {
+        #ifdef GGML_BACKEND_DL
+        // If not using a load_all it is possible CPU is null
+        return result;
+        #endif  
         throw std::runtime_error("failed to initialize CPU backend");
     }
     result.push_back(backend_cpu);
@@ -1407,6 +1400,12 @@ static buft_list_t make_buft_list(whisper_context_params & params) {
 
     // CPU Extra
     auto * cpu_dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+    #ifdef GGML_BACKEND_DL
+    // If not using a load_all it is possible CPU is null
+    if(cpu_dev == nullptr) {
+        return buft_list;
+    }
+    #endif
     auto * cpu_reg = ggml_backend_dev_backend_reg(cpu_dev);
     auto get_extra_bufts_fn = (ggml_backend_dev_get_extra_bufts_t)
         ggml_backend_reg_get_proc_address(cpu_reg, "ggml_backend_dev_get_extra_bufts");
@@ -4321,8 +4320,6 @@ static int whisper_has_openvino(void) {
 const char * whisper_print_system_info(void) {
     static std::string s;
 
-    whisper_load_backends();
-
     s  = "";
     s += "WHISPER : ";
     s += "COREML = "    + std::to_string(whisper_has_coreml())     + " | ";
@@ -6776,8 +6773,6 @@ WHISPER_API int whisper_bench_ggml_mul_mat(int n_threads) {
 }
 
 WHISPER_API const char * whisper_bench_ggml_mul_mat_str(int n_threads) {
-    whisper_load_backends();
-
     static std::string s;
     s = "";
     char strbuf[256];
@@ -7550,3 +7545,9 @@ static void whisper_log_callback_default(ggml_log_level level, const char * text
     fputs(text, stderr);
     fflush(stderr);
 }
+
+#ifdef GGML_BACKEND_DL
+void whisper_backend_load_all(void) {
+    ggml_backend_load_all();
+}
+#endif

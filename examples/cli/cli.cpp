@@ -1002,6 +1002,13 @@ int main(int argc, char ** argv) {
         whisper_log_set(cb_log_disable, NULL);
     }
 
+    // If we're using a GGML_BACKEND_DL build we need to load backends before
+    // the model is initialised in whisper_init_from_file_with_params
+    // Failure to do this will result in attempts to query null devices
+    #ifdef GGML_BACKEND_DL
+    whisper_backend_load_all();
+    #endif
+
     // whisper init
 
     struct whisper_context_params cparams = whisper_context_default_params();
