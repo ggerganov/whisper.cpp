@@ -66,7 +66,7 @@ jobs:
       - name: install oneAPI MKL library
         shell: bash
         run: |
-          sudo apt install intel-oneapi-mkl-devel
+          sudo apt install intel-oneapi-mkl-devel intel-oneapi-dnnl intel-oneapi-dnnl-devel
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.21
@@ -125,7 +125,7 @@ jobs:
       - name: install oneAPI MKL library
         shell: bash
         run: |
-          sudo apt install intel-oneapi-mkl-devel
+          sudo apt install intel-oneapi-mkl-devel intel-oneapi-dnnl intel-oneapi-dnnl-devel
 
       - name: ccache
         uses: ggml-org/ccache-action@v1.2.21
