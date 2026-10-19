@@ -64,3 +64,27 @@ options:
   --grammar-rule RULE            [       ] top-level GBNF grammar rule name
   --grammar-penalty N            [100.0  ] scales down logits of nongrammar tokens
 ```
+
+## Using `--prompt` effectively
+
+`--prompt` gives the model a hint about the audio: domain terms, names, spellings
+or punctuation you want to see. It works as *previously transcribed text* that is
+prepended as conditioning context — the model is biased toward continuing in the
+same style, it is not a search-and-replace. Two things to know:
+
+- **The hint decays.** By default the prompt conditions the first window
+  (~30 seconds) and is then pushed out of the rolling context by the transcript
+  itself, so its influence fades over longer files. Pass
+  `--carry-initial-prompt` to re-apply the prompt to every window:
+
+  ```sh
+  ./build/bin/whisper-cli -m ./models/ggml-base.bin -f input.wav \
+      --prompt "Rec.709, 4:2:2, AtomOS, Ninja" --carry-initial-prompt
+  ```
+
+- **The prompt is capped** at half the text context (`n_text_ctx/2` tokens);
+  longer prompts are truncated to their last tokens.
+
+Expect strong bias rather than guarantees: common stylings ("Rec.709" instead of
+"REC, 709") improve the most; rare tokens the model has never seen may still need
+post-processing. For hard constraints, post-process the output instead.
