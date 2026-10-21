@@ -10,7 +10,8 @@ FROM ${BASE_MUSA_DEV_CONTAINER} AS build
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y build-essential libsdl2-dev wget cmake git && \
+    apt-get install -y build-essential libsdl2-dev wget cmake git \
+    musa-mualg-5-2 musa-muthrust-5-2 libmthreads-compute && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/* /var/tmp/*
 
@@ -28,7 +29,7 @@ FROM ${BASE_MUSA_RUN_CONTAINER} AS runtime
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y curl ffmpeg wget cmake git && \
+    apt-get install -y curl ffmpeg wget cmake git libmthreads-compute && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/* /var/tmp/*
 
