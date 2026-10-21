@@ -97,6 +97,7 @@ int main() {
 
         assert(whisper_full_parallel(wctx, wparams,       pcmf32.data(), pcmf32.size(), 1)          == 0);
         assert(whisper_full_parallel(wctx, wparams_novad, pcmf32.data(), pcmf32.size(), processors) == 0);
+        assert(whisper_full_n_vad_segments(wctx) == 0);
 
         const int n_segments_ref = whisper_full_n_segments(wctx_ref);
         assert(n_segments_ref > 0);
